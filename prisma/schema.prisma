@@ -1,0 +1,840 @@
+// =============================================================================
+// BARQ — Prisma Schema
+// =============================================================================
+// Generated directly from docs/02-domain-architecture/PRISMA_SCHEMA.md.
+// No entities invented. No fields invented. No relationships changed.
+// No enums changed. No indexes changed beyond what that document specifies.
+//
+// Governing documents (not restated, only implemented):
+//   - DOMAIN_MODEL.md            — entities, relationships, invariants
+//   - DATABASE_DESIGN.md §5      — ownership, audit, localization, soft-delete
+//   - PRISMA_SCHEMA.md           — the direct source for every model below
+//   - ADR-0006-database-baseline.md — UUID v7, UTC time, Decimal money,
+//                                     Amount/Currency pairs
+//   - ADR-0005-bilingual-architecture.md — bilingual content strategy
+//   - ADR-0008-ai-agent-boundaries.md    — AI Agent has no entity-level FK
+//
+// IMPLEMENTATION NOTES (gaps in prior documentation, resolved here for the
+// first time — flagged in the accompanying report, not silently decided):
+//
+//   1. UUID v7 generation: no prior document specified the generation
+//      mechanism. Resolved here using Prisma's native `@default(uuid(7))`
+//      generator. This depends on the installed Prisma version supporting
+//      it — NOT verified in this environment (no network access to install
+//      and run `npx prisma validate`). Verify before Migration 001.
+//
+//   2. Bilingual field storage: PRISMA_SCHEMA.md §8 and DATABASE_DESIGN.md
+//      §20 both left the translation storage mechanism open. Resolved here
+//      as a `Json` locale map (e.g. `{ "ar": "...", "en": "..." }`) rather
+//      than locale-suffixed columns (e.g. nameAr/nameEn), specifically
+//      because ADR-0005 requirement 9 mandates that adding a future
+//      language never require a schema change — a Json locale map satisfies
+//      that; paired columns would violate it. This is the first concrete
+//      resolution of that open item, made here because real code requires
+//      a concrete type where documentation could remain abstract.
+//
+//   3. Polymorphic "causing event" references (WalletTransaction, 
+//      Notification) and SupportTicket's "financial resolution" reference:
+//      PRISMA_SCHEMA.md §16 flagged the mechanism as undecided. Resolved
+//      here as nullable, typed foreign keys per plausible cause (not a
+//      generic (type, id) pair), since Prisma has no native polymorphic
+//      relation type and typed nullable FKs is the idiomatic alternative.
+//
+//   4. WalletTransactionCause enum: PRISMA_SCHEMA.md gave illustrative
+//      examples only ("e.g. Commission deduction, Payout"), not an
+//      exhaustive list. The enum below is a provisional, reasonable
+//      starting set — flagged as needing real business confirmation before
+//      Migration 001, not an authoritative, complete list.
+//
+//   5. Rating numeric range: never stated anywhere. Modeled as Int with an
+//      application-level assumed range of 1–5 — flagged as provisional.
+//
+//   6. Staff role assignment: modeled as a native Postgres array of the
+//      StaffRole enum (`StaffRole[]`), since IDENTITY_AND_ACCESS.md §3
+//      explicitly allows one Staff member to hold multiple roles, and a
+//      Postgres array avoids an unnecessary join table for a small,
+//      bounded enum set.
+//
+//   7. User role exclusivity: DOMAIN_MODEL.md's own Open Question #1 (can
+//      one User hold multiple roles simultaneously?) was never resolved by
+//      any subsequent document. This schema does NOT resolve it either —
+//      Customer, Staff, and Admin are modeled as independent, optional
+//      one-to-one relations to User, which is compatible with either a
+//      "one role only" or "multiple roles allowed" answer. This remains an
+//      open business question, not a schema limitation.
+//
+//   8. Booking's and Review's denormalized Provider reference: included,
+//      per PRISMA_SCHEMA.md's own "likely necessary for query convenience"
+//      reasoning — flagged there as needing confirmation against real
+//      query patterns, not as a settled requirement.
+// =============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =============================================================================
+// ENUMS — PRISMA_SCHEMA.md §6
+// =============================================================================
+
+enum UserStatus {
+  CREATED
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum ProviderStatus {
+  APPLIED
+  UNDER_REVIEW
+  APPROVED
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum DriverStatus {
+  REGISTERED
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum GuideStatus {
+  REGISTERED
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum AssetStatus {
+  REGISTERED
+  VERIFIED
+  ACTIVE
+  UNDER_MAINTENANCE
+  DEACTIVATED
+}
+
+/// Deliberately open to future values beyond VEHICLE — per Asset's
+/// documented generality in DOMAIN_MODEL.md.
+enum AssetType {
+  VEHICLE
+}
+
+enum ServiceStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum BookingStatus {
+  CREATED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum JourneyStatus {
+  NOT_STARTED
+  STARTED
+  IN_PROGRESS
+  COMPLETED
+  INTERRUPTED
+}
+
+enum RouteStatus {
+  PLANNED
+  RECORDING
+  FINALIZED
+}
+
+enum AvailabilitySlotState {
+  OPEN
+  BOOKED
+  BLOCKED
+}
+
+enum PriceStatus {
+  ACTIVE
+  SUPERSEDED
+}
+
+enum CommissionStatus {
+  ACTIVE
+  SUPERSEDED
+}
+
+/// The three defined commission rates — GLOSSARY.md term 19.
+enum CommissionTier {
+  TIER_12
+  TIER_10
+  TIER_8
+}
+
+enum WalletTransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+/// PROVISIONAL — PRISMA_SCHEMA.md gave illustrative examples only, not an
+/// exhaustive list. Confirm against real business need before Migration 001.
+enum WalletTransactionCause {
+  COMMISSION_DEDUCTION
+  PAYOUT
+  REFUND_ADJUSTMENT
+  PAYMENT_CREDIT
+  MANUAL_ADJUSTMENT
+}
+
+enum PaymentStatus {
+  INITIATED
+  CAPTURED
+  REFUNDED_PARTIAL
+  REFUNDED_FULL
+  FAILED
+}
+
+enum InvoiceStatus {
+  GENERATED
+  ISSUED
+  SUPERSEDED_BY_CREDIT_NOTE
+}
+
+enum ContractStatus {
+  DRAFTED
+  SENT
+  SIGNED
+  ACTIVE
+  SUPERSEDED
+  TERMINATED
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  COMPOSED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+/// Structural placeholder only — the actual moderation policy governing
+/// transitions between these states is undefined (DOMAIN_MODEL.md Open
+/// Question #3, DATABASE_DESIGN.md §20 Open Decision #5).
+enum ReviewModerationState {
+  PUBLISHED
+  FLAGGED
+  REMOVED
+}
+
+enum SupportTicketStatus {
+  OPENED
+  IN_PROGRESS
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum StaffRole {
+  OPERATIONS
+  SUPPORT
+  FINANCE
+}
+
+enum StaffStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+enum AdminStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+enum AIAgentStatus {
+  DEFINED
+  DEPLOYED
+  SUSPENDED
+  RETIRED
+}
+
+// =============================================================================
+// IDENTITY CONTEXT — DOMAIN_MODEL.md §1
+// =============================================================================
+
+/// Base identity record. See implementation note 7 above regarding the
+/// unresolved role-exclusivity question.
+model User {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  phoneNumber String     @unique
+  status      UserStatus @default(CREATED)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+
+  customer      Customer?
+  providerLink  Provider?
+  staff         Staff?
+  admin         Admin?
+  notifications Notification[]
+
+  @@map("users")
+}
+
+// =============================================================================
+// CUSTOMER CONTEXT
+// =============================================================================
+
+model Customer {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  userId             String   @unique @db.Uuid
+  user               User     @relation(fields: [userId], references: [id])
+  preferences        Json?
+  languagePreference String? // defaults to platform default (Arabic) if unset, per LOCALIZATION.md §3
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  bookings       Booking[]
+  reviews        Review[]
+  wallet         Wallet?
+  contracts      Contract[]
+  supportTickets SupportTicket[]
+
+  @@map("customers")
+}
+
+// =============================================================================
+// PROVIDER CONTEXT — DOMAIN_MODEL.md §1
+// =============================================================================
+
+model Provider {
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  userId              String         @unique @db.Uuid
+  user                User           @relation(fields: [userId], references: [id])
+  /// Bilingual — { "ar": "...", "en": "..." } — see implementation note 2 above.
+  businessName        Json
+  businessDescription Json?
+  status              ProviderStatus @default(APPLIED)
+  createdAt           DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime       @updatedAt @db.Timestamptz(6)
+
+  drivers        Driver[]
+  guides         Guide[]
+  assets         Asset[]
+  services       Service[]
+  commissions    Commission[]
+  wallet         Wallet?
+  contracts      Contract[]
+  bookings       Booking[]       @relation("BookingProvider")
+  reviews        Review[]        @relation("ReviewProvider")
+  supportTickets SupportTicket[]
+
+  @@index([status])
+  @@map("providers")
+}
+
+model Driver {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  providerId  String       @db.Uuid
+  provider    Provider     @relation(fields: [providerId], references: [id])
+  /// Bilingual, Partial per DATABASE_DESIGN.md §5.
+  displayName Json
+  status      DriverStatus @default(REGISTERED)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+
+  bookings Booking[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("drivers")
+}
+
+model Guide {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  providerId  String      @db.Uuid
+  provider    Provider    @relation(fields: [providerId], references: [id])
+  displayName Json
+  status      GuideStatus @default(REGISTERED)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+
+  bookings Booking[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("guides")
+}
+
+/// Generic registrable resource. Specialized by Vehicle via Class Table
+/// Inheritance (shared primary key) — PRISMA_SCHEMA.md §4's resolution of
+/// DATABASE_DESIGN.md §20 Open Decision #7.
+model Asset {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  providerId String      @db.Uuid
+  provider   Provider    @relation(fields: [providerId], references: [id])
+  assetType  AssetType
+  status     AssetStatus @default(REGISTERED)
+  createdAt  DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime    @updatedAt @db.Timestamptz(6)
+
+  vehicle Vehicle?
+
+  @@index([providerId])
+  @@index([status])
+  @@index([assetType])
+  @@map("assets")
+}
+
+/// Specializes Asset via a shared primary key (Class Table Inheritance).
+/// Status lives on the base Asset record, not duplicated here.
+model Vehicle {
+  assetId            String   @id @db.Uuid
+  asset              Asset    @relation(fields: [assetId], references: [id])
+  registrationNumber String   @unique
+  /// Bilingual, Partial per DATABASE_DESIGN.md §5.
+  descriptiveDetails Json?
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  bookings Booking[]
+
+  @@map("vehicles")
+}
+
+model Service {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  providerId  String        @db.Uuid
+  provider    Provider      @relation(fields: [providerId], references: [id])
+  serviceType String // discriminator for Experience specialization, mirrors AssetType's pattern
+  /// Bilingual, required per DATABASE_DESIGN.md §5.
+  name        Json
+  description Json?
+  status      ServiceStatus @default(DRAFT)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+
+  experience   Experience?
+  availability Availability[]
+  prices       Price[]
+  bookings     Booking[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("services")
+}
+
+/// Specializes Service via a shared primary key (Class Table Inheritance).
+model Experience {
+  serviceId      String   @id @db.Uuid
+  service        Service  @relation(fields: [serviceId], references: [id])
+  guidingContent Json?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("experiences")
+}
+
+// =============================================================================
+// BOOKING CONTEXT
+// =============================================================================
+
+model Booking {
+  id         String        @id @default(uuid(7)) @db.Uuid
+  customerId String        @db.Uuid
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  serviceId  String        @db.Uuid
+  service    Service       @relation(fields: [serviceId], references: [id])
+  /// Denormalized for query convenience — see implementation note 8 above.
+  providerId String        @db.Uuid
+  provider   Provider      @relation("BookingProvider", fields: [providerId], references: [id])
+  driverId   String?       @db.Uuid
+  driver     Driver?       @relation(fields: [driverId], references: [id])
+  guideId    String?       @db.Uuid
+  guide      Guide?        @relation(fields: [guideId], references: [id])
+  vehicleId  String?       @db.Uuid
+  vehicle    Vehicle?      @relation(fields: [vehicleId], references: [assetId])
+  status     BookingStatus @default(CREATED)
+
+  /// Price snapshot at confirmation — fixed per DOMAIN_MODEL.md invariant.
+  priceSnapshotAmount      Decimal?        @db.Decimal(12, 2)
+  priceSnapshotCurrency    String?
+  /// Commission snapshot at confirmation.
+  commissionSnapshotAmount Decimal?        @db.Decimal(12, 2)
+  commissionSnapshotTier   CommissionTier?
+
+  confirmedAt DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+
+  journey                   Journey?
+  invoice                   Invoice?
+  payment                   Payment?
+  review                    Review?
+  supportTickets            SupportTicket[]
+  causingWalletTransactions WalletTransaction[]
+  causingNotifications      Notification[]
+
+  @@index([customerId])
+  @@index([providerId])
+  @@index([status])
+  @@index([confirmedAt])
+  @@map("bookings")
+}
+
+// =============================================================================
+// TRACKING CONTEXT
+// =============================================================================
+
+model Journey {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  bookingId   String        @unique @db.Uuid
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  status      JourneyStatus @default(NOT_STARTED)
+  startedAt   DateTime?     @db.Timestamptz(6)
+  completedAt DateTime?     @db.Timestamptz(6)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+
+  routes Route[]
+
+  @@map("journeys")
+}
+
+/// Immutable once finalized — no updatedAt, per DOMAIN_MODEL.md invariant.
+model Route {
+  id                 String      @id @default(uuid(7)) @db.Uuid
+  journeyId          String      @db.Uuid
+  journey            Journey     @relation(fields: [journeyId], references: [id])
+  status             RouteStatus @default(PLANNED)
+  /// Individual location point structure is an implementation detail,
+  /// out of scope for PRISMA_SCHEMA.md — stored as a JSON array of points.
+  locationRecordings Json?
+  createdAt          DateTime    @default(now()) @db.Timestamptz(6)
+
+  @@index([journeyId])
+  @@map("routes")
+}
+
+model Availability {
+  id        String                @id @default(uuid(7)) @db.Uuid
+  serviceId String                @db.Uuid
+  service   Service               @relation(fields: [serviceId], references: [id])
+  startTime DateTime              @db.Timestamptz(6)
+  endTime   DateTime              @db.Timestamptz(6)
+  state     AvailabilitySlotState @default(OPEN)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+
+  @@index([serviceId])
+  @@index([startTime, endTime])
+  @@map("availabilities")
+}
+
+// =============================================================================
+// PRICING CONTEXT
+// =============================================================================
+
+model Price {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  serviceId String      @db.Uuid
+  service   Service     @relation(fields: [serviceId], references: [id])
+  amount    Decimal     @db.Decimal(12, 2)
+  currency  String
+  status    PriceStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+
+  @@index([serviceId])
+  @@index([status])
+  @@map("prices")
+}
+
+model Commission {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  providerId String           @db.Uuid
+  provider   Provider         @relation(fields: [providerId], references: [id])
+  tier       CommissionTier
+  status     CommissionStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(6)
+
+  walletTransactions WalletTransaction[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("commissions")
+}
+
+// =============================================================================
+// WALLET CONTEXT
+// =============================================================================
+
+model Wallet {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  providerId String?   @unique @db.Uuid
+  provider   Provider? @relation(fields: [providerId], references: [id])
+  customerId String?   @unique @db.Uuid
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
+
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+/// Immutable, append-only ledger entry — no updatedAt, ever.
+/// Polymorphic "causing event" reference resolved as nullable typed FKs —
+/// see implementation note 3 above.
+model WalletTransaction {
+  id          String                     @id @default(uuid(7)) @db.Uuid
+  walletId    String                     @db.Uuid
+  wallet      Wallet                     @relation(fields: [walletId], references: [id])
+  direction   WalletTransactionDirection
+  /// PROVISIONAL enum — see note above CommissionCause definition.
+  cause       WalletTransactionCause
+  amount      Decimal                    @db.Decimal(12, 2)
+  currency    String
+  description String?
+
+  causingBookingId    String?     @db.Uuid
+  causingBooking      Booking?    @relation(fields: [causingBookingId], references: [id])
+  causingPaymentId    String?     @db.Uuid
+  causingPayment      Payment?    @relation(fields: [causingPaymentId], references: [id])
+  causingCommissionId String?     @db.Uuid
+  causingCommission   Commission? @relation(fields: [causingCommissionId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([walletId])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+// =============================================================================
+// PAYMENTS CONTEXT
+// =============================================================================
+
+model Payment {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  bookingId    String        @unique @db.Uuid
+  booking      Booking       @relation(fields: [bookingId], references: [id])
+  amount       Decimal       @db.Decimal(12, 2)
+  currency     String
+  status       PaymentStatus @default(INITIATED)
+  refundAmount Decimal?      @db.Decimal(12, 2)
+  capturedAt   DateTime?     @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+
+  invoice            Invoice?
+  walletTransactions WalletTransaction[]
+  supportTickets     SupportTicket[]
+
+  @@index([status])
+  @@map("payments")
+}
+
+// =============================================================================
+// INVOICING CONTEXT
+// =============================================================================
+
+/// Immutable once issued — createdAt only, per DOMAIN_MODEL.md invariant.
+model Invoice {
+  id                      String        @id @default(uuid(7)) @db.Uuid
+  bookingId               String        @unique @db.Uuid
+  booking                 Booking       @relation(fields: [bookingId], references: [id])
+  paymentId               String?       @unique @db.Uuid
+  payment                 Payment?      @relation(fields: [paymentId], references: [id])
+  invoiceNumber           String        @unique
+  /// Bilingual document content, required per DATABASE_DESIGN.md §5.
+  content                 Json
+  status                  InvoiceStatus @default(GENERATED)
+  supersedingCreditNoteId String?       @unique @db.Uuid
+  supersedingCreditNote   Invoice?      @relation("InvoiceCreditNote", fields: [supersedingCreditNoteId], references: [id])
+  supersededByCreditNote  Invoice?      @relation("InvoiceCreditNote")
+  issuedAt                DateTime      @db.Timestamptz(6)
+  createdAt               DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([invoiceNumber])
+  @@map("invoices")
+}
+
+// =============================================================================
+// CONTRACTS CONTEXT
+// =============================================================================
+
+model Contract {
+  id                    String         @id @default(uuid(7)) @db.Uuid
+  providerId            String?        @db.Uuid
+  provider              Provider?      @relation(fields: [providerId], references: [id])
+  customerId            String?        @db.Uuid
+  customer              Customer?      @relation(fields: [customerId], references: [id])
+  /// Bilingual, required per DATABASE_DESIGN.md §5.
+  terms                 Json
+  status                ContractStatus @default(DRAFTED)
+  signedAt              DateTime?      @db.Timestamptz(6)
+  supersedingContractId String?        @unique @db.Uuid
+  supersedingContract   Contract?      @relation("ContractSupersession", fields: [supersedingContractId], references: [id])
+  supersededByContract  Contract?      @relation("ContractSupersession")
+  createdAt             DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@index([providerId])
+  @@index([customerId])
+  @@index([status])
+  @@map("contracts")
+}
+
+// =============================================================================
+// NOTIFICATIONS CONTEXT
+// =============================================================================
+
+model Notification {
+  id      String              @id @default(uuid(7)) @db.Uuid
+  userId  String              @db.Uuid
+  user    User                @relation(fields: [userId], references: [id])
+  /// Bilingual, required per ADR-0005 and DOMAIN_MODEL.md invariant.
+  content Json
+  channel NotificationChannel
+  status  NotificationStatus  @default(COMPOSED)
+
+  causingBookingId String?  @db.Uuid
+  causingBooking   Booking? @relation(fields: [causingBookingId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// =============================================================================
+// REVIEWS CONTEXT
+// =============================================================================
+
+model Review {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  bookingId       String                @unique @db.Uuid
+  booking         Booking               @relation(fields: [bookingId], references: [id])
+  customerId      String                @db.Uuid
+  customer        Customer              @relation(fields: [customerId], references: [id])
+  /// Denormalized for Provider aggregate-rating queries — see
+  /// implementation note 8 above.
+  providerId      String                @db.Uuid
+  provider        Provider              @relation("ReviewProvider", fields: [providerId], references: [id])
+  content         String
+  moderationState ReviewModerationState @default(PUBLISHED)
+  createdAt       DateTime              @default(now()) @db.Timestamptz(6)
+
+  rating Rating?
+
+  @@index([customerId])
+  @@index([providerId])
+  @@map("reviews")
+}
+
+/// Immutable — no updatedAt, per DOMAIN_MODEL.md invariant.
+/// PROVISIONAL numeric range (assumed 1–5) — see implementation note 5 above.
+model Rating {
+  id       String @id @default(uuid(7)) @db.Uuid
+  reviewId String @unique @db.Uuid
+  review   Review @relation(fields: [reviewId], references: [id])
+  value    Int
+
+  @@map("ratings")
+}
+
+// =============================================================================
+// OPERATIONS CONTEXT
+// =============================================================================
+
+model SupportTicket {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  customerId String?             @db.Uuid
+  customer   Customer?           @relation(fields: [customerId], references: [id])
+  providerId String?             @db.Uuid
+  provider   Provider?           @relation(fields: [providerId], references: [id])
+  bookingId  String?             @db.Uuid
+  booking    Booking?            @relation(fields: [bookingId], references: [id])
+  subject    String
+  content    String
+  status     SupportTicketStatus @default(OPENED)
+
+  /// Nullable typed reference — see implementation note 3 above.
+  financialResolutionPaymentId String?  @db.Uuid
+  financialResolutionPayment   Payment? @relation(fields: [financialResolutionPaymentId], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([customerId])
+  @@index([providerId])
+  @@index([bookingId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+// =============================================================================
+// ADMINISTRATION CONTEXT
+// =============================================================================
+
+model Staff {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  userId    String      @unique @db.Uuid
+  user      User        @relation(fields: [userId], references: [id])
+  /// Multi-value — one Staff member may hold more than one role, per
+  /// IDENTITY_AND_ACCESS.md §3. See implementation note 6 above.
+  roles     StaffRole[]
+  status    StaffStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@map("staff")
+}
+
+model Admin {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  userId    String      @unique @db.Uuid
+  user      User        @relation(fields: [userId], references: [id])
+  status    AdminStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@map("admins")
+}
+
+// =============================================================================
+// AI CONTEXT
+// =============================================================================
+
+/// No entity-to-entity FK relationships to any other model, per ADR-0008
+/// point 3 — an AI Agent never holds a foreign key into another module's
+/// data. All its "access" is through governed reads at the application
+/// layer, never modeled as a database relationship.
+model AIAgent {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  roleIdentifier String
+  version        String
+  status         AIAgentStatus @default(DEFINED)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@unique([roleIdentifier, version])
+  @@index([status])
+  @@map("ai_agents")
+}

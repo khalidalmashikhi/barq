@@ -414,6 +414,17 @@
 
 ---
 
+### Entry 038 — prisma/schema.prisma Generated from PRISMA_SCHEMA.md
+
+- **Date:** 2026-07-05
+- **Document/Artifact Affected:** `prisma/schema.prisma` (new — first real implementation artifact, not a documentation file)
+- **Change:** Generated the actual Prisma schema directly from `docs/02-domain-architecture/PRISMA_SCHEMA.md` — 27 models (matching all 27 `DOMAIN_MODEL.md` entities exactly), 27 enums, `datasource`/`generator` blocks. No entities invented, no fields invented, no models renamed, no documented relationships or enums changed. Class Table Inheritance applied for Vehicle/Asset and Experience/Service exactly as `PRISMA_SCHEMA.md` §4 specified. Made 8 concrete implementation decisions where documentation had explicitly left the mechanism open (all flagged in-schema and in the accompanying report, not silently decided): UUID v7 generation via `@default(uuid(7))` (unverified — no document previously specified this, and this sandbox cannot run `npx prisma validate` to confirm); bilingual fields modeled as `Json` locale maps rather than locale-suffixed columns, specifically to satisfy `ADR-0005` requirement 9's no-schema-change-per-language requirement; polymorphic "causing event" references resolved as nullable typed foreign keys; a provisional `WalletTransactionCause` enum; a provisional `Rating` value range (Int, assumed 1–5); `StaffRole` modeled as a Postgres array. During relation-integrity review, found and fixed 5 missing back-relation fields (Booking, Commission, Payment, Provider) before finalizing. `DOMAIN_MODEL.md`'s unresolved Open Question #1 (User role exclusivity) was deliberately NOT resolved — Customer/Staff/Admin remain independent optional 1:1 relations to User, compatible with either eventual answer.
+- **Process:** AI-drafted, human-directed (explicit instruction with strict "do not invent/redesign" constraints). Generated in the AI's sandbox — not the user's actual repository (a prior sync-issue conversation already established this project is tracked in the user's local `D:\my backup\Barq` repo, not this sandbox). Delivered as a downloadable file for the user to place in their own repository themselves.
+- **Review Outcome:** Not yet reviewed by a human; not yet syntax-validated by the actual Prisma CLI (no network access in this sandbox to install it). Manual relation-integrity review completed; formal `npx prisma validate` still required before Migration 001.
+- **Governing Rule:** `PROJECT_RULES.md` §20.2 (AI-generated code, not just documentation, now falls under this logging requirement — the first entry of this kind, anticipated by `ENGINEERING_GUIDE.md` §5).
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on
