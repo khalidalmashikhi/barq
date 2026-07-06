@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design tokens (colors, typography, spacing) are added here once
+  DESIGN_SYSTEM.md's Open Decisions (specific palette values, typefaces)
+  are resolved — not invented ahead of that resolution.
+*/
