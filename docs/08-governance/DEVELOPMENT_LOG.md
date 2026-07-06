@@ -425,6 +425,43 @@
 
 ---
 
+### Entry 039 — Engineering Sprint 2 (Auth Foundation): Blocked on Prisma Schema Gap
+
+- **Date:** 2026-07-05
+- **Documents/Files Affected:** `TECH_STACK.md` (stale reference fix), `.env.example`, `package.json`, `tsconfig.json`
+- **Change:** Attempted to implement the Better Auth foundation on `feat/auth-foundation` per `AUTHENTICATION.md`/`TECH_STACK.md`/`ADR-0008`. Before writing any auth server code, checked `prisma/schema.prisma` against Better Auth's Prisma-adapter requirements and confirmed a real blocker: **no `Session`, `Account`, or `Verification` models exist anywhere in the approved schema**, and none are optional for Better Auth's Prisma adapter — session storage, credential/account storage, and (since BARQ's flow is OTP-based) verification-token storage for OTP codes all require dedicated tables. Per explicit instruction, **stopped before editing the schema** and did not implement the auth server config, Prisma adapter wiring, route handler, session helper, or login/logout placeholders — all of these would depend on the shape of tables that don't yet exist and would likely need rework if implemented against a guess. Completed only the parts genuinely independent of that decision: declared `better-auth` in `package.json` (not installed — no network access), added `BETTER_AUTH_URL` to `.env.example` alongside the existing `BETTER_AUTH_SECRET`, and fixed a stale `TECH_STACK.md` §20 Decision Matrix row that still read "Proposed/Pending" for Better Auth even though §6 already says "Approved" (an inconsistency within the same Locked document, missed in the prior Engineering Cleanup Sprint). Also found and fixed a real, non-network-related typecheck bug: `tsconfig.json`'s `baseUrl` triggered a deprecation error under the TypeScript version available in this sandbox (6.0.3) — added `"ignoreDeprecations": "6.0"`, flagged for re-review once the project's own pinned TypeScript (`^5.6`, per `package.json`) is actually installed. Also removed a leftover temporary export directory from a prior turn that was polluting `tsc` output.
+- **Validation Attempted:** `npm install` — blocked (no network, `E403`/`host_not_allowed`). `npm run lint` — blocked (`next` not installed). `npm run typecheck` / `npx tsc --noEmit` — ran successfully against globally-available TypeScript; all remaining errors are "Cannot find module" errors entirely attributable to missing `node_modules` (`next`, `react`, `tailwindcss` types), not real code defects. `npx prisma validate` — blocked (no network to install Prisma CLI).
+- **Process:** AI-drafted analysis and partial implementation; human-directed sprint with an explicit stop condition that was triggered and honored.
+- **Review Outcome:** Not ready for PR — blocked on a schema decision requiring human approval, and on network access for real dependency installation/validation.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; the explicit "stop and report before editing schema" instruction for this sprint.
+
+---
+
+### Entry 040 — Engineering Sprint 2 (Blocker Resolution): Better Auth Models Added
+
+- **Date:** 2026-07-05
+- **Document/Artifact Affected:** `prisma/schema.prisma`
+- **Change:** Resolved the blocker reported in Entry 039. Added `Session`, `Account`, and `Verification` models per Better Auth's Prisma adapter requirements — net-new additions not present in `PRISMA_SCHEMA.md`, explicitly flagged as an implementation-driven schema extension approved for this specific purpose. **`User`'s existing business fields were NOT changed.** Compatibility check found `User` lacks `name`/`email`/`emailVerified`/`image`, which Better Auth's default core schema expects — this mismatch is reported, not resolved, since adding those fields would contradict `AUTHENTICATION.md`'s phone-only, no-email-collection design without separate approval. Only the structurally-unavoidable additions were made to `User`: `sessions Session[]` and `accounts Account[]` back-relation arrays, required by Prisma on both sides of any relation — not a change to any existing field. All three new models follow ADR-0006's UUID v7/UTC conventions rather than Better Auth's own ID defaults (no conflict — Better Auth is ID-generation-agnostic). Field shapes were reconstructed from training knowledge of Better Auth's documented schema, **not freshly verified against live docs or actual CLI output** (no network access to run `npx @better-auth/cli generate` or consult current documentation) — flagged as the top open item before Migration 001. One self-caught authoring error during this edit: an initial draft accidentally deleted the existing `AIAgent` model while appending the new section; caught immediately via model-count verification (27 → 26, expected 27) and restored before finalizing (confirmed final count: 30 models = 27 original + 3 new).
+- **Validation Attempted:** `npx prisma validate` and `npx prisma format` — both blocked, same `E403`/no-network constraint as every prior sprint; Prisma CLI cannot be installed in this sandbox. Manual relation-integrity trace performed instead: confirmed `User.sessions` ↔ `Session.user` and `User.accounts` ↔ `Account.user` are correctly paired; `Verification` intentionally has no FK to `User` (identifier-keyed, matching Better Auth's standard shape).
+- **Process:** AI-drafted, human-approved schema extension (explicit approval given this sprint for exactly this addition). Self-corrected one real authoring mistake before delivery, per this project's own standing verification discipline.
+- **Review Outcome:** Not yet validated by the real Prisma CLI or reviewed against live Better Auth documentation — both required before Migration 001.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `ADR-0006` (UUID v7/UTC conventions applied to the new models).
+
+---
+
+### Entry 041 — Engineering Sprint 2 (Auth Foundation): Core Wiring Implemented
+
+- **Date:** 2026-07-05
+- **Files Created:** `src/lib/db.ts` (Prisma client singleton), `src/lib/auth/server.ts` (Better Auth server config), `src/lib/auth/session.ts` (session helper), `src/lib/auth/index.ts` (reusable public entry point), `src/app/api/auth/[...all]/route.ts` (Better Auth Next.js route handler), `src/app/api/test/protected/route.ts` (minimal protected verification endpoint).
+- **Files Modified:** None — `prisma/schema.prisma` was explicitly not touched this sprint, per instruction ("existing BARQ User model is authoritative").
+- **Change:** Implemented Better Auth's core persistence wiring only — Prisma adapter pointed at the existing shared Prisma client, `emailAndPassword` explicitly disabled (BARQ is phone-OTP only, per `AUTHENTICATION.md` §4 — disabled explicitly rather than left to library default), `plugins: []` left empty since the phone/OTP plugin itself is out of scope for this sprint by explicit instruction. Session helper wraps `auth.api.getSession` so no other code calls it directly (Composition over Duplication). Protected test endpoint intentionally returns 401 in this sprint's state, since no sign-in method is active yet — that is the correct, verifiable proof the wiring runs without error, not a bug.
+- **Validation Attempted:** `npm run lint` — blocked (`next` not installed in this sandbox). `npm run typecheck` — ran; all errors are "Cannot find module" for `better-auth`, `@prisma/client`, `next/headers`, `@types/node`, `tailwindcss` — entirely explained by this sandbox's missing `node_modules`, not code defects. `npx prisma validate` — blocked (no network to install Prisma CLI in this sandbox). Per the user's own status report, their actual repository (separate from this sandbox) already has Better Auth installed and a validated schema — these new files have not yet been typechecked in that real environment and should be before merging.
+- **Process:** AI-drafted, human-directed sprint continuation. Code written from Better Auth's documented API (training knowledge), not verified against an actually-installed package in this sandbox — flagged for real verification in the user's own environment.
+- **Review Outcome:** Not yet reviewed or validated in a real environment.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `AUTHENTICATION.md` §4 (emailAndPassword disabled per phone-only design).
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on
