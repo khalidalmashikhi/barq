@@ -10,3 +10,13 @@
 export { auth } from "./server";
 export type { Auth } from "./server";
 export { getSession, requireSession } from "./session";
+export {
+  requireAuth,
+  requireCustomer,
+  requireProvider,
+  requireStaff,
+  requireAdmin,
+} from "./rbac";
+export type { AuthContext } from "./rbac";
+export { withApiAuth } from "./api-guard";
+export { UnauthenticatedError, ForbiddenError } from "./errors";
