@@ -462,6 +462,33 @@
 
 ---
 
+### Entry 042 — Engineering Sprint 3 (Phone OTP UI): Blocked on phoneNumberVerified, Non-Blocked Scope Delivered
+
+- **Date:** 2026-07-05
+- **Files Created:** `src/lib/i18n/strings.ts` (minimal centralized strings stopgap — NOT a real i18n library choice), `src/lib/auth/client.ts` (Better Auth browser client, kept separate from the server barrel), `src/components/auth/login-form.tsx`, `src/components/auth/logout-button.tsx`, `src/app/dashboard/page.tsx`.
+- **Files Modified:** `src/app/page.tsx` (overwritten — replaced the initial-scaffold placeholder with the real login page, reason stated inline), `.env.example` (added `NEXT_PUBLIC_BETTER_AUTH_URL`).
+- **Change:** Before writing any code, checked `prisma/schema.prisma` against Better Auth's phone-number plugin requirements and found the same class of blocker as Sprint 2: **`User` lacks a `phoneNumberVerified` field**, which the plugin's server-side configuration requires (per training knowledge of the library, not freshly verified — same caveat as before). Per explicit instruction, stopped and reported rather than adding the field or enabling the plugin in `src/lib/auth/server.ts` without approval. Built everything that does not depend on that blocker: session-based redirects (`/` → `/dashboard` if authenticated, `/dashboard` → `/` if not) using Sprint 2's already-working `getSession()`; a fully functional (once installed) logout flow (`signOut` doesn't depend on the phone plugin); the two-step phone/OTP UI itself, RTL via Tailwind logical properties (`ms-`/`me-`/`text-start`), minimal light styling. The OTP request/verify network calls in `login-form.tsx` are wired to Better Auth's client SDK but explicitly flagged in-code as non-functional until the blocker is resolved and the plugin is actually enabled server-side. Also created `src/lib/i18n/strings.ts` as a deliberate minimal stopgap satisfying `ADR-0005`'s no-hardcoded-text rule, explicitly flagged as not a real i18n library decision (none has been made in any approved document).
+- **Self-Caught Issue:** Initial draft of `login-form.tsx` had two `onChange` handlers with un-typed `event` parameters, triggering a real (not module-related) strict-mode typecheck error on one of them. Fixed by adding explicit `React.ChangeEvent<HTMLInputElement>` types to both, for consistency.
+- **Validation Attempted:** `npm run typecheck` — ran; after the fix above, all remaining errors are "Cannot find module" / "JSX.IntrinsicElements" cascading from this sandbox's missing `node_modules`, not real defects. `npm run lint` — blocked (`next` not installed). `npx prisma validate` — blocked (no network). `npm run dev` — blocked (`next` not installed).
+- **Process:** AI-drafted, human-directed sprint with an explicit stop condition that was triggered and honored, same pattern as Sprint 2.
+- **Review Outcome:** Not ready for PR — blocked on the same class of schema decision as Sprint 2, now specifically `phoneNumberVerified`, plus the standing network/install constraint.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `ADR-0005` (governing the i18n stopgap's justification); this sprint's explicit "stop and report" instruction.
+
+---
+
+### Entry 043 — Engineering Sprint (Phone OTP Schema Support): phoneNumberVerified Added, Plugin Configured
+
+- **Date:** 2026-07-07
+- **Files Affected:** `prisma/schema.prisma`, `src/lib/auth/server.ts`
+- **Change:** Added `phoneNumberVerified Boolean @default(false)` to `User` — the only schema addition made, per explicit instruction. No `email`, `name`, `image`, or `emailVerified` field added; no existing business field touched. Confirmed `Session`, `Account`, and `Verification` already existed from the prior sprint (Entry 040) — nothing missing to report on that front. Configured the Better Auth `phoneNumber` plugin in `src/lib/auth/server.ts`, including `signUpOnVerification.getTempEmail` exactly as instructed, generating a synthetic placeholder email from the phone number rather than collecting a real one. **Flagged, not resolved:** whether Better Auth's adapter, when writing the auto-created User via `getTempEmail`, requires an `email` column to exist on the Prisma `User` model to persist that generated value — this could not be confirmed without network access to Better Auth's live docs/source, and per explicit instruction no `email` column was added. If the adapter attempts that write against a schema with no `email` column, it will fail at runtime the first time a phone number is verified — documented in-code as the signal this needs a decision, not something to silently patch afterward. Also confirmed the plugin's auto-created User is Identity-only — no Customer profile is created alongside it, consistent with `DOMAIN_MODEL.md`'s Identity/Customer separation and this sprint's own "do not implement Customer profile yet" carried over from Sprint 3.
+- **Self-Caught Issues:** Found and fixed one real (non-module-related) typecheck error: the `getTempEmail` callback's `phoneNumber` parameter was untyped, failing under `strict: true`. Fixed with an explicit `string` annotation.
+- **Validation Result:** `npm run typecheck` — ran; after the fix, zero real errors remain (all remaining output is missing-`node_modules`/`JSX.IntrinsicElements`/`Cannot find namespace 'React'` noise, entirely explained by this sandbox's absent dependencies). `npm run lint` — blocked (`next` not installed). `npx prisma validate` — blocked (no network access, same constraint as every prior sprint).
+- **Process:** AI-drafted, human-approved schema addition and plugin configuration (explicit approval given this sprint for exactly this scope).
+- **Review Outcome:** Not yet validated by the real Prisma CLI or Better Auth's actual runtime behavior — the `getTempEmail`/email-column question specifically needs resolving in a real environment before this is trusted.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `ADR-0006` (UUID/timestamp conventions maintained on the new field); `DOMAIN_MODEL.md` (Identity/Customer separation preserved in the auto-signup configuration).
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on

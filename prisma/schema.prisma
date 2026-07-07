@@ -279,17 +279,29 @@ enum AIAgentStatus {
 /// Base identity record. See implementation note 7 above regarding the
 /// unresolved role-exclusivity question.
 model User {
-  id          String     @id @default(uuid(7)) @db.Uuid
-  phoneNumber String     @unique
-  status      UserStatus @default(CREATED)
-  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  phoneNumber         String     @unique
+  /// Added by Engineering Sprint (Phone OTP Schema Support) — required by
+  /// Better Auth's phone-number plugin. No email, name, image, or
+  /// emailVerified field was added, per explicit instruction — this is
+  /// the only Better Auth-required addition to User in this sprint.
+  phoneNumberVerified Boolean    @default(false)
+  status              UserStatus @default(CREATED)
+  createdAt           DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime   @updatedAt @db.Timestamptz(6)
 
   customer      Customer?
   providerLink  Provider?
   staff         Staff?
   admin         Admin?
   notifications Notification[]
+
+  /// Better Auth persistence — added by Engineering Sprint 2 (Auth Foundation
+  /// blocker resolution). No existing business field on User was changed;
+  /// these are only the back-relation arrays Prisma requires for the new
+  /// Session/Account models below.
+  sessions Session[]
+  accounts Account[]
 
   @@map("users")
 }
@@ -837,4 +849,88 @@ model AIAgent {
   @@unique([roleIdentifier, version])
   @@index([status])
   @@map("ai_agents")
+}
+
+// =============================================================================
+// BETTER AUTH PERSISTENCE — added by Engineering Sprint 2 (Auth Foundation)
+// =============================================================================
+// Resolves the schema blocker reported and stopped-on in the prior sprint:
+// Better Auth's Prisma adapter requires Session, Account, and Verification
+// storage, none of which existed in the original PRISMA_SCHEMA.md-derived
+// schema. These three models are net-new additions, not present in
+// PRISMA_SCHEMA.md — flagged here explicitly since they are an
+// implementation-driven schema extension, approved for this specific
+// purpose, not a redesign of any existing BARQ domain entity.
+//
+// Field shapes below follow Better Auth's documented core schema from
+// training knowledge — NOT freshly verified against live Better Auth docs
+// or the actual `npx @better-auth/cli generate` output (no network access
+// in this sandbox to run either). This is the single most important
+// open item before Migration 001: run the real Better Auth CLI/schema
+// generator once installed, and diff its output against what's below.
+// If it generates different field names, types, or additional required
+// fields, report the difference before applying — do not silently
+// reconcile by re-editing this file again without that comparison.
+//
+// ID strategy deliberately follows ADR-0006 (UUID v7), not Better Auth's
+// own default ID generator — ADR-0006 states "no exception, no
+// model-specific deviation," and Better Auth is ID-generation-agnostic
+// (it works with whatever the schema defines), so no conflict exists here.
+// =============================================================================
+
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime @db.Timestamptz(6)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+/// Stores linked credential/provider accounts. For BARQ's OTP-only flow
+/// this is expected to hold at most a minimal "phone credential" record
+/// per User — the full shape is retained per Better Auth's standard schema
+/// since the adapter expects these fields to exist, even if several remain
+/// unused (nullable) for a phone-only configuration.
+model Account {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  userId                String    @db.Uuid
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(6)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+/// Stores OTP codes and other short-lived verification tokens — this is
+/// the table BARQ's phone-OTP flow (AUTHENTICATION.md §4) actually depends
+/// on operationally, more so than Account above.
+model Verification {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  identifier String // phone number, for BARQ's OTP flow
+  value      String // the OTP code / token value
+  expiresAt  DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("verifications")
 }
