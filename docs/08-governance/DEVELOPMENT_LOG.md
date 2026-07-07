@@ -539,6 +539,21 @@
 
 ---
 
+### Entry 048 — ADR-0009 Implemented: AuthUser Model Added, Session/Account Retargeted
+
+- **Date:** 2026-07-07
+- **Files Affected:** `prisma/schema.prisma`, `src/lib/auth/server.ts`.
+- **Change:** Implemented `ADR-0009` as approved. Added `AuthUser` model (Better-Auth-owned: non-UUID `id`, `name`, `email` unique, `emailVerified`, `phoneNumber` unique, `phoneNumberVerified`, timestamps). Retargeted `Session.userId`/`Account.userId` (renamed `authUserId`) to reference `AuthUser.id` instead of BARQ `User.id` — correctly typed as plain `String`, not `@db.Uuid`, since `AuthUser.id` is Better-Auth-supplied and non-UUID, matching the same reasoning already established for `Session.id`/`Account.id`/`Verification.id` in Entry 046. Added a nullable, unique `authUserId`/`authUser` link from BARQ `User` to `AuthUser`. BARQ `User.id` unchanged (still UUID v7); no `name`/`email`/`emailVerified`/`image` added to `User`; `phoneNumber`/`phoneNumberVerified` unchanged on `User`; no business/domain model touched. Updated `src/lib/auth/server.ts` with a `user: { modelName: "authUser" }` option intended to redirect Better Auth's internal user-creation writes to the new `AuthUser` model instead of BARQ's `User` — **this is the single most important unverified piece of this change**, flagged prominently in-code: it is a real, specific recollection of a genuine Better Auth capability, not an invented guess, but its exact correctness for the installed version cannot be confirmed without live documentation access or a real typecheck against the installed package, neither available in this sandbox. Updated two now-stale comments (the previously-flagged "email column may not exist" concern is resolved by `AuthUser` having a real `email` column; the pointer text was updated accordingly rather than left contradicting the new state).
+- **Self-Caught Errors During Editing (2):** (1) Initially typed the new `User.authUserId` link field as `@db.Uuid`, which would have been the exact same class of bug as the original P2023 error, since it references `AuthUser.id` (non-UUID) — caught and fixed before running any validation. (2) Initially duplicated `@relation(...)` onto both the scalar `authUserId` field and the relation object field on `Session` — a Prisma syntax error — caught and fixed immediately. Both caught through direct self-review, not tooling (tooling remains unavailable in this sandbox).
+- **Validation Result:** `npx prisma validate` — blocked (no network access, unchanged constraint). `npx prisma format` — blocked, same reason. `npm run typecheck` — clean, zero real errors. `npm run lint` — blocked (`next` not installed).
+- **Migration:** **Not run.** Task 9's migration step was explicitly conditional on validation passing; since this sandbox cannot run the real Prisma CLI to confirm that, `npx prisma migrate dev --name separate-better-auth-user` was not executed or claimed to have been executed.
+- **OTP Test:** Not performed — same standing inability to run `npm run dev` in this sandbox as every prior sprint.
+- **Process:** AI-drafted implementation of a human-approved ADR. Self-corrected two real authoring errors before delivery.
+- **Review Outcome:** Not ready for PR — the `modelName` mapping and the full schema change both need real-environment verification (`npx prisma validate`, migration, and an actual OTP test) before this can be trusted.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `ADR-0009` (this entry is its direct, approved implementation, consistent with that ADR's own Future ADR References note that implementation doesn't need a further superseding ADR).
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on
