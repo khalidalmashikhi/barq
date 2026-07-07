@@ -554,6 +554,31 @@
 
 ---
 
+### Entry 049 — Real Runtime Error Fixed: Session/Account Relation Field Names Reverted to userId/user
+
+- **Date:** 2026-07-07
+- **Files Affected:** `prisma/schema.prisma` only.
+- **Change:** User reported a real runtime `PrismaClientValidationError` from `prisma.session.create()`: "Argument `authUser` is missing." Root cause, reasoned from this evidence (explicitly **not** confirmed by inspecting the installed Better Auth package — no network access in this sandbox, confirmed empty via `find / -iname better-auth`): Better Auth's adapter appears to construct `Session`/`Account` create() payloads using hardcoded field names (`userId`), independent of the `user.modelName` mapping added in the ADR-0009 implementation (Entry 048) — that mapping evidently succeeded at redirecting *which model* Better Auth targets, but did not extend to the *relation field names* on dependent models. Fixed by reverting `Session.authUserId`/`authUser` and `Account.authUserId`/`authUser` back to `userId`/`user`, while keeping the field's **type** as `AuthUser`, not `User` — Prisma does not require a relation field's local name to match its target model's name, so this satisfies Better Auth's apparent field-name expectation while preserving ADR-0009's actual decision (Session/Account reference AuthUser, never BARQ User) fully intact. `AuthUser`'s own back-relation array fields (`sessions`, `accounts`) and BARQ `User`'s own link field (`authUserId`/`authUser`, BARQ's own naming choice, unconstrained by Better Auth since Better Auth never touches BARQ `User` directly) were both unaffected and left unchanged.
+- **Explicit Limitation Acknowledged:** This fix is based on evidence-based inference from the real error message, not confirmed by inspecting Better Auth's actual adapter source or documentation, which remains impossible from this sandbox. If a genuine field-name remapping option exists in Better Auth's configuration API that could have been used instead (keeping `authUserId`/`authUser` as the schema's own field names while telling Better Auth about the rename), it was not identified or used — the field-rename-back approach was chosen specifically because it requires no unverified Better Auth configuration at all, only a Prisma capability (field name ≠ target model name) that is certain and well-understood, independent of any auth library's behavior.
+- **Validation Result:** `npx prisma validate`/`npx prisma format` — both blocked, same standing no-network constraint. `npm run typecheck` — clean, zero real errors.
+- **Process:** AI-analyzed real user-reported runtime error; implemented the exact fallback the user had already scoped in their own instruction if this diagnosis proved correct.
+- **Review Outcome:** Not yet re-tested against the real runtime error — the user's next OTP verification attempt is the actual confirmation this fix works.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `ADR-0009` (decision preserved; only field-level naming changed, not the architectural separation itself).
+
+---
+
+### Entry 050 — RBAC Implementation Re-Delivered: Naming Mismatch Fixed, Complete Package
+
+- **Date:** 2026-07-07
+- **Files Affected:** `src/app/api/test/admin/route.ts` (renamed from `admin-only`, previously created at the wrong path), plus re-verification of every file from the prior turn's RBAC implementation (`errors.ts`, `barq-user.ts`, `rbac.ts`, `api-guard.ts`, `index.ts`, `dashboard/page.tsx`, `api/test/protected/route.ts`, `package.json`).
+- **Change:** User reported the RBAC implementation from the prior turn was not present in their repository, specifically noting `src/app/api/test/admin/route.ts` doesn't exist. Two things were true simultaneously: (1) the same hand-off gap as prior sprints — files built in this sandbox were never applied to the real repository; (2) a genuine naming error on this project's part — the file was created as `admin-only/route.ts`, not `admin/route.ts` as explicitly requested, so even a correct apply would not have satisfied the exact check performed. Fixed the naming, re-verified full validation after the fix, and re-packaged every RBAC-sprint file (new and modified) into one complete archive rather than delivering a partial diff.
+- **Validation Result:** `npm run typecheck` — clean, zero real errors, re-confirmed after the rename. `npm run lint` — blocked (`next` not installed, standing constraint). `npx prisma validate` — blocked (no network access, standing constraint).
+- **Process:** AI-identified both the apply gap and its own naming error before re-delivering, rather than assuming the report meant a code defect.
+- **Review Outcome:** Not yet confirmed applied or tested in the real environment.
+- **Governing Rule:** `PROJECT_RULES.md` §20.2.
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on
