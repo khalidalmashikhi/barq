@@ -489,6 +489,56 @@
 
 ---
 
+### Entry 044 — Engineering Sprint (Phone OTP Flow): sendOTP Implemented; STOPPED on User Auto-Creation Verification
+
+- **Date:** 2026-07-07
+- **Files Affected:** `src/lib/auth/server.ts` only.
+- **Change:** Added the `sendOTP` callback to the `phoneNumber` plugin — the piece that was genuinely missing from every prior sprint's configuration (the plugin had no way to deliver a code anywhere). Development-only: console-logs `[DEV OTP] {phoneNumber} -> {code}` to the server terminal, throws if accidentally invoked with `NODE_ENV=production` rather than silently logging a real OTP, and never returns the code in any response body reachable by the browser. The code itself is entirely Better Auth-generated — this callback only receives and displays it, per explicit instruction not to duplicate or invent OTP generation. Two real (non-environment-related) typecheck bugs found and fixed: untyped destructured parameters on the `sendOTP` callback (`{ phoneNumber, code }` and its explicit `{ phoneNumber: string; code: string }` annotation).
+- **STOP Invoked, Per Explicit Instruction:** Task #7 of this sprint ("Automatically create the BARQ User on first successful verification... If Better Auth cannot populate BARQ's User correctly: STOP. Explain exactly why.") could not be confirmed. The `signUpOnVerification.getTempEmail` configuration (added in Entry 043, unchanged this sprint) generates a synthetic email specifically so Better Auth's internal user-creation logic never has to collect a real one — but whether that generated value still requires an `email` column on the Prisma `User` model to be persisted (a column BARQ deliberately does not have) remains genuinely unverifiable from this sandbox, which has no network access to Better Auth's live documentation or source, and cannot install the package to test empirically. This is the same uncertainty flagged in Entry 043, now escalated to an explicit STOP per this sprint's instruction rather than continuing to build on top of it a third time. No workaround or custom behavior was invented to route around this. Recommended concrete next step (requires the user's real environment, which has Better Auth actually installed): either run Better Auth's own schema-generation CLI against the current config and diff its expected schema against `prisma/schema.prisma`, or simply attempt one real phone-number verification in a local dev environment and report the exact runtime error, if any — either would definitively resolve this where further reasoning from this sandbox cannot.
+- **Scope Otherwise Delivered:** Request/verify OTP actions, redirects (`/` ↔ `/dashboard`), logout, and loading/error/success states were already built in Sprint 3 and remain unchanged — all independent of the User-creation question above, since they only depend on session existence, not on which code path created the underlying User row.
+- **Validation Result:** `npm run typecheck` — ran; zero real errors after the two fixes above (remaining output is the same missing-`node_modules` noise as every prior sprint). `npm run lint` — blocked (`next` not installed). `npx prisma validate` — blocked (no network access).
+- **Process:** AI-drafted, human-directed sprint with an explicit conditional STOP instruction that was triggered and honored rather than resolved by inference.
+- **Review Outcome:** Not ready for merge — sprint goal ("fully working Phone OTP flow") not fully achieved; blocked specifically on task #7's verification, not on anything else in scope.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; this sprint's explicit "If Better Auth cannot populate BARQ's User correctly: STOP" instruction; `SECURITY.md` (never log sensitive data — applied to the production-gate in `sendOTP`).
+
+---
+
+### Entry 045 — Phone OTP UI Reported Missing Locally: Root Cause Was File-Application Gap, Not Missing Implementation
+
+- **Date:** 2026-07-07
+- **Files Affected:** `src/lib/auth/client.ts`, `src/components/auth/logout-button.tsx` (stale comment fixes only).
+- **Change:** User reported `src/components/auth`, `src/app/dashboard`, and a non-placeholder `src/app/page.tsx` as missing from their local repository on `feat/auth-phone-otp-flow`. Verified this sandbox's state before writing any new code: all six required files (`login-form.tsx`, `logout-button.tsx`, `client.ts`, `page.tsx`, `dashboard/page.tsx`, `strings.ts`) already existed, complete and correct, built across Sprints 3 and 4 (Entries 042–044) and already delivered as downloads at those points. **Root cause: this is the same class of issue as the earlier "Critical sync issue" — files built and delivered in this sandbox were not applied to the actual local repository, not a gap in implementation.** No files were reimplemented from scratch. Found and fixed two genuinely stale code comments (in `client.ts` and `logout-button.tsx`) that still described the `phoneNumberVerified` blocker as unresolved, even though it was resolved two sprints earlier (Entry 043) — these were corrected for accuracy, not functional bugs. Re-ran full validation (clean) and re-packaged all six files as a single, clearly-scoped archive for re-delivery.
+- **Validation Result:** `npm run typecheck` — clean, zero real errors. `npm run lint`, `npx prisma validate`, `npm run dev` — all blocked by this sandbox's standing no-network/no-install constraint, unchanged from every prior sprint.
+- **Process:** AI-verified before acting, rather than assuming the report implied a real implementation gap. Corrected two stale comments found during verification.
+- **Review Outcome:** No new implementation to review — this entry documents a verification and re-delivery, not new work.
+- **Governing Rule:** `PROJECT_RULES.md` §20.2.
+
+---
+
+### Entry 046 — Real Runtime Bug Fixed: Better Auth Non-UUID IDs vs. @db.Uuid Columns (P2023)
+
+- **Date:** 2026-07-07
+- **Document/Artifact Affected:** `prisma/schema.prisma`
+- **Change:** Fixed a real runtime error reported from the user's actual environment — `Prisma P2023` on `prisma.verification.create()`, "Inconsistent column data: Error creating UUID." Root cause: `Session.id`, `Account.id`, and `Verification.id` were declared `String @id @default(uuid(7)) @db.Uuid`, but Better Auth's own adapter code supplies its own generated ID value for these three infrastructure models directly (bypassing Prisma's `@default`), and that generated value is not UUID-formatted — Postgres rejected it against the `@db.Uuid` column type. Fixed by changing all three to plain `String @id` (no type constraint, no default), since Better Auth always supplies the value itself. **`User.id` was left completely unchanged** (still UUID, still `@default(uuid(7))`, per `ADR-0006`) — this confirms, based on real evidence rather than speculation, that Better Auth's User auto-creation path does *not* exhibit the same ID-override behavior as its own Session/Account/Verification tables, at least not in a way that has surfaced an error. `userId` foreign key columns on all three fixed models were left untouched (`@db.Uuid`, correctly still referencing `User.id`). No business/domain model was touched. `.env.example` already had both `BETTER_AUTH_URL` and `NEXT_PUBLIC_BETTER_AUTH_URL` set to `http://localhost:3000` from Sprints 2–3 — no change needed.
+- **Significance:** This is the first real, empirically-confirmed runtime error from an actual working environment across this entire project's implementation phase. It substantively confirms the general category of risk flagged as theoretical since Sprint 2's original blocker report ("Better Auth's exact ID/schema behavior cannot be verified without live access") — not the exact same uncertainty (that one was about `phoneNumberVerified`/email columns, this one is about ID generation), but the same underlying caution (Better Auth's internal behavior diverging from what our hand-authored schema assumed) turned out to be well-founded.
+- **Validation Attempted:** `npx prisma validate` and `npx prisma format` — both blocked (no network access in this sandbox, unchanged constraint). `npm run typecheck` — clean. `npm run lint` — blocked (`next` not installed). **Migration NOT created** — `npx prisma migrate dev --name fix-better-auth-id-format` was explicitly conditional on validation passing; since this sandbox cannot run the real Prisma CLI to confirm that, the migration was not run or claimed to have been run. The user must run it themselves once the schema fix is applied in their real environment.
+- **Process:** AI-drafted fix, human-directed with a precise, evidence-based root cause and exact scope (a rare case where the person supplied the diagnosis, not just the symptom) — implemented exactly as scoped, no additional changes introduced.
+- **Review Outcome:** Not yet validated by the real Prisma CLI or an actual migration run.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2; `ADR-0006` (User.id's UUID strategy preserved; Session/Account/Verification's IDs now correctly exempted from it since they're Better-Auth-owned, not BARQ-domain-owned).
+
+---
+
+### Entry 047 — ADR-0009 Drafted: Better Auth User Model Separation (Option B)
+
+- **Date:** 2026-07-07
+- **Document Affected:** `docs/08-governance/adr/ADR-0009-better-auth-user-separation.md` (new)
+- **Change:** Drafted the ADR resolving the `Unknown argument 'name'` runtime error and the broader architectural question it exposed. Records Option B (approved): Better Auth gets its own infrastructure-owned user model (`AuthUser`, working name), BARQ's domain `User` remains completely unchanged (UUID id, no name/email/emailVerified/image), `Session`/`Account`'s `userId` foreign keys move to reference `AuthUser` instead of BARQ `User` (a correction to Entry 046, not a reversal of it), and BARQ `User` gains a single nullable, unique link field to `AuthUser`. Documents why this preserves `ADR-0006` and `AUTHENTICATION.md`, the two rejected alternatives (adapting `User`; custom adapter/hooks) with reasoning, migration implications (flagging the `Session`/`Account` FK retargeting as the genuinely risky part if any real session data already exists), and 5 explicit Open Questions — most notably reconciliation order and the phone-number-collision scenario, both flagged as connected to `DOMAIN_MODEL.md`'s own still-unresolved Open Question #1 rather than independently resolved here. No schema change, no code, no migration performed — analysis and decision only, per instruction.
+- **Process:** AI-drafted, human-approved architectural direction (Option B), ADR itself not yet reviewed.
+- **Review Outcome:** Draft v0.1 — Architecture Review pending. Not yet Approved/Locked.
+- **Governing Rule:** `PROJECT_RULES.md` §4 (ADR process), §20.2.
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on
