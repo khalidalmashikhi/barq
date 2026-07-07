@@ -296,12 +296,16 @@ model User {
   admin         Admin?
   notifications Notification[]
 
-  /// Better Auth persistence — added by Engineering Sprint 2 (Auth Foundation
-  /// blocker resolution). No existing business field on User was changed;
-  /// these are only the back-relation arrays Prisma requires for the new
-  /// Session/Account models below.
-  sessions Session[]
-  accounts Account[]
+  /// ADR-0009 — link to Better Auth's own infrastructure user record.
+  /// Nullable because a BARQ User can exist with no authentication ever
+  /// having occurred (Staff-Assisted Booking, per DOMAIN_MODEL.md), and
+  /// unique because the relationship is one-to-one. This replaces the
+  /// sessions/accounts back-relation arrays previously added here
+  /// (Sprint 2) — per ADR-0009, Session/Account now reference AuthUser
+  /// directly, not BARQ User, so those back-relations no longer belong
+  /// on this model.
+  authUserId String?   @unique
+  authUser   AuthUser? @relation(fields: [authUserId], references: [id])
 
   @@map("users")
 }
@@ -879,9 +883,26 @@ model AIAgent {
 // =============================================================================
 
 model Session {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Better Auth supplies this ID directly (not a UUID format) — fixed
+  /// from an earlier @db.Uuid/@default(uuid(7)) misconfiguration that
+  /// caused a real Prisma P2023 error at runtime (non-UUID value
+  /// rejected by a UUID-typed column).
+  id        String   @id
+  /// FIELD NAME FIX (see DEVELOPMENT_LOG.md): renaming this field to
+  /// `authUserId`/`authUser` broke Session creation with a real runtime
+  /// error ("Argument `authUser` is missing") — evidence that Better
+  /// Auth's adapter constructs Session/Account create() calls using
+  /// hardcoded field names (`userId`/`user`), independent of the
+  /// `user.modelName` mapping in src/lib/auth/server.ts. Field NAME
+  /// reverted to `userId`/`user` to match what Better Auth's adapter
+  /// evidently expects; the field's TYPE remains AuthUser, not User —
+  /// Prisma does not require a relation field's name to match its
+  /// target model's name, so this satisfies both constraints at once.
+  /// ADR-0009's actual decision (Session/Account reference AuthUser,
+  /// never BARQ User) is fully intact; only the field's local name
+  /// changed, not what it points to.
+  userId    String
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   expiresAt DateTime @db.Timestamptz(6)
   ipAddress String?
@@ -900,9 +921,14 @@ model Session {
 /// since the adapter expects these fields to exist, even if several remain
 /// unused (nullable) for a phone-only configuration.
 model Account {
-  id                    String    @id @default(uuid(7)) @db.Uuid
-  userId                String    @db.Uuid
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Better Auth supplies this ID directly — same fix as Session.id above.
+  id                    String    @id
+  /// FIELD NAME FIX — same reasoning as Session.userId above. Reverted
+  /// from `authUserId`/`authUser` to `userId`/`user` to match Better
+  /// Auth's evidently hardcoded field-name expectation; type remains
+  /// AuthUser, not User.
+  userId                String
+  user                  AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId             String
   providerId            String
   accessToken           String?
@@ -924,7 +950,10 @@ model Account {
 /// the table BARQ's phone-OTP flow (AUTHENTICATION.md §4) actually depends
 /// on operationally, more so than Account above.
 model Verification {
-  id         String   @id @default(uuid(7)) @db.Uuid
+  /// Better Auth supplies this ID directly — this is the exact field
+  /// that produced the reported P2023 error (Better Auth's generated,
+  /// non-UUID-format ID being rejected by a @db.Uuid-typed column).
+  id         String   @id
   identifier String // phone number, for BARQ's OTP flow
   value      String // the OTP code / token value
   expiresAt  DateTime @db.Timestamptz(6)
@@ -933,4 +962,42 @@ model Verification {
 
   @@index([identifier])
   @@map("verifications")
+}
+
+/// ADR-0009 — Better Auth's own infrastructure-owned user record,
+/// separate from BARQ's domain `User`. Exists purely as an Anti-Corruption
+/// Layer boundary: it holds exactly the fields Better Auth's core
+/// user-creation payload requires (id, name, email, emailVerified, plus
+/// the phoneNumber plugin's own fields), and nothing BARQ's domain logic,
+/// Audit Log, or any Bounded Context ever reasons about directly.
+///
+/// `email`/`name`/`emailVerified` exist here ONLY because Better Auth's
+/// adapter unconditionally writes them on user creation — no BARQ product
+/// surface ever collects or displays them. `email` is populated via the
+/// `getTempEmail` synthetic-value pattern (src/lib/auth/server.ts), never
+/// a real address. This does NOT reopen AUTHENTICATION.md's phone-only
+/// design — see ADR-0009's "Why This Preserves AUTHENTICATION.md" section.
+///
+/// Reconciliation logic (how/when a BARQ `User` gets linked to an
+/// `AuthUser`) is explicitly NOT implemented by this model — see
+/// ADR-0009 Open Questions #1-#2. This model alone does not make the
+/// OTP flow correct end-to-end; the link-establishment logic is
+/// separate, follow-up work.
+model AuthUser {
+  /// Better Auth supplies this ID directly (not a UUID format), same
+  /// reasoning as Session.id/Account.id/Verification.id.
+  id                  String   @id
+  name                String?
+  email               String?  @unique
+  emailVerified       Boolean  @default(false)
+  phoneNumber         String?  @unique
+  phoneNumberVerified Boolean  @default(false)
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+
+  sessions Session[]
+  accounts Account[]
+  barqUser User?
+
+  @@map("auth_users")
 }
