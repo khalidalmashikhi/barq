@@ -879,7 +879,12 @@ model AIAgent {
 // =============================================================================
 
 model Session {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  /// Better Auth supplies this ID directly (not a UUID format) — fixed
+  /// from an earlier @db.Uuid/@default(uuid(7)) misconfiguration that
+  /// caused a real Prisma P2023 error at runtime (non-UUID value
+  /// rejected by a UUID-typed column). userId below is unaffected — it
+  /// still references User.id, which remains UUID.
+  id        String   @id
   userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
@@ -900,7 +905,8 @@ model Session {
 /// since the adapter expects these fields to exist, even if several remain
 /// unused (nullable) for a phone-only configuration.
 model Account {
-  id                    String    @id @default(uuid(7)) @db.Uuid
+  /// Better Auth supplies this ID directly — same fix as Session.id above.
+  id                    String    @id
   userId                String    @db.Uuid
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId             String
@@ -924,7 +930,10 @@ model Account {
 /// the table BARQ's phone-OTP flow (AUTHENTICATION.md §4) actually depends
 /// on operationally, more so than Account above.
 model Verification {
-  id         String   @id @default(uuid(7)) @db.Uuid
+  /// Better Auth supplies this ID directly — this is the exact field
+  /// that produced the reported P2023 error (Better Auth's generated,
+  /// non-UUID-format ID being rejected by a @db.Uuid-typed column).
+  id         String   @id
   identifier String // phone number, for BARQ's OTP flow
   value      String // the OTP code / token value
   expiresAt  DateTime @db.Timestamptz(6)
