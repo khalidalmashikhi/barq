@@ -19,7 +19,7 @@
 
 export const strings = {
   ar: {
-    appName: "بارق",
+    appName: "برق",
     loginTitle: "تسجيل الدخول",
     loginSubtitle: "احجز تجارب سياحية موثوقة في عُمان",
     phoneLabel: "رقم الهاتف",

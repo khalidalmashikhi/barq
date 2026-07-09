@@ -3,7 +3,110 @@
 @tailwind utilities;
 
 /*
-  Design tokens (colors, typography, spacing) are added here once
-  DESIGN_SYSTEM.md's Open Decisions (specific palette values, typefaces)
-  are resolved — not invented ahead of that resolution.
+  Design tokens as CSS custom properties — mirrors tailwind.config.ts's
+  color values so non-Tailwind contexts (raw CSS, third-party components)
+  can reference the same palette without drift (Single Source of Truth).
+
+  Dark-mode block is structural scaffolding only (DESIGN_SYSTEM.md "Dark
+  Mode Readiness... not V1") — values are reasonable computed equivalents
+  of the light palette, not a separately approved design decision. No
+  toggle exists yet; this only prevents a rework later if/when one is
+  built.
 */
+
+:root {
+  --color-primary: #4f2d8c;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #2c7a7b;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #f5b942;
+  --color-accent-foreground: #1e1b2e;
+  --color-background: #f7f8fa;
+  --color-card: #ffffff;
+  --color-foreground: #0f172a;
+  --color-border: rgba(15, 23, 42, 0.08);
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+}
+
+.dark {
+  --color-primary: #6b46c1;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #38a3a5;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #f7c65f;
+  --color-accent-foreground: #1e1b2e;
+  --color-background: #0f0b1e;
+  --color-card: #1a1530;
+  --color-foreground: #f1f5f9;
+  --color-border: rgba(241, 245, 249, 0.08);
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Premium surface treatments — Visual Identity Redesign.
+   Named utilities rather than one-off inline gradients repeated across
+   components, so the "premium" look stays consistent and centrally
+   adjustable, not redefined per file. */
+
+.bg-luxury-gradient {
+  background: linear-gradient(160deg, #2a1a52 0%, #4f2d8c 45%, #2c7a7b 100%);
+}
+
+.bg-glass {
+  background: color-mix(in srgb, var(--color-background) 70%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.shadow-premium {
+  box-shadow:
+    0 1px 2px rgba(15, 61, 46, 0.04),
+    0 8px 24px rgba(15, 61, 46, 0.08),
+    0 24px 48px rgba(15, 61, 46, 0.06);
+}
+
+.shadow-premium-lg {
+  box-shadow:
+    0 2px 4px rgba(15, 61, 46, 0.05),
+    0 16px 40px rgba(15, 61, 46, 0.12),
+    0 32px 64px rgba(15, 61, 46, 0.1);
+}
+
+/* Entrance animation — used once, deliberately, on page-load content
+   only (not scattered on every element), per the frontend-design
+   skill's "an orchestrated moment usually lands harder than scattered
+   effects." Already covered by the prefers-reduced-motion block above. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Respect reduced-motion preference, per this project's own standing
+   accessibility requirement (ACCESSIBILITY.md §9) — every animation
+   below is gated by this, not just the ones that seemed obvious to gate. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
