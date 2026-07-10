@@ -32,6 +32,10 @@ export const DESTINATION_IMAGES = {
   wadiDarbat: "/images/wadi-darbat.jpg",
   sharqiyaSands: "/images/sharqiya-sands.jpg",
   musandam: "/images/musandam.jpg",
+  misfatAlAbriyeen: "/images/misfat-al-abriyeen.jpg",
+  nizwa: "/images/nizwa.jpg",
+  mughsail: "/images/mughsail.jpg",
+  rasAlJinz: "/images/ras-al-jinz.jpg",
 } as const;
 
 type DestinationImageProps = {

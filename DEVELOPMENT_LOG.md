@@ -727,19 +727,6 @@
 
 ---
 
-### Entry 062 — Services Marketplace: Real Listing/Detail, Three Schema Gaps Flagged (Category, Governorate, Images)
-
-- **Date:** 2026-07-09
-- **Files Affected (new):** `src/app/services/page.tsx`, `loading.tsx`, `[id]/page.tsx`, `[id]/loading.tsx`, `[id]/not-found.tsx`, `src/lib/services/get-services.ts`, `get-service-detail.ts`, `src/components/services/service-filters.tsx`, `pagination.tsx`, `service-gallery.tsx`. **Unchanged:** `experience-card.tsx`, `destination-image.tsx`, `clsx.ts`, `db.ts` (referenced, not modified).
-- **Three real schema gaps found before writing code, not discovered partway through:** (1) `Service.serviceType` is a technical CTI discriminator ("mirrors AssetType's pattern," per its own schema comment), not a business category — using it as a "category" filter would silently do the wrong thing; (2) no governorate/location field exists on `Service` or `Provider`; (3) no image field exists anywhere in the schema. None were worked around or faked. `ServiceGallery` is built and will show its honest empty state for every service until a schema decision (new field(s) or a `ServiceImage` model) is made and approved — not decided here, per "preserve Prisma schema unless absolutely required."
-- **What's real:** listing with server-side pagination (URL-driven, not client state), search via real Postgres JSON-path filtering on `Service.name`, price range filtering/sorting via a real join on `Price` (price sort applied post-fetch in application code — a limitation of the current schema shape, flagged in-code, not a shortcut), provider filtering from real `Provider` records, service detail page with real `generateMetadata` (SEO title/description from actual `Service` data), related services (same-provider, the only real relation available without a category field), loading states (Next.js `loading.tsx` convention), a branded 404 for missing/unpublished services.
-- **Judgment call, stated directly:** `/services` and `/services/[id]` are public — no `requireAuth()` call. No approved document requires gating a marketplace browse page behind login, and real tourism platforms are conventionally public-browsable; flagged as a deliberate choice, not a silent omission.
-- **Self-caught bug:** a real TypeScript null-narrowing issue after `notFound()` on the detail page — restructured to guarantee narrowing regardless of whether `next/navigation`'s types resolve in a given environment.
-- **Validation Result:** `npm run typecheck` — clean (only the already-diagnosed cascades remain). `npm run lint`, `npx prisma validate`, `npm run dev` — all blocked, same standing sandbox constraints. Import resolution verified programmatically for all new files.
-- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2.
-
----
-
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { PackageOpen, Flame } from "lucide-react";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { getDashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { DashboardTopBar } from "@/components/dashboard/top-bar";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -9,35 +11,30 @@ import { RecentBookingsTimeline } from "@/components/dashboard/recent-bookings";
 import { PopularDestinations } from "@/components/dashboard/popular-destinations";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { FavoritesSection } from "@/components/dashboard/favorites-section";
+import { RecommendedSection } from "@/components/dashboard/recommended-section";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { DashboardFooter } from "@/components/dashboard/dashboard-footer";
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { CalendarCheck, MapPinned, Bell, Heart } from "lucide-react";
-import { DESTINATION_IMAGES } from "@/components/dashboard/destination-image";
 
-// Protected dashboard page — updated per this turn's explicit
-// "reduce empty space, remove yellow placeholders, add real photo
-// references, Framer Motion" feedback.
+// Protected dashboard page — Engineering Sprint (Dashboard Data
+// Wiring). PRESERVED EXACTLY: requireAuth() / UnauthenticatedError ->
+// redirect handling, verified unchanged.
 //
-// PRESERVED EXACTLY: requireAuth() / UnauthenticatedError -> redirect
-// handling, unchanged and verified against the pre-edit version.
+// REAL DATA: active/upcoming booking counts, notification count,
+// upcoming bookings timeline, Featured Experiences, Most Booked — all
+// via getDashboardData(), all real queries against existing models.
 //
-// Experience data now includes category/duration (new fields the
-// rebuilt ExperienceCard requires) and references DESTINATION_IMAGES
-// paths — real <Image> tags, not fabricated gradients, per this turn's
-// explicit instruction. See destination-image.tsx for why no actual
-// photo files are included.
-
-const featuredExperiences = [
-  { title: "جولة في الجبل الأخضر", location: "الجبل الأخضر، عُمان", providerName: "عمان تريلز", price: "45 ر.ع", rating: 4.8, duration: "6 ساعات", category: "مغامرات", imageSrc: DESTINATION_IMAGES.jebelAkhdar },
-  { title: "رحلة صحراء الشرقية", location: "الشرقية، عُمان", providerName: "دروب الصحراء", price: "60 ر.ع", rating: 4.6, duration: "يوم كامل", category: "صحراء", imageSrc: DESTINATION_IMAGES.sharqiyaSands },
-  { title: "غوص في مسندم", location: "مسندم، عُمان", providerName: "أعماق الخليج", price: "80 ر.ع", rating: 4.9, duration: "4 ساعات", category: "غوص", imageSrc: DESTINATION_IMAGES.musandam },
-];
-
-const mostBooked = [
-  { title: "جولة وادي دربات", location: "صلالة، عُمان", providerName: "مغامرات عُمان", price: "35 ر.ع", rating: 4.7, duration: "3 ساعات", category: "طبيعة", imageSrc: DESTINATION_IMAGES.wadiDarbat },
-  { title: "رحلة موسم الخريف", location: "صلالة، عُمان", providerName: "دروب صلالة", price: "50 ر.ع", rating: 4.8, duration: "نصف يوم", category: "طبيعة", imageSrc: DESTINATION_IMAGES.salalah },
-];
+// HONEST EMPTY STATES, NOT FABRICATED DATA: Favorites (no model),
+// Recommended (no recommendation engine), Recent Activity (no
+// customer-facing activity model) — each component now renders its
+// own empty state internally; see their individual files.
+//
+// STATIC INFORMATIONAL CONTENT, NOT "DATA" IN THE SENSE THIS SPRINT
+// TARGETS: PopularDestinations (named real Omani places, not business
+// records), CategoryExplorer (fixed category labels), QuickActions
+// (UI shortcuts, not data) — left as-is; converting these isn't part
+// of "replacing placeholder/mock data with real database-backed data."
 
 export default async function DashboardPage() {
   let barqUserId: string;
@@ -52,6 +49,8 @@ export default async function DashboardPage() {
     throw error;
   }
 
+  const data = await getDashboardData(barqUserId);
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardTopBar />
@@ -62,13 +61,14 @@ export default async function DashboardPage() {
         <main className="flex-1 overflow-y-auto">
           <DashboardHero />
 
-          <div className="mx-auto flex max-w-6xl flex-col gap-9 px-8 py-9">
+          <div className="mx-auto flex max-w-6xl flex-col gap-8 px-8 py-8">
             <CategoryExplorer />
 
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatCard label="الحجوزات النشطة" value="—" icon={CalendarCheck} />
-              <StatCard label="الرحلات القادمة" value="—" icon={MapPinned} />
-              <StatCard label="الإشعارات" value="—" icon={Bell} />
+              <StatCard label="الحجوزات النشطة" value={String(data.activeBookingsCount)} icon={CalendarCheck} />
+              <StatCard label="الرحلات القادمة" value={String(data.upcomingBookingsCount)} icon={MapPinned} />
+              <StatCard label="الإشعارات" value={String(data.notificationsCount)} icon={Bell} />
+              {/* No Favorites/SavedExperience model exists — honest "—", not a fabricated count. */}
               <StatCard label="التجارب المحفوظة" value="—" icon={Heart} />
             </div>
 
@@ -77,11 +77,23 @@ export default async function DashboardPage() {
                 <span aria-hidden>⭐</span>
                 التجارب المميزة
               </h2>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {featuredExperiences.map((experience) => (
-                  <ExperienceCard key={experience.title} {...experience} />
-                ))}
-              </div>
+              {data.featuredServices.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+                  <PackageOpen size={28} strokeWidth={1.5} className="text-foreground/25" />
+                  <p className="text-sm text-foreground/50">لا توجد تجارب منشورة حالياً</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {data.featuredServices.map((service) => (
+                    <ExperienceCard
+                      key={service.id}
+                      title={service.name}
+                      providerName={service.providerName}
+                      price={service.price}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <PopularDestinations />
@@ -91,18 +103,33 @@ export default async function DashboardPage() {
                 <span aria-hidden>🔥</span>
                 الأكثر حجزاً
               </h2>
-              <div className="flex flex-col gap-4">
-                {mostBooked.map((experience) => (
-                  <ExperienceCard key={experience.title} layout="horizontal" {...experience} />
-                ))}
-              </div>
+              {data.mostBookedServices.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+                  <Flame size={28} strokeWidth={1.5} className="text-foreground/25" />
+                  <p className="text-sm text-foreground/50">لا توجد بيانات حجوزات كافية بعد</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {data.mostBookedServices.map((service) => (
+                    <ExperienceCard
+                      key={service.id}
+                      layout="horizontal"
+                      title={service.name}
+                      providerName={service.providerName}
+                      price={service.price}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <FavoritesSection />
 
+            <RecommendedSection />
+
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
               <div className="lg:col-span-2">
-                <RecentBookingsTimeline />
+                <RecentBookingsTimeline bookings={data.upcomingBookings} />
               </div>
               <QuickActions />
             </div>
