@@ -158,10 +158,17 @@ enum RouteStatus {
   FINALIZED
 }
 
+/// Revised per the approved Availability capacity architecture
+/// (DEVELOPMENT_LOG.md Entries 066-067): BOOKED removed — "fully
+/// booked" is now a computed condition (bookedCount >= capacity), not
+/// a stored state, since a slot can now be partially filled. CANCELLED
+/// added — a provider cancelling a specific slot is now distinguishable
+/// from a slot simply reaching capacity, which the old binary state
+/// could never represent.
 enum AvailabilitySlotState {
   OPEN
-  BOOKED
   BLOCKED
+  CANCELLED
 }
 
 enum PriceStatus {
@@ -482,8 +489,35 @@ model Booking {
   guideId    String?       @db.Uuid
   guide      Guide?        @relation(fields: [guideId], references: [id])
   vehicleId  String?       @db.Uuid
+  /// FIXED: this relation incorrectly referenced Vehicle's non-existent
+  /// "id" field since the schema was originally authored — Vehicle's
+  /// actual primary key is assetId (shared-PK Class Table Inheritance
+  /// with Asset). This would have failed real `npx prisma validate`
+  /// immediately; it went undetected because that command has never
+  /// once succeeded in this sandbox (no network access, every prior
+  /// sprint), so nothing ever actually checked it. Found via direct,
+  /// field-by-field verification prompted by a specific, correct bug
+  /// report — not found by any of the "clean typecheck"/model-count
+  /// checks relied on in earlier sprints, which structurally cannot
+  /// catch this class of error.
   vehicle    Vehicle?      @relation(fields: [vehicleId], references: [assetId])
   status     BookingStatus @default(CREATED)
+
+  /// Group booking support (approved architecture, Entries 066-067):
+  /// how many seats/spots this single Booking reserves. Defaults to 1
+  /// — every Booking created before this field existed was, in
+  /// practice, one seat; this default is a correct retroactive
+  /// assumption, not an arbitrary placeholder. Enforced positive by a
+  /// CHECK constraint in the migration.
+  seats          Int           @default(1)
+  /// Nullable — backward-compatible with every Booking created before
+  /// this sprint (none reference a slot) and with any future service
+  /// that never uses date/time slots at all. Deliberately NOT unique:
+  /// many Bookings may reference the same Availability, bounded by
+  /// capacity (enforced by application logic in a future phase, not
+  /// this sprint — database layer only).
+  availabilityId String?       @db.Uuid
+  availability   Availability? @relation(fields: [availabilityId], references: [id])
 
   /// Price snapshot at confirmation — fixed per DOMAIN_MODEL.md invariant.
   priceSnapshotAmount      Decimal?        @db.Decimal(12, 2)
@@ -508,6 +542,7 @@ model Booking {
   @@index([providerId])
   @@index([status])
   @@index([confirmedAt])
+  @@index([availabilityId])
   @@map("bookings")
 }
 
@@ -546,14 +581,30 @@ model Route {
 }
 
 model Availability {
-  id        String                @id @default(uuid(7)) @db.Uuid
-  serviceId String                @db.Uuid
-  service   Service               @relation(fields: [serviceId], references: [id])
-  startTime DateTime              @db.Timestamptz(6)
-  endTime   DateTime              @db.Timestamptz(6)
-  state     AvailabilitySlotState @default(OPEN)
-  createdAt DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  id          String                @id @default(uuid(7)) @db.Uuid
+  serviceId   String                @db.Uuid
+  service     Service               @relation(fields: [serviceId], references: [id])
+  startTime   DateTime              @db.Timestamptz(6)
+  endTime     DateTime              @db.Timestamptz(6)
+  /// Total bookable spots in this slot. Non-nullable, defaults to 1 —
+  /// existing rows predate this field and were implicitly
+  /// single-occupancy (no Booking↔Availability link existed at all
+  /// before this sprint), so defaulting to 1 preserves that original
+  /// meaning rather than introducing an ambiguous "unknown" state.
+  /// Enforced positive by a CHECK constraint in the migration — see
+  /// migration.sql for why this isn't expressed via Prisma DSL.
+  capacity    Int                   @default(1)
+  /// Running count of seats currently reserved against this slot.
+  /// Must be kept in sync with Booking.seats transactionally — that
+  /// enforcement is application logic for a future phase, NOT built
+  /// in this sprint (database layer only, per explicit instruction).
+  /// Bounded by capacity via a CHECK constraint in the migration.
+  bookedCount Int                   @default(0)
+  state       AvailabilitySlotState @default(OPEN)
+  createdAt   DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime              @updatedAt @db.Timestamptz(6)
+
+  bookings Booking[]
 
   @@index([serviceId])
   @@index([startTime, endTime])

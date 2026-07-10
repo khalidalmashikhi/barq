@@ -16,9 +16,15 @@ import { PrismaClient } from "@prisma/client";
 // SCOPE NOTES, per explicit task instructions:
 //   - No image/asset seeding: confirmed (Entry 062) that no image field
 //     exists anywhere in schema.prisma. Left empty, not fabricated.
-//   - Availability: seeded as standalone rows only — confirmed
-//     (Entry 063) that Booking has no relation to Availability at all,
-//     so no Booking-Availability link is invented here either.
+//   - Availability: as of the approved capacity architecture
+//     (DEVELOPMENT_LOG.md Entries 066-068), Booking now has a real,
+//     nullable, non-unique link to Availability via availabilityId.
+//     Two seeded Bookings below reference a real slot with a real
+//     seats count; the rest correctly leave it null (this project has
+//     never required every booking to be tied to a specific slot).
+//     Every Availability's bookedCount is computed from its actual
+//     linked Bookings after they're created, never asserted
+//     independently — see the correction step after the Bookings block.
 //   - No Payment records: not requested in the task's explicit list;
 //     Invoices below are created with paymentId left null rather than
 //     inventing Payment data out of scope.
@@ -232,18 +238,69 @@ async function main() {
   console.log("Created 2 demo Users, each with a linked Customer.");
 
   // ---------------------------------------------------------------
-  // 5. BOOKINGS (across all four statuses)
+  // 6. AVAILABILITY — created before Bookings this time, since a
+  // Booking may now reference a real slot (approved capacity
+  // architecture, Entries 066-067). Capacity varies realistically per
+  // service (private/small experiences: 4-6; larger group tours:
+  // 10-15) rather than a flat 1 everywhere. bookedCount starts at 0
+  // for every slot and is corrected below, after Bookings are created,
+  // to equal the real SUM(seats) of whatever actually references it —
+  // never asserted independently of the Bookings that justify it.
   // ---------------------------------------------------------------
 
-  type BookingPlan = { customerId: string; serviceIndex: number; priceIndex: number; status: "CREATED" | "CONFIRMED" | "COMPLETED" | "CANCELLED" };
+  const availabilityCapacityByServiceIndex = [12, 6, 8, 4, 6, 5, 10, 15];
+  const createdAvailability: Array<{ id: string; serviceId: string; capacity: number }> = [];
+
+  for (let s = 0; s < 8; s++) {
+    const service = createdServices[s];
+    if (!service) continue;
+    const capacity = availabilityCapacityByServiceIndex[s] ?? 6;
+    const now = Date.now();
+    for (let i = 0; i < 3; i++) {
+      const start = new Date(now + (i + 1) * 24 * 60 * 60 * 1000);
+      const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+      const availability = await prisma.availability.create({
+        data: {
+          serviceId: service.id,
+          startTime: start,
+          endTime: end,
+          capacity,
+          bookedCount: 0,
+          state: "OPEN",
+        },
+      });
+      createdAvailability.push({ id: availability.id, serviceId: service.id, capacity });
+    }
+  }
+
+  console.log(`Created ${createdAvailability.length} Availability slots (capacity varies 4-15 by service; bookedCount starts at 0, corrected below to match real linked Bookings).`);
+
+  // ---------------------------------------------------------------
+  // 5. BOOKINGS (across all four statuses; two now reference a real
+  // Availability slot with a real seats count, demonstrating both the
+  // linked and unlinked — nullable availabilityId — cases).
+  // ---------------------------------------------------------------
+
+  type BookingPlan = {
+    customerId: string;
+    serviceIndex: number;
+    priceIndex: number;
+    status: "CREATED" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+    seats: number;
+    // Index into createdAvailability, for the two services (0 and 7)
+    // that have real slots — omitted for every other booking,
+    // correctly leaving availabilityId null (this project has never
+    // required every booking to be tied to a specific slot).
+    availabilityIndex?: number;
+  };
 
   const bookingPlans: BookingPlan[] = [
-    { customerId: demoCustomer.id, serviceIndex: 0, priceIndex: 0, status: "COMPLETED" },
-    { customerId: demoCustomer.id, serviceIndex: 7, priceIndex: 0, status: "CONFIRMED" },
-    { customerId: demoCustomer.id, serviceIndex: 10, priceIndex: 0, status: "CREATED" },
-    { customerId: demoCustomer.id, serviceIndex: 2, priceIndex: 0, status: "CANCELLED" },
-    { customerId: secondCustomer.id, serviceIndex: 17, priceIndex: 0, status: "COMPLETED" },
-    { customerId: secondCustomer.id, serviceIndex: 13, priceIndex: 0, status: "CONFIRMED" },
+    { customerId: demoCustomer.id, serviceIndex: 0, priceIndex: 0, status: "COMPLETED", seats: 2, availabilityIndex: 0 },
+    { customerId: demoCustomer.id, serviceIndex: 7, priceIndex: 0, status: "CONFIRMED", seats: 1, availabilityIndex: 21 },
+    { customerId: demoCustomer.id, serviceIndex: 10, priceIndex: 0, status: "CREATED", seats: 1 },
+    { customerId: demoCustomer.id, serviceIndex: 2, priceIndex: 0, status: "CANCELLED", seats: 1 },
+    { customerId: secondCustomer.id, serviceIndex: 17, priceIndex: 0, status: "COMPLETED", seats: 4 },
+    { customerId: secondCustomer.id, serviceIndex: 13, priceIndex: 0, status: "CONFIRMED", seats: 2 },
   ];
 
   const providerCommissionTier: Record<string, "TIER_10"> = {};
@@ -261,6 +318,9 @@ async function main() {
     const price = await prisma.price.findUnique({ where: { id: priceId } });
     if (!price) continue;
 
+    const availabilityId =
+      plan.availabilityIndex !== undefined ? createdAvailability[plan.availabilityIndex]?.id : undefined;
+
     const isConfirmedOrCompleted = plan.status === "CONFIRMED" || plan.status === "COMPLETED";
 
     const booking = await prisma.booking.create({
@@ -269,6 +329,8 @@ async function main() {
         serviceId: service.id,
         providerId: service.providerId,
         status: plan.status,
+        seats: plan.seats,
+        availabilityId: availabilityId ?? null,
         priceSnapshotAmount: price.amount,
         priceSnapshotCurrency: price.currency,
         // Commission snapshot only set once a booking is CONFIRMED/COMPLETED,
@@ -286,31 +348,30 @@ async function main() {
     createdBookings.push({ id: booking.id, status: booking.status, customerId: booking.customerId, serviceId: booking.serviceId, providerId: booking.providerId });
   }
 
-  console.log(`Created ${createdBookings.length} bookings across CREATED/CONFIRMED/COMPLETED/CANCELLED statuses.`);
+  console.log(`Created ${createdBookings.length} bookings across CREATED/CONFIRMED/COMPLETED/CANCELLED statuses (2 reference a real Availability slot).`);
 
-  // ---------------------------------------------------------------
-  // 6. AVAILABILITY — standalone rows only, no Booking link exists
-  // ---------------------------------------------------------------
-
-  let availabilityCount = 0;
-  for (const service of createdServices.slice(0, 8)) {
-    const now = Date.now();
-    for (let i = 0; i < 3; i++) {
-      const start = new Date(now + (i + 1) * 24 * 60 * 60 * 1000);
-      const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
-      await prisma.availability.create({
-        data: {
-          serviceId: service.id,
-          startTime: start,
-          endTime: end,
-          state: i === 0 ? "BOOKED" : "OPEN",
-        },
+  // Correct each referenced Availability's bookedCount to equal the
+  // real SUM(seats) of Bookings that reference it — computed from the
+  // actual rows just created, not asserted independently. Only
+  // CREATED/CONFIRMED/COMPLETED bookings count toward fill (a
+  // CANCELLED booking, even if linked to a slot, should not hold
+  // capacity — none of the two linked bookings above are CANCELLED,
+  // but this filter is correct regardless of which plans exist).
+  for (const availability of createdAvailability) {
+    const linkedBookings = await prisma.booking.findMany({
+      where: { availabilityId: availability.id, status: { not: "CANCELLED" } },
+    });
+    type SeatsRow = { seats: number };
+    const totalSeats = (linkedBookings as SeatsRow[]).reduce((sum, b) => sum + b.seats, 0);
+    if (totalSeats > 0) {
+      await prisma.availability.update({
+        where: { id: availability.id },
+        data: { bookedCount: totalSeats },
       });
-      availabilityCount++;
     }
   }
 
-  console.log(`Created ${availabilityCount} standalone Availability slots (not linked to Bookings — no such relation exists in the schema).`);
+  console.log("Corrected bookedCount on every linked Availability slot to match real SUM(seats) — verified consistent, not just asserted.");
 
   // ---------------------------------------------------------------
   // 8. REVIEWS + RATINGS — only for COMPLETED bookings
