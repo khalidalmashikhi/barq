@@ -87,6 +87,7 @@ export default async function DashboardPage() {
                   {data.featuredServices.map((service) => (
                     <ExperienceCard
                       key={service.id}
+                      serviceId={service.id}
                       title={service.name}
                       providerName={service.providerName}
                       price={service.price}
@@ -113,6 +114,7 @@ export default async function DashboardPage() {
                   {data.mostBookedServices.map((service) => (
                     <ExperienceCard
                       key={service.id}
+                      serviceId={service.id}
                       layout="horizontal"
                       title={service.name}
                       providerName={service.providerName}

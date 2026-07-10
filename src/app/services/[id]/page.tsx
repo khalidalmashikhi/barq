@@ -55,12 +55,12 @@ export default async function ServiceDetailPage({ params }: Props) {
         <div className="shrink-0 rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
           <p className="text-xs text-foreground/50">السعر</p>
           <p className="mt-1 text-xl font-semibold text-primary">{service.price ?? "غير متوفر"}</p>
-          <button
-            type="button"
-            className="mt-4 w-full rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          <Link
+            href={`/services/${service.id}/book`}
+            className="mt-4 block w-full rounded-full bg-primary px-6 py-2.5 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             احجز الآن
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -76,9 +76,13 @@ export default async function ServiceDetailPage({ params }: Props) {
           <h2 className="mb-5 text-lg font-semibold text-foreground">تجارب أخرى من نفس المزود</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {relatedServices.map((related) => (
-              <Link key={related.id} href={`/services/${related.id}`}>
-                <ExperienceCard title={related.name} providerName={related.providerName} price={related.price} />
-              </Link>
+              <ExperienceCard
+                key={related.id}
+                serviceId={related.id}
+                title={related.name}
+                providerName={related.providerName}
+                price={related.price}
+              />
             ))}
           </div>
         </div>
@@ -86,3 +90,4 @@ export default async function ServiceDetailPage({ params }: Props) {
     </main>
   );
 }
+
