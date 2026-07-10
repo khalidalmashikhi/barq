@@ -1,16 +1,10 @@
-import { ExperienceCard } from "./experience-card";
-import { DESTINATION_IMAGES } from "./destination-image";
+import { HeartOff } from "lucide-react";
 
-// Favorites section (❤️ المفضلة). Same honesty note as every other
-// dashboard section: no real Favorites/Saved data model exists in this
-// project yet — documented here in code, not surfaced as a visible
-// label in the UI.
-
-const favorites = [
-  { title: "قلعة نزوى التاريخية", location: "نزوى، عُمان", providerName: "تراث عُمان", price: "20 ر.ع", rating: 4.5, duration: "ساعتان", category: "تراث", imageSrc: DESTINATION_IMAGES.jebelAkhdar },
-  { title: "جولة وادي شاب", location: "الشرقية، عُمان", providerName: "مغامرات عُمان", price: "35 ر.ع", rating: 4.7, duration: "5 ساعات", category: "مغامرات", imageSrc: DESTINATION_IMAGES.wadiDarbat },
-  { title: "رحلة صحراء الشرقية", location: "الشرقية، عُمان", providerName: "دروب الصحراء", price: "60 ر.ع", rating: 4.6, duration: "يوم كامل", category: "صحراء", imageSrc: DESTINATION_IMAGES.sharqiyaSands },
-];
+// Favorites (❤️) — no Favorites/SavedExperience data model exists in
+// BARQ's schema. Per explicit instruction, this is NOT backed by
+// fabricated example data — it's an honest empty state. Adding a real
+// Favorites model would be a schema change; not made in this sprint
+// per explicit "do not add schema fields unless you STOP and explain."
 
 export function FavoritesSection() {
   return (
@@ -19,10 +13,9 @@ export function FavoritesSection() {
         <span aria-hidden>❤️</span>
         المفضلة
       </h2>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {favorites.map((experience) => (
-          <ExperienceCard key={experience.title} {...experience} />
-        ))}
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+        <HeartOff size={28} strokeWidth={1.5} className="text-foreground/25" />
+        <p className="text-sm text-foreground/50">ميزة المفضلة غير متوفرة بعد</p>
       </div>
     </div>
   );
