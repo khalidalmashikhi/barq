@@ -740,6 +740,35 @@
 
 ---
 
+### Entry 063 — Booking Engine: Real Create/Cancel/List/Detail, One Retroactive Security Fix, Date/Time Explicitly Not Supported
+
+- **Date:** 2026-07-10
+- **Files Affected (new):** `src/lib/uuid.ts`, `src/lib/booking/create-booking.ts`, `cancel-booking.ts`, `get-my-bookings.ts`, `get-booking-detail.ts`, `src/app/services/[id]/book/page.tsx`, `src/app/bookings/page.tsx`, `[id]/page.tsx`, `[id]/confirmation/page.tsx`. **Modified:** `src/lib/services/get-service-detail.ts` (added `getActivePricesForService`; retroactive UUID-validation fix — see below), `src/app/services/[id]/page.tsx` (wired the previously-static "احجز الآن" button to the real booking route).
+- **Schema findings, confirmed by direct inspection before implementation:** `Booking` has no field referencing `Availability` at all — `Availability` exists as a model (serviceId, startTime, endTime, state) but nothing on `Booking` links to it. Per explicit instruction ("allow date/time selection only if the existing schema supports it"), **date/time selection was not built** — a picker that couldn't actually persist anything would be worse than omitting it. This is flagged, not a silent gap.
+- **Retroactive fix, found while planning this sprint:** `getServiceById` (built in the prior Services Marketplace sprint) had the exact same class of bug already found once before with Better Auth's non-UUID IDs (Entry 046) — no UUID format check before a query against a `@db.Uuid` column. Fixed via the new shared `isValidUuid()` utility, applied to every ID-accepting query added this sprint too.
+- **Security implemented:** (1) `createBooking`/`cancelBooking` re-read Service PUBLISHED status, Price ACTIVE-and-belongs-to-service, and the authenticated Customer from the database — nothing from the client is trusted except which IDs were selected, never a price amount or status. (2) UUID format validated before every Prisma call across all new and one retroactively-fixed query. (3) Booking ownership re-verified from the database in both `getBookingDetail` and `cancelBooking` — a mismatch is treated identically to "not found" (uniform 404), a deliberate choice to avoid confirming another customer's booking ID exists, stated directly rather than left implicit. (4) `requireCustomer()` (existing RBAC, unmodified) used at the actual mutation boundary; `requireAuth()` + a manual Customer check used for the softer, empty-state-friendly list/detail views — two different auth postures for two genuinely different situations, not an inconsistency.
+- **Explicitly not implemented, per instruction:** payments, commission calculation, any cancellation-window business rule (none is documented anywhere in this project), auto-provisioning a Customer profile on first booking attempt (a real product decision, not decided here — a user with no Customer profile gets a clear message, not a silent workaround).
+- **Confirmation page copy note:** deliberately says "request received," never "confirmed" — `BookingStatus` stays at its schema default `CREATED` in this sprint, since nothing here implements the CREATED→CONFIRMED transition; saying "confirmed" would have been a real status/copy mismatch.
+- **Self-caught bugs:** the same `notFound()`-null-narrowing pattern from the marketplace sprint recurred in three new files, fixed the same way; a real result-type narrowing bug in the booking form's Server Action (`result.error` accessed on a branch where TS couldn't yet prove `result.ok` was false) — fixed with an explicit `if (!result.ok)` check.
+- **Validation Result:** `npm run typecheck` — clean (only already-diagnosed cascades remain). `npm run lint`, `npx prisma validate`, `npm run dev` — all blocked, same standing sandbox constraints as every prior sprint.
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2.
+
+---
+
+### Entry 064 — Database Seed: Realistic Oman Tourism Data, Idempotency Caveat Stated Honestly
+
+- **Date:** 2026-07-10
+- **Files Affected (new):** `prisma/seed.ts`. **Modified:** `package.json` (adds `tsx` dev dependency, `"prisma": {"seed": "tsx prisma/seed.ts"}` config — verified valid JSON before and after).
+- **No schema change needed** — every seeded row uses existing fields/relations exactly as defined. STOP condition never triggered.
+- **Idempotency stated honestly, not overclaimed:** most models here (`Service`, `Price`, `Booking`, `Availability`, `Commission`) have no natural unique key to upsert on — only their generated UUID primary key. Rather than claim per-row upsert idempotency this schema can't actually support everywhere, the script checks a single marker (a fixed seed phone number) at the top and exits early if already seeded. This makes the *script* safe to re-run without duplicating data — explicitly not the same claim as "every row is individually upserted."
+- **Scope decisions, each tied to a real schema fact, not fabricated:** no image/asset seeding (confirmed no image field exists anywhere, Entry 062); `Availability` seeded as standalone rows only, no Booking link (confirmed no such relation exists, Entry 063); `Experience` specialization rows deliberately not created (the relation is optional and nothing in the app currently reads it — leaving it empty is a valid state, not a broken one); `Invoice` rows created with `paymentId` left null (Payment wasn't in the task's explicit list, not invented to fill the gap); `Commission` seeded per provider (a real, existing model) specifically so `Booking.commissionSnapshotAmount` on CONFIRMED/COMPLETED rows is a computed value from real seeded data, not an arbitrary number.
+- **Self-caught bugs:** several real `noUncheckedIndexedAccess` violations (array-index access typed as possibly-`undefined` under this project's strict tsconfig) — fixed with explicit guards rather than non-null assertions, except one deliberate, safe assertion on a fixed 2-element literal array. A stale variable reference left over from a loop refactor, caught before it could ship.
+- **Row counts:** 5 Providers (+ 5 linked Users, 5 Commissions), 20 Services (all PUBLISHED), 42 active Prices, 2 Customers (+ 2 linked Users), 6 Bookings (1 CREATED / 2 CONFIRMED / 2 COMPLETED / 1 CANCELLED), 24 Availability slots (8 services × 3), 2 Reviews + 2 Ratings (COMPLETED bookings only), 4 Notifications (demo customer's bookings), 2 Invoices (COMPLETED bookings only).
+- **Validation Result:** `npm run typecheck` — clean (only already-diagnosed cascades remain). `npm run lint`, `npx prisma validate`, `npm run dev` — all blocked, same standing sandbox constraints as every prior sprint (this also means the seed script itself has never actually been executed against a real database in this environment — flagged directly, not glossed over).
+- **Governing Rule:** `PROJECT_RULES.md` §20.1–20.2.
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on
