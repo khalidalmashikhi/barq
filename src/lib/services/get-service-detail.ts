@@ -1,17 +1,12 @@
-﻿import "server-only";
+import "server-only";
 import { prisma } from "@/lib/db";
+import { isValidUuid } from "@/lib/uuid";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isUuid(value: string): boolean {
-  return UUID_PATTERN.test(value);
-}
-
-// Service detail query â€” Engineering Sprint (Services Marketplace).
+// Service detail query — Engineering Sprint (Services Marketplace).
 //
 // "Related services" uses same-provider as the relation, since no
 // category/tag field exists to relate by (same gap noted in
-// get-services.ts) â€” a real, defensible relation using existing data,
+// get-services.ts) — a real, defensible relation using existing data,
 // not a fabricated one.
 
 function extractText(value: unknown): string {
@@ -50,10 +45,30 @@ type ServiceDetailRow = {
   createdAt: Date;
 };
 
+export type ActivePriceOption = {
+  id: string;
+  amount: string;
+  currency: string;
+};
+
+export async function getActivePricesForService(serviceId: string): Promise<ActivePriceOption[]> {
+  if (!isValidUuid(serviceId)) return [];
+
+  const prices = await prisma.price.findMany({
+    where: { serviceId, status: "ACTIVE" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  type PriceRow = { id: string; amount: unknown; currency: string };
+  return (prices as PriceRow[]).map((price) => ({
+    id: price.id,
+    amount: String(price.amount),
+    currency: price.currency,
+  }));
+}
+
 export async function getServiceById(id: string): Promise<ServiceDetail | null> {
-  if (!isUuid(id)) {
-    return null;
-  }
+  if (!isValidUuid(id)) return null;
 
   const service = await prisma.service.findFirst({
     where: { id, status: "PUBLISHED" },
@@ -69,10 +84,10 @@ export async function getServiceById(id: string): Promise<ServiceDetail | null> 
 
   return {
     id: row.id,
-    name: extractText(row.name) || "ØªØ¬Ø±Ø¨Ø©",
+    name: extractText(row.name) || "تجربة",
     description: extractText(row.description) || "",
     providerId: row.providerId,
-    providerName: extractText(row.provider.businessName) || "Ù…Ø²ÙˆØ¯ Ø®Ø¯Ù…Ø©",
+    providerName: extractText(row.provider.businessName) || "مزود خدمة",
     providerDescription: extractText(row.provider.businessDescription) || "",
     price: row.prices[0] ? `${row.prices[0].amount} ${row.prices[0].currency}` : null,
     createdAt: row.createdAt,
@@ -96,10 +111,8 @@ export async function getRelatedServices(serviceId: string, providerId: string):
 
   return (services as ServiceDetailRow[]).map((service) => ({
     id: service.id,
-    name: extractText(service.name) || "ØªØ¬Ø±Ø¨Ø©",
-    providerName: extractText(service.provider.businessName) || "Ù…Ø²ÙˆØ¯ Ø®Ø¯Ù…Ø©",
+    name: extractText(service.name) || "تجربة",
+    providerName: extractText(service.provider.businessName) || "مزود خدمة",
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
   }));
 }
-
-

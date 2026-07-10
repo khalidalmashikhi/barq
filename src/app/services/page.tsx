@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PackageOpen } from "lucide-react";
 import { getServices, getProvidersForFilter } from "@/lib/services/get-services";
 import { ServiceFilters } from "@/components/services/service-filters";
@@ -83,9 +82,13 @@ export default async function ServicesPage({
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {result.items.map((service) => (
-            <Link key={service.id} href={`/services/${service.id}`}>
-              <ExperienceCard title={service.name} providerName={service.providerName} price={service.price} />
-            </Link>
+            <ExperienceCard
+                key={service.id}
+                serviceId={service.id}
+                title={service.name}
+                providerName={service.providerName}
+                price={service.price}
+              />
           ))}
         </div>
       )}
@@ -94,3 +97,4 @@ export default async function ServicesPage({
     </main>
   );
 }
+
