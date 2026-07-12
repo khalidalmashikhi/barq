@@ -1,24 +1,31 @@
-import { Search, Bell, Globe, MessageCircle } from "lucide-react";
+import type { ReactNode } from "react";
+import { Bell, Globe, MessageCircle } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { LogoutButton } from "@/components/auth/logout-button";
 
-// Dashboard top bar — updated per this turn's explicit content list
-// (search, notifications, messages, avatar, language, weather, date).
+// AppTopBar — AppShell Migration (Stabilization).
 //
-// *** WEATHER OMITTED, FLAGGED *** — no longer marked "(optional)" this
-// turn, but still no real weather data source exists anywhere in this
-// project. Fabricating a temperature reading would be the exact same
-// category of dishonesty already avoided for the user's name and
-// hero photography — a fake number is not "premium," it's a bug
-// waiting to be noticed. Wiring this to a real weather API (e.g.
-// OpenWeatherMap) is a small, concrete follow-up — it needs an API key
-// as a new env var, the same pattern already established for
-// WhatsApp/Maps/LLM Gateway in .env.example — not a design decision.
+// Generalized from the former, Customer-only src/components/dashboard/
+// top-bar.tsx. The structural chrome (logo, date, language/messages/
+// notifications icons — all decorative/non-functional today, unchanged
+// from before), and LogoutButton are role-agnostic and stay built in.
+// The one genuinely Customer-specific piece — the "search for an
+// experience" box — is NOT hardcoded here; it is passed in via the
+// optional `centerContent` slot, so a future Provider/Admin top bar can
+// supply its own center content (or none) without a separate
+// ProviderTopBar component existing at all.
 //
-// Date is real — computed client-render-time from the actual current
-// date, not fabricated.
+// No "use client" needed — identical to the original component, this
+// has no client-only hooks of its own (Date computation runs fine
+// server-side); LogoutButton is a Client Component embedded as a
+// normal child, the standard, always-supported Server-renders-Client
+// pattern.
 
-export function DashboardTopBar() {
+type AppTopBarProps = {
+  centerContent?: ReactNode;
+};
+
+export function AppTopBar({ centerContent }: AppTopBarProps) {
   const today = new Date().toLocaleDateString("ar-OM", {
     weekday: "long",
     year: "numeric",
@@ -30,15 +37,7 @@ export function DashboardTopBar() {
     <div className="flex items-center justify-between border-b border-border bg-card px-8 py-4">
       <Logo className="h-8 max-w-[90px]" />
 
-      <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2 mx-8 md:flex">
-        <Search size={16} strokeWidth={1.75} className="text-foreground/40" />
-        <input
-          type="search"
-          placeholder="ابحث عن تجربة أو وجهة..."
-          className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
-          disabled
-        />
-      </div>
+      {centerContent}
 
       <div className="flex items-center gap-2">
         <span className="hidden text-xs text-foreground/40 lg:inline">{today}</span>
