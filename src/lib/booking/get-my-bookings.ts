@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { extractText } from "@/lib/i18n/extract-text";
 
 // My Bookings query — Engineering Sprint (Booking Engine).
 //
@@ -12,14 +13,6 @@ import { requireAuth } from "@/lib/auth";
 // (create-booking.ts) — this is the softer, view-only path, per
 // explicit "honest empty states" requirement.
 
-function extractText(value: unknown): string {
-  if (value && typeof value === "object" && "ar" in value) {
-    const ar = (value as { ar?: unknown }).ar;
-    if (typeof ar === "string") return ar;
-  }
-  return "";
-}
-
 export type MyBookingListItem = {
   id: string;
   serviceName: string;
@@ -28,22 +21,51 @@ export type MyBookingListItem = {
   createdAt: Date;
 };
 
-export async function getMyBookings(): Promise<MyBookingListItem[]> {
+export type GetMyBookingsParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+export type GetMyBookingsResult = {
+  items: MyBookingListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+const DEFAULT_PAGE_SIZE = 10;
+
+export async function getMyBookings(params: GetMyBookingsParams = {}): Promise<GetMyBookingsResult> {
   const { barqUser } = await requireAuth();
+
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;
 
   const customer = await prisma.customer.findUnique({
     where: { userId: barqUser.id },
   });
 
   if (!customer) {
-    return [];
+    // Honest empty state, unchanged from before pagination — a user
+    // with no Customer profile has zero bookings by definition.
+    return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
   }
 
-  const bookings = await prisma.booking.findMany({
-    where: { customerId: customer.id },
-    orderBy: { createdAt: "desc" },
-    include: { service: true },
-  });
+  // Compound ordering for deterministic pagination: createdAt alone is
+  // not guaranteed unique, so id (UUID v7 — itself time-ordered, per
+  // ADR-0006) is a safe, natural tie-breaker rather than an arbitrary
+  // second key.
+  const [totalCount, bookings] = await Promise.all([
+    prisma.booking.count({ where: { customerId: customer.id } }),
+    prisma.booking.findMany({
+      where: { customerId: customer.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: { service: true },
+    }),
+  ]);
 
   type BookingRow = {
     id: string;
@@ -54,7 +76,7 @@ export async function getMyBookings(): Promise<MyBookingListItem[]> {
     service: { name: unknown };
   };
 
-  return (bookings as BookingRow[]).map((booking) => ({
+  const items = (bookings as BookingRow[]).map((booking) => ({
     id: booking.id,
     serviceName: extractText(booking.service.name) || "تجربة",
     status: booking.status,
@@ -64,4 +86,12 @@ export async function getMyBookings(): Promise<MyBookingListItem[]> {
         : null,
     createdAt: booking.createdAt,
   }));
+
+  return {
+    items,
+    totalCount,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+  };
 }
