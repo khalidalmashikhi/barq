@@ -856,6 +856,30 @@
 
 ---
 
+### Entry 072 — ADR-0010: Multilingual Architecture Expansion (8 Languages), Documentation Only
+
+- **Date:** 2026-07-11
+- **Files Affected (new):** `docs/08-governance/adr/ADR-0010-multilingual-architecture-expansion.md`. **Modified:** `docs/08-governance/adr/ADR-0005-bilingual-architecture.md` (Status line and Future ADR References footer only — marked superseded-in-part, no other content changed).
+- **Change:** Recorded a direct, explicit decision from the BARQ core team (via this project's engineering conversation) that BARQ's officially targeted interface language set expands from two (Arabic, English — fixed by `ADR-0005`) to eight: Arabic (primary, RTL, unchanged), English (secondary, unchanged), plus German, Italian, Polish, French, Czech, and Russian as planned first-wave international languages. `ADR-0010` supersedes `ADR-0005` on language-count scope only — every one of `ADR-0005`'s architectural principles (bilingual-by-design mechanics, RTL-as-first-class, no-hardcoded-text, language-neutral domain/API layer, the existing `Json` locale-map database strategy) is reaffirmed, not replaced.
+- **Explicitly not done, per direct instruction:** no i18n library selected, no migration of `src/lib/i18n/strings.ts` performed, no database schema change, no code change of any kind. This is a documentation-only ADR recording an already-approved decision ahead of any implementation — the same "ADR before the affected code" pattern this project has followed since `ADR-0002`/`ADR-0005`.
+- **Follow-up flagged, not performed in this entry** (minimal-scope instruction: create only the ADR): `LOCALIZATION.md` should eventually cite the 8-language target; `BARQ_BIBLE.md`'s ADR Index should list ADR-0010; `TECH_STACK.md`'s open i18n-library decision should eventually be resolved against this ADR's requirements (including Slavic-language pluralization, which the current `strings.ts` shape cannot express). None of these were touched, consistent with the instruction to create only the ADR document itself.
+- **Validation Result:** Documentation-only change — no typecheck/lint/build impact. Both ADR files reviewed for internal consistency (Related Documents / Future ADR References cross-references match on both sides).
+- **Governing Rule:** `PROJECT_RULES.md` §4 (ADR Process — supersession via a later ADR, never in-place edit of Locked content), §20.1–20.2 (human review/logging of AI-drafted documentation).
+
+---
+
+### Entry 073 — ADR-0011: API First & Mobile Ready Architecture, Documentation Only
+
+- **Date:** 2026-07-11
+- **Files Affected (new):** `docs/08-governance/adr/ADR-0011-api-first-mobile-ready-architecture.md`. **Modified:** `BARQ_BIBLE.md` (ADR Index only — added `ADR-0010` (previously omitted as a flagged follow-up in Entry 072) and `ADR-0011`, per the Living-Document Update Exception for index/navigation changes).
+- **Change:** Recorded a direct, explicit decision from the BARQ core team establishing BARQ as an API-first, mobile-ready platform: business capabilities must be exposed through stable, versioned APIs (not Server-Action-only); business logic (validation, pricing, booking, availability, permissions, contracts, payments, notifications, commissions, future AI workflows) must exist in exactly one reusable place, never duplicated per client (Web/iOS/Android/AI Agents/partner integrations); future native apps are expected to use React Native/Expo pending any later ADR; the domain layer stays independent of React/Next.js; APIs are versioned (`/api/v1/...`); AI Agents and partner integrations consume the same documented APIs as web/mobile, never a private path or direct DB access.
+- **Explicitly complementary, not a supersession:** `ADR-0011` does not replace `ADR-0005` or `ADR-0010` — those govern language; this ADR governs client/consumer architecture. Both are cited as Dependencies and Related Documents, neither's Status line was touched.
+- **Explicitly not done, per direct instruction:** no API built, no Server Action migrated, no mobile application built, no AI agent implemented, no application code changed, no Prisma schema changed, no authentication implementation changed. Documentation only.
+- **Validation Result:** Documentation-only change — no typecheck/lint/build impact. Cross-references checked both directions (ADR-0011 cites ADR-0002/0005/0008/0010/API_CONTRACTS.md/SYSTEM_ARCHITECTURE.md/TECH_STACK.md/AUTHENTICATION.md; BARQ_BIBLE.md's ADR Index now lists both ADR-0010 and ADR-0011 consistent with their own Status headers).
+- **Governing Rule:** `PROJECT_RULES.md` §4 (ADR Process), §20.1–20.2 (human review/logging of AI-drafted documentation); `BARQ_BIBLE.md`'s own Living-Document Update Exception (navigation/index changes without a separate ADR).
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on

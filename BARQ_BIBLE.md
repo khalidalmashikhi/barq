@@ -149,10 +149,12 @@ Every architectural decision that is expensive to reverse is recorded as an ADR,
 
 - `ADR-0002` — Modular Monolith
 - `ADR-0004` — Project Manifest (its existence above `BARQ_BIBLE.md`'s own charter)
-- `ADR-0005` — Bilingual Architecture
+- `ADR-0005` — Bilingual Architecture (superseded in part by `ADR-0010` — language count only; all other principles remain fully in force)
 - `ADR-0006` — Database Baseline
 - `ADR-0007` — Frontend, Backend, and Hosting Stack
 - `ADR-0008` — AI Agent Boundaries
+- `ADR-0010` — Multilingual Architecture Expansion (8 officially targeted interface languages; supersedes `ADR-0005`'s language-count scope only)
+- `ADR-0011` — API First & Mobile Ready Architecture (complements `ADR-0005`/`ADR-0010`, does not supersede either)
 
 **A known gap, stated plainly:** `ADR-0001` (documentation architecture) and `ADR-0003` (documentation order) were referenced by name in this project's early history but were never created as standalone files — both are largely superseded in practice by `PROJECT_RULES.md`'s later Progressive Documentation rules and by `ARCHITECTURE_FREEZE_V1.md` itself. They are not fixed in this pass; whether they should be reconstructed for historical completeness or formally retired is an open item for whoever governs this project's ADR history next.
 
