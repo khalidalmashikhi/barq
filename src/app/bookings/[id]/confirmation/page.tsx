@@ -37,6 +37,19 @@ export default async function BookingConfirmationPage({ params }: Props) {
       {booking.priceSnapshot && (
         <p className="text-lg font-semibold text-primary">{booking.priceSnapshot}</p>
       )}
+      {booking.slotStartTime && (
+        <p className="text-sm text-foreground/60">
+          {new Date(booking.slotStartTime).toLocaleString("ar-OM", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          {" — "}
+          {booking.seats} مقعد
+        </p>
+      )}
       <p className="text-xs text-foreground/40">
         سيتم إشعارك عند تأكيد الحجز من قبل مزود الخدمة.
       </p>

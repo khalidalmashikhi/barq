@@ -1,23 +1,24 @@
 import { redirect, notFound } from "next/navigation";
-import { AlertCircle } from "lucide-react";
-import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { AlertCircle, Calendar, Users } from "lucide-react";
+import { getSession } from "@/lib/auth";
 import { getServiceById, getActivePricesForService } from "@/lib/services/get-service-detail";
+import { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import { prisma } from "@/lib/db";
 import { createBooking } from "@/lib/booking/create-booking";
+import { t } from "@/lib/i18n/strings";
 
-// Booking form page — Engineering Sprint (Booking Engine).
+// Booking form page — Engineering Sprint (Availability Engine).
 //
-// AUTH: uses getSession() (not requireAuth()) so an unauthenticated
-// visitor gets a clean redirect to "/" rather than a thrown error on a
-// page render — the actual mutation (createBooking) independently
-// re-checks auth server-side regardless of what this page does, so
-// this is a UX nicety, not the real security boundary.
+// Slot selection now comes BEFORE price selection, per explicit
+// requirement — the form fieldsets are ordered slot -> seats -> price.
+// A service with no Availability rows at all skips the slot section
+// entirely and books exactly as before this sprint (preserving
+// existing behavior for services that never adopt scheduling).
 //
-// NO DATE/TIME SELECTION — Booking has no field to store a
-// customer-chosen date, and Availability (which does model time slots)
-// has no relation back to Booking at all. Building a picker that
-// doesn't actually persist anything would be worse than omitting it —
-// flagged here and in the sprint report, not silently worked around.
+// AUTH: uses getSession() (not requireAuth()) for a clean redirect on
+// an unauthenticated visit — createBooking() independently re-checks
+// auth server-side regardless, so this is a UX nicety, not the real
+// security boundary.
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -28,17 +29,9 @@ export default async function BookServicePage({ params, searchParams }: Props) {
   const { id } = await params;
   const { error } = await searchParams;
 
-  let barqUserId: string;
-
-  try {
-    const { barqUser } = await requireAuth();
-    barqUserId = barqUser.id;
-  } catch (authError) {
-    if (authError instanceof UnauthenticatedError) {
-      redirect("/");
-    }
-
-    throw authError;
+  const session = await getSession();
+  if (!session) {
+    redirect("/");
   }
 
   const fetchedService = await getServiceById(id);
@@ -48,13 +41,13 @@ export default async function BookServicePage({ params, searchParams }: Props) {
   }
   const service = fetchedService;
 
-  const prices = await getActivePricesForService(service.id);
+  const [prices, slots] = await Promise.all([
+    getActivePricesForService(service.id),
+    getAvailableSlots(service.id),
+  ]);
 
-  // Check for a Customer profile here too, purely for a better message
-  // before the user fills out the form — createBooking() independently
-  // re-verifies this regardless.
   const customer = await prisma.customer.findUnique({
-    where: { userId: barqUserId },
+    where: { userId: session.user.id },
   });
 
   return (
@@ -95,9 +88,59 @@ export default async function BookServicePage({ params, searchParams }: Props) {
             }
             redirect(`/bookings/${result.bookingId}/confirmation`);
           }}
-          className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm"
+          className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm"
         >
           <input type="hidden" name="serviceId" value={service.id} />
+
+          {/* Slot selection — comes first, per explicit requirement.
+              Only rendered if this service actually has slots; a
+              service with none is booked exactly as before this sprint. */}
+          {slots.length > 0 && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+                <Calendar size={16} strokeWidth={1.75} />
+                {t.selectSlotLabel}
+              </legend>
+              {slots.map((slot) => (
+                <label
+                  key={slot.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent/20"
+                >
+                  <span className="flex items-center gap-3">
+                    <input type="radio" name="availabilityId" value={slot.id} required className="accent-primary" />
+                    {new Date(slot.startTime).toLocaleString("ar-OM", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <span className="text-xs text-foreground/50">
+                    {slot.remainingSeats} {t.remainingSeatsLabel}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+
+          {slots.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="seats" className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+                <Users size={16} strokeWidth={1.75} />
+                {t.seatsLabel}
+              </label>
+              <input
+                id="seats"
+                type="number"
+                name="seats"
+                min={1}
+                defaultValue={1}
+                required
+                className="w-24 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none"
+              />
+            </div>
+          )}
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium text-foreground/80">اختر السعر</legend>
