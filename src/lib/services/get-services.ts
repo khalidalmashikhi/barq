@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { extractText } from "@/lib/i18n/extract-text";
 
 // Services listing query — Engineering Sprint (Services Marketplace).
 //
@@ -16,14 +17,6 @@ import { prisma } from "@/lib/db";
 // All three need a schema decision (new fields, or a new model for
 // images) before they can be built for real — not decided here, per
 // "preserve Prisma schema unless absolutely required."
-
-function extractText(value: unknown): string {
-  if (value && typeof value === "object" && "ar" in value) {
-    const ar = (value as { ar?: unknown }).ar;
-    if (typeof ar === "string") return ar;
-  }
-  return "";
-}
 
 export type ServiceListItem = {
   id: string;

@@ -2,29 +2,12 @@ import { CalendarX } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { clsx } from "@/components/ui/clsx";
 import type { DashboardBookingSummary } from "@/lib/dashboard/get-dashboard-data";
+import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 
 // Upcoming bookings timeline — Engineering Sprint (Dashboard Data
 // Wiring). Now takes real Booking data as a prop instead of hardcoded
 // content. Empty state shown when the array is empty (no bookings yet,
 // or no Customer profile) — real data only, per explicit instruction.
-
-const statusLabels: Record<string, string> = {
-  CONFIRMED: "مؤكد",
-  IN_PROGRESS: "جارٍ",
-  COMPLETED: "مكتمل",
-  CANCELLED: "ملغى",
-  DISPUTED: "قيد المراجعة",
-  CREATED: "قيد الانتظار",
-};
-
-const statusStyles: Record<string, string> = {
-  CONFIRMED: "bg-success/10 text-success",
-  IN_PROGRESS: "bg-secondary/15 text-secondary",
-  COMPLETED: "bg-primary/10 text-primary",
-  CANCELLED: "bg-danger/10 text-danger",
-  DISPUTED: "bg-danger/10 text-danger",
-  CREATED: "bg-accent/20 text-accent-foreground",
-};
 
 type RecentBookingsTimelineProps = {
   bookings: DashboardBookingSummary[];
@@ -60,10 +43,10 @@ export function RecentBookingsTimeline({ bookings }: RecentBookingsTimelineProps
                 <span
                   className={clsx(
                     "shrink-0 rounded-full px-3 py-1 text-xs font-medium",
-                    statusStyles[booking.status] ?? "bg-accent/20 text-accent-foreground"
+                    getBookingStatusStyle(booking.status)
                   )}
                 >
-                  {statusLabels[booking.status] ?? booking.status}
+                  {getBookingStatusLabel(booking.status)}
                 </span>
               </div>
             </li>

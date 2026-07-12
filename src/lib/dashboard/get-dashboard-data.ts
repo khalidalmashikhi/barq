@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { extractText } from "@/lib/i18n/extract-text";
 
 // Dashboard data fetching — Engineering Sprint (Dashboard Data Wiring).
 //
@@ -13,14 +14,6 @@ import { prisma } from "@/lib/db";
 // DOMAIN_MODEL.md) — a newly authenticated user who has never made a
 // booking. Every query below returns an honest empty/zero result for
 // that case rather than erroring, per explicit task requirement #7.
-
-function extractArabicText(value: unknown): string {
-  if (value && typeof value === "object" && "ar" in value) {
-    const ar = (value as { ar?: unknown }).ar;
-    if (typeof ar === "string") return ar;
-  }
-  return "";
-}
 
 export type DashboardBookingSummary = {
   id: string;
@@ -109,7 +102,7 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
   const upcomingBookings: DashboardBookingSummary[] = upcomingBookingsRaw.map(
     (booking: { id: string; status: string; confirmedAt: Date | null; service: { name: unknown } }) => ({
       id: booking.id,
-      serviceName: extractArabicText(booking.service.name) || "تجربة",
+      serviceName: extractText(booking.service.name) || "تجربة",
       status: booking.status,
       confirmedAt: booking.confirmedAt,
     })
@@ -155,8 +148,8 @@ async function getMostBookedServices(): Promise<DashboardFeaturedService[]> {
     .filter((service: ServiceWithJoins | undefined): service is ServiceWithJoins => Boolean(service))
     .map((service: ServiceWithJoins) => ({
       id: service.id,
-      name: extractArabicText(service.name) || "تجربة",
-      providerName: extractArabicText(service.provider.businessName) || "مزود خدمة",
+      name: extractText(service.name) || "تجربة",
+      providerName: extractText(service.provider.businessName) || "مزود خدمة",
       price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
     }));
 }
@@ -174,8 +167,8 @@ async function getFeaturedServices(): Promise<DashboardFeaturedService[]> {
 
   return services.map((service: ServiceWithJoins) => ({
     id: service.id,
-    name: extractArabicText(service.name) || "تجربة",
-    providerName: extractArabicText(service.provider.businessName) || "مزود خدمة",
+    name: extractText(service.name) || "تجربة",
+    providerName: extractText(service.provider.businessName) || "مزود خدمة",
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
   }));
 }

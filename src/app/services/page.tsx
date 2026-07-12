@@ -1,7 +1,7 @@
 import { PackageOpen } from "lucide-react";
 import { getServices, getProvidersForFilter } from "@/lib/services/get-services";
 import { ServiceFilters } from "@/components/services/service-filters";
-import { Pagination } from "@/components/services/pagination";
+import { Pagination } from "@/components/ui/pagination";
 import { ExperienceCard } from "@/components/dashboard/experience-card";
 
 // Services listing page — Engineering Sprint (Services Marketplace).
@@ -93,7 +93,7 @@ export default async function ServicesPage({
         </div>
       )}
 
-      <Pagination page={result.page} totalPages={result.totalPages} searchParams={params} />
+      <Pagination page={result.page} totalPages={result.totalPages} searchParams={params} basePath="/services" />
     </main>
   );
 }

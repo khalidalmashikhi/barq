@@ -1,4 +1,5 @@
 import { HeartOff } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // Favorites (❤️) — no Favorites/SavedExperience data model exists in
 // BARQ's schema. Per explicit instruction, this is NOT backed by
@@ -13,10 +14,7 @@ export function FavoritesSection() {
         <span aria-hidden>❤️</span>
         المفضلة
       </h2>
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
-        <HeartOff size={28} strokeWidth={1.5} className="text-foreground/25" />
-        <p className="text-sm text-foreground/50">ميزة المفضلة غير متوفرة بعد</p>
-      </div>
+      <EmptyState icon={HeartOff} message="ميزة المفضلة غير متوفرة بعد" />
     </div>
   );
 }

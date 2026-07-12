@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { isValidUuid } from "@/lib/uuid";
+import { extractText } from "@/lib/i18n/extract-text";
 
 // Service detail query — Engineering Sprint (Services Marketplace).
 //
@@ -8,14 +9,6 @@ import { isValidUuid } from "@/lib/uuid";
 // category/tag field exists to relate by (same gap noted in
 // get-services.ts) — a real, defensible relation using existing data,
 // not a fabricated one.
-
-function extractText(value: unknown): string {
-  if (value && typeof value === "object" && "ar" in value) {
-    const ar = (value as { ar?: unknown }).ar;
-    if (typeof ar === "string") return ar;
-  }
-  return "";
-}
 
 export type ServiceDetail = {
   id: string;

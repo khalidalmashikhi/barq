@@ -4,7 +4,7 @@
 - **Scope:** The architectural principle itself, its implications across each affected layer, and the standing obligations it places on all current and future documentation and features.
 - **Out of Scope:** Specific implementation mechanics — i18n library choice, exact database translation-table schema, specific RTL CSS strategy. Those are owned by the documents this ADR obligates (`DATABASE_DESIGN.md`, `DESIGN_SYSTEM.md`, `API_STANDARDS.md`) once written.
 - **Dependencies:** `PROJECT_MANIFEST.md` (Design Philosophy, §8 — "Arabic-first... RTL is a first-class layout mode"), `ADR-0002-modular-monolith.md` (this principle applies within every module of the monolith).
-- **Status:** Approved v1.0 — Locked upon acceptance.
+- **Status:** Approved v1.0 — Locked upon acceptance. **Superseded in part by `ADR-0010-multilingual-architecture-expansion.md`** (2026-07-11) — ADR-0010 supersedes this ADR's language-count scope only (two languages → eight officially targeted languages); every principle below (bilingual-by-design mechanics, RTL-as-first-class, no-hardcoded-text, language-neutral domain/API layer) remains fully in force and is reaffirmed, not overridden, by ADR-0010.
 - **Owner:** CTO / Principal Architect (BARQ core team).
 
 ---
@@ -64,4 +64,5 @@ This ADR is written now, ahead of the documents it binds, deliberately — the s
 2. **Resolved by `LOCALIZATION.md` §3:** locale negotiation follows a stored user preference, then request-level negotiation, then Arabic default — no longer open. `LOCALIZATION.md` is the authoritative source for this decision.
 
 ## Future ADR References
-- None yet. Any change to the bilingual-by-design principle itself, or any exception granted to a specific feature, requires a superseding ADR — it cannot be quietly narrowed in a feature spec.
+- **`ADR-0010-multilingual-architecture-expansion.md`** — supersedes this ADR's two-language scope, expanding the officially targeted language set to eight (Arabic, English, German, Italian, Polish, French, Czech, Russian) while reaffirming every principle recorded here.
+- Any further change to the bilingual/multilingual-by-design principle itself, or any exception granted to a specific feature, requires a superseding ADR — it cannot be quietly narrowed in a feature spec.

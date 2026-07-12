@@ -5,30 +5,37 @@ import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 
-// Create booking — Engineering Sprint (Booking Engine).
+// Create booking — Engineering Sprint (Availability Engine).
 //
-// SECURITY: nothing from the client is trusted except which serviceId/
-// priceId the customer says they want. Every fact used to decide
-// whether the booking is valid — the service's PUBLISHED status, the
-// price's ACTIVE status and its actual amount/currency, and which
-// Customer the authenticated session maps to — is re-read from the
-// database inside this action, never taken from hidden form fields.
+// SECURITY, unchanged principle from the original Booking Engine
+// sprint: nothing from the client is trusted except which IDs were
+// selected. Service PUBLISHED status, Price ACTIVE-and-belongs-to-
+// service, Availability belongs-to-service/is-OPEN/is-in-the-future,
+// and the authenticated Customer are all re-read from the database
+// here — never taken from hidden form fields, including seats and
+// which slot was picked.
 //
-// Uses requireCustomer() from src/lib/auth/rbac.ts UNCHANGED — this
-// sprint does not modify RBAC. If no Customer profile exists,
-// requireCustomer() throws ForbiddenError, caught below and surfaced
-// as a redirect to a clear "complete your profile" state rather than
-// an unhandled 500 — see the booking page for how this renders.
+// CONCURRENCY STRATEGY (Entry 067's design, now implemented):
+// The capacity guard is a single atomic conditional UPDATE — not a
+// separate read-then-write. Prisma's query filter DSL cannot express
+// "bookedCount + seats <= capacity" (a comparison between two columns
+// plus a parameter) — that requires raw SQL, which is why $executeRaw
+// is used for this one statement specifically, inside the same
+// $transaction as the Booking creation. PostgreSQL's row-level locking
+// under MVCC serializes concurrent UPDATEs against the same
+// Availability row: a second concurrent request's guarded UPDATE
+// re-evaluates its WHERE clause against the post-commit value of the
+// first, so it is structurally impossible for two concurrent requests
+// to both push bookedCount past capacity, regardless of load. If the
+// guarded UPDATE affects 0 rows, capacity genuinely wasn't available —
+// the transaction is aborted (thrown, not committed) and no Booking
+// row is created.
 //
-// NO PAYMENT, NO COMMISSION LOGIC — explicitly out of scope this
-// sprint. priceSnapshotAmount/Currency are captured at creation time
-// from the validated ACTIVE Price (the only real price data available,
-// since no confirmation/payment step exists yet to snapshot "at
-// confirmation" as the schema comment describes — a judgment call,
-// stated directly). commissionSnapshotAmount/Tier are left null.
-// Booking.status is left at its schema default (CREATED) — nothing in
-// this sprint moves a booking to CONFIRMED, since that transition has
-// no real trigger without payments.
+// A slot is entirely optional here: if a service has no Availability
+// rows at all, booking proceeds exactly as it did before this sprint
+// (availabilityId stays null) — this sprint does not force every
+// service to use slots, preserving the existing Booking Engine's
+// behavior for services that never adopt scheduling.
 
 export type CreateBookingResult =
   | { ok: true; bookingId: string }
@@ -37,6 +44,8 @@ export type CreateBookingResult =
 export async function createBooking(formData: FormData): Promise<CreateBookingResult> {
   const serviceId = formData.get("serviceId");
   const priceId = formData.get("priceId");
+  const availabilityIdRaw = formData.get("availabilityId");
+  const seatsRaw = formData.get("seats");
 
   if (typeof serviceId !== "string" || typeof priceId !== "string") {
     return { ok: false, error: "بيانات الطلب غير صالحة" };
@@ -45,6 +54,21 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   if (!isValidUuid(serviceId) || !isValidUuid(priceId)) {
     return { ok: false, error: "بيانات الطلب غير صالحة" };
   }
+
+  // availabilityId is optional — a service with no slots at all is
+  // still bookable without one, per the existing Booking Engine's
+  // design.
+  const availabilityId =
+    typeof availabilityIdRaw === "string" && availabilityIdRaw.length > 0 ? availabilityIdRaw : null;
+  if (availabilityId !== null && !isValidUuid(availabilityId)) {
+    return { ok: false, error: "بيانات الطلب غير صالحة" };
+  }
+
+  // seats defaults to 1 if not provided (matches the schema default),
+  // but is always re-validated as a positive integer regardless of
+  // what the client sent.
+  const seatsParsed = typeof seatsRaw === "string" ? parseInt(seatsRaw, 10) : 1;
+  const seats = Number.isInteger(seatsParsed) && seatsParsed > 0 ? seatsParsed : 1;
 
   let customer;
   try {
@@ -60,8 +84,6 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     throw error;
   }
 
-  // Re-read the service from the database — never trust that a
-  // PUBLISHED status claimed by the client is real.
   const service = await prisma.service.findFirst({
     where: { id: serviceId, status: "PUBLISHED" },
   });
@@ -70,9 +92,6 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: false, error: "هذه التجربة غير متاحة للحجز حالياً" };
   }
 
-  // Re-read the price — must belong to THIS service and be ACTIVE.
-  // Never trust an amount sent from the browser; the amount used below
-  // is exactly what's stored on this row.
   const price = await prisma.price.findFirst({
     where: { id: priceId, serviceId: service.id, status: "ACTIVE" },
   });
@@ -81,15 +100,67 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: false, error: "الخيار السعري المحدد غير متاح لهذه التجربة" };
   }
 
-  const booking = await prisma.booking.create({
-    data: {
-      customerId: customer.id,
-      serviceId: service.id,
-      providerId: service.providerId,
-      priceSnapshotAmount: price.amount,
-      priceSnapshotCurrency: price.currency,
-    },
-  });
+  // If a slot was selected, re-validate it belongs to this service, is
+  // OPEN, and is in the future — never trust the client's claim about
+  // any of these, even though the ID itself came from a legitimate
+  // selection in the UI.
+  if (availabilityId !== null) {
+    const availability = await prisma.availability.findFirst({
+      where: {
+        id: availabilityId,
+        serviceId: service.id,
+        state: "OPEN",
+        startTime: { gt: new Date() },
+      },
+    });
 
-  return { ok: true, bookingId: booking.id };
+    if (!availability) {
+      return { ok: false, error: "الموعد المحدد لم يعد متاحاً" };
+    }
+  }
+
+  try {
+    const bookingId = await prisma.$transaction(async (tx) => {
+      if (availabilityId !== null) {
+        // The atomic guard — see the concurrency note above for why
+        // this must be raw SQL and why it is safe under concurrent load.
+        const affectedRows: number = await tx.$executeRaw`
+          UPDATE availabilities
+          SET "bookedCount" = "bookedCount" + ${seats}
+          WHERE id = ${availabilityId}::uuid
+            AND state = 'OPEN'
+            AND "bookedCount" + ${seats} <= capacity
+        `;
+
+        if (affectedRows === 0) {
+          // Someone else took the remaining capacity between our read
+          // above and this transaction — a genuine race, correctly
+          // caught, not a bug. Abort by throwing inside the
+          // transaction callback; Prisma rolls back automatically.
+          throw new Error("SLOT_FULL");
+        }
+      }
+
+      const booking = await tx.booking.create({
+        data: {
+          customerId: customer.id,
+          serviceId: service.id,
+          providerId: service.providerId,
+          seats,
+          availabilityId,
+          priceSnapshotAmount: price.amount,
+          priceSnapshotCurrency: price.currency,
+        },
+      });
+
+      return booking.id;
+    });
+
+    return { ok: true, bookingId };
+  } catch (error) {
+    if (error instanceof Error && error.message === "SLOT_FULL") {
+      return { ok: false, error: "للأسف، اكتملت السعة المتاحة لهذا الموعد للتو" };
+    }
+    throw error;
+  }
 }
