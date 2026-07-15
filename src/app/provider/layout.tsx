@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { LayoutDashboard, Package, CalendarCheck, Clock } from "lucide-react";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
-import { t } from "@/lib/i18n/strings";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Provider layout — Provider Dashboard Phase 1b.
 //
@@ -29,13 +29,13 @@ import { t } from "@/lib/i18n/strings";
 // Phase 1a decision): ForbiddenError -> notFound(), never a "Provider
 // account required" message — applies to every route under
 // /provider/*, not just Overview.
-
-const providerNavItems: AppNavItem[] = [
-  { label: t.providerNavOverview, href: "/provider", icon: <LayoutDashboard size={18} strokeWidth={1.75} /> },
-  { label: t.providerNavServices, href: "/provider/services", icon: <Package size={18} strokeWidth={1.75} /> },
-  { label: t.providerNavBookings, href: "/provider/bookings", icon: <CalendarCheck size={18} strokeWidth={1.75} /> },
-  { label: t.providerNavAvailability, href: "/provider/availability", icon: <Clock size={18} strokeWidth={1.75} /> },
-];
+//
+// INTERNATIONALIZATION PHASE A.2: nav item labels and the role label
+// now come from next-intl's "provider" namespace (via
+// getServerTranslator — this is a Server Component) instead of
+// strings.ts's flat t.provider* keys. Values are unchanged for ar/en
+// (copied verbatim into messages/{ar,en}/provider.json). Routes,
+// icons, and AppShell composition are byte-for-byte unchanged.
 
 export default async function ProviderLayout({ children }: { children: ReactNode }) {
   try {
@@ -50,8 +50,17 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     throw error;
   }
 
+  const t = await getServerTranslator("provider");
+
+  const providerNavItems: AppNavItem[] = [
+    { label: t("navOverview"), href: "/provider", icon: <LayoutDashboard size={18} strokeWidth={1.75} /> },
+    { label: t("navServices"), href: "/provider/services", icon: <Package size={18} strokeWidth={1.75} /> },
+    { label: t("navBookings"), href: "/provider/bookings", icon: <CalendarCheck size={18} strokeWidth={1.75} /> },
+    { label: t("navAvailability"), href: "/provider/availability", icon: <Clock size={18} strokeWidth={1.75} /> },
+  ];
+
   return (
-    <AppShell navItems={providerNavItems} roleLabel={t.providerRoleLabel}>
+    <AppShell navItems={providerNavItems} roleLabel={t("roleLabel")}>
       {children}
     </AppShell>
   );
