@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
+import type { BookingActionErrorCode } from "./booking-action-errors";
 
 // Create booking — Engineering Sprint (Availability Engine).
 //
@@ -36,10 +37,18 @@ import { isValidUuid } from "@/lib/uuid";
 // (availabilityId stays null) — this sprint does not force every
 // service to use slots, preserving the existing Booking Engine's
 // behavior for services that never adopt scheduling.
+//
+// INTERNATIONALIZATION PHASE A.4: every error return is now a stable,
+// locale-neutral BookingActionErrorCode, never localized text — the
+// calling page resolves a code to a translated message via
+// booking-error-messages.ts's mapping layer. Genuinely unexpected
+// exceptions are caught and logged server-side only (never exposing
+// Prisma/internal exception details to the client) before returning
+// the generic UNKNOWN_ERROR code.
 
 export type CreateBookingResult =
   | { ok: true; bookingId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: BookingActionErrorCode };
 
 export async function createBooking(formData: FormData): Promise<CreateBookingResult> {
   const serviceId = formData.get("serviceId");
@@ -48,11 +57,11 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   const seatsRaw = formData.get("seats");
 
   if (typeof serviceId !== "string" || typeof priceId !== "string") {
-    return { ok: false, error: "بيانات الطلب غير صالحة" };
+    return { ok: false, error: "INVALID_INPUT" };
   }
 
   if (!isValidUuid(serviceId) || !isValidUuid(priceId)) {
-    return { ok: false, error: "بيانات الطلب غير صالحة" };
+    return { ok: false, error: "INVALID_INPUT" };
   }
 
   // availabilityId is optional — a service with no slots at all is
@@ -61,7 +70,7 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   const availabilityId =
     typeof availabilityIdRaw === "string" && availabilityIdRaw.length > 0 ? availabilityIdRaw : null;
   if (availabilityId !== null && !isValidUuid(availabilityId)) {
-    return { ok: false, error: "بيانات الطلب غير صالحة" };
+    return { ok: false, error: "INVALID_INPUT" };
   }
 
   // seats defaults to 1 if not provided (matches the schema default),
@@ -89,7 +98,7 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   });
 
   if (!service) {
-    return { ok: false, error: "هذه التجربة غير متاحة للحجز حالياً" };
+    return { ok: false, error: "SERVICE_UNAVAILABLE" };
   }
 
   const price = await prisma.price.findFirst({
@@ -97,7 +106,7 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   });
 
   if (!price) {
-    return { ok: false, error: "الخيار السعري المحدد غير متاح لهذه التجربة" };
+    return { ok: false, error: "PRICE_UNAVAILABLE" };
   }
 
   // If a slot was selected, re-validate it belongs to this service, is
@@ -115,7 +124,7 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     });
 
     if (!availability) {
-      return { ok: false, error: "الموعد المحدد لم يعد متاحاً" };
+      return { ok: false, error: "SLOT_UNAVAILABLE" };
     }
   }
 
@@ -159,8 +168,12 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: true, bookingId };
   } catch (error) {
     if (error instanceof Error && error.message === "SLOT_FULL") {
-      return { ok: false, error: "للأسف، اكتملت السعة المتاحة لهذا الموعد للتو" };
+      return { ok: false, error: "SLOT_FULL" };
     }
-    throw error;
+    // Genuinely unexpected — never expose Prisma/internal exception
+    // details to the client; log server-side only and return the
+    // generic code.
+    console.error("[createBooking] unexpected error", error);
+    return { ok: false, error: "UNKNOWN_ERROR" };
   }
 }

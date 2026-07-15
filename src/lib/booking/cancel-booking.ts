@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
+import type { BookingActionErrorCode } from "./booking-action-errors";
 
 // Cancel booking — Engineering Sprint (Availability Engine).
 //
@@ -31,12 +32,21 @@ import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 // at all — only bookedCount — so a provider's own explicit BLOCKED or
 // CANCELLED override (once the Provider Dashboard exists to set one)
 // is never silently undone by a customer cancelling their booking.
+//
+// INTERNATIONALIZATION PHASE A.4: every error return is now a stable,
+// locale-neutral BookingActionErrorCode, never localized text — the
+// calling page resolves a code to a translated message via
+// booking-error-messages.ts's mapping layer. The booking-lookup/
+// cancellation logic is now wrapped in its own try/catch (previously
+// unguarded) so a genuinely unexpected exception is caught and logged
+// server-side only before returning the generic UNKNOWN_ERROR code,
+// rather than propagating a raw, unhandled exception.
 
-export type CancelBookingResult = { ok: true } | { ok: false; error: string };
+export type CancelBookingResult = { ok: true } | { ok: false; error: BookingActionErrorCode };
 
 export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
   if (!isValidUuid(bookingId)) {
-    return { ok: false, error: "معرّف الحجز غير صالح" };
+    return { ok: false, error: "INVALID_INPUT" };
   }
 
   let customer;
@@ -53,32 +63,40 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     throw error;
   }
 
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-  });
-
-  if (!booking || booking.customerId !== customer.id) {
-    return { ok: false, error: "الحجز غير موجود" };
-  }
-
-  if (!canCancelBooking(booking.status)) {
-    return { ok: false, error: "لا يمكن إلغاء هذا الحجز في حالته الحالية" };
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id: booking.id },
-      data: { status: "CANCELLED" },
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
     });
 
-    if (booking.availabilityId) {
-      await tx.$executeRaw`
-        UPDATE availabilities
-        SET "bookedCount" = GREATEST("bookedCount" - ${booking.seats}, 0)
-        WHERE id = ${booking.availabilityId}::uuid
-      `;
+    if (!booking || booking.customerId !== customer.id) {
+      return { ok: false, error: "BOOKING_NOT_FOUND" };
     }
-  });
 
-  return { ok: true };
+    if (!canCancelBooking(booking.status)) {
+      return { ok: false, error: "BOOKING_NOT_CANCELLABLE" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: { status: "CANCELLED" },
+      });
+
+      if (booking.availabilityId) {
+        await tx.$executeRaw`
+          UPDATE availabilities
+          SET "bookedCount" = GREATEST("bookedCount" - ${booking.seats}, 0)
+          WHERE id = ${booking.availabilityId}::uuid
+        `;
+      }
+    });
+
+    return { ok: true };
+  } catch (error) {
+    // Genuinely unexpected — never expose Prisma/internal exception
+    // details to the client; log server-side only and return the
+    // generic code.
+    console.error("[cancelBooking] unexpected error", error);
+    return { ok: false, error: "UNKNOWN_ERROR" };
+  }
 }
