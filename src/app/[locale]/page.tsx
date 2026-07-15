@@ -4,11 +4,25 @@ import { getSession } from "@/lib/auth";
 import { LoginForm } from "@/components/auth/login-form";
 import { Logo } from "@/components/ui/logo";
 
-// Landing/login page — rebuilt again per this turn's updated brief
-// (new headline/subtitle/feature-list copy, new purple/teal palette).
+// Landing/login page — moved here verbatim from src/app/page.tsx
+// (BARQ Internationalization Phase A.3 route bridge).
+//
+// WHY THIS MOVED: middleware.ts's routing uses localePrefix: "always",
+// so "/" always redirects to a negotiated locale (e.g. "/ar") before
+// any page component runs — the old unprefixed src/app/page.tsx was
+// therefore genuinely unreachable, discovered during this phase's own
+// browser verification. This file is the smallest correct fix: the
+// real homepage now lives at the one place a request for "/" actually
+// lands. src/app/page.tsx was deleted, not duplicated — this is the
+// only copy of this implementation.
 //
 // PRESERVED EXACTLY: the server-side session check and
-// redirect-to-/dashboard-if-authenticated logic.
+// redirect-to-/dashboard-if-authenticated logic, the full visual
+// layout, and every hardcoded string below except LoginForm's own
+// (already migrated to next-intl in this same phase). Migrating this
+// page's own hero copy (headline/subtitle/feature labels) is explicitly
+// out of scope — only LoginForm's strings and this routing move were
+// approved.
 //
 // *** REAL ASSET GAP, STILL FLAGGED *** — no actual Salalah/Oman
 // photography exists anywhere in this sandbox, unchanged from the
@@ -22,9 +36,6 @@ import { Logo } from "@/components/ui/logo";
 // about the logo's own colors, which are unknown here. If the real logo
 // has its own brand colors that shouldn't be forced white, remove this
 // filter.
-//
-// Exact headline/subtitle/feature-list copy below is this turn's
-// updated text, used verbatim, replacing the previous round's copy.
 
 const features = [
   { label: "رحلات موثوقة", icon: ShieldCheck },
