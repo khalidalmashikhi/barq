@@ -3,6 +3,7 @@ import { PackageOpen, Flame, Compass, CalendarCheck, Bell, Heart, Settings, MapP
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { CategoryExplorer } from "@/components/dashboard/category-explorer";
 import { ExperienceCard } from "@/components/dashboard/experience-card";
@@ -44,26 +45,16 @@ import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 // records), CategoryExplorer (fixed category labels), QuickActions
 // (UI shortcuts, not data) — left as-is; converting these isn't part
 // of "replacing placeholder/mock data with real database-backed data."
-
-const customerNavItems: AppNavItem[] = [
-  { label: "نظرة عامة", href: "/dashboard", icon: <Compass size={18} strokeWidth={1.75} /> },
-  { label: "الحجوزات", href: "/bookings", icon: <CalendarCheck size={18} strokeWidth={1.75} /> },
-  { label: "الإشعارات", icon: <Bell size={18} strokeWidth={1.75} />, badge: 3 },
-  { label: "المحفوظات", icon: <Heart size={18} strokeWidth={1.75} /> },
-  { label: "الإعدادات", icon: <Settings size={18} strokeWidth={1.75} /> },
-];
-
-const customerTopBarSearch = (
-  <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2 mx-8 md:flex">
-    <Search size={16} strokeWidth={1.75} className="text-foreground/40" />
-    <input
-      type="search"
-      placeholder="ابحث عن تجربة أو وجهة..."
-      className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
-      disabled
-    />
-  </div>
-);
+//
+// INTERNATIONALIZATION PHASE A.2: nav item labels, the role label, and
+// the top-bar search placeholder now come from next-intl's
+// "dashboard" namespace (via getServerTranslator — this is a Server
+// Component), fixing a real pre-existing defect: this file previously
+// hardcoded these 7 strings directly, bypassing even strings.ts's
+// stopgap entirely (unlike provider/layout.tsx, which already used
+// t.provider* keys). Every OTHER string in this file below (headings,
+// StatCard labels, empty states, the account-id line) is page content,
+// out of this phase's explicit scope, and is untouched.
 
 export default async function DashboardPage() {
   let barqUserId: string;
@@ -79,9 +70,30 @@ export default async function DashboardPage() {
   }
 
   const data = await getDashboardData(barqUserId);
+  const t = await getServerTranslator("dashboard");
+
+  const customerNavItems: AppNavItem[] = [
+    { label: t("navOverview"), href: "/dashboard", icon: <Compass size={18} strokeWidth={1.75} /> },
+    { label: t("navBookings"), href: "/bookings", icon: <CalendarCheck size={18} strokeWidth={1.75} /> },
+    { label: t("navNotifications"), icon: <Bell size={18} strokeWidth={1.75} />, badge: 3 },
+    { label: t("navSaved"), icon: <Heart size={18} strokeWidth={1.75} /> },
+    { label: t("navSettings"), icon: <Settings size={18} strokeWidth={1.75} /> },
+  ];
+
+  const customerTopBarSearch = (
+    <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2 mx-8 md:flex">
+      <Search size={16} strokeWidth={1.75} className="text-foreground/40" />
+      <input
+        type="search"
+        placeholder={t("searchPlaceholder")}
+        className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
+        disabled
+      />
+    </div>
+  );
 
   return (
-    <AppShell navItems={customerNavItems} roleLabel="عميل" topBarCenterContent={customerTopBarSearch}>
+    <AppShell navItems={customerNavItems} roleLabel={t("roleLabel")} topBarCenterContent={customerTopBarSearch}>
       <DashboardHero />
 
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-8 py-8">

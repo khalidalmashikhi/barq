@@ -1,10 +1,14 @@
 import { redirect, notFound } from "next/navigation";
 import { AlertCircle, Calendar, Users } from "lucide-react";
 import { getSession } from "@/lib/auth";
+import { resolveBarqUser } from "@/lib/auth/barq-user";
 import { getServiceById, getActivePricesForService } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import { prisma } from "@/lib/db";
 import { createBooking } from "@/lib/booking/create-booking";
+import { isBookingActionErrorCode } from "@/lib/booking/booking-action-errors";
+import { getBookingErrorTranslationKey } from "@/lib/booking/booking-error-messages";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { t } from "@/lib/i18n/strings";
 
 // Booking form page — Engineering Sprint (Availability Engine).
@@ -19,6 +23,25 @@ import { t } from "@/lib/i18n/strings";
 // an unauthenticated visit — createBooking() independently re-checks
 // auth server-side regardless, so this is a UX nicety, not the real
 // security boundary.
+//
+// PHASE A.4 HOTFIX: the Customer lookup below now resolves the real
+// BARQ User via resolveBarqUser(session.user.id) before querying
+// Customer.userId — the same function requireAuth()/rbac.ts already
+// use correctly elsewhere (e.g. get-booking-detail.ts). Previously
+// this queried Customer.userId directly with session.user.id, which
+// is Better Auth's own AuthUser.id (not a UUID) — a real, pre-existing
+// bug that crashed this page for every visitor, discovered during
+// Phase A.4's own verification. No new helper was written; this reuses
+// the existing resolution function exactly as-is.
+//
+// INTERNATIONALIZATION PHASE A.4: createBooking() now returns a
+// stable BookingActionErrorCode, never localized text — the incoming
+// `?error=` query value is validated with isBookingActionErrorCode()
+// before being translated (never trusted as-is; an unrecognized value
+// shows no message). NO_CUSTOMER_PROFILE remains excluded from the
+// generic error banner below, unchanged from before this migration —
+// its dedicated message is now sourced from the same `errors`
+// namespace instead of being hardcoded a second time.
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -46,9 +69,13 @@ export default async function BookServicePage({ params, searchParams }: Props) {
     getAvailableSlots(service.id),
   ]);
 
+  const barqUser = await resolveBarqUser(session.user.id);
   const customer = await prisma.customer.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: barqUser.id },
   });
+
+  const tErrors = await getServerTranslator("errors");
+  const errorMessage = error && isBookingActionErrorCode(error) ? tErrors(getBookingErrorTranslationKey(error)) : null;
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
@@ -57,19 +84,17 @@ export default async function BookServicePage({ params, searchParams }: Props) {
         <p className="mt-1 text-sm text-foreground/50">{service.providerName}</p>
       </div>
 
-      {error && error !== "NO_CUSTOMER_PROFILE" && (
+      {errorMessage && error !== "NO_CUSTOMER_PROFILE" && (
         <div className="flex items-start gap-3 rounded-2xl border border-danger/40 bg-danger/10 p-4">
           <AlertCircle size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-danger" />
-          <p className="text-sm text-danger">{error}</p>
+          <p className="text-sm text-danger">{errorMessage}</p>
         </div>
       )}
 
       {!customer && (
         <div className="flex items-start gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4">
           <AlertCircle size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent-foreground" />
-          <p className="text-sm text-accent-foreground">
-            يلزم إكمال الملف الشخصي كعميل قبل إتمام الحجز. تواصل مع الدعم إذا استمرت هذه الرسالة.
-          </p>
+          <p className="text-sm text-accent-foreground">{tErrors("noCustomerProfile")}</p>
         </div>
       )}
 
@@ -83,7 +108,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
             "use server";
             const result = await createBooking(formData);
             if (!result.ok) {
-              redirect(`/services/${service.id}/book?error=${encodeURIComponent(result.error)}`);
+              redirect(`/services/${service.id}/book?error=${result.error}`);
               return;
             }
             redirect(`/bookings/${result.bookingId}/confirmation`);

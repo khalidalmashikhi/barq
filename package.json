@@ -20,31 +20,32 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "better-auth": "^1.1.0",
+    "framer-motion": "^11.11.0",
+    "lucide-react": "^0.460.0",
     "next": "^15.0.0",
+    "next-intl": "^4.13.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.53.0",
-    "zod": "^3.23.0",
-    "better-auth": "^1.1.0",
     "server-only": "^0.0.1",
-    "lucide-react": "^0.460.0",
-    "framer-motion": "^11.11.0"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
+    "@playwright/test": "^1.48.0",
+    "@prisma/client": "^5.20.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0",
-    "vitest": "^2.1.0",
-    "@playwright/test": "^1.48.0",
+    "postcss": "^8.4.0",
     "prisma": "^5.20.0",
-    "@prisma/client": "^5.20.0",
-    "tsx": "^4.19.0"
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

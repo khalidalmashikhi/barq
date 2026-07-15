@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth/client";
-import { t } from "@/lib/i18n/strings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -23,6 +23,15 @@ import { Card } from "@/components/ui/card";
 // request. The 6 digit values are joined into the exact same `otp`
 // string that was always passed to `verify({ phoneNumber, code: otp })`
 // — the backend call is byte-for-byte identical to before.
+//
+// INTERNATIONALIZATION PHASE A.3: every string previously read from
+// strings.ts's flat `t` object now comes from next-intl's "auth"
+// namespace via useTranslations() — a mechanical migration only, no
+// wording changed, no key renamed beyond dropping strings.ts's flat
+// naming in favor of namespaced access (t.loginTitle -> t("loginTitle"),
+// etc.). ar/en values in messages/{ar,en}/auth.json are copied verbatim
+// from strings.ts. Server Action calls, state machine, and OTP
+// interaction are untouched.
 
 const OTP_LENGTH = 6;
 
@@ -30,6 +39,7 @@ type Step = "phone" | "otp";
 
 export function LoginForm() {
   const router = useRouter();
+  const t = useTranslations("auth");
   const [step, setStep] = useState<Step>("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
@@ -51,14 +61,14 @@ export function LoginForm() {
       });
 
       if (requestError) {
-        setError(t.genericError);
+        setError(t("genericError"));
         return;
       }
 
       setOtpSent(true);
       setStep("otp");
     } catch {
-      setError(t.genericError);
+      setError(t("genericError"));
     } finally {
       setLoading(false);
     }
@@ -76,14 +86,14 @@ export function LoginForm() {
       });
 
       if (verifyError) {
-        setError(t.genericError);
+        setError(t("genericError"));
         return;
       }
 
       router.push("/dashboard");
       router.refresh();
     } catch {
-      setError(t.genericError);
+      setError(t("genericError"));
     } finally {
       setLoading(false);
     }
@@ -128,14 +138,14 @@ export function LoginForm() {
       className="w-full max-w-md border-white/60 bg-glass shadow-premium-lg animate-fade-up"
       hoverLift={false}
     >
-      <h1 className="text-2xl font-semibold text-foreground">{t.loginTitle}</h1>
-      <p className="mt-1.5 text-sm text-foreground/60">{t.loginSubtitle}</p>
+      <h1 className="text-2xl font-semibold text-foreground">{t("loginTitle")}</h1>
+      <p className="mt-1.5 text-sm text-foreground/60">{t("loginSubtitle")}</p>
 
       {step === "phone" && (
         <form onSubmit={handleRequestOtp} className="mt-8 flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <label htmlFor="phoneNumber" className="text-sm font-medium text-foreground/80">
-              {t.phoneLabel}
+              {t("phoneLabel")}
             </label>
             <input
               id="phoneNumber"
@@ -144,7 +154,7 @@ export function LoginForm() {
               required
               value={phoneNumber}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPhoneNumber(event.target.value)}
-              placeholder={t.phonePlaceholder}
+              placeholder={t("phonePlaceholder")}
               className="rounded-xl border border-border bg-background/60 px-4 py-3 text-start text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               dir="ltr"
             />
@@ -157,7 +167,7 @@ export function LoginForm() {
           )}
 
           <Button type="submit" disabled={loading || !phoneNumber} className="w-full">
-            {loading ? t.loading : t.requestOtpButton}
+            {loading ? t("loading") : t("requestOtpButton")}
           </Button>
         </form>
       )}
@@ -166,12 +176,12 @@ export function LoginForm() {
         <form onSubmit={handleVerifyOtp} className="mt-8 flex flex-col gap-5">
           {otpSent && (
             <p className="rounded-xl bg-accent px-4 py-2.5 text-sm text-accent-foreground">
-              {t.otpSentSuccess}
+              {t("otpSentSuccess")}
             </p>
           )}
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-foreground/80">{t.otpLabel}</label>
+            <label className="text-sm font-medium text-foreground/80">{t("otpLabel")}</label>
             <div className="flex flex-row-reverse justify-center gap-2" dir="ltr">
               {otpDigits.map((digit: string, index: number) => (
                 <input
@@ -188,7 +198,7 @@ export function LoginForm() {
                   }
                   onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => handleOtpKeyDown(index, event)}
                   onPaste={handleOtpPaste}
-                  aria-label={`${t.otpLabel} ${index + 1}`}
+                  aria-label={`${t("otpLabel")} ${index + 1}`}
                   className="h-12 w-10 rounded-xl border border-border bg-background/60 text-center text-lg font-medium text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               ))}
@@ -202,7 +212,7 @@ export function LoginForm() {
           )}
 
           <Button type="submit" disabled={loading || otp.length < OTP_LENGTH} className="w-full">
-            {loading ? t.loading : t.verifyOtpButton}
+            {loading ? t("loading") : t("verifyOtpButton")}
           </Button>
 
           <button
@@ -210,7 +220,7 @@ export function LoginForm() {
             onClick={handleChangePhoneNumber}
             className="text-sm text-foreground/60 underline-offset-2 hover:underline"
           >
-            {t.changePhoneButton}
+            {t("changePhoneButton")}
           </button>
         </form>
       )}

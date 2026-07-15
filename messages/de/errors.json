@@ -1,0 +1,13 @@
+{
+  "phase0Placeholder": "[de/errors] Phase 0 infrastructure placeholder (German) — not yet translated",
+  "generic": "[de/errors] generic error placeholder — key structure only, not yet migrated from strings.ts",
+  "invalidInput": "[de] invalidInput — not yet translated",
+  "noCustomerProfile": "[de] noCustomerProfile — not yet translated",
+  "serviceUnavailable": "[de] serviceUnavailable — not yet translated",
+  "priceUnavailable": "[de] priceUnavailable — not yet translated",
+  "slotUnavailable": "[de] slotUnavailable — not yet translated",
+  "slotFull": "[de] slotFull — not yet translated",
+  "bookingNotFound": "[de] bookingNotFound — not yet translated",
+  "bookingNotCancellable": "[de] bookingNotCancellable — not yet translated",
+  "unknownError": "[de] unknownError — not yet translated"
+}

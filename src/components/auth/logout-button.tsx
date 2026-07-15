@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth/client";
-import { t } from "@/lib/i18n/strings";
 import { Button } from "@/components/ui/button";
 
 // Logout button — Engineering Sprint 3 (Phone OTP UI), refactored by
@@ -18,6 +18,17 @@ import { Button } from "@/components/ui/button";
 // color). For dark backgrounds, use variant="outline-light" instead of
 // trying to override "ghost"'s own border/text classes via className,
 // which this project's minimal clsx utility cannot safely arbitrate.
+//
+// INTERNATIONALIZATION PHASE A.1 — CHOSEN AS THE ONE PROOF-OF-WIRING
+// COMPONENT: this is the single Client Component migrated from
+// strings.ts's flat `t` object to next-intl's useTranslations() in
+// this phase, chosen specifically because it is rendered inside
+// AppTopBar — present on every authenticated page across both Customer
+// and Provider — and uses only 2 keys, both copied verbatim from
+// strings.ts's existing ar/en values into messages/{ar,en}/common.json
+// (no new copy was authored). No other component was migrated this
+// phase; this one exists solely to prove NextIntlClientProvider is
+// correctly wired at the real root layout.
 
 export function LogoutButton({
   className,
@@ -27,6 +38,7 @@ export function LogoutButton({
   variant?: "ghost" | "outline-light";
 }) {
   const router = useRouter();
+  const t = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   async function handleLogout() {
@@ -42,7 +54,7 @@ export function LogoutButton({
 
   return (
     <Button type="button" variant={variant} onClick={handleLogout} disabled={loading} className={className}>
-      {loading ? t.loading : t.logoutButton}
+      {loading ? t("loading") : t("logoutButton")}
     </Button>
   );
 }
