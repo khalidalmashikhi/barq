@@ -1,0 +1,13 @@
+{
+  "phase0Placeholder": "[cs/errors] Phase 0 infrastructure placeholder (Czech) — not yet translated",
+  "generic": "[cs/errors] generic error placeholder — key structure only, not yet migrated from strings.ts",
+  "invalidInput": "[cs] invalidInput — not yet translated",
+  "noCustomerProfile": "[cs] noCustomerProfile — not yet translated",
+  "serviceUnavailable": "[cs] serviceUnavailable — not yet translated",
+  "priceUnavailable": "[cs] priceUnavailable — not yet translated",
+  "slotUnavailable": "[cs] slotUnavailable — not yet translated",
+  "slotFull": "[cs] slotFull — not yet translated",
+  "bookingNotFound": "[cs] bookingNotFound — not yet translated",
+  "bookingNotCancellable": "[cs] bookingNotCancellable — not yet translated",
+  "unknownError": "[cs] unknownError — not yet translated"
+}
