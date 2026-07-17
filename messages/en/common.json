@@ -1,5 +1,9 @@
 {
   "phase0Placeholder": "[en/common] Phase 0 infrastructure placeholder (English) — not yet translated",
   "loading": "Loading...",
-  "logoutButton": "Log Out"
+  "logoutButton": "Log Out",
+  "paginationAriaLabel": "Pagination",
+  "paginationStatus": "Page {page} of {totalPages}",
+  "appName": "BARQ",
+  "myAccountLabel": "My Account"
 }

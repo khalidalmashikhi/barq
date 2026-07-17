@@ -1,3 +1,14 @@
 {
-  "phase0Placeholder": "[it/services] Phase 0 infrastructure placeholder (Italian) — not yet translated"
+  "phase0Placeholder": "[it/services] Phase 0 infrastructure placeholder (Italian) — not yet translated",
+  "title": "[it] title — not yet translated",
+  "availableCount": "[it] availableCount {count} — not yet translated",
+  "exploreAvailable": "[it] exploreAvailable — not yet translated",
+  "noResultsMatchLabel": "[it] noResultsMatchLabel — not yet translated",
+  "noPublishedServicesLabel": "[it] noPublishedServicesLabel — not yet translated",
+  "priceUnavailableLabel": "[it] priceUnavailableLabel — not yet translated",
+  "bookNowButton": "[it] bookNowButton — not yet translated",
+  "todayLabel": "[it] todayLabel — not yet translated",
+  "aboutProviderLabel": "[it] aboutProviderLabel — not yet translated",
+  "moreFromProviderLabel": "[it] moreFromProviderLabel — not yet translated",
+  "noImagesLabel": "[it] noImagesLabel — not yet translated"
 }

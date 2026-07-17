@@ -1,3 +1,14 @@
 {
-  "phase0Placeholder": "[pl/services] Phase 0 infrastructure placeholder (Polish) — not yet translated"
+  "phase0Placeholder": "[pl/services] Phase 0 infrastructure placeholder (Polish) — not yet translated",
+  "title": "[pl] title — not yet translated",
+  "availableCount": "[pl] availableCount {count} — not yet translated",
+  "exploreAvailable": "[pl] exploreAvailable — not yet translated",
+  "noResultsMatchLabel": "[pl] noResultsMatchLabel — not yet translated",
+  "noPublishedServicesLabel": "[pl] noPublishedServicesLabel — not yet translated",
+  "priceUnavailableLabel": "[pl] priceUnavailableLabel — not yet translated",
+  "bookNowButton": "[pl] bookNowButton — not yet translated",
+  "todayLabel": "[pl] todayLabel — not yet translated",
+  "aboutProviderLabel": "[pl] aboutProviderLabel — not yet translated",
+  "moreFromProviderLabel": "[pl] moreFromProviderLabel — not yet translated",
+  "noImagesLabel": "[pl] noImagesLabel — not yet translated"
 }

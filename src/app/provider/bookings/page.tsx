@@ -4,8 +4,9 @@ import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/book
 import { ProviderBookingFilters } from "@/components/bookings/provider-booking-filters";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
-import { t } from "@/lib/i18n/strings";
-import { OMAN_TIME_ZONE } from "@/lib/date/oman-timezone";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 import type { BookingStatus } from "@prisma/client";
 
 // Provider Bookings — Provider Dashboard Phase 1c (Bookings Workspace
@@ -16,7 +17,7 @@ import type { BookingStatus } from "@prisma/client";
 // call — this page performs no auth logic of its own.
 //
 // CUSTOMER IDENTITY: no name/phone/email is ever rendered — only the
-// generic t.providerBookingCustomerLabel ("Customer"/"عميل"), per
+// generic provider.bookingCustomerLabel ("Customer"/"عميل"), per
 // explicit product decision (see get-provider-bookings.ts's own note
 // on why no customer-identifying field exists in the DTO at all).
 //
@@ -40,6 +41,9 @@ export default async function ProviderBookingsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getServerTranslator("provider");
+  const tBooking = await getServerTranslator("booking");
+  const locale = await getLocale();
 
   const status = VALID_STATUSES.includes(params.status as BookingStatus) ? (params.status as BookingStatus) : undefined;
   const pageParsed = params.page ? Number(params.page) : 1;
@@ -52,16 +56,16 @@ export default async function ProviderBookingsPage({
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">
-      <h1 className="text-2xl font-semibold text-foreground">{t.providerBookingsTitle}</h1>
+      <h1 className="text-2xl font-semibold text-foreground">{t("bookingsTitle")}</h1>
 
       <ProviderBookingFilters currentSearch={params.q} currentStatus={params.status} />
 
       {result.totalCount === 0 && !hasActiveFilter ? (
-        <EmptyState icon={CalendarX} message={t.providerNoBookingsLabel} />
+        <EmptyState icon={CalendarX} message={t("noBookingsLabel")} />
       ) : isOutOfRangePage ? (
-        <EmptyState icon={CalendarX} message={t.noBookingsOnPageLabel} />
+        <EmptyState icon={CalendarX} message={tBooking("noBookingsOnPageLabel")} />
       ) : result.items.length === 0 ? (
-        <EmptyState icon={CalendarX} message={t.providerNoBookingsMatchLabel} />
+        <EmptyState icon={CalendarX} message={t("noBookingsMatchLabel")} />
       ) : (
         <div className="flex flex-col gap-3">
           {result.items.map((item) => (
@@ -72,12 +76,11 @@ export default async function ProviderBookingsPage({
               <div>
                 <p className="font-medium text-foreground">{item.serviceName}</p>
                 <p className="mt-0.5 text-xs text-foreground/40">
-                  {t.providerBookingCustomerLabel} ·{" "}
-                  {new Date(item.createdAt).toLocaleDateString("ar-OM", {
+                  {t("bookingCustomerLabel")} ·{" "}
+                  {formatDate(new Date(item.createdAt), locale, {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
-                    timeZone: OMAN_TIME_ZONE,
                   })}
                 </p>
               </div>

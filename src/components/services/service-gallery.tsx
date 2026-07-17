@@ -1,4 +1,5 @@
 import { ImageOff } from "lucide-react";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Service image gallery — Engineering Sprint (Services Marketplace).
 //
@@ -17,11 +18,13 @@ import { ImageOff } from "lucide-react";
 // their own metadata are wanted. Either is a schema change requiring
 // its own approval, not made here.
 
-export function ServiceGallery() {
+export async function ServiceGallery() {
+  const t = await getServerTranslator("services");
+
   return (
     <div className="flex h-72 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-accent/5 text-center sm:h-96">
       <ImageOff size={32} strokeWidth={1.5} className="text-foreground/25" />
-      <p className="text-sm text-foreground/50">لا تتوفر صور لهذه التجربة بعد</p>
+      <p className="text-sm text-foreground/50">{t("noImagesLabel")}</p>
     </div>
   );
 }

@@ -1,3 +1,8 @@
 {
-  "phase0Placeholder": "[it/seo] Phase 0 infrastructure placeholder (Italian) — not yet translated"
+  "phase0Placeholder": "[it/seo] Phase 0 infrastructure placeholder (Italian) — not yet translated",
+  "pageTitleTemplate": "[it] pageTitleTemplate {page} {appName} — not yet translated",
+  "serviceNotFoundTitle": "[it] serviceNotFoundTitle — not yet translated",
+  "defaultDescription": "[it] defaultDescription — not yet translated",
+  "servicesListDescription": "[it] servicesListDescription — not yet translated",
+  "serviceDescriptionFallback": "[it] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
 }

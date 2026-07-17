@@ -3,6 +3,9 @@ import { Card } from "@/components/ui/card";
 import { clsx } from "@/components/ui/clsx";
 import type { DashboardBookingSummary } from "@/lib/dashboard/get-dashboard-data";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 
 // Upcoming bookings timeline — Engineering Sprint (Dashboard Data
 // Wiring). Now takes real Booking data as a prop instead of hardcoded
@@ -13,18 +16,21 @@ type RecentBookingsTimelineProps = {
   bookings: DashboardBookingSummary[];
 };
 
-export function RecentBookingsTimeline({ bookings }: RecentBookingsTimelineProps) {
+export async function RecentBookingsTimeline({ bookings }: RecentBookingsTimelineProps) {
+  const t = await getServerTranslator("dashboard");
+  const locale = await getLocale();
+
   return (
     <Card hoverLift={false}>
       <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
         <span aria-hidden>📅</span>
-        حجوزاتي القادمة
+        {t("upcomingBookingsTitle")}
       </h2>
 
       {bookings.length === 0 ? (
         <div className="mt-6 flex flex-col items-center gap-2 py-8 text-center">
           <CalendarX size={28} strokeWidth={1.5} className="text-foreground/25" />
-          <p className="text-sm text-foreground/50">لا توجد حجوزات قادمة حالياً</p>
+          <p className="text-sm text-foreground/50">{t("noUpcomingBookingsLabel")}</p>
         </div>
       ) : (
         <ol className="relative mt-6 flex flex-col gap-6 border-s border-border ps-6">
@@ -36,7 +42,7 @@ export function RecentBookingsTimeline({ bookings }: RecentBookingsTimelineProps
                   <p className="text-sm font-medium text-foreground">{booking.serviceName}</p>
                   <p className="mt-0.5 text-xs text-foreground/40">
                     {booking.confirmedAt
-                      ? new Date(booking.confirmedAt).toLocaleDateString("ar-OM", { day: "numeric", month: "long" })
+                      ? formatDate(new Date(booking.confirmedAt), locale, { day: "numeric", month: "long" })
                       : "—"}
                   </p>
                 </div>

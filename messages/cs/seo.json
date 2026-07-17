@@ -1,3 +1,8 @@
 {
-  "phase0Placeholder": "[cs/seo] Phase 0 infrastructure placeholder (Czech) — not yet translated"
+  "phase0Placeholder": "[cs/seo] Phase 0 infrastructure placeholder (Czech) — not yet translated",
+  "pageTitleTemplate": "[cs] pageTitleTemplate {page} {appName} — not yet translated",
+  "serviceNotFoundTitle": "[cs] serviceNotFoundTitle — not yet translated",
+  "defaultDescription": "[cs] defaultDescription — not yet translated",
+  "servicesListDescription": "[cs] servicesListDescription — not yet translated",
+  "serviceDescriptionFallback": "[cs] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
 }

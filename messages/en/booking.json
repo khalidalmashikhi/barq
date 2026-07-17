@@ -1,3 +1,25 @@
 {
-  "phase0Placeholder": "[en/booking] Phase 0 infrastructure placeholder (English) — not yet translated"
+  "phase0Placeholder": "[en/booking] Phase 0 infrastructure placeholder (English) — not yet translated",
+  "upcomingSlotsTitle": "Upcoming Slots",
+  "remainingSeatsLabel": "seats remaining",
+  "noBookingsOnPageLabel": "No bookings on this page",
+  "myBookingsTitle": "My Bookings",
+  "noBookingsLabel": "No bookings yet",
+  "browseExperiencesButton": "Browse Experiences",
+  "slotLabel": "Time Slot",
+  "noSlotSelected": "No specific time slot",
+  "seatsLabel": "Number of seats",
+  "statusLabel": "Status",
+  "priceLabel": "Price",
+  "requestDateLabel": "Request Date",
+  "cancelButton": "Cancel Booking",
+  "confirmationReceivedTitle": "Booking Request Received",
+  "seatsSuffixLabel": "seat(s)",
+  "confirmationNoticeText": "You will be notified once the booking is confirmed by the service provider.",
+  "viewDetailsButton": "View Booking Details",
+  "bookServiceTitle": "Book: {serviceName}",
+  "selectSlotLabel": "Select a time slot",
+  "noPricesAvailableLabel": "No pricing options are currently available for this experience",
+  "selectPriceLabel": "Select a Price",
+  "confirmBookingButton": "Confirm Booking Request"
 }

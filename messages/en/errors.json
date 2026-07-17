@@ -1,6 +1,5 @@
 {
   "phase0Placeholder": "[en/errors] Phase 0 infrastructure placeholder (English) — not yet translated",
-  "generic": "[en/errors] generic error placeholder — key structure only, not yet migrated from strings.ts",
   "invalidInput": "Invalid request data",
   "noCustomerProfile": "You need to complete your customer profile before finishing this booking. Contact support if this message persists.",
   "serviceUnavailable": "This experience is not currently available for booking",

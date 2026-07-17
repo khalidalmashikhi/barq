@@ -1,3 +1,14 @@
 {
-  "phase0Placeholder": "[en/services] Phase 0 infrastructure placeholder (English) — not yet translated"
+  "phase0Placeholder": "[en/services] Phase 0 infrastructure placeholder (English) — not yet translated",
+  "title": "Tourism Experiences",
+  "availableCount": "{count} experiences available",
+  "exploreAvailable": "Explore available experiences",
+  "noResultsMatchLabel": "No results match your search",
+  "noPublishedServicesLabel": "No experiences published yet",
+  "priceUnavailableLabel": "Not available",
+  "bookNowButton": "Book Now",
+  "todayLabel": "Today",
+  "aboutProviderLabel": "About the Provider",
+  "moreFromProviderLabel": "More experiences from this provider",
+  "noImagesLabel": "No images available for this experience yet"
 }

@@ -1,5 +1,9 @@
 {
   "phase0Placeholder": "[ar/common] Phase 0 infrastructure placeholder (Arabic) — not yet translated",
   "loading": "جارٍ التحميل...",
-  "logoutButton": "تسجيل الخروج"
+  "logoutButton": "تسجيل الخروج",
+  "paginationAriaLabel": "ترقيم الصفحات",
+  "paginationStatus": "صفحة {page} من {totalPages}",
+  "appName": "برق",
+  "myAccountLabel": "حسابي"
 }

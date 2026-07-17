@@ -1,3 +1,8 @@
 {
-  "phase0Placeholder": "[ru/seo] Phase 0 infrastructure placeholder (Russian) — not yet translated"
+  "phase0Placeholder": "[ru/seo] Phase 0 infrastructure placeholder (Russian) — not yet translated",
+  "pageTitleTemplate": "[ru] pageTitleTemplate {page} {appName} — not yet translated",
+  "serviceNotFoundTitle": "[ru] serviceNotFoundTitle — not yet translated",
+  "defaultDescription": "[ru] defaultDescription — not yet translated",
+  "servicesListDescription": "[ru] servicesListDescription — not yet translated",
+  "serviceDescriptionFallback": "[ru] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
 }

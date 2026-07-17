@@ -1,3 +1,25 @@
 {
-  "phase0Placeholder": "[ar/booking] Phase 0 infrastructure placeholder (Arabic) — not yet translated"
+  "phase0Placeholder": "[ar/booking] Phase 0 infrastructure placeholder (Arabic) — not yet translated",
+  "upcomingSlotsTitle": "المواعيد القادمة",
+  "remainingSeatsLabel": "مقعد متبقٍ",
+  "noBookingsOnPageLabel": "لا توجد حجوزات في هذه الصفحة",
+  "myBookingsTitle": "حجوزاتي",
+  "noBookingsLabel": "لا توجد حجوزات بعد",
+  "browseExperiencesButton": "تصفح التجارب",
+  "slotLabel": "الموعد",
+  "noSlotSelected": "بدون موعد محدد",
+  "seatsLabel": "عدد المقاعد",
+  "statusLabel": "الحالة",
+  "priceLabel": "السعر",
+  "requestDateLabel": "تاريخ الطلب",
+  "cancelButton": "إلغاء الحجز",
+  "confirmationReceivedTitle": "تم استلام طلب الحجز",
+  "seatsSuffixLabel": "مقعد",
+  "confirmationNoticeText": "سيتم إشعارك عند تأكيد الحجز من قبل مزود الخدمة.",
+  "viewDetailsButton": "عرض تفاصيل الحجز",
+  "bookServiceTitle": "حجز: {serviceName}",
+  "selectSlotLabel": "اختر الموعد",
+  "noPricesAvailableLabel": "لا تتوفر خيارات سعرية لهذه التجربة حالياً",
+  "selectPriceLabel": "اختر السعر",
+  "confirmBookingButton": "تأكيد طلب الحجز"
 }

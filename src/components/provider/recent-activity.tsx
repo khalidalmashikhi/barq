@@ -2,8 +2,9 @@ import { Inbox } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
-import { t } from "@/lib/i18n/strings";
-import { OMAN_TIME_ZONE } from "@/lib/date/oman-timezone";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 import type { ProviderRecentBookingItem } from "@/lib/provider/queries/get-provider-overview";
 
 // Provider Recent Activity — Provider Dashboard Phase 1a, reused by
@@ -20,27 +21,27 @@ import type { ProviderRecentBookingItem } from "@/lib/provider/queries/get-provi
 // customer's phone number or any customer identity — that remains an
 // open product/privacy decision flagged separately, not needed here.
 //
-// DATE FORMATTING, FIXED (Phase 2): now explicitly formats in
-// Asia/Muscat, not the server's runtime-local timezone — the previous
-// call relied on the "ar-OM" locale alone, which affects language/
-// numeral conventions but not which timezone a date is rendered in.
-// Now imports the shared OMAN_TIME_ZONE constant (timezone-consistency
-// follow-up pass), the same one used by the standalone
-// /provider/services, /provider/bookings, /provider/availability, and
-// /provider/services/[id] pages, rather than a hardcoded literal.
+// DATE FORMATTING (Phase A.5 Group 7): uses the shared formatDate()
+// helper, which always sets timeZone to the OMAN_TIME_ZONE constant
+// internally (not the server's runtime-local timezone) and resolves
+// the BCP-47 tag from the current request locale via getLocale(),
+// rather than a hardcoded "ar-OM" literal.
 
 type ProviderRecentActivityProps = {
   items: ProviderRecentBookingItem[];
 };
 
-export function ProviderRecentActivity({ items }: ProviderRecentActivityProps) {
+export async function ProviderRecentActivity({ items }: ProviderRecentActivityProps) {
+  const t = await getServerTranslator("provider");
+  const locale = await getLocale();
+
   return (
     <Card hoverLift={false}>
-      <h2 className="text-lg font-semibold text-foreground">{t.providerRecentActivityTitle}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{t("recentActivityTitle")}</h2>
 
       {items.length === 0 ? (
         <div className="mt-6">
-          <EmptyState icon={Inbox} message={t.providerNoActivityLabel} padding="py-8" />
+          <EmptyState icon={Inbox} message={t("noActivityLabel")} padding="py-8" />
         </div>
       ) : (
         <ol className="mt-6 flex flex-col gap-4">
@@ -52,11 +53,10 @@ export function ProviderRecentActivity({ items }: ProviderRecentActivityProps) {
               <div>
                 <p className="text-sm font-medium text-foreground">{item.serviceName}</p>
                 <p className="mt-0.5 text-xs text-foreground/40">
-                  {new Date(item.createdAt).toLocaleDateString("ar-OM", {
+                  {formatDate(new Date(item.createdAt), locale, {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
-                    timeZone: OMAN_TIME_ZONE,
                   })}
                 </p>
               </div>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { t } from "@/lib/i18n/strings";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Shared pagination control — Engineering Sprint (Booking List
 // Pagination stabilization). Moved here from
@@ -13,6 +13,16 @@ import { t } from "@/lib/i18n/strings";
 // "previous"/back and ChevronLeft is "next"/forward, since that is the
 // visually-correct direction in RTL — not an LTR layout mirrored
 // after the fact.
+//
+// INTERNATIONALIZATION PHASE A.5: migrated from strings.ts's flat
+// t.paginationPageLabel/t.paginationOfLabel (two separate keys
+// concatenated with raw numbers in JSX) to a single ICU-interpolated
+// common.paginationStatus message ("Page {page} of {totalPages}") —
+// per I18N_MESSAGE_CONVENTIONS.md §7's interpolation guidance, this is
+// one real message with two placeholders, not three concatenated
+// pieces. Output is byte-identical to the previous concatenation for
+// both ar/en. This component is a Server Component (no "use client"),
+// so it uses getServerTranslator, not useTranslations.
 
 type PaginationProps = {
   page: number;
@@ -34,11 +44,13 @@ function buildHref(
   return `${basePath}?${params.toString()}`;
 }
 
-export function Pagination({ page, totalPages, searchParams, basePath }: PaginationProps) {
+export async function Pagination({ page, totalPages, searchParams, basePath }: PaginationProps) {
   if (totalPages <= 1) return null;
 
+  const t = await getServerTranslator("common");
+
   return (
-    <nav className="flex items-center justify-center gap-2" aria-label={t.paginationAriaLabel}>
+    <nav className="flex items-center justify-center gap-2" aria-label={t("paginationAriaLabel")}>
       <Link
         href={buildHref(basePath, Math.max(1, page - 1), searchParams)}
         aria-disabled={page <= 1}
@@ -46,9 +58,7 @@ export function Pagination({ page, totalPages, searchParams, basePath }: Paginat
       >
         <ChevronRight size={18} strokeWidth={1.75} />
       </Link>
-      <span className="text-sm text-foreground/60">
-        {t.paginationPageLabel} {page} {t.paginationOfLabel} {totalPages}
-      </span>
+      <span className="text-sm text-foreground/60">{t("paginationStatus", { page, totalPages })}</span>
       <Link
         href={buildHref(basePath, Math.min(totalPages, page + 1), searchParams)}
         aria-disabled={page >= totalPages}

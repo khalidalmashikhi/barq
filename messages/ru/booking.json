@@ -1,3 +1,25 @@
 {
-  "phase0Placeholder": "[ru/booking] Phase 0 infrastructure placeholder (Russian) — not yet translated"
+  "phase0Placeholder": "[ru/booking] Phase 0 infrastructure placeholder (Russian) — not yet translated",
+  "upcomingSlotsTitle": "[ru] upcomingSlotsTitle — not yet translated",
+  "remainingSeatsLabel": "[ru] remainingSeatsLabel — not yet translated",
+  "noBookingsOnPageLabel": "[ru] noBookingsOnPageLabel — not yet translated",
+  "myBookingsTitle": "[ru] myBookingsTitle — not yet translated",
+  "noBookingsLabel": "[ru] noBookingsLabel — not yet translated",
+  "browseExperiencesButton": "[ru] browseExperiencesButton — not yet translated",
+  "slotLabel": "[ru] slotLabel — not yet translated",
+  "noSlotSelected": "[ru] noSlotSelected — not yet translated",
+  "seatsLabel": "[ru] seatsLabel — not yet translated",
+  "statusLabel": "[ru] statusLabel — not yet translated",
+  "priceLabel": "[ru] priceLabel — not yet translated",
+  "requestDateLabel": "[ru] requestDateLabel — not yet translated",
+  "cancelButton": "[ru] cancelButton — not yet translated",
+  "confirmationReceivedTitle": "[ru] confirmationReceivedTitle — not yet translated",
+  "seatsSuffixLabel": "[ru] seatsSuffixLabel — not yet translated",
+  "confirmationNoticeText": "[ru] confirmationNoticeText — not yet translated",
+  "viewDetailsButton": "[ru] viewDetailsButton — not yet translated",
+  "bookServiceTitle": "[ru] bookServiceTitle {serviceName} — not yet translated",
+  "selectSlotLabel": "[ru] selectSlotLabel — not yet translated",
+  "noPricesAvailableLabel": "[ru] noPricesAvailableLabel — not yet translated",
+  "selectPriceLabel": "[ru] selectPriceLabel — not yet translated",
+  "confirmBookingButton": "[ru] confirmBookingButton — not yet translated"
 }

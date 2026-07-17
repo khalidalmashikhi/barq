@@ -5,8 +5,9 @@ import { getServiceStatusLabel, getServiceStatusStyle } from "@/lib/services/pre
 import { ProviderServiceFilters } from "@/components/provider/service-filters";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
-import { t } from "@/lib/i18n/strings";
-import { OMAN_TIME_ZONE } from "@/lib/date/oman-timezone";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 import type { ServiceStatus } from "@prisma/client";
 
 // Provider Services list — Provider Dashboard Phase 1b. Read-only:
@@ -42,6 +43,8 @@ export default async function ProviderServicesPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getServerTranslator("provider");
+  const locale = await getLocale();
 
   const status = VALID_STATUSES.includes(params.status as ServiceStatus) ? (params.status as ServiceStatus) : undefined;
   const sort =
@@ -56,16 +59,16 @@ export default async function ProviderServicesPage({
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">
-      <h1 className="text-2xl font-semibold text-foreground">{t.providerServicesTitle}</h1>
+      <h1 className="text-2xl font-semibold text-foreground">{t("servicesTitle")}</h1>
 
       <ProviderServiceFilters currentSearch={params.q} currentStatus={params.status} currentSort={params.sort} />
 
       {result.totalCount === 0 && !hasActiveFilter ? (
-        <EmptyState icon={PackageOpen} message={t.providerNoServicesLabel} />
+        <EmptyState icon={PackageOpen} message={t("noServicesLabel")} />
       ) : isOutOfRangePage ? (
-        <EmptyState icon={PackageOpen} message={t.providerServicesNoResultsOnPageLabel} />
+        <EmptyState icon={PackageOpen} message={t("servicesNoResultsOnPageLabel")} />
       ) : result.items.length === 0 ? (
-        <EmptyState icon={PackageOpen} message={t.providerNoServicesMatchLabel} />
+        <EmptyState icon={PackageOpen} message={t("noServicesMatchLabel")} />
       ) : (
         <div className="flex flex-col gap-3">
           {result.items.map((item) => (
@@ -77,11 +80,10 @@ export default async function ProviderServicesPage({
               <div>
                 <p className="font-medium text-foreground">{item.name}</p>
                 <p className="mt-0.5 text-xs text-foreground/40">
-                  {new Date(item.createdAt).toLocaleDateString("ar-OM", {
+                  {formatDate(new Date(item.createdAt), locale, {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
-                    timeZone: OMAN_TIME_ZONE,
                   })}
                 </p>
               </div>

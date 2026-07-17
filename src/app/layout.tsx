@@ -3,6 +3,7 @@ import { IBM_Plex_Sans_Arabic, IBM_Plex_Sans } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocaleDirection, type Locale } from "@/i18n/locales";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import "./globals.css";
 
 // This root layout sets `lang`/`dir` dynamically via next-intl's
@@ -60,10 +61,15 @@ const plexLatin = IBM_Plex_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "BARQ",
-  description: "BARQ — Smart Tourism Operations Platform",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const tCommon = await getServerTranslator("common");
+  const tSeo = await getServerTranslator("seo");
+
+  return {
+    title: tCommon("appName"),
+    description: tSeo("defaultDescription"),
+  };
+}
 
 export default async function RootLayout({
   children,

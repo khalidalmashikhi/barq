@@ -1,6 +1,5 @@
 {
   "phase0Placeholder": "[pl/errors] Phase 0 infrastructure placeholder (Polish) — not yet translated",
-  "generic": "[pl/errors] generic error placeholder — key structure only, not yet migrated from strings.ts",
   "invalidInput": "[pl] invalidInput — not yet translated",
   "noCustomerProfile": "[pl] noCustomerProfile — not yet translated",
   "serviceUnavailable": "[pl] serviceUnavailable — not yet translated",

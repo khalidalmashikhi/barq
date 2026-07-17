@@ -1,3 +1,14 @@
 {
-  "phase0Placeholder": "[ru/services] Phase 0 infrastructure placeholder (Russian) — not yet translated"
+  "phase0Placeholder": "[ru/services] Phase 0 infrastructure placeholder (Russian) — not yet translated",
+  "title": "[ru] title — not yet translated",
+  "availableCount": "[ru] availableCount {count} — not yet translated",
+  "exploreAvailable": "[ru] exploreAvailable — not yet translated",
+  "noResultsMatchLabel": "[ru] noResultsMatchLabel — not yet translated",
+  "noPublishedServicesLabel": "[ru] noPublishedServicesLabel — not yet translated",
+  "priceUnavailableLabel": "[ru] priceUnavailableLabel — not yet translated",
+  "bookNowButton": "[ru] bookNowButton — not yet translated",
+  "todayLabel": "[ru] todayLabel — not yet translated",
+  "aboutProviderLabel": "[ru] aboutProviderLabel — not yet translated",
+  "moreFromProviderLabel": "[ru] moreFromProviderLabel — not yet translated",
+  "noImagesLabel": "[ru] noImagesLabel — not yet translated"
 }

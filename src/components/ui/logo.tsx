@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 // Logo component — rebuilt to resolve a real conflict in the
 // instructions received across recent turns: one turn confirmed a real
@@ -29,11 +30,12 @@ type LogoProps = {
 
 export function Logo({ className }: LogoProps) {
   const [src, setSrc] = useState("/logo.svg");
+  const t = useTranslations("common");
 
   return (
     <Image
       src={src}
-      alt="برق"
+      alt={t("appName")}
       width={200}
       height={200}
       className={`h-auto w-auto object-contain ${className ?? ""}`.trim()}
