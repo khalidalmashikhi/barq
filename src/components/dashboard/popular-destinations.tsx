@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { DestinationImage, DESTINATION_IMAGES } from "./destination-image";
 
 // Popular destinations — rebuilt as real image cards for the 5 named
@@ -9,20 +10,22 @@ import { DestinationImage, DESTINATION_IMAGES } from "./destination-image";
 // moment real files exist at the listed paths, honest fallback until
 // then.
 
-const destinations = [
-  { name: "صلالة", image: DESTINATION_IMAGES.salalah },
-  { name: "الجبل الأخضر", image: DESTINATION_IMAGES.jebelAkhdar },
-  { name: "وادي دربات", image: DESTINATION_IMAGES.wadiDarbat },
-  { name: "رمال الشرقية", image: DESTINATION_IMAGES.sharqiyaSands },
-  { name: "مسندم", image: DESTINATION_IMAGES.musandam },
-];
-
 export function PopularDestinations() {
+  const t = useTranslations("dashboard");
+
+  const destinations = [
+    { name: t("destinationSalalah"), image: DESTINATION_IMAGES.salalah },
+    { name: t("destinationJebelAkhdar"), image: DESTINATION_IMAGES.jebelAkhdar },
+    { name: t("destinationWadiDarbat"), image: DESTINATION_IMAGES.wadiDarbat },
+    { name: t("destinationSharqiyaSands"), image: DESTINATION_IMAGES.sharqiyaSands },
+    { name: t("destinationMusandam"), image: DESTINATION_IMAGES.musandam },
+  ];
+
   return (
     <div>
       <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
         <span aria-hidden>🏝</span>
-        الوجهات الأكثر زيارة
+        {t("popularDestinationsTitle")}
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {destinations.map((destination) => (

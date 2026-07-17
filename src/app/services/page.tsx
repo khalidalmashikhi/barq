@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import { PackageOpen } from "lucide-react";
 import { getServices, getProvidersForFilter } from "@/lib/services/get-services";
 import { ServiceFilters } from "@/components/services/service-filters";
 import { Pagination } from "@/components/ui/pagination";
 import { ExperienceCard } from "@/components/dashboard/experience-card";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Services listing page — Engineering Sprint (Services Marketplace).
 //
@@ -28,10 +30,16 @@ type SearchParams = {
   page?: string;
 };
 
-export const metadata = {
-  title: "التجارب السياحية | برق",
-  description: "استكشف التجارب السياحية الموثوقة في سلطنة عُمان",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const tCommon = await getServerTranslator("common");
+  const tSeo = await getServerTranslator("seo");
+  const tServices = await getServerTranslator("services");
+
+  return {
+    title: tSeo("pageTitleTemplate", { page: tServices("title"), appName: tCommon("appName") }),
+    description: tSeo("servicesListDescription"),
+  };
+}
 
 export default async function ServicesPage({
   searchParams,
@@ -39,6 +47,7 @@ export default async function ServicesPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getServerTranslator("services");
 
   const [providers, result] = await Promise.all([
     getProvidersForFilter(),
@@ -55,9 +64,9 @@ export default async function ServicesPage({
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">التجارب السياحية</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{t("title")}</h1>
         <p className="mt-1 text-sm text-foreground/50">
-          {result.totalCount > 0 ? `${result.totalCount} تجربة متاحة` : "استكشف التجارب المتاحة"}
+          {result.totalCount > 0 ? t("availableCount", { count: result.totalCount }) : t("exploreAvailable")}
         </p>
       </div>
 
@@ -75,8 +84,8 @@ export default async function ServicesPage({
           <PackageOpen size={32} strokeWidth={1.5} className="text-foreground/25" />
           <p className="text-foreground/60">
             {params.q || params.providerId || params.minPrice || params.maxPrice
-              ? "لا توجد نتائج مطابقة لبحثك"
-              : "لا توجد تجارب منشورة حالياً"}
+              ? t("noResultsMatchLabel")
+              : t("noPublishedServicesLabel")}
           </p>
         </div>
       ) : (

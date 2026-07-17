@@ -4,8 +4,9 @@ import { getAvailabilityStateLabel, getAvailabilityStateStyle } from "@/lib/trac
 import { ProviderAvailabilityFilters } from "@/components/tracking/provider-availability-filters";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
-import { t } from "@/lib/i18n/strings";
-import { OMAN_TIME_ZONE } from "@/lib/date/oman-timezone";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 import type { AvailabilitySlotState } from "@prisma/client";
 
 // Provider Availability — Provider Dashboard Phase 1d (Availability
@@ -45,6 +46,9 @@ export default async function ProviderAvailabilityPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getServerTranslator("provider");
+  const tBooking = await getServerTranslator("booking");
+  const locale = await getLocale();
 
   const state = VALID_STATES.includes(params.state as AvailabilitySlotState)
     ? (params.state as AvailabilitySlotState)
@@ -59,16 +63,16 @@ export default async function ProviderAvailabilityPage({
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">
-      <h1 className="text-2xl font-semibold text-foreground">{t.providerAvailabilityTitle}</h1>
+      <h1 className="text-2xl font-semibold text-foreground">{t("availabilityTitle")}</h1>
 
       <ProviderAvailabilityFilters currentSearch={params.q} currentState={params.state} />
 
       {result.totalCount === 0 && !hasActiveFilter ? (
-        <EmptyState icon={CalendarClock} message={t.providerNoAvailabilityLabel} />
+        <EmptyState icon={CalendarClock} message={t("noAvailabilityLabel")} />
       ) : isOutOfRangePage ? (
-        <EmptyState icon={CalendarClock} message={t.providerAvailabilityNoResultsOnPageLabel} />
+        <EmptyState icon={CalendarClock} message={t("availabilityNoResultsOnPageLabel")} />
       ) : result.items.length === 0 ? (
-        <EmptyState icon={CalendarClock} message={t.providerNoAvailabilityMatchLabel} />
+        <EmptyState icon={CalendarClock} message={t("noAvailabilityMatchLabel")} />
       ) : (
         <div className="flex flex-col gap-3">
           {result.items.map((item) => (
@@ -79,19 +83,18 @@ export default async function ProviderAvailabilityPage({
               <div>
                 <p className="font-medium text-foreground">{item.serviceName}</p>
                 <p className="mt-0.5 text-xs text-foreground/40">
-                  {new Date(item.startTime).toLocaleString("ar-OM", {
+                  {formatDate(new Date(item.startTime), locale, {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
                     hour: "2-digit",
                     minute: "2-digit",
-                    timeZone: OMAN_TIME_ZONE,
                   })}
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-foreground/50">
-                  {item.remainingSeats} {t.remainingSeatsLabel}
+                  {item.remainingSeats} {tBooking("remainingSeatsLabel")}
                 </span>
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${getAvailabilityStateStyle(item.state)}`}>
                   {getAvailabilityStateLabel(item.state)}

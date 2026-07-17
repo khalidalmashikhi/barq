@@ -1,5 +1,6 @@
 import { PlusCircle, Search, Settings2, MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Quick actions — visually polished, per explicit "everything should
 // feel alive, no fake admin panels" feedback (the previous grey/
@@ -13,17 +14,19 @@ import { Card } from "@/components/ui/card";
 // documented honestly here, not surfaced as a visible warning label in
 // the UI itself.
 
-const actions = [
-  { label: "حجز جديد", icon: PlusCircle },
-  { label: "بحث عن تجربة", icon: Search },
-  { label: "الإعدادات", icon: Settings2 },
-  { label: "الدعم", icon: MessageCircle },
-];
+export async function QuickActions() {
+  const t = await getServerTranslator("dashboard");
 
-export function QuickActions() {
+  const actions = [
+    { label: t("actionNewBooking"), icon: PlusCircle },
+    { label: t("actionSearchExperience"), icon: Search },
+    { label: t("navSettings"), icon: Settings2 },
+    { label: t("supportLabel"), icon: MessageCircle },
+  ];
+
   return (
     <Card hoverLift={false}>
-      <h3 className="text-sm font-medium text-foreground/70">إجراءات سريعة</h3>
+      <h3 className="text-sm font-medium text-foreground/70">{t("quickActionsTitle")}</h3>
       <div className="mt-5 grid grid-cols-2 gap-3">
         {actions.map((action) => {
           const Icon = action.icon;

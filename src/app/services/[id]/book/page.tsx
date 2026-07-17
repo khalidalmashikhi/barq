@@ -9,7 +9,8 @@ import { createBooking } from "@/lib/booking/create-booking";
 import { isBookingActionErrorCode } from "@/lib/booking/booking-action-errors";
 import { getBookingErrorTranslationKey } from "@/lib/booking/booking-error-messages";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
-import { t } from "@/lib/i18n/strings";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 
 // Booking form page — Engineering Sprint (Availability Engine).
 //
@@ -74,13 +75,15 @@ export default async function BookServicePage({ params, searchParams }: Props) {
     where: { userId: barqUser.id },
   });
 
+  const t = await getServerTranslator("booking");
   const tErrors = await getServerTranslator("errors");
   const errorMessage = error && isBookingActionErrorCode(error) ? tErrors(getBookingErrorTranslationKey(error)) : null;
+  const locale = await getLocale();
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">حجز: {service.name}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{t("bookServiceTitle", { serviceName: service.name })}</h1>
         <p className="mt-1 text-sm text-foreground/50">{service.providerName}</p>
       </div>
 
@@ -100,7 +103,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
 
       {prices.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border py-10 text-center">
-          <p className="text-sm text-foreground/50">لا تتوفر خيارات سعرية لهذه التجربة حالياً</p>
+          <p className="text-sm text-foreground/50">{t("noPricesAvailableLabel")}</p>
         </div>
       ) : (
         <form
@@ -124,7 +127,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
             <fieldset className="flex flex-col gap-2">
               <legend className="flex items-center gap-2 text-sm font-medium text-foreground/80">
                 <Calendar size={16} strokeWidth={1.75} />
-                {t.selectSlotLabel}
+                {t("selectSlotLabel")}
               </legend>
               {slots.map((slot) => (
                 <label
@@ -133,7 +136,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
                 >
                   <span className="flex items-center gap-3">
                     <input type="radio" name="availabilityId" value={slot.id} required className="accent-primary" />
-                    {new Date(slot.startTime).toLocaleString("ar-OM", {
+                    {formatDate(new Date(slot.startTime), locale, {
                       weekday: "long",
                       day: "numeric",
                       month: "long",
@@ -142,7 +145,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
                     })}
                   </span>
                   <span className="text-xs text-foreground/50">
-                    {slot.remainingSeats} {t.remainingSeatsLabel}
+                    {slot.remainingSeats} {t("remainingSeatsLabel")}
                   </span>
                 </label>
               ))}
@@ -153,7 +156,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
             <div className="flex flex-col gap-2">
               <label htmlFor="seats" className="flex items-center gap-2 text-sm font-medium text-foreground/80">
                 <Users size={16} strokeWidth={1.75} />
-                {t.seatsLabel}
+                {t("seatsLabel")}
               </label>
               <input
                 id="seats"
@@ -168,7 +171,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
           )}
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium text-foreground/80">اختر السعر</legend>
+            <legend className="text-sm font-medium text-foreground/80">{t("selectPriceLabel")}</legend>
             {prices.map((price) => (
               <label
                 key={price.id}
@@ -185,7 +188,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
             disabled={!customer}
             className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            تأكيد طلب الحجز
+            {t("confirmBookingButton")}
           </button>
         </form>
       )}

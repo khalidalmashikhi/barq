@@ -7,7 +7,8 @@ import { getBookingStatusLabel } from "@/lib/booking/booking-status";
 import { isBookingActionErrorCode } from "@/lib/booking/booking-action-errors";
 import { getBookingErrorTranslationKey } from "@/lib/booking/booking-error-messages";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
-import { t } from "@/lib/i18n/strings";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 
 // INTERNATIONALIZATION PHASE A.4 — REAL BUG FIXED: this page previously
 // discarded cancelBooking()'s result entirely (`await cancelBooking(...)`
@@ -42,8 +43,10 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
 
   const canCancel = canCancelBooking(booking.status);
 
+  const t = await getServerTranslator("booking");
   const tErrors = await getServerTranslator("errors");
   const errorMessage = error && isBookingActionErrorCode(error) ? tErrors(getBookingErrorTranslationKey(error)) : null;
+  const locale = await getLocale();
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
@@ -61,37 +64,37 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-foreground/50">الحالة</span>
+          <span className="text-foreground/50">{t("statusLabel")}</span>
           <span className="font-medium text-foreground">{getBookingStatusLabel(booking.status)}</span>
         </div>
         {booking.priceSnapshot && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-foreground/50">السعر</span>
+            <span className="text-foreground/50">{t("priceLabel")}</span>
             <span className="font-medium text-primary">{booking.priceSnapshot}</span>
           </div>
         )}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-foreground/50">{t.bookingSlotLabel}</span>
+          <span className="text-foreground/50">{t("slotLabel")}</span>
           <span className="font-medium text-foreground">
             {booking.slotStartTime
-              ? new Date(booking.slotStartTime).toLocaleString("ar-OM", {
+              ? formatDate(new Date(booking.slotStartTime), locale, {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
                   hour: "2-digit",
                   minute: "2-digit",
                 })
-              : t.noSlotSelected}
+              : t("noSlotSelected")}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-foreground/50">{t.seatsLabel}</span>
+          <span className="text-foreground/50">{t("seatsLabel")}</span>
           <span className="font-medium text-foreground">{booking.seats}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-foreground/50">تاريخ الطلب</span>
+          <span className="text-foreground/50">{t("requestDateLabel")}</span>
           <span className="font-medium text-foreground">
-            {new Date(booking.createdAt).toLocaleDateString("ar-OM", { day: "numeric", month: "long", year: "numeric" })}
+            {formatDate(new Date(booking.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}
           </span>
         </div>
       </div>
@@ -112,7 +115,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
             type="submit"
             className="w-full rounded-full border border-danger/40 px-6 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
           >
-            إلغاء الحجز
+            {t("cancelButton")}
           </button>
         </form>
       )}

@@ -71,6 +71,7 @@ export default async function DashboardPage() {
 
   const data = await getDashboardData(barqUserId);
   const t = await getServerTranslator("dashboard");
+  const tServices = await getServerTranslator("services");
 
   const customerNavItems: AppNavItem[] = [
     { label: t("navOverview"), href: "/dashboard", icon: <Compass size={18} strokeWidth={1.75} /> },
@@ -100,22 +101,22 @@ export default async function DashboardPage() {
         <CategoryExplorer />
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="الحجوزات النشطة" value={String(data.activeBookingsCount)} icon={CalendarCheck} />
-          <StatCard label="الرحلات القادمة" value={String(data.upcomingBookingsCount)} icon={MapPinned} />
-          <StatCard label="الإشعارات" value={String(data.notificationsCount)} icon={Bell} />
+          <StatCard label={t("statActiveBookingsLabel")} value={String(data.activeBookingsCount)} icon={CalendarCheck} />
+          <StatCard label={t("statUpcomingTripsLabel")} value={String(data.upcomingBookingsCount)} icon={MapPinned} />
+          <StatCard label={t("navNotifications")} value={String(data.notificationsCount)} icon={Bell} />
           {/* No Favorites/SavedExperience model exists — honest "—", not a fabricated count. */}
-          <StatCard label="التجارب المحفوظة" value="—" icon={Heart} />
+          <StatCard label={t("statSavedExperiencesLabel")} value="—" icon={Heart} />
         </div>
 
         <div>
           <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
             <span aria-hidden>⭐</span>
-            التجارب المميزة
+            {t("featuredExperiencesTitle")}
           </h2>
           {data.featuredServices.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
               <PackageOpen size={28} strokeWidth={1.5} className="text-foreground/25" />
-              <p className="text-sm text-foreground/50">لا توجد تجارب منشورة حالياً</p>
+              <p className="text-sm text-foreground/50">{tServices("noPublishedServicesLabel")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -137,12 +138,12 @@ export default async function DashboardPage() {
         <div>
           <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
             <span aria-hidden>🔥</span>
-            الأكثر حجزاً
+            {t("mostBookedTitle")}
           </h2>
           {data.mostBookedServices.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
               <Flame size={28} strokeWidth={1.5} className="text-foreground/25" />
-              <p className="text-sm text-foreground/50">لا توجد بيانات حجوزات كافية بعد</p>
+              <p className="text-sm text-foreground/50">{t("noBookingDataLabel")}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -173,7 +174,7 @@ export default async function DashboardPage() {
 
         <ActivityFeed />
 
-        <p className="text-center text-xs text-foreground/20">معرف الحساب: {barqUserId}</p>
+        <p className="text-center text-xs text-foreground/20">{t("accountIdLabel", { id: barqUserId })}</p>
       </div>
 
       <DashboardFooter />

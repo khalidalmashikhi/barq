@@ -1,6 +1,5 @@
 {
   "phase0Placeholder": "[ar/errors] Phase 0 infrastructure placeholder (Arabic) — not yet translated",
-  "generic": "[ar/errors] generic error placeholder — key structure only, not yet migrated from strings.ts",
   "invalidInput": "بيانات الطلب غير صالحة",
   "noCustomerProfile": "يلزم إكمال الملف الشخصي كعميل قبل إتمام الحجز. تواصل مع الدعم إذا استمرت هذه الرسالة.",
   "serviceUnavailable": "هذه التجربة غير متاحة للحجز حالياً",

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Bell, Globe, MessageCircle } from "lucide-react";
+import { getLocale } from "next-intl/server";
 import { Logo } from "@/components/ui/logo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { formatDate } from "@/lib/i18n/format-date";
 
 // AppTopBar — AppShell Migration (Stabilization).
 //
@@ -25,8 +27,9 @@ type AppTopBarProps = {
   centerContent?: ReactNode;
 };
 
-export function AppTopBar({ centerContent }: AppTopBarProps) {
-  const today = new Date().toLocaleDateString("ar-OM", {
+export async function AppTopBar({ centerContent }: AppTopBarProps) {
+  const locale = await getLocale();
+  const today = formatDate(new Date(), locale, {
     weekday: "long",
     year: "numeric",
     month: "long",

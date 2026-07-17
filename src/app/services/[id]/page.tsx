@@ -6,7 +6,9 @@ import { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import { ServiceGallery } from "@/components/services/service-gallery";
 import { ExperienceCard } from "@/components/dashboard/experience-card";
 import { Calendar } from "lucide-react";
-import { t } from "@/lib/i18n/strings";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -19,13 +21,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const service = await getServiceById(id);
 
+  const tCommon = await getServerTranslator("common");
+  const tSeo = await getServerTranslator("seo");
+
   if (!service) {
-    return { title: "التجربة غير موجودة | برق" };
+    return { title: tSeo("pageTitleTemplate", { page: tSeo("serviceNotFoundTitle"), appName: tCommon("appName") }) };
   }
 
   return {
-    title: `${service.name} | برق`,
-    description: service.description || `احجز ${service.name} من ${service.providerName} عبر برق`,
+    title: tSeo("pageTitleTemplate", { page: service.name, appName: tCommon("appName") }),
+    description:
+      service.description ||
+      tSeo("serviceDescriptionFallback", {
+        serviceName: service.name,
+        providerName: service.providerName,
+        appName: tCommon("appName"),
+      }),
   };
 }
 
@@ -45,6 +56,10 @@ export default async function ServiceDetailPage({ params }: Props) {
     getAvailableSlots(service.id),
   ]);
 
+  const t = await getServerTranslator("services");
+  const tBooking = await getServerTranslator("booking");
+  const locale = await getLocale();
+
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
       <ServiceGallery />
@@ -59,13 +74,13 @@ export default async function ServiceDetailPage({ params }: Props) {
         </div>
 
         <div className="shrink-0 rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
-          <p className="text-xs text-foreground/50">السعر</p>
-          <p className="mt-1 text-xl font-semibold text-primary">{service.price ?? "غير متوفر"}</p>
+          <p className="text-xs text-foreground/50">{tBooking("priceLabel")}</p>
+          <p className="mt-1 text-xl font-semibold text-primary">{service.price ?? t("priceUnavailableLabel")}</p>
           <Link
             href={`/services/${service.id}/book`}
             className="mt-4 block w-full rounded-full bg-primary px-6 py-2.5 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
-            احجز الآن
+            {t("bookNowButton")}
           </Link>
         </div>
       </div>
@@ -74,7 +89,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         <div>
           <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
             <Calendar size={18} strokeWidth={1.75} />
-            {t.upcomingSlotsTitle}
+            {tBooking("upcomingSlotsTitle")}
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {slots.map((slot) => {
@@ -84,14 +99,14 @@ export default async function ServiceDetailPage({ params }: Props) {
                 <div key={slot.id} className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
                   <span className="text-sm font-medium text-foreground">
                     {isToday
-                      ? "اليوم"
-                      : date.toLocaleDateString("ar-OM", { weekday: "long", day: "numeric", month: "long" })}
+                      ? t("todayLabel")
+                      : formatDate(date, locale, { weekday: "long", day: "numeric", month: "long" })}
                   </span>
                   <span className="text-sm text-foreground/60">
-                    {date.toLocaleTimeString("ar-OM", { hour: "2-digit", minute: "2-digit" })}
+                    {formatDate(date, locale, { hour: "2-digit", minute: "2-digit" })}
                   </span>
                   <span className="text-xs text-primary">
-                    {slot.remainingSeats} {t.remainingSeatsLabel}
+                    {slot.remainingSeats} {tBooking("remainingSeatsLabel")}
                   </span>
                 </div>
               );
@@ -102,19 +117,23 @@ export default async function ServiceDetailPage({ params }: Props) {
 
       {service.providerDescription && (
         <div className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="text-sm font-medium text-foreground/70">عن المزود</h2>
+          <h2 className="text-sm font-medium text-foreground/70">{t("aboutProviderLabel")}</h2>
           <p className="mt-2 text-sm leading-relaxed text-foreground/70">{service.providerDescription}</p>
         </div>
       )}
 
       {relatedServices.length > 0 && (
         <div>
-          <h2 className="mb-5 text-lg font-semibold text-foreground">تجارب أخرى من نفس المزود</h2>
+          <h2 className="mb-5 text-lg font-semibold text-foreground">{t("moreFromProviderLabel")}</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {relatedServices.map((related) => (
-              <Link key={related.id} href={`/services/${related.id}`}>
-                <ExperienceCard serviceId={related.id} title={related.name} providerName={related.providerName} price={related.price} />
-              </Link>
+              <ExperienceCard
+                key={related.id}
+                serviceId={related.id}
+                title={related.name}
+                providerName={related.providerName}
+                price={related.price}
+              />
             ))}
           </div>
         </div>

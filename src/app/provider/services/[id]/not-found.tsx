@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PackageOpen } from "lucide-react";
-import { t } from "@/lib/i18n/strings";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Branded not-found for /provider/services/[id] — Provider Dashboard
 // Phase 2, mirroring src/app/services/[id]/not-found.tsx's existing
@@ -15,16 +15,18 @@ import { t } from "@/lib/i18n/strings";
 // the real AppShell (sidebar/topbar intact) — unlike the layout's own
 // notFound(), which correctly escapes the whole shell.
 
-export default function ProviderServiceNotFound() {
+export default async function ProviderServiceNotFound() {
+  const t = await getServerTranslator("provider");
+
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-8 py-20 text-center">
       <PackageOpen size={32} strokeWidth={1.5} className="text-foreground/25" />
-      <p className="text-foreground/60">{t.providerServiceNotFoundMessage}</p>
+      <p className="text-foreground/60">{t("serviceNotFoundMessage")}</p>
       <Link
         href="/provider/services"
         className="mt-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
       >
-        {t.providerBackToServicesLabel}
+        {t("backToServicesLabel")}
       </Link>
     </div>
   );

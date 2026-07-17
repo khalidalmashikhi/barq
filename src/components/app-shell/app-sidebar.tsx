@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/ui/logo";
 import { clsx } from "@/components/ui/clsx";
 
@@ -55,6 +56,7 @@ type AppSidebarProps = {
 
 export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("common");
 
   // Active-route matching (Phase 2: Service Detail Workspace) — a nav
   // item is active if the current pathname is exactly its href, or is
@@ -134,7 +136,7 @@ export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
       <div className="mt-auto flex items-center gap-3 rounded-xl border border-border p-3">
         <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary to-secondary" />
         <div className="flex flex-col overflow-hidden">
-          <span className="truncate text-sm font-medium text-foreground">حسابي</span>
+          <span className="truncate text-sm font-medium text-foreground">{t("myAccountLabel")}</span>
           <span className="truncate text-xs text-foreground/40">{roleLabel}</span>
         </div>
       </div>

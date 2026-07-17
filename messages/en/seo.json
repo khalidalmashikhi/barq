@@ -1,3 +1,8 @@
 {
-  "phase0Placeholder": "[en/seo] Phase 0 infrastructure placeholder (English) — not yet translated"
+  "phase0Placeholder": "[en/seo] Phase 0 infrastructure placeholder (English) — not yet translated",
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "Experience Not Found",
+  "defaultDescription": "BARQ — Smart Tourism Operations Platform",
+  "servicesListDescription": "Explore trustworthy tourism experiences in the Sultanate of Oman",
+  "serviceDescriptionFallback": "Book {serviceName} from {providerName} via {appName}"
 }

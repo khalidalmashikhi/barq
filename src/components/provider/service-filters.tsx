@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { getServiceStatusLabel } from "@/lib/services/presentation/service-status";
-import { t } from "@/lib/i18n/strings";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Provider service filters — Provider Dashboard Phase 1b.
 //
@@ -19,7 +19,9 @@ type ProviderServiceFiltersProps = {
   currentSort?: string;
 };
 
-export function ProviderServiceFilters({ currentSearch, currentStatus, currentSort }: ProviderServiceFiltersProps) {
+export async function ProviderServiceFilters({ currentSearch, currentStatus, currentSort }: ProviderServiceFiltersProps) {
+  const t = await getServerTranslator("provider");
+
   return (
     <form method="get" className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5">
@@ -28,7 +30,7 @@ export function ProviderServiceFilters({ currentSearch, currentStatus, currentSo
           type="search"
           name="q"
           defaultValue={currentSearch}
-          placeholder={t.providerServicesSearchPlaceholder}
+          placeholder={t("servicesSearchPlaceholder")}
           className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
         />
       </div>
@@ -39,7 +41,7 @@ export function ProviderServiceFilters({ currentSearch, currentStatus, currentSo
           defaultValue={currentStatus ?? ""}
           className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none"
         >
-          <option value="">{t.providerServiceStatusAll}</option>
+          <option value="">{t("serviceStatusAll")}</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
               {getServiceStatusLabel(status)}
@@ -51,9 +53,9 @@ export function ProviderServiceFilters({ currentSearch, currentStatus, currentSo
           defaultValue={currentSort ?? "newest"}
           className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none"
         >
-          <option value="newest">{t.providerSortNewest}</option>
-          <option value="price_asc">{t.providerSortPriceAsc}</option>
-          <option value="price_desc">{t.providerSortPriceDesc}</option>
+          <option value="newest">{t("sortNewest")}</option>
+          <option value="price_asc">{t("sortPriceAsc")}</option>
+          <option value="price_desc">{t("sortPriceDesc")}</option>
         </select>
       </div>
 
@@ -61,7 +63,7 @@ export function ProviderServiceFilters({ currentSearch, currentStatus, currentSo
         type="submit"
         className="self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
       >
-        {t.providerApplyFiltersButton}
+        {t("applyFiltersButton")}
       </button>
     </form>
   );

@@ -1,3 +1,8 @@
 {
-  "phase0Placeholder": "[ar/seo] Phase 0 infrastructure placeholder (Arabic) — not yet translated"
+  "phase0Placeholder": "[ar/seo] Phase 0 infrastructure placeholder (Arabic) — not yet translated",
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "التجربة غير موجودة",
+  "defaultDescription": "برق — منصة تشغيل سياحي ذكية",
+  "servicesListDescription": "استكشف التجارب السياحية الموثوقة في سلطنة عُمان",
+  "serviceDescriptionFallback": "احجز {serviceName} من {providerName} عبر {appName}"
 }

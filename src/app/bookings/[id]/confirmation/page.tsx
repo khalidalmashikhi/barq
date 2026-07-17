@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { getBookingDetail } from "@/lib/booking/get-booking-detail";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 
 // Booking confirmation page — Engineering Sprint (Booking Engine).
 //
@@ -26,11 +29,13 @@ export default async function BookingConfirmationPage({ params }: Props) {
   }
 
   const booking = fetchedBooking;
+  const t = await getServerTranslator("booking");
+  const locale = await getLocale();
 
   return (
     <main className="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-20 text-center">
       <CheckCircle2 size={40} strokeWidth={1.5} className="text-success" />
-      <h1 className="text-xl font-semibold text-foreground">تم استلام طلب الحجز</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("confirmationReceivedTitle")}</h1>
       <p className="text-sm text-foreground/60">
         {booking.serviceName} — {booking.providerName}
       </p>
@@ -39,7 +44,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
       )}
       {booking.slotStartTime && (
         <p className="text-sm text-foreground/60">
-          {new Date(booking.slotStartTime).toLocaleString("ar-OM", {
+          {formatDate(new Date(booking.slotStartTime), locale, {
             weekday: "long",
             day: "numeric",
             month: "long",
@@ -47,17 +52,15 @@ export default async function BookingConfirmationPage({ params }: Props) {
             minute: "2-digit",
           })}
           {" — "}
-          {booking.seats} مقعد
+          {booking.seats} {t("seatsSuffixLabel")}
         </p>
       )}
-      <p className="text-xs text-foreground/40">
-        سيتم إشعارك عند تأكيد الحجز من قبل مزود الخدمة.
-      </p>
+      <p className="text-xs text-foreground/40">{t("confirmationNoticeText")}</p>
       <Link
         href={`/bookings/${booking.id}`}
         className="mt-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
       >
-        عرض تفاصيل الحجز
+        {t("viewDetailsButton")}
       </Link>
     </main>
   );

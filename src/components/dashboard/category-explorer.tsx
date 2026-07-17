@@ -2,27 +2,30 @@
 
 import { Mountain, Waves, Compass, Car, Tent, Camera, Fish } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 // Explore-by-category section. Visually complete but not wired to
 // real filtering/navigation yet (no Experience/Category data model
 // exists in this project).
 
-const categories = [
-  { label: "الجبال", icon: Mountain },
-  { label: "الشواطئ", icon: Waves },
-  { label: "الصحراء", icon: Compass },
-  { label: "النقل", icon: Car },
-  { label: "التخييم", icon: Tent },
-  { label: "التصوير", icon: Camera },
-  { label: "الغوص", icon: Fish },
-];
-
 export function CategoryExplorer() {
+  const t = useTranslations("dashboard");
+
+  const categories = [
+    { label: t("categoryMountains"), icon: Mountain },
+    { label: t("categoryBeaches"), icon: Waves },
+    { label: t("categoryDesert"), icon: Compass },
+    { label: t("categoryTransport"), icon: Car },
+    { label: t("categoryCamping"), icon: Tent },
+    { label: t("categoryPhotography"), icon: Camera },
+    { label: t("categoryDiving"), icon: Fish },
+  ];
+
   return (
     <div>
       <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
         <span aria-hidden>🧭</span>
-        استكشف حسب الفئة
+        {t("exploreByCategoryTitle")}
       </h2>
       <div className="flex flex-wrap gap-4 sm:gap-6">
         {categories.map((category) => {

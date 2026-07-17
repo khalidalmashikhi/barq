@@ -1,5 +1,9 @@
 {
   "phase0Placeholder": "[pl/common] Phase 0 infrastructure placeholder (Polish) — not yet translated",
   "loading": "[pl] loading — not yet translated",
-  "logoutButton": "[pl] logoutButton — not yet translated"
+  "logoutButton": "[pl] logoutButton — not yet translated",
+  "paginationAriaLabel": "[pl] paginationAriaLabel — not yet translated",
+  "paginationStatus": "[pl] paginationStatus {page} {totalPages} — not yet translated",
+  "appName": "[pl] appName — not yet translated",
+  "myAccountLabel": "[pl] myAccountLabel — not yet translated"
 }

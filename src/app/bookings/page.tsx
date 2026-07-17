@@ -6,7 +6,9 @@ import { getMyBookings } from "@/lib/booking/get-my-bookings";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
-import { t } from "@/lib/i18n/strings";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getLocale } from "next-intl/server";
+import { formatDate } from "@/lib/i18n/format-date";
 
 type SearchParams = {
   page?: string;
@@ -23,6 +25,8 @@ export default async function BookingsPage({
   }
 
   const params = await searchParams;
+  const t = await getServerTranslator("booking");
+  const locale = await getLocale();
 
   // Sanitize the page param the same way get-services.ts already
   // does: any non-positive-integer value falls back to page 1 rather
@@ -36,7 +40,7 @@ export default async function BookingsPage({
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-10">
-      <h1 className="text-2xl font-semibold text-foreground">حجوزاتي</h1>
+      <h1 className="text-2xl font-semibold text-foreground">{t("myBookingsTitle")}</h1>
 
       {result.totalCount === 0 ? (
         <EmptyState
@@ -44,21 +48,21 @@ export default async function BookingsPage({
           iconSize={32}
           gap="gap-3"
           padding="py-16"
-          message="لا توجد حجوزات بعد"
+          message={t("noBookingsLabel")}
           messageClassName="text-foreground/60"
           action={
             <Link
               href="/services"
               className="mt-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              تصفح التجارب
+              {t("browseExperiencesButton")}
             </Link>
           }
         />
       ) : isOutOfRangePage ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
           <CalendarX size={32} strokeWidth={1.5} className="text-foreground/25" />
-          <p className="text-foreground/60">{t.noBookingsOnPageLabel}</p>
+          <p className="text-foreground/60">{t("noBookingsOnPageLabel")}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -71,7 +75,7 @@ export default async function BookingsPage({
               <div>
                 <p className="font-medium text-foreground">{booking.serviceName}</p>
                 <p className="mt-0.5 text-xs text-foreground/40">
-                  {new Date(booking.createdAt).toLocaleDateString("ar-OM", { day: "numeric", month: "long", year: "numeric" })}
+                  {formatDate(new Date(booking.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
               <div className="flex items-center gap-3">

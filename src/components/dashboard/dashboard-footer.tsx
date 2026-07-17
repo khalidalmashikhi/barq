@@ -1,13 +1,15 @@
 import { Instagram, Twitter, Facebook } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Links point nowhere real yet — no Support/Terms/Privacy pages exist
 // in this project. Rendered as spans, not <Link>, to avoid 404s while
 // still showing the intended footer structure.
 
-const links = ["الدعم", "الشروط والأحكام", "سياسة الخصوصية"];
+export async function DashboardFooter() {
+  const t = await getServerTranslator("dashboard");
+  const links = [t("supportLabel"), t("footerTermsLabel"), t("footerPrivacyLabel")];
 
-export function DashboardFooter() {
   return (
     <footer className="mt-4 border-t border-border">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-8 py-10 text-center sm:flex-row sm:justify-between sm:text-start">
@@ -28,7 +30,7 @@ export function DashboardFooter() {
         </div>
       </div>
       <p className="border-t border-border py-4 text-center text-xs text-foreground/30">
-        © {new Date().getFullYear()} برق
+        {t("copyrightText", { year: new Date().getFullYear() })}
       </p>
     </footer>
   );

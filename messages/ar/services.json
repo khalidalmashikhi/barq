@@ -1,3 +1,14 @@
 {
-  "phase0Placeholder": "[ar/services] Phase 0 infrastructure placeholder (Arabic) — not yet translated"
+  "phase0Placeholder": "[ar/services] Phase 0 infrastructure placeholder (Arabic) — not yet translated",
+  "title": "التجارب السياحية",
+  "availableCount": "{count} تجربة متاحة",
+  "exploreAvailable": "استكشف التجارب المتاحة",
+  "noResultsMatchLabel": "لا توجد نتائج مطابقة لبحثك",
+  "noPublishedServicesLabel": "لا توجد تجارب منشورة حالياً",
+  "priceUnavailableLabel": "غير متوفر",
+  "bookNowButton": "احجز الآن",
+  "todayLabel": "اليوم",
+  "aboutProviderLabel": "عن المزود",
+  "moreFromProviderLabel": "تجارب أخرى من نفس المزود",
+  "noImagesLabel": "لا تتوفر صور لهذه التجربة بعد"
 }

@@ -1,3 +1,14 @@
 {
-  "phase0Placeholder": "[cs/services] Phase 0 infrastructure placeholder (Czech) — not yet translated"
+  "phase0Placeholder": "[cs/services] Phase 0 infrastructure placeholder (Czech) — not yet translated",
+  "title": "[cs] title — not yet translated",
+  "availableCount": "[cs] availableCount {count} — not yet translated",
+  "exploreAvailable": "[cs] exploreAvailable — not yet translated",
+  "noResultsMatchLabel": "[cs] noResultsMatchLabel — not yet translated",
+  "noPublishedServicesLabel": "[cs] noPublishedServicesLabel — not yet translated",
+  "priceUnavailableLabel": "[cs] priceUnavailableLabel — not yet translated",
+  "bookNowButton": "[cs] bookNowButton — not yet translated",
+  "todayLabel": "[cs] todayLabel — not yet translated",
+  "aboutProviderLabel": "[cs] aboutProviderLabel — not yet translated",
+  "moreFromProviderLabel": "[cs] moreFromProviderLabel — not yet translated",
+  "noImagesLabel": "[cs] noImagesLabel — not yet translated"
 }
