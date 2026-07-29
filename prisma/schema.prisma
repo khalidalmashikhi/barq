@@ -135,13 +135,23 @@ enum ServiceStatus {
   ARCHIVED
 }
 
+/// EXPIRED added Phase 5.1 (Production Readiness) — a system-driven
+/// terminal outcome distinct from CANCELLED (customer-initiated) and
+/// REJECTED (provider's explicit decision): a PENDING_PROVIDER request
+/// whose Availability slot's startTime passed with no provider
+/// response. Kept as its own value (not folded into CANCELLED/REJECTED)
+/// so completion/cancellation-rate metrics and notifications stay
+/// accurate about which party actually caused the outcome.
 enum BookingStatus {
   CREATED
+  PENDING_PROVIDER
   CONFIRMED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  REJECTED
   DISPUTED
+  EXPIRED
 }
 
 enum JourneyStatus {
@@ -351,6 +361,36 @@ model Provider {
   businessName        Json
   businessDescription Json?
   status              ProviderStatus @default(APPLIED)
+  /// Set when an Admin approves this provider (see approve-provider.ts) —
+  /// the minimum audit trail needed for "Verified Provider" to mean "an
+  /// admin looked at this," not "seeded that way."
+  approvedAt          DateTime?      @db.Timestamptz(6)
+  approvedByAdminId   String?        @db.Uuid
+  approvedByAdmin     Admin?         @relation("ProviderApprovedBy", fields: [approvedByAdminId], references: [id])
+  /// Phase 2 (Provider Foundation) additions below — deliberately kept
+  /// separate from `status`: `status` is the approval/vetting workflow
+  /// (unchanged, still enforced by requireApprovedProvider()/BR-001);
+  /// `visible` is an independent marketplace-display toggle an admin can
+  /// use to hide an already-approved provider without touching its
+  /// vetting history (mirrors Category's own status-vs-visibility split,
+  /// but as a plain boolean, not a rich state machine, since no named
+  /// business rule requires more — same reasoning already applied to
+  /// FeatureFlag/HomepageSection in Phase 1).
+  slug         String?  @unique
+  visible      Boolean  @default(true)
+  /// Business-correspondence contact only — never surfaced to a
+  /// customer/tourist. Direct phone/WhatsApp/email exposure to tourists
+  /// is a permanent policy rule (BR-002 / 10-COMMUNICATION-POLICY.md),
+  /// not an oversight to "fix" once a public provider page exists.
+  contactEmail String?
+  /// "Basic location" per this phase's own scope — free text (e.g. a
+  /// city/region name), not geo-coordinates or Maps integration, which
+  /// docs/project-memory/05-PROVIDER-EXPERIENCE.md explicitly marks as
+  /// later-phase (target) scope, not foundation scope.
+  city         String?
+  /// Reference only — a URL string. No Attachment/upload model, no file
+  /// storage: media uploads are explicitly out of this phase's scope.
+  logoUrl      String?
   createdAt           DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime       @updatedAt @db.Timestamptz(6)
 
@@ -366,6 +406,8 @@ model Provider {
   supportTickets SupportTicket[]
 
   @@index([status])
+  @@index([approvedByAdminId])
+  @@index([visible])
   @@map("providers")
 }
 
@@ -436,6 +478,66 @@ model Vehicle {
   bookings Booking[]
 
   @@map("vehicles")
+}
+
+// =============================================================================
+// MARKETPLACE CONTEXT — ADR-0013 (Bounded Context #16, added Phase 1.1)
+// =============================================================================
+
+/// BR-004's 6 category visibility states. Deliberately not reused for any
+/// other entity's status — a distinct concept from ServiceStatus/ProviderStatus
+/// despite the shared "lifecycle enum" shape, per DATABASE_DESIGN.md §5's
+/// convention of one enum per concept rather than a shared generic status.
+enum CategoryVisibilityStatus {
+  PUBLIC
+  HIDDEN
+  LINK_ONLY
+  INVITE_ONLY
+  SCHEDULED
+  ARCHIVED
+}
+
+model Category {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// Bilingual — { "ar": "...", "en": "..." } — see implementation note 2 above.
+  name      Json
+  slug      String   @unique
+  visibilityStatus CategoryVisibilityStatus @default(HIDDEN)
+  /// Only meaningful when visibilityStatus is SCHEDULED — the moment this
+  /// category should automatically become PUBLIC. Nullable because every
+  /// other status ignores it.
+  scheduledVisibleAt DateTime? @db.Timestamptz(6)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  subCategories SubCategory[]
+
+  @@index([visibilityStatus])
+  @@map("categories")
+}
+
+model SubCategory {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  categoryId String   @db.Uuid
+  category   Category @relation(fields: [categoryId], references: [id])
+  /// Bilingual — { "ar": "...", "en": "..." }.
+  name       Json
+  slug       String   @unique
+  /// Independent of the parent Category's own status — resolves
+  /// 07-CATEGORIES.md's open inheritance question: a SubCategory holds its
+  /// own visibility, but effective visibility is always the stricter of the
+  /// two (see isSubCategoryEffectivelyVisible() in category-visibility-policy.ts),
+  /// so a SubCategory can never outrank its parent.
+  visibilityStatus CategoryVisibilityStatus @default(HIDDEN)
+  scheduledVisibleAt DateTime? @db.Timestamptz(6)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([categoryId])
+  @@index([visibilityStatus])
+  @@map("sub_categories")
 }
 
 model Service {
@@ -537,13 +639,353 @@ model Booking {
   supportTickets            SupportTicket[]
   causingWalletTransactions WalletTransaction[]
   causingNotifications      Notification[]
+  /// Booking Lifecycle Engine (Phase E.1) — the append-only history of
+  /// every status change this Booking has gone through, including its
+  /// initial creation. See BookingStatusEvent below.
+  statusEvents              BookingStatusEvent[]
+  /// Electronic Contract Foundation (Phase E.2) — every contract
+  /// (across all versions/revisions) ever generated for this Booking.
+  /// See BookingContract below. A Booking may have zero (nothing
+  /// generates one automatically yet — see BookingContract's own
+  /// comment) or several (one per revision, per requirement #5/#9).
+  contracts                 BookingContract[]
 
   @@index([customerId])
   @@index([providerId])
   @@index([status])
   @@index([confirmedAt])
   @@index([availabilityId])
+  /// Phase 5.2 (Production Hardening) — serviceId is queried/grouped
+  /// directly by get-provider-bookings.ts and get-dashboard-data.ts's/
+  /// get-provider-metrics.ts's groupBy calls, with no index until now.
+  @@index([serviceId])
+  /// Phase 5.2 (Production Hardening) — the dominant Provider-side
+  /// filter shape (get-provider-bookings.ts, get-provider-overview.ts's
+  /// many provider+status-scoped counts).
+  @@index([providerId, status])
   @@map("bookings")
+}
+
+/// Who performed a booking status transition — Phase E.1. No FK to
+/// Customer/Provider/User: a transition's actor may be any one of
+/// three different tables depending on actorType (a true polymorphic
+/// reference), which Prisma cannot express as a single relation: this
+/// is a log field (actorId), not a source of referential integrity.
+enum BookingActorType {
+  CUSTOMER
+  PROVIDER
+  SYSTEM
+  ADMIN
+}
+
+/// Booking Lifecycle Engine (Phase E.1) — append-only log of every
+/// status transition a Booking goes through, including its initial
+/// creation (fromStatus null). This single table is the shared backing
+/// store for three of this phase's requirements at once: the Booking
+/// Timeline (a booking's own ordered, timestamped history), the
+/// Booking History API (the same data exposed over HTTP), and the
+/// Booking Activity Log (who/when/what — never a sensitive payload,
+/// only structured status values plus an optional short `reason`).
+///
+/// The ONLY writers of this table are src/lib/booking/lifecycle's
+/// recordBookingCreated() (the initial CREATED row) and
+/// transitionBooking() (every subsequent change) — no other code path
+/// should ever insert into this table directly, mirroring "every
+/// status change must pass through one engine."
+model BookingStatusEvent {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  bookingId  String           @db.Uuid
+  booking    Booking          @relation(fields: [bookingId], references: [id])
+  /// Null only for the initial creation event — there is no "from" state.
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  actorType  BookingActorType
+  /// Customer.id / Provider.id / User.id (Admin) depending on actorType.
+  /// Null when actorType is SYSTEM.
+  actorId    String?          @db.Uuid
+  /// Optional short, human-readable reason (e.g. "customer requested
+  /// cancellation") — never a sensitive payload, per this phase's
+  /// explicit "no sensitive data" requirement for the activity log.
+  reason     String?
+  createdAt  DateTime         @default(now()) @db.Timestamptz(6)
+
+  @@index([bookingId, createdAt])
+  @@map("booking_status_events")
+}
+
+// =============================================================================
+// ELECTRONIC CONTRACT FOUNDATION (Phase E.2)
+// =============================================================================
+// A DEDICATED, booking-scoped contract concept — deliberately NOT the
+// pre-existing `Contract`/`ContractStatus` above (that model is a
+// customer/provider platform-agreement concept, unrelated to any
+// specific Booking, confirmed unused by any app code as of this phase
+// — it is left completely untouched). "BookingContract" names this
+// distinctly so the two are never confused in code or migrations.
+//
+// This phase builds the ENGINE only: dedicated model, its own
+// lifecycle, template rendering, PDF generation, versioning/history.
+// It does NOT wire automatic generation on booking acceptance (see
+// src/lib/contracts/create-contract.ts's own comment) and does NOT
+// implement electronic signature, QR verification, or government/
+// employer/customer approval — only their interfaces (requirement #10).
+
+/// Requirement #2's example lifecycle, mapped 1:1 (no renaming
+/// needed — these names already match the request verbatim, unlike
+/// Phase E.1's Booking lifecycle which had to map onto pre-existing
+/// names). See src/lib/contracts/lifecycle/transitions.ts for the
+/// transition matrix.
+enum BookingContractStatus {
+  DRAFT
+  GENERATED
+  ISSUED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+/// Contract History (requirement #8) event types. Deliberately NOT the
+/// same shape as BookingStatusEvent's (fromStatus/toStatus pairs):
+/// DOWNLOADED can happen many times without any status change at all,
+/// so this is a plain, independent event log, not a transition log.
+/// SIGNED exists now only so the future signature feature (requirement
+/// #10) has a place to log to without a future migration — nothing
+/// writes it yet.
+enum BookingContractEventType {
+  CREATED
+  GENERATED
+  ISSUED
+  ACTIVATED
+  DOWNLOADED
+  ARCHIVED
+  CANCELLED
+  COMPLETED
+  EXPIRED
+  /// Reserved by Phase E.2 for exactly this use — Phase E.3's signing
+  /// workflow deliberately does NOT write this generic value (see
+  /// CUSTOMER_SIGNED/PROVIDER_SIGNED below instead, which distinguish
+  /// who signed); kept defined, unused, for backward/forward
+  /// compatibility rather than removed.
+  SIGNED
+  /// Phase E.3 (Electronic Signature & Contract Execution) — four new,
+  /// purely additive values. Adding enum values is a non-breaking
+  /// Postgres operation (no rename/removal of any existing value), and
+  /// getContractHistory() (Phase E.2) requires NO changes to pick these
+  /// up — it already reads every event generically, ordered by time.
+  VIEWED
+  CUSTOMER_SIGNED
+  PROVIDER_SIGNED
+  EXECUTED
+}
+
+/// The dedicated Contract domain object (requirement #1). One row per
+/// contract VERSION — see `version`/`supersedesContractId` below;
+/// requirements #5 and #9 both require that editing a contract never
+/// overwrites history, so a "change" is always a new row, never an
+/// UPDATE to `content`.
+model BookingContract {
+  id                   String                @id @default(uuid(7)) @db.Uuid
+  bookingId            String                @db.Uuid
+  booking              Booking               @relation(fields: [bookingId], references: [id])
+  /// Human-readable, sequential, unique (requirement #3) — see
+  /// src/lib/contracts/contract-number.ts. Assigned once, at creation;
+  /// a Postgres UNIQUE constraint is the actual "no duplicates"
+  /// guarantee, not merely application-level discipline.
+  contractNumber       String                @unique
+  status               BookingContractStatus @default(DRAFT)
+  /// Which template produced (or will produce) `content` — see
+  /// src/lib/contracts/templates/. A plain String, not a Prisma enum:
+  /// adding a new template must not require a migration (requirement
+  /// #4's "do not hardcode template text" extends to "do not hardcode
+  /// the set of templates into the schema either").
+  templateKey          String
+  /// The template's own version at generation time — captured so a
+  /// later edit to a template's wording never silently reinterprets
+  /// what an already-generated contract's `content` is supposed to
+  /// mean (distinct from `version` below, which versions THIS
+  /// contract, not the template).
+  templateVersion      Int
+  /// Null until GENERATED. Bilingual JSON (ADR-0005 convention, same
+  /// shape as Service.name etc.) — the actual rendered contract body.
+  /// Never mutated once set — see the file-level comment above.
+  content              Json?
+  /// This contract's own version number (requirement #5) — 1 for the
+  /// first version, incremented by createContractRevision() for each
+  /// later revision. Distinct from templateVersion above.
+  version              Int                   @default(1)
+  /// Requirement #9 (Archive): set when a newer revision supersedes
+  /// this row. An archived row is never written to again — its
+  /// `content`/`status` are frozen at whatever they were when
+  /// superseded, which is itself usually a terminal status already.
+  archivedAt           DateTime?             @db.Timestamptz(6)
+  /// Requirement #5's "Generated By" — who/what triggered content
+  /// generation. Reuses Phase E.1's BookingActorType rather than
+  /// defining a parallel one (CUSTOMER/PROVIDER/SYSTEM/ADMIN already
+  /// covers every actor a contract generation could have).
+  generatedByActorType BookingActorType?
+  generatedByActorId   String?               @db.Uuid
+  generatedAt          DateTime?             @db.Timestamptz(6)
+  /// Requirement #5's "Created Date".
+  createdAt            DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime              @updatedAt @db.Timestamptz(6)
+
+  /// Requirement #9 versioning chain — mirrors the exact self
+  /// -relation pattern the pre-existing `Contract` model above already
+  /// uses for its own supersession, rather than inventing a new idiom.
+  supersedesContractId String?          @unique @db.Uuid
+  supersedesContract   BookingContract? @relation("BookingContractRevision", fields: [supersedesContractId], references: [id])
+  supersededByContract BookingContract? @relation("BookingContractRevision")
+
+  events     BookingContractEvent[]
+  /// Phase E.3 (Electronic Signature & Contract Execution) — the
+  /// signing workflow for this contract, if one has been started. At
+  /// most one per BookingContract (unique FK on ContractExecution
+  /// below) — a superseded/archived contract's own execution (if any)
+  /// stays with that specific row; a revision starts a fresh one.
+  execution  ContractExecution?
+  signatures ContractSignature[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("booking_contracts")
+}
+
+/// Contract History / Activity Log (requirement #8, Phase E.2).
+/// Mirrors BookingStatusEvent's role for Bookings (Phase E.1) — writers
+/// are src/lib/contracts' own transitionContract() (status-change event
+/// types), the standalone recorder functions (createContractFromBooking
+/// for CREATED, recordContractDownloaded for DOWNLOADED,
+/// createContractRevision for ARCHIVED), and — added Phase E.3 —
+/// src/lib/contracts/execution's own view/sign/execution-transition
+/// functions (VIEWED, CUSTOMER_SIGNED, PROVIDER_SIGNED, EXECUTED).
+model BookingContractEvent {
+  id         String                   @id @default(uuid(7)) @db.Uuid
+  contractId String                   @db.Uuid
+  contract   BookingContract          @relation(fields: [contractId], references: [id])
+  eventType  BookingContractEventType
+  actorType  BookingActorType
+  actorId    String?                  @db.Uuid
+  /// Optional short, human-readable note — never a sensitive payload,
+  /// mirroring BookingStatusEvent's own `reason` field.
+  note       String?
+  createdAt  DateTime                 @default(now()) @db.Timestamptz(6)
+
+  @@index([contractId, createdAt])
+  @@map("booking_contract_events")
+}
+
+// =============================================================================
+// ELECTRONIC SIGNATURE & CONTRACT EXECUTION (Phase E.3)
+// =============================================================================
+// Extends the Contract Engine (Phase E.2) — does NOT modify it.
+// BookingContract, BookingContractStatus, and its transition matrix
+// (src/lib/contracts/lifecycle/) are completely untouched. This is a
+// parallel, additive workflow layered on top: a BookingContract moves
+// through its own DRAFT/GENERATED/ISSUED/ACTIVE/... lifecycle exactly
+// as Phase E.2 built it; ContractExecution tracks the SIGNING process
+// specifically (requirement #1's own, separate state machine), and
+// reaching EXECUTED calls the Contract Engine's own, unmodified
+// transitionContractAndFireHooks() to move the contract itself
+// ISSUED -> ACTIVE — using the existing engine's public API, not
+// bypassing or duplicating it.
+
+/// Requirement #1's example lifecycle, mapped 1:1 (no renaming needed).
+/// See src/lib/contracts/execution/transitions.ts for the matrix.
+enum ContractExecutionStatus {
+  PENDING_CUSTOMER
+  CUSTOMER_SIGNED
+  PENDING_PROVIDER
+  PROVIDER_SIGNED
+  EXECUTED
+  CANCELLED
+  EXPIRED
+}
+
+/// Broad signing mechanism category — requirement #3's "signature
+/// method". INTERNAL is this phase's only real, working path (a
+/// simple in-app click-to-sign — "This is NOT the final electronic
+/// signature implementation", per Phase E.2's own framing, carried
+/// forward here). EXTERNAL_PROVIDER is reserved for when a real vendor
+/// (DocuSign, Adobe Sign, Government PKI, Oman Trust Services) is
+/// wired in — the SPECIFIC vendor is recorded in
+/// ContractSignature.providerKey (a plain String, like
+/// BookingContract.templateKey), not this enum, so adding a new vendor
+/// never requires a migration.
+enum ContractSignatureMethod {
+  INTERNAL
+  EXTERNAL_PROVIDER
+}
+
+/// One row per BookingContract that has entered the signing workflow —
+/// requirement #1's state machine's current position. Kept as its own
+/// table, not new columns on BookingContract, so the Contract Engine's
+/// own table has zero schema changes this phase (nothing here can be
+/// mistaken for "modifying Contract Engine architecture").
+model ContractExecution {
+  id                String                  @id @default(uuid(7)) @db.Uuid
+  contractId        String                  @unique @db.Uuid
+  contract          BookingContract         @relation(fields: [contractId], references: [id])
+  status            ContractExecutionStatus @default(PENDING_CUSTOMER)
+  /// Requirement #6 — an opaque, unique lookup token for the public
+  /// verification endpoint. Generated once, at execution start; never
+  /// regenerated (a rotating token would invalidate a QR code already
+  /// printed on an issued contract).
+  verificationToken String                  @unique
+  /// Requirement #1's "Expired" branch — a deadline this execution
+  /// lapses at if not completed. Nullable: not every execution
+  /// necessarily has one (a future caller may choose not to set one).
+  expiresAt         DateTime?               @db.Timestamptz(6)
+  createdAt         DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime                @updatedAt @db.Timestamptz(6)
+
+  signatures ContractSignature[]
+
+  @@index([status])
+  @@map("contract_executions")
+}
+
+/// Requirement #3 — one immutable row per actual signing event. NEVER
+/// updated after creation (requirement #3's "Never overwrite
+/// signatures") — a re-sign attempt is rejected by the state machine
+/// (see execution/errors.ts), not represented by mutating an existing
+/// row. `@@unique([executionId, signerType])` is the database-level
+/// backstop against duplicate signatures (requirement #9's own test
+/// coverage item), not merely an application-level check.
+model ContractSignature {
+  id                String                  @id @default(uuid(7)) @db.Uuid
+  /// Denormalized for query convenience — same rationale as
+  /// Booking.providerId above ("likely necessary for query
+  /// convenience"): looking up every signature for a contract without
+  /// an extra join through ContractExecution.
+  contractId        String                  @db.Uuid
+  contract          BookingContract         @relation(fields: [contractId], references: [id])
+  executionId       String                  @db.Uuid
+  execution         ContractExecution       @relation(fields: [executionId], references: [id])
+  signerType        BookingActorType
+  signerId          String?                 @db.Uuid
+  signedAt          DateTime                @default(now()) @db.Timestamptz(6)
+  /// Requirement #3 — "IP (configurable/privacy-aware)": whether this
+  /// is ever populated is controlled by
+  /// src/lib/contracts/execution/ip-config.ts, not hardcoded — a
+  /// deployment may disable IP capture entirely, in which case this
+  /// stays null regardless of what the caller had available.
+  ipAddress         String?
+  /// Requirement #3 — explicitly optional.
+  userAgent         String?
+  method            ContractSignatureMethod
+  /// Which SignatureProvider produced this signature (e.g.
+  /// "INTERNAL", future "DOCUSIGN") — a plain String, like
+  /// BookingContract.templateKey, so a new provider never requires a
+  /// migration.
+  providerKey       String
+  /// An external reference ID from that provider (e.g. a future
+  /// DocuSign envelope ID) — unused by the INTERNAL provider today.
+  providerReference String?
+
+  @@unique([executionId, signerType])
+  @@index([contractId])
+  @@map("contract_signatures")
 }
 
 // =============================================================================
@@ -695,16 +1137,26 @@ model WalletTransaction {
 // =============================================================================
 
 model Payment {
-  id           String        @id @default(uuid(7)) @db.Uuid
-  bookingId    String        @unique @db.Uuid
-  booking      Booking       @relation(fields: [bookingId], references: [id])
-  amount       Decimal       @db.Decimal(12, 2)
-  currency     String
-  status       PaymentStatus @default(INITIATED)
-  refundAmount Decimal?      @db.Decimal(12, 2)
-  capturedAt   DateTime?     @db.Timestamptz(6)
-  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+  id        String  @id @default(uuid(7)) @db.Uuid
+  bookingId String  @unique @db.Uuid
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  amount    Decimal @db.Decimal(12, 2)
+  currency  String
+  /// Phase 2.24 (Provider Reference Persistence). An opaque external
+  /// identifier from whichever PaymentGatewayProvider actually produced
+  /// this Payment (e.g. a Stripe PaymentIntent id) — set by initiate(),
+  /// read back by capture(). Nullable: the No-Op gateway's initiate()
+  /// never returns one (see that provider's own comment), so any
+  /// Payment created under PAYMENT_PROVIDER=NONE correctly has none.
+  /// Mirrors ContractSignature.providerReference (Phase E.3) exactly —
+  /// same name, same plain-String type, same "external provider's own
+  /// reference, opaque to this codebase" purpose.
+  providerReference String?
+  status            PaymentStatus @default(INITIATED)
+  refundAmount      Decimal?      @db.Decimal(12, 2)
+  capturedAt        DateTime?     @db.Timestamptz(6)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
 
   invoice            Invoice?
   walletTransactions WalletTransaction[]
@@ -735,7 +1187,6 @@ model Invoice {
   issuedAt                DateTime      @db.Timestamptz(6)
   createdAt               DateTime      @default(now()) @db.Timestamptz(6)
 
-  @@index([invoiceNumber])
   @@map("invoices")
 }
 
@@ -777,6 +1228,14 @@ model Notification {
   content Json
   channel NotificationChannel
   status  NotificationStatus  @default(COMPOSED)
+  /// Read state (Phase D.1) — null means unread; set once, to the
+  /// moment the recipient reads it, never cleared back to null. This is
+  /// a distinct concept from `status`: `status` tracks WHATSAPP/EMAIL/SMS
+  /// delivery lifecycle (COMPOSED -> SENT -> DELIVERED -> FAILED), while
+  /// `readAt` tracks whether the in-app Notification Center recipient
+  /// has actually seen it — a DELIVERED notification can still be
+  /// unread, and the two are updated independently.
+  readAt  DateTime?           @db.Timestamptz(6)
 
   causingBookingId String?  @db.Uuid
   causingBooking   Booking? @relation(fields: [causingBookingId], references: [id])
@@ -787,6 +1246,10 @@ model Notification {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  /// Phase D.1 — serves getUnreadCount()'s `WHERE userId = ? AND readAt
+  /// IS NULL` and getNotifications()'s paginated, newest-first list for
+  /// one user, without a table scan.
+  @@index([userId, readAt, createdAt])
   @@map("notifications")
 }
 
@@ -882,7 +1345,64 @@ model Admin {
   createdAt DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
+  approvedProviders Provider[] @relation("ProviderApprovedBy")
+
   @@map("admins")
+}
+
+/// Global on/off platform configuration switch — Phase 1.3 (Core Business
+/// Platform). Deliberately minimal per this phase's explicit scope: global
+/// only, no per-user/per-role targeting, no percentage rollout, no
+/// scheduling, no environments. `description` is a plain string, not the
+/// bilingual `Json` shape used elsewhere — this is internal, developer-
+/// facing technical metadata (which code path a flag gates), not
+/// customer-facing business content, so ADR-0005's bilingual-content rule
+/// does not apply here.
+model FeatureFlag {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// The stable identifier application code checks — immutable after
+  /// creation (see update-feature-flag.ts): renaming it would silently
+  /// break any code already referencing the old key.
+  key         String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([enabled])
+  @@map("feature_flags")
+}
+
+/// Homepage section admin management — Phase 1.4 (Core Business Platform).
+/// BACKEND AND ADMIN ONLY, per this phase's explicit scope: no relationship
+/// exists yet to the real, currently-static homepage components, no content
+/// field, no rendering wiring — this model only lets an admin manage which
+/// sections exist, their visibility, and their order, ahead of a later phase
+/// actually consuming it. `label`/`description` are plain strings (like
+/// FeatureFlag's), not bilingual `Json` — internal admin-facing metadata
+/// describing which section this record controls, not customer-facing
+/// content itself (no CMS content field exists here, deliberately).
+///
+/// BOUNDED CONTEXT, FLAGGED NOT DECIDED: provisionally grouped near
+/// Administration/platform-configuration models rather than assigned to a
+/// new Content/CMS Bounded Context — this phase's scope does not include a
+/// domain-model amendment (unlike Category's ADR-0013 in Phase 1.1); revisit
+/// when a real CMS/rendering phase is scoped.
+model HomepageSection {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// The stable identifier a future rendering phase will match against —
+  /// immutable after creation (see update-homepage-section.ts), same
+  /// reasoning as FeatureFlag.key.
+  key         String   @unique
+  label       String
+  description String?
+  visible     Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([visible])
+  @@map("homepage_sections")
 }
 
 // =============================================================================
@@ -961,8 +1481,11 @@ model Session {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
+  /// Phase 5.2 (Production Hardening) — the separate @@index([token])
+  /// this model previously carried was dropped: token already has
+  /// @unique, which Postgres backs with its own index, so the extra
+  /// index was pure write-amplification with zero query benefit.
   @@index([userId])
-  @@index([token])
   @@map("sessions")
 }
 
@@ -1051,4 +1574,49 @@ model AuthUser {
   barqUser User?
 
   @@map("auth_users")
+}
+
+// =============================================================================
+// AUDIT LOG (Phase 5.2 — Production Hardening)
+// =============================================================================
+// A general, cross-cutting immutable event log for admin/provider
+// mutations that don't already have a dedicated event-history model —
+// same idiom as BookingStatusEvent/BookingContractEvent above (actor,
+// action, entity, timestamp, before/after), generalized rather than
+// duplicated since those two are booking/contract-specific by design.
+// Booking status changes remain fully covered by BookingStatusEvent —
+// this model is never written to for those.
+//
+// Written INSIDE the same transaction as the mutation it describes
+// (never as a fire-and-forget after-commit hook like the lifecycle
+// notification hooks) — an audit record that could silently fail to
+// write while the real change succeeds would defeat its own purpose.
+// See src/lib/audit/record-audit-event.ts.
+model AuditLog {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  /// Reuses BookingActorType rather than duplicating an identical enum —
+  /// CUSTOMER/PROVIDER/SYSTEM/ADMIN are already generic actor-kind
+  /// values despite that enum's booking-era name.
+  actorType BookingActorType
+  /// Customer.id / Provider.id / User.id (Admin) depending on actorType.
+  /// Null when actorType is SYSTEM.
+  actorId   String?          @db.Uuid
+  /// Dot-namespaced, stable, e.g. "provider.approved",
+  /// "service.published", "availability.slot_created" — a plain string,
+  /// not an enum, so a new action type never needs its own migration
+  /// (same reasoning as BookingContract.templateKey).
+  action    String
+  /// e.g. "Provider", "Service", "Availability" — plain string for the
+  /// same extensibility reason as `action`.
+  entityType String
+  entityId   String           @db.Uuid
+  /// Snapshot of the changed fields before/after, when applicable —
+  /// never a full-row dump, only what the writer explicitly captured.
+  previousValue Json?
+  newValue      Json?
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorType, actorId])
+  @@map("audit_logs")
 }

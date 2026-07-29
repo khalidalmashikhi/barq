@@ -16,6 +16,11 @@ export const namespaces = [
   "dashboard",
   "errors",
   "seo",
+  "notifications",
+  "landing",
+  "pages",
+  "admin",
+  "payments",
 ] as const;
 
 export type Namespace = (typeof namespaces)[number];

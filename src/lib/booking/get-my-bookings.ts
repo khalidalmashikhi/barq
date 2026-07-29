@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 
 // My Bookings query — Engineering Sprint (Booking Engine).
 //
@@ -18,10 +19,22 @@ export type MyBookingListItem = {
   serviceName: string;
   status: string;
   priceSnapshot: string | null;
+  slotStartTime: Date | null;
   createdAt: Date;
 };
 
+/// Phase F.2 (My Bookings — Upcoming vs Past) — a real, additive
+/// filter over the existing `status` column, not a new field: CREATED/
+/// CONFIRMED/IN_PROGRESS are "upcoming" (still ahead of or in the
+/// experience), COMPLETED/CANCELLED/DISPUTED are "past" (nothing left
+/// to do). Mirrors the same JSON-path search strategy already used by
+/// get-provider-bookings.ts for the `search` param.
+const UPCOMING_STATUSES = ["CREATED", "CONFIRMED", "IN_PROGRESS"] as const;
+const PAST_STATUSES = ["COMPLETED", "CANCELLED", "DISPUTED"] as const;
+
 export type GetMyBookingsParams = {
+  search?: string;
+  when?: "upcoming" | "past";
   page?: number;
   pageSize?: number;
 };
@@ -38,6 +51,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export async function getMyBookings(params: GetMyBookingsParams = {}): Promise<GetMyBookingsResult> {
   const { barqUser } = await requireAuth();
+  const locale = await getLocale();
 
   const page = Math.max(1, params.page ?? 1);
   const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -52,18 +66,38 @@ export async function getMyBookings(params: GetMyBookingsParams = {}): Promise<G
     return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
   }
 
+  const searchClause = params.search
+    ? {
+        service: {
+          OR: [
+            { name: { path: ["ar"], string_contains: params.search } },
+            { name: { path: ["en"], string_contains: params.search } },
+          ],
+        },
+      }
+    : {};
+
+  const statusClause =
+    params.when === "upcoming"
+      ? { status: { in: [...UPCOMING_STATUSES] } }
+      : params.when === "past"
+        ? { status: { in: [...PAST_STATUSES] } }
+        : {};
+
+  const where = { customerId: customer.id, ...searchClause, ...statusClause };
+
   // Compound ordering for deterministic pagination: createdAt alone is
   // not guaranteed unique, so id (UUID v7 — itself time-ordered, per
   // ADR-0006) is a safe, natural tie-breaker rather than an arbitrary
   // second key.
   const [totalCount, bookings] = await Promise.all([
-    prisma.booking.count({ where: { customerId: customer.id } }),
+    prisma.booking.count({ where }),
     prisma.booking.findMany({
-      where: { customerId: customer.id },
+      where,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { service: true },
+      include: { service: true, availability: true },
     }),
   ]);
 
@@ -74,16 +108,18 @@ export async function getMyBookings(params: GetMyBookingsParams = {}): Promise<G
     priceSnapshotCurrency: string | null;
     createdAt: Date;
     service: { name: unknown };
+    availability: { startTime: Date } | null;
   };
 
   const items = (bookings as BookingRow[]).map((booking) => ({
     id: booking.id,
-    serviceName: extractText(booking.service.name) || "تجربة",
+    serviceName: extractLocalizedText(booking.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     status: booking.status,
     priceSnapshot:
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
         : null,
+    slotStartTime: booking.availability?.startTime ?? null,
     createdAt: booking.createdAt,
   }));
 

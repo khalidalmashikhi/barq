@@ -32,6 +32,11 @@ type Messages = {
   dashboard: typeof import("../../messages/en/dashboard.json");
   errors: typeof import("../../messages/en/errors.json");
   seo: typeof import("../../messages/en/seo.json");
+  notifications: typeof import("../../messages/en/notifications.json");
+  landing: typeof import("../../messages/en/landing.json");
+  pages: typeof import("../../messages/en/pages.json");
+  admin: typeof import("../../messages/en/admin.json");
+  payments: typeof import("../../messages/en/payments.json");
 };
 
 declare module "use-intl" {

@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "browse": "Browse Experiences",
+    "howItWorks": "How BARQ Works",
+    "destinations": "Destinations",
+    "signIn": "Sign In",
+    "myAccount": "My Account",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "hero": {
+    "eyebrow": "Oman, reimagined",
+    "title": "Discover Oman's most unforgettable experiences",
+    "subtitle": "Book trusted tours, guides, and adventures across Oman in minutes — verified providers, transparent pricing, zero hassle.",
+    "searchPlaceholder": "Search experiences, cities, or activities",
+    "searchButton": "Search",
+    "ctaPrimary": "Explore Experiences",
+    "ctaSecondary": "How it works",
+    "photoComingSoon": "Real Oman photography — coming soon"
+  },
+  "trustBar": {
+    "providers": "Trusted Local Providers",
+    "verified": "Verified Experiences",
+    "booking": "Secure Booking",
+    "multilingual": "Multilingual Support"
+  },
+  "credibility": {
+    "verified": "Verified Providers",
+    "tracked": "Tracked Bookings",
+    "transparent": "Transparent Pricing",
+    "secureSignIn": "Secure Sign-In"
+  },
+  "featured": {
+    "title": "Featured Experiences",
+    "subtitle": "Handpicked adventures loved by travelers across Oman",
+    "viewAll": "View all experiences",
+    "emptyTitle": "New experiences are on their way",
+    "emptyDescription": "Our providers are getting ready to publish their first experiences. Check back soon."
+  },
+  "categories": {
+    "title": "Explore by Category",
+    "subtitle": "Find the kind of adventure that speaks to you",
+    "desertSafari": "Desert Safaris",
+    "mountainTours": "Mountain Tours",
+    "coastalTrips": "Coastal & Beach Trips",
+    "culturalTours": "Cultural Tours",
+    "cityExperiences": "City Experiences",
+    "adventureSports": "Adventure Sports"
+  },
+  "destinations": {
+    "featuredLabel": "Featured",
+    "title": "Popular Destinations",
+    "subtitle": "The places travelers are exploring right now",
+    "muscat": "Muscat",
+    "salalah": "Salalah",
+    "nizwa": "Nizwa",
+    "wahibaSands": "Wahiba Sands",
+    "jebelAkhdar": "Jebel Akhdar",
+    "musandam": "Musandam"
+  },
+  "providers": {
+    "title": "Trusted Providers",
+    "subtitle": "Every provider on BARQ is verified before they can publish an experience",
+    "verifiedBadge": "Verified Provider"
+  },
+  "howItWorks": {
+    "title": "How BARQ Works",
+    "subtitle": "Booking your next experience takes three simple steps",
+    "step1Title": "Discover",
+    "step1Description": "Browse verified experiences across Oman, filtered by destination, category, and price.",
+    "step2Title": "Book",
+    "step2Description": "Sign in with your phone number, pick your date, and confirm your booking in minutes.",
+    "step3Title": "Experience",
+    "step3Description": "Meet your guide or provider and enjoy a seamless, trusted experience from start to finish."
+  },
+  "whyChoose": {
+    "title": "Why Choose BARQ",
+    "subtitle": "Built for travelers who expect more",
+    "trustTitle": "Verified & Trusted",
+    "trustDescription": "Every provider is reviewed and approved before they can list an experience.",
+    "transparentTitle": "Transparent Pricing",
+    "transparentDescription": "See the full price upfront — no hidden fees, no surprises at checkout.",
+    "fastTitle": "Fast & Simple Booking",
+    "fastDescription": "Book in minutes with phone-based sign-in — no passwords, no friction.",
+    "supportTitle": "Support When You Need It",
+    "supportDescription": "Our team is here to help before, during, and after your experience."
+  },
+  "stats": {
+    "title": "BARQ in Numbers",
+    "experiencesLabel": "Curated Experiences",
+    "providersLabel": "Verified Providers",
+    "destinationsLabel": "Destinations Covered",
+    "customersLabel": "Happy Travelers"
+  },
+  "testimonials": {
+    "title": "What Travelers Say",
+    "subtitle": "Real feedback from the BARQ community",
+    "placeholderNote": "Traveler reviews are coming soon.",
+    "quote1": "Booking felt as easy as messaging a friend — and our guide was fantastic.",
+    "author1": "Traveler, Muscat",
+    "quote2": "Transparent pricing and a verified provider made all the difference.",
+    "author2": "Traveler, Salalah"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you need to know before booking",
+    "q1": "How do I book an experience on BARQ?",
+    "a1": "Sign in with your phone number, browse experiences, choose your date, and confirm your booking — no password required.",
+    "q2": "Are BARQ providers verified?",
+    "a2": "Yes. Every provider is reviewed and approved by our team before they can publish an experience.",
+    "q3": "Can I cancel a booking?",
+    "a3": "Yes, bookings can be cancelled before they're confirmed by the provider. Check your booking details for eligibility.",
+    "q4": "What languages does BARQ support?",
+    "a4": "BARQ is available in Arabic, English, and several other languages, with full support in every language we offer."
+  },
+  "cta": {
+    "title": "Ready to explore Oman?",
+    "subtitle": "Join BARQ today and book your next unforgettable experience.",
+    "button": "Get Started"
+  },
+  "footer": {
+    "tagline": "Oman's premium tourism marketplace.",
+    "browseHeading": "Explore",
+    "companyHeading": "Company",
+    "aboutLink": "About BARQ",
+    "contactLink": "Contact Us",
+    "helpLink": "Help Center",
+    "termsLink": "Terms of Service",
+    "privacyLink": "Privacy Policy",
+    "cookiesLink": "Cookie Policy",
+    "rightsReserved": "All rights reserved."
+  }
+}

@@ -1,6 +1,8 @@
 import { CalendarX } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { clsx } from "@/components/ui/clsx";
+import { Link } from "@/i18n/navigation";
 import type { DashboardBookingSummary } from "@/lib/dashboard/get-dashboard-data";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -18,6 +20,7 @@ type RecentBookingsTimelineProps = {
 
 export async function RecentBookingsTimeline({ bookings }: RecentBookingsTimelineProps) {
   const t = await getServerTranslator("dashboard");
+  const tBooking = await getServerTranslator("booking");
   const locale = await getLocale();
 
   return (
@@ -28,16 +31,16 @@ export async function RecentBookingsTimeline({ bookings }: RecentBookingsTimelin
       </h2>
 
       {bookings.length === 0 ? (
-        <div className="mt-6 flex flex-col items-center gap-2 py-8 text-center">
-          <CalendarX size={28} strokeWidth={1.5} className="text-foreground/25" />
-          <p className="text-sm text-foreground/50">{t("noUpcomingBookingsLabel")}</p>
-        </div>
+        <EmptyState icon={CalendarX} message={t("noUpcomingBookingsLabel")} className="mt-6 border-none" padding="py-8" />
       ) : (
         <ol className="relative mt-6 flex flex-col gap-6 border-s border-border ps-6">
           {bookings.map((booking) => (
             <li key={booking.id} className="relative">
               <span className="absolute -start-[1.65rem] top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary" />
-              <div className="flex items-center justify-between gap-4">
+              <Link
+                href={`/bookings/${booking.id}`}
+                className="flex items-center justify-between gap-4 rounded-xl transition-opacity hover:opacity-70"
+              >
                 <div>
                   <p className="text-sm font-medium text-foreground">{booking.serviceName}</p>
                   <p className="mt-0.5 text-xs text-foreground/40">
@@ -52,9 +55,9 @@ export async function RecentBookingsTimeline({ bookings }: RecentBookingsTimelin
                     getBookingStatusStyle(booking.status)
                   )}
                 >
-                  {getBookingStatusLabel(booking.status)}
+                  {getBookingStatusLabel(booking.status, tBooking)}
                 </span>
-              </div>
+              </Link>
             </li>
           ))}
         </ol>

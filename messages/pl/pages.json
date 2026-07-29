@@ -1,0 +1,141 @@
+{
+  "about": {
+    "title": "O BARQ",
+    "subtitle": "Jedno, godne zaufania miejsce do odkrywania i rezerwowania prawdziwych doświadczeń turystycznych.",
+    "missionTitle": "Nasza misja",
+    "missionBody": "Dać podróżnym szybki i przejrzysty sposób odkrywania i rezerwowania doświadczeń turystycznych, a lokalnym dostawcom narzędzia, by do nich dotrzeć — bez utraty zaufania po żadnej ze stron.",
+    "visionTitle": "Nasza wizja",
+    "visionBody": "Rynek, na którym każda rezerwacja, cena i aktualizacja statusu jest dokładnie tym, za co się podaje — zaczynając od Omanu, zbudowany z myślą o rozwoju w całym regionie.",
+    "platformTitle": "Czym zajmuje się BARQ",
+    "platformBody": "BARQ łączy klientów z dostawcami doświadczeń turystycznych poprzez prosty, śledzony proces rezerwacji — od wyszukiwania przez potwierdzenie po zakończenie.",
+    "feature": {
+      "searchTitle": "Odkrywaj",
+      "searchBody": "Przeglądaj prawdziwe, opublikowane doświadczenia z przejrzystymi cenami ustalanymi przez każdego dostawcę.",
+      "bookTitle": "Rezerwuj",
+      "bookBody": "Zgłoś zapotrzebowanie na termin w kilku krokach i otrzymaj powiadomienie, gdy tylko dostawca odpowie.",
+      "trackTitle": "Śledź",
+      "trackBody": "Śledź dokładny status swojej rezerwacji od zgłoszenia do zakończenia w jednym miejscu."
+    },
+    "whyTitle": "Dlaczego BARQ",
+    "whyBody": "Każda rezerwacja na BARQ przechodzi przez ten sam śledzony cykl życia, dzięki czemu klienci i dostawcy zawsze widzą ten sam, dokładny status — bez zgadywania, bez nieaktualnych informacji.",
+    "principlesTitle": "Zasady rynku",
+    "principle": {
+      "trust": "Zaufanie",
+      "simplicity": "Prostota",
+      "clarity": "Przejrzystość",
+      "confidence": "Pewność",
+      "speed": "Szybkość"
+    }
+  },
+  "help": {
+    "title": "Centrum pomocy",
+    "subtitle": "Poradniki dotyczące rezerwacji, świadczenia usług i wszystkiego pomiędzy.",
+    "searchPlaceholder": "Szukaj w artykułach pomocy...",
+    "searchButton": "Szukaj",
+    "faqCardTitle": "Najczęściej zadawane pytania",
+    "faqCardDescription": "Szybkie odpowiedzi na najczęstsze pytania dotyczące BARQ.",
+    "bookingCardTitle": "Pomoc w rezerwacji",
+    "bookingCardDescription": "Jak działa wyszukiwanie, zgłaszanie i odwoływanie rezerwacji.",
+    "providerCardTitle": "Pomoc dla dostawców",
+    "providerCardDescription": "Zarządzanie usługami, dostępnością i rezerwacjami jako dostawca.",
+    "contactCardTitle": "Kontakt i wsparcie",
+    "contactCardDescription": "Jak się z nami skontaktować i co zrobić, gdy coś nie działa."
+  },
+  "faq": {
+    "title": "Najczęściej zadawane pytania",
+    "subtitle": "Odpowiedzi na pytania, które słyszymy najczęściej.",
+    "noResultsLabel": "Nie znaleziono pasujących pytań",
+    "accountQuestion": "Czy potrzebuję konta, aby zarezerwować doświadczenie?",
+    "accountAnswer": "Tak. Logujesz się za pomocą numeru telefonu i jednorazowego kodu weryfikacyjnego — bez hasła do zapamiętania.",
+    "bookingQuestion": "Jak działa rezerwacja doświadczenia?",
+    "bookingAnswer": "Wysyłasz prośbę o rezerwację z preferowanym terminem i liczbą miejsc. Dostawca następnie ją potwierdza — zostaniesz powiadomiony, gdy tylko to nastąpi.",
+    "cancellationQuestion": "Czy mogę odwołać rezerwację po jej zgłoszeniu?",
+    "cancellationAnswer": "Tak — możesz odwołać ją w Moje rezerwacje, dopóki zgłoszenie oczekuje lub jest potwierdzone. Odwołanie nie jest już możliwe, gdy doświadczenie się rozpoczęło lub zostało zakończone.",
+    "paymentQuestion": "Jak przebiega płatność?",
+    "paymentAnswer": "Cenę ustala każdy dostawca i jest ona widoczna przed rezerwacją. Szczegóły płatności są obsługiwane oddzielnie od samego zgłoszenia rezerwacji.",
+    "providerQuestion": "Jak zostać dostawcą na BARQ?",
+    "providerAnswer": "Konta dostawców przechodzą etap zatwierdzania, zanim ich doświadczenia pojawią się publicznie. Po zatwierdzeniu dostawcy zarządzają własnymi usługami, dostępnością i rezerwacjami z poziomu Panelu dostawcy."
+  },
+  "bookingHelp": {
+    "title": "Pomoc w rezerwacji",
+    "subtitle": "Przegląd tego, jak działa rezerwacja doświadczenia, od początku do końca.",
+    "step": {
+      "searchTitle": "Wyszukaj doświadczenie",
+      "searchBody": "Przeglądaj opublikowane doświadczenia, filtruj według ceny lub dostawcy i otwórz to, które Cię interesuje.",
+      "requestTitle": "Zgłoś zapotrzebowanie na termin",
+      "requestBody": "Wybierz dostępny termin i liczbę miejsc, a następnie wyślij zgłoszenie rezerwacji.",
+      "confirmTitle": "Otrzymaj powiadomienie po potwierdzeniu",
+      "confirmBody": "Dostawca sprawdza Twoje zgłoszenie. Zobaczysz powiadomienie i zaktualizowany status, gdy tylko je potwierdzi.",
+      "cancelTitle": "Odwołaj, jeśli Twoje plany się zmienią",
+      "cancelBody": "Dopóki rezerwacja oczekuje lub jest potwierdzona, możesz ją odwołać w dowolnym momencie w Moje rezerwacje — po jej rozpoczęciu lub zakończeniu opcja odwołania już się nie pojawia."
+    }
+  },
+  "providerHelp": {
+    "title": "Pomoc dla dostawców",
+    "subtitle": "Zarządzanie doświadczeniami i rezerwacjami na BARQ.",
+    "topic": {
+      "servicesTitle": "Zarządzanie usługami",
+      "servicesBody": "Twórz, edytuj, publikuj, wstrzymuj lub archiwizuj swoje doświadczenia w sekcji Usługi Panelu dostawcy.",
+      "availabilityTitle": "Ustawianie dostępności",
+      "availabilityBody": "Otwieraj terminy i ustalaj pojemność dla każdego doświadczenia, aby klienci mogli je zobaczyć i zgłosić.",
+      "bookingsTitle": "Obsługa rezerwacji",
+      "bookingsBody": "Przeglądaj przychodzące zgłoszenia rezerwacji i potwierdzaj je lub zarządzaj nimi w sekcji Rezerwacje — zgłoszenia oczekujące na Twoją odpowiedź są wyraźnie oznaczone.",
+      "dashboardTitle": "Odczytywanie panelu",
+      "dashboardBody": "Twój panel pokazuje rzeczywiste wskaźniki rezerwacji i usług — liczby odzwierciedlają wyłącznie to, co faktycznie wydarzyło się na platformie."
+    }
+  },
+  "contact": {
+    "title": "Kontakt i wsparcie",
+    "subtitle": "Jak się z nami skontaktować i uzyskać pomoc.",
+    "noticeTitle": "Bezpośredni kontakt nie jest jeszcze podłączony",
+    "noticeBody": "Dedykowana skrzynka wsparcia lub formularz kontaktowy nie są jeszcze uruchomione w BARQ. Tymczasem poniższe Centrum pomocy obejmuje najczęstsze pytania.",
+    "helpCenterTitle": "Odwiedź Centrum pomocy",
+    "helpCenterBody": "Najczęściej zadawane pytania, pomoc w rezerwacji i pomoc dla dostawców są już tam dostępne.",
+    "bookingIssuesTitle": "Pytania dotyczące konkretnej rezerwacji",
+    "bookingIssuesBody": "Otwórz rezerwację w Moje rezerwacje — jej strona szczegółów pokazuje pełną historię statusów i aktualny stan."
+  },
+  "terms": {
+    "title": "Regulamin",
+    "section": {
+      "acceptanceTitle": "Akceptacja regulaminu",
+      "usingPlatformTitle": "Korzystanie z platformy",
+      "bookingsAndPaymentsTitle": "Rezerwacje i płatności",
+      "providerObligationsTitle": "Obowiązki dostawcy",
+      "liabilityTitle": "Ograniczenie odpowiedzialności",
+      "changesTitle": "Zmiany w niniejszym regulaminie"
+    }
+  },
+  "privacy": {
+    "title": "Polityka prywatności",
+    "section": {
+      "informationCollectedTitle": "Informacje, które zbieramy",
+      "howWeUseItTitle": "Jak wykorzystujemy informacje",
+      "dataSharingTitle": "Udostępnianie danych",
+      "dataRetentionTitle": "Przechowywanie danych",
+      "yourRightsTitle": "Twoje prawa"
+    }
+  },
+  "cookies": {
+    "title": "Polityka plików cookie",
+    "section": {
+      "whatAreCookiesTitle": "Czym są pliki cookie",
+      "howWeUseCookiesTitle": "Jak wykorzystujemy pliki cookie",
+      "managingCookiesTitle": "Zarządzanie plikami cookie"
+    }
+  },
+  "bookingPolicy": {
+    "title": "Zasady rezerwacji i odwołania",
+    "section": {
+      "cancellationTitle": "Uprawnienie do odwołania",
+      "cancellationBody": "Rezerwację można odwołać bezpłatnie, dopóki ma status Oczekująca lub Potwierdzona. Gdy doświadczenie się rozpoczęło lub zostało zakończone, odwołanie nie jest już możliwe. Ta zasada dotyczy jednakowo każdej rezerwacji na BARQ.",
+      "paymentsTitle": "Płatności",
+      "providerObligationsTitle": "Obowiązki dostawcy",
+      "disputesTitle": "Spory"
+    }
+  },
+  "legal": {
+    "placeholderNotice": "Ta strona przedstawia strukturę, którą będzie miał ostateczny dokument prawny BARQ. To zapowiedź, jeszcze nie zweryfikowana prawnie polityka.",
+    "lastUpdatedPlaceholder": "Wersja robocza — jeszcze niesfinalizowana",
+    "sectionPlaceholderBody": "Pełna treść tej sekcji jest finalizowana i pojawi się tutaj."
+  }
+}

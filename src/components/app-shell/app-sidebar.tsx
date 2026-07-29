@@ -47,6 +47,13 @@ export type AppNavItem = {
   href?: string;
   icon: ReactNode;
   badge?: number;
+  /// Customer Experience Platform — an optional, short, localized hint
+  /// shown next to an item that has no `href` (e.g. "Coming soon").
+  /// Purely additive: an item that omits this renders exactly as
+  /// before. Never used to fake a real destination — an item with a
+  /// hint still renders as an inert <span aria-disabled>, never a
+  /// <Link>, and no route is invented for it.
+  disabledHint?: string;
 };
 
 type AppSidebarProps = {
@@ -92,7 +99,7 @@ export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
       style={{ width: 260 }}
     >
       <div className="flex justify-center">
-        <Logo className="h-20 max-w-[90px]" />
+        <Logo variant="mark" className="h-20 max-w-[90px]" />
       </div>
 
       <nav className="mt-10 flex flex-col gap-1.5">
@@ -118,6 +125,11 @@ export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
                   {item.badge}
                 </span>
               )}
+              {!isInteractive && item.disabledHint && (
+                <span className="ms-auto rounded-full bg-accent/15 px-2 py-0.5 text-[0.65rem] font-medium text-foreground/40">
+                  {item.disabledHint}
+                </span>
+              )}
             </>
           );
 
@@ -126,7 +138,12 @@ export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
               {content}
             </Link>
           ) : (
-            <span key={item.label} aria-disabled className={itemClassName}>
+            <span
+              key={item.label}
+              aria-disabled="true"
+              aria-label={item.disabledHint ? `${item.label} — ${item.disabledHint}` : undefined}
+              className={itemClassName}
+            >
               {content}
             </span>
           );

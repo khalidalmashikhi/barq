@@ -139,6 +139,16 @@
 - **Does Not Own:** The Service Provider entity's day-to-day data (Provider context) — Administration decides; Provider context reflects and operates on the decision.
 - **Collaborates With:** Provider, Identity, Operations, Pricing.
 
+### 16. Marketplace
+
+*Added by `ADR-0013-marketplace-bounded-context.md` (Phase 1.1, Core Business Platform) — the first amendment to this Locked document since its original Batch approval. See that ADR for the full rationale; not restated here.*
+
+- **Purpose:** The browsable, categorized taxonomy tourists will discover services through — Category and SubCategory, and (in later phases) Discovery/Search/Featured/Campaigns/Recommendations over the Provider context's own `Service`/`Experience` listings.
+- **Responsibilities:** Category/SubCategory definition and visibility-state management (BR-004). Later phases extend this to Discovery, Search, Featured Services, Campaigns, and Recommendations — none of which exist yet (Phase 1.1 scope is Category/SubCategory only).
+- **Owns:** `Category`, `SubCategory`.
+- **Does Not Own:** `Service`/`Experience` themselves (Provider context still owns those) — Marketplace classifies and surfaces them, it does not hold or manage their lifecycle. The Homepage page-shell stays a Content/CMS concern that *consumes* Marketplace-owned data, not part of Marketplace itself.
+- **Collaborates With:** Provider (a `Service` will reference a `Category` in a later phase — not yet, per Phase 1.1's explicit scope), Administration (Category/SubCategory management is Admin-only).
+
 ---
 
 ## 2. Core Domain Entities
@@ -359,6 +369,26 @@
 - **Relationships:** May reference/act within any context it is explicitly authorized for; every high-risk action it takes references a `Staff`/`Admin` approval per Human-in-the-Loop.
 - **Business Invariants:** An `AI Agent` never takes an action affecting money, trust, or personal data without a Human-in-the-Loop checkpoint, per `PROJECT_MANIFEST.md` §7 and `ARCHITECTURE_PRINCIPLES.md` Principle 23 — this is the single invariant every other AI-related document must uphold.
 
+### Category
+
+*Added by `ADR-0013-marketplace-bounded-context.md` (Phase 1.1).*
+
+- **Description:** A top-level browsable classification tourists will discover services through (accommodation, transport, restaurants, activities, etc.).
+- **Responsibilities:** Hold a bilingual name, a unique slug, and one of BR-004's 6 visibility states (`PUBLIC`/`HIDDEN`/`LINK_ONLY`/`INVITE_ONLY`/`SCHEDULED`/`ARCHIVED`); own zero or more `SubCategory` children.
+- **Lifecycle:** Created (`HIDDEN` by default) → any visibility state per the transition matrix → `ARCHIVED` (terminal for this phase).
+- **Relationships:** Has many `SubCategory`. Does not yet relate to `Service` — category assignment is explicitly out of Phase 1.1's scope (a Provider-facing change deferred to a later phase).
+- **Business Invariants:** `slug` is globally unique. `SCHEDULED` requires a future `scheduledVisibleAt`. Once `ARCHIVED`, a `Category` cannot transition to any other state in this phase.
+
+### SubCategory
+
+*Added by `ADR-0013-marketplace-bounded-context.md` (Phase 1.1).*
+
+- **Description:** A finer-grained classification nested under a `Category` (e.g., "Desert Safari" under "Activities").
+- **Responsibilities:** Same shape as `Category` (bilingual name, unique slug, own visibility state) plus a required parent reference.
+- **Lifecycle:** Same transition matrix as `Category`, independently — see Business Invariants below for how the two interact.
+- **Relationships:** Belongs to exactly one `Category`.
+- **Business Invariants:** Holds its own `visibilityStatus`, independent of its parent's — but effective visibility is always the stricter of the two: a `HIDDEN` or `ARCHIVED` parent makes every child effectively invisible regardless of the child's own status. This resolves `07-CATEGORIES.md`'s previously open inheritance question.
+
 ---
 
 ## 3. Domain Events
@@ -428,8 +458,10 @@ Business-level occurrences only — no technical/system events (those belong to 
 ## Related Documents
 - `GLOSSARY.md` — terminology SSOT; every term used above is Glossary-canonical
 - `PROJECT_MANIFEST.md`, `ARCHITECTURE_PRINCIPLES.md` — the philosophy and principles (especially Principle 4, DDD, and Principle 23, Human-in-the-Loop) this document operationalizes into concrete structure
-- `ADR-0002-modular-monolith.md` — the 15 Bounded Contexts above are the expected candidate module boundaries; `SYSTEM_ARCHITECTURE.md` will confirm the actual mapping
+- `ADR-0002-modular-monolith.md` — the 16 Bounded Contexts above (15 original + Marketplace, added by `ADR-0013`) are the expected candidate module boundaries; `SYSTEM_ARCHITECTURE.md` will confirm the actual mapping
 - `ADR-0005-bilingual-architecture.md` — reflected in the `Notification` entity's invariant and throughout
+- `ADR-0012-architecture-freeze-v2-saas-scope-deferral.md` — accepted Marketplace as a future Bounded Context; `ADR-0013` is this document's formal amendment putting that acceptance into the Locked model
+- `ADR-0013-marketplace-bounded-context.md` — adds Bounded Context #16 (Marketplace) and the `Category`/`SubCategory` entities, the first amendment to this document since its original Batch approval
 - `DATABASE_DESIGN.md`, `API_STANDARDS.md`, `AI_AGENTS.md`, `EVENTS.md`, every platform-capability document *(not yet written)* — each must build on this document's entities and events rather than redefining them
 
 ## Open Questions

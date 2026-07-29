@@ -1,8 +1,15 @@
 {
   "phase0Placeholder": "[fr/seo] Phase 0 infrastructure placeholder (French) — not yet translated",
-  "pageTitleTemplate": "[fr] pageTitleTemplate {page} {appName} — not yet translated",
-  "serviceNotFoundTitle": "[fr] serviceNotFoundTitle — not yet translated",
-  "defaultDescription": "[fr] defaultDescription — not yet translated",
-  "servicesListDescription": "[fr] servicesListDescription — not yet translated",
-  "serviceDescriptionFallback": "[fr] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "Expérience introuvable",
+  "defaultDescription": "BARQ — Plateforme intelligente de gestion touristique",
+  "servicesListDescription": "Découvrez des expériences touristiques fiables dans le Sultanat d'Oman",
+  "serviceDescriptionFallback": "Réservez {serviceName} auprès de {providerName} via {appName}",
+  "providerNotFoundTitle": "Prestataire introuvable",
+  "providerDescriptionFallback": "Découvrez les expériences touristiques proposées par {providerName} sur {appName}",
+  "legalTermsDescription": "Les conditions d'utilisation de BARQ pour réserver des expériences touristiques à Oman — une ébauche structurelle, pas encore un document juridique finalisé.",
+  "legalPrivacyDescription": "Comment BARQ traite les données personnelles — une ébauche structurelle, pas encore un document juridique finalisé.",
+  "legalCookiesDescription": "Comment BARQ utilise les cookies sur sa plateforme — une ébauche structurelle, pas encore un document juridique finalisé.",
+  "legalBookingPolicyDescription": "La politique de réservation, de confirmation et d'annulation de BARQ — une ébauche structurelle, pas encore un document juridique finalisé.",
+  "loginDescription": "Connectez-vous à BARQ pour réserver des expériences touristiques à travers Oman et gérer vos réservations."
 }

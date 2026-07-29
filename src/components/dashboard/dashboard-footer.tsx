@@ -13,7 +13,7 @@ export async function DashboardFooter() {
   return (
     <footer className="mt-4 border-t border-border">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-8 py-10 text-center sm:flex-row sm:justify-between sm:text-start">
-        <Logo className="h-8 max-w-[90px] opacity-70" />
+        <Logo variant="mark" className="h-8 max-w-[90px] opacity-70" />
 
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {links.map((link) => (

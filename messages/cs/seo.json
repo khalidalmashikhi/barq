@@ -1,8 +1,15 @@
 {
   "phase0Placeholder": "[cs/seo] Phase 0 infrastructure placeholder (Czech) — not yet translated",
-  "pageTitleTemplate": "[cs] pageTitleTemplate {page} {appName} — not yet translated",
-  "serviceNotFoundTitle": "[cs] serviceNotFoundTitle — not yet translated",
-  "defaultDescription": "[cs] defaultDescription — not yet translated",
-  "servicesListDescription": "[cs] servicesListDescription — not yet translated",
-  "serviceDescriptionFallback": "[cs] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "Zážitek nenalezen",
+  "defaultDescription": "BARQ — Chytrá platforma pro řízení turistiky",
+  "servicesListDescription": "Objevte důvěryhodné turistické zážitky v Sultanátu Omán",
+  "serviceDescriptionFallback": "Rezervujte si {serviceName} od poskytovatele {providerName} přes {appName}",
+  "providerNotFoundTitle": "Poskytovatel nenalezen",
+  "providerDescriptionFallback": "Objevte turistické zážitky od poskytovatele {providerName} na {appName}",
+  "legalTermsDescription": "Obchodní podmínky BARQ pro rezervaci turistických zážitků v Ománu — strukturální návrh, zatím ne finální právní dokument.",
+  "legalPrivacyDescription": "Jak BARQ nakládá s osobními údaji — strukturální návrh, zatím ne finální právní dokument.",
+  "legalCookiesDescription": "Jak BARQ používá soubory cookie na své platformě — strukturální návrh, zatím ne finální právní dokument.",
+  "legalBookingPolicyDescription": "Zásady rezervací, potvrzení a storna BARQ — strukturální návrh, zatím ne finální právní dokument.",
+  "loginDescription": "Přihlaste se do BARQ a rezervujte turistické zážitky po celém Ománu a spravujte své rezervace."
 }

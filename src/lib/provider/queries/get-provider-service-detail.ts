@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 
 // Provider Service Detail query — Provider Dashboard Phase 2 (Service
@@ -63,6 +64,8 @@ export async function getProviderServiceDetail(serviceId: string): Promise<Provi
 
   if (!service) return null;
 
+  const locale = await getLocale();
+
   type ServiceRow = {
     id: string;
     name: unknown;
@@ -78,8 +81,8 @@ export async function getProviderServiceDetail(serviceId: string): Promise<Provi
 
   return {
     id: row.id,
-    name: extractText(row.name) || "تجربة",
-    description: extractText(row.description) || "",
+    name: extractLocalizedText(row.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+    description: extractLocalizedText(row.description, locale),
     status: row.status,
     price: activePrice ? `${activePrice.amount} ${activePrice.currency}` : null,
     priceAmount: activePrice ? String(activePrice.amount) : null,

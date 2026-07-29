@@ -8,16 +8,23 @@
   },
   "packageManager": "npm@10.9.7",
   "scripts": {
+    "postinstall": "prisma generate",
+    "predev": "npm run validate-env",
     "dev": "next dev",
+    "prebuild": "npm run validate-env",
     "build": "next build",
+    "vercel-build": "npm run validate-env && prisma migrate deploy && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "validate-env": "tsx scripts/validate-env.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
+    "verify-deployment": "tsx scripts/verify-deployment.ts"
   },
   "dependencies": {
     "better-auth": "^1.1.0",
@@ -27,8 +34,8 @@
     "next-intl": "^4.13.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.53.0",
     "server-only": "^0.0.1",
+    "stripe": "^22.3.2",
     "zod": "^3.23.0"
   },
   "devDependencies": {

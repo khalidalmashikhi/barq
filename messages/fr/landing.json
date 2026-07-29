@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "browse": "Découvrir les expériences",
+    "howItWorks": "Comment fonctionne BARQ",
+    "destinations": "Destinations",
+    "signIn": "Se connecter",
+    "myAccount": "Mon compte",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu"
+  },
+  "hero": {
+    "eyebrow": "Oman, réinventé",
+    "title": "Découvrez les expériences les plus inoubliables d'Oman",
+    "subtitle": "Réservez des visites, guides et aventures de confiance à travers Oman en quelques minutes — prestataires vérifiés, tarifs transparents, sans aucune complication.",
+    "searchPlaceholder": "Rechercher une expérience, une ville ou une activité",
+    "searchButton": "Rechercher",
+    "ctaPrimary": "Découvrir les expériences",
+    "ctaSecondary": "Comment ça marche",
+    "photoComingSoon": "Vraies photos d'Oman — bientôt disponibles"
+  },
+  "trustBar": {
+    "providers": "Prestataires locaux de confiance",
+    "verified": "Expériences vérifiées",
+    "booking": "Réservation sécurisée",
+    "multilingual": "Assistance multilingue"
+  },
+  "credibility": {
+    "verified": "Prestataires vérifiés",
+    "tracked": "Réservations suivies",
+    "transparent": "Tarifs transparents",
+    "secureSignIn": "Connexion sécurisée"
+  },
+  "featured": {
+    "title": "Expériences en vedette",
+    "subtitle": "Des aventures sélectionnées avec soin, plébiscitées par les voyageurs à travers Oman",
+    "viewAll": "Voir toutes les expériences",
+    "emptyTitle": "De nouvelles expériences arrivent bientôt",
+    "emptyDescription": "Nos prestataires préparent la publication de leurs premières expériences. Revenez bientôt."
+  },
+  "categories": {
+    "title": "Explorer par catégorie",
+    "subtitle": "Trouvez le type d'aventure qui vous correspond",
+    "desertSafari": "Safaris dans le désert",
+    "mountainTours": "Circuits en montagne",
+    "coastalTrips": "Excursions côtières et balnéaires",
+    "culturalTours": "Circuits culturels",
+    "cityExperiences": "Expériences urbaines",
+    "adventureSports": "Sports d'aventure"
+  },
+  "destinations": {
+    "featuredLabel": "En vedette",
+    "title": "Destinations populaires",
+    "subtitle": "Les lieux que les voyageurs explorent en ce moment",
+    "muscat": "Mascate",
+    "salalah": "Salalah",
+    "nizwa": "Nizwa",
+    "wahibaSands": "Sables de Wahiba",
+    "jebelAkhdar": "Jebel Akhdar",
+    "musandam": "Musandam"
+  },
+  "providers": {
+    "title": "Prestataires de confiance",
+    "subtitle": "Chaque prestataire sur BARQ est vérifié avant de pouvoir publier une expérience",
+    "verifiedBadge": "Prestataire vérifié"
+  },
+  "howItWorks": {
+    "title": "Comment fonctionne BARQ",
+    "subtitle": "Réserver votre prochaine expérience se fait en trois étapes simples",
+    "step1Title": "Découvrir",
+    "step1Description": "Parcourez des expériences vérifiées à travers Oman, filtrées par destination, catégorie et prix.",
+    "step2Title": "Réserver",
+    "step2Description": "Connectez-vous avec votre numéro de téléphone, choisissez votre date et confirmez votre réservation en quelques minutes.",
+    "step3Title": "Vivre l'expérience",
+    "step3Description": "Rencontrez votre guide ou prestataire et profitez d'une expérience fluide et fiable du début à la fin."
+  },
+  "whyChoose": {
+    "title": "Pourquoi choisir BARQ",
+    "subtitle": "Conçu pour les voyageurs qui en attendent plus",
+    "trustTitle": "Vérifié et fiable",
+    "trustDescription": "Chaque prestataire est examiné et approuvé avant de pouvoir proposer une expérience.",
+    "transparentTitle": "Tarification transparente",
+    "transparentDescription": "Consultez le prix complet à l'avance — aucuns frais cachés, aucune surprise au paiement.",
+    "fastTitle": "Réservation rapide et simple",
+    "fastDescription": "Réservez en quelques minutes grâce à la connexion par numéro de téléphone — sans mot de passe, sans friction.",
+    "supportTitle": "Une assistance quand vous en avez besoin",
+    "supportDescription": "Notre équipe est là pour vous aider avant, pendant et après votre expérience."
+  },
+  "stats": {
+    "title": "BARQ en chiffres",
+    "experiencesLabel": "Expériences sélectionnées",
+    "providersLabel": "Prestataires vérifiés",
+    "destinationsLabel": "Destinations couvertes",
+    "customersLabel": "Voyageurs satisfaits"
+  },
+  "testimonials": {
+    "title": "Ce que disent les voyageurs",
+    "subtitle": "De vrais avis de la communauté BARQ",
+    "placeholderNote": "Les avis des voyageurs arrivent bientôt.",
+    "quote1": "Réserver a été aussi simple que d'écrire à un ami — et notre guide était fantastique.",
+    "author1": "Voyageur, Mascate",
+    "quote2": "Des tarifs transparents et un prestataire vérifié ont fait toute la différence.",
+    "author2": "Voyageuse, Salalah"
+  },
+  "faq": {
+    "title": "Questions fréquentes",
+    "subtitle": "Tout ce qu'il faut savoir avant de réserver",
+    "q1": "Comment réserver une expérience sur BARQ ?",
+    "a1": "Connectez-vous avec votre numéro de téléphone, parcourez les expériences, choisissez votre date et confirmez votre réservation — sans mot de passe requis.",
+    "q2": "Les prestataires BARQ sont-ils vérifiés ?",
+    "a2": "Oui. Chaque prestataire est examiné et approuvé par notre équipe avant de pouvoir publier une expérience.",
+    "q3": "Puis-je annuler une réservation ?",
+    "a3": "Oui, les réservations peuvent être annulées avant leur confirmation par le prestataire. Consultez les détails de votre réservation pour vérifier votre éligibilité.",
+    "q4": "Quelles langues BARQ prend-il en charge ?",
+    "a4": "BARQ est disponible en arabe, en anglais et dans plusieurs autres langues, avec une prise en charge complète dans chaque langue proposée."
+  },
+  "cta": {
+    "title": "Prêt à explorer Oman ?",
+    "subtitle": "Rejoignez BARQ dès aujourd'hui et réservez votre prochaine expérience inoubliable.",
+    "button": "Commencer"
+  },
+  "footer": {
+    "tagline": "La place de marché touristique haut de gamme d'Oman.",
+    "browseHeading": "Explorer",
+    "companyHeading": "Entreprise",
+    "aboutLink": "À propos de BARQ",
+    "contactLink": "Nous contacter",
+    "rightsReserved": "Tous droits réservés.",
+    "helpLink": "Centre d'aide",
+    "termsLink": "Conditions d'utilisation",
+    "privacyLink": "Politique de confidentialité",
+    "cookiesLink": "Politique de cookies"
+  }
+}

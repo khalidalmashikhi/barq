@@ -1,8 +1,15 @@
 {
   "phase0Placeholder": "[pl/seo] Phase 0 infrastructure placeholder (Polish) — not yet translated",
-  "pageTitleTemplate": "[pl] pageTitleTemplate {page} {appName} — not yet translated",
-  "serviceNotFoundTitle": "[pl] serviceNotFoundTitle — not yet translated",
-  "defaultDescription": "[pl] defaultDescription — not yet translated",
-  "servicesListDescription": "[pl] servicesListDescription — not yet translated",
-  "serviceDescriptionFallback": "[pl] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "Nie znaleziono atrakcji",
+  "defaultDescription": "BARQ — Inteligentna platforma zarządzania turystyką",
+  "servicesListDescription": "Odkryj sprawdzone atrakcje turystyczne w Sułtanacie Omanu",
+  "serviceDescriptionFallback": "Zarezerwuj {serviceName} od {providerName} za pośrednictwem {appName}",
+  "providerNotFoundTitle": "Nie znaleziono dostawcy",
+  "providerDescriptionFallback": "Odkryj atrakcje turystyczne oferowane przez {providerName} na {appName}",
+  "legalTermsDescription": "Regulamin BARQ dotyczący rezerwacji atrakcji turystycznych w Omanie — szkic strukturalny, jeszcze nie ostateczny dokument prawny.",
+  "legalPrivacyDescription": "Jak BARQ przetwarza dane osobowe — szkic strukturalny, jeszcze nie ostateczny dokument prawny.",
+  "legalCookiesDescription": "Jak BARQ wykorzystuje pliki cookie na swojej platformie — szkic strukturalny, jeszcze nie ostateczny dokument prawny.",
+  "legalBookingPolicyDescription": "Polityka rezerwacji, potwierdzeń i anulowania BARQ — szkic strukturalny, jeszcze nie ostateczny dokument prawny.",
+  "loginDescription": "Zaloguj się do BARQ, aby rezerwować atrakcje turystyczne w całym Omanie i zarządzać swoimi rezerwacjami."
 }

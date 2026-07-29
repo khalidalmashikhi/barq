@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Benachrichtigungen",
+  "emptyStateLabel": "Noch keine Benachrichtigungen",
+  "noNotificationsOnPageLabel": "Keine Benachrichtigungen auf dieser Seite",
+  "markAllReadButton": "Alle als gelesen markieren",
+  "markReadAriaLabel": "Als gelesen markieren",
+  "unreadBadgeAriaLabel": "{count} ungelesene Benachrichtigungen",
+  "viewAllLabel": "Alle Benachrichtigungen anzeigen",
+  "categoryNew": "Neu",
+  "categoryConfirmed": "Bestätigt",
+  "categoryRejected": "Abgelehnt",
+  "categoryCancelled": "Storniert",
+  "categoryExpired": "Abgelaufen",
+  "categoryReview": "Bewertung",
+  "categoryGeneral": "Allgemein"
+}

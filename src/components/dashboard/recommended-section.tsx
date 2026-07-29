@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // Recommended (✨ موصى به لك) — this section explicitly claims
 // personalization ("for you"), which requires a recommendation engine
@@ -18,10 +19,7 @@ export async function RecommendedSection() {
         <span aria-hidden>✨</span>
         {t("recommendedTitle")}
       </h2>
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
-        <Sparkles size={28} strokeWidth={1.5} className="text-foreground/25" />
-        <p className="text-sm text-foreground/50">{t("recommendedUnavailableLabel")}</p>
-      </div>
+      <EmptyState icon={Sparkles} message={t("recommendedUnavailableLabel")} />
     </div>
   );
 }

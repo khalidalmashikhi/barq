@@ -1,35 +1,57 @@
 import createMiddleware from "next-intl/middleware";
 import { routing } from "@/i18n/routing";
 
-// Locale-detection middleware — BARQ Internationalization, Phase 0.
+// Locale-detection middleware — BARQ Internationalization.
 //
 // NO BUSINESS LOGIC, NO DATABASE ACCESS: next-intl's createMiddleware
 // only reads/writes the NEXT_LOCALE cookie and the Accept-Language
 // header — it never touches Prisma or any authenticated-user record.
-// Negotiation priority for this phase (locale cookie -> Accept-Language
-// -> Arabic default) is next-intl's own built-in behavior for this
+// Negotiation priority (locale cookie -> Accept-Language -> Arabic
+// default) is next-intl's own built-in behavior for this
 // configuration; no custom priority logic is written here.
 //
 // Authenticated-user stored-preference sync (Customer.languagePreference)
 // is DELIBERATELY NOT implemented here — middleware runs on the Edge
 // runtime before any database connection is available, and reading a
 // stored preference would require exactly the kind of DB access this
-// phase's scope explicitly prohibits in middleware. Wiring that
-// preference in (e.g. via a Server Component redirect after reading
-// the session, or a dedicated cookie-sync step post-login) is real,
-// necessary work for a later phase — flagged here, not solved here.
+// file's scope prohibits. Wiring that preference in (e.g. via a Server
+// Component redirect after reading the session, or a dedicated
+// cookie-sync step post-login) remains real, unstarted work — flagged
+// here, not solved here.
 //
-// MATCHER, DELIBERATELY NARROW FOR PHASE 0: only "/" (for the
-// negotiated-locale redirect) and the 8 locale-prefixed path patterns
-// are matched — every existing, not-yet-migrated route (/dashboard,
-// /services, /bookings, /provider, /api/**) is outside this pattern
-// entirely, so this middleware never runs for them and their current
-// behavior is completely unaffected. This is intentionally narrower
-// than next-intl's typical "everything except /api and static assets"
-// example matcher, specifically because most of this application's
-// routes have not moved under [locale] yet (out of scope for this
-// phase) — widening this matcher is real, expected work for the phase
-// that actually migrates those routes, not an oversight here.
+// MATCHER, FINAL (Phase B Group 6): every real page in this app now
+// lives either under /[locale]/** (Dashboard, Services, Bookings,
+// Provider all migrated in Groups 1-4) or under /api/**. The matcher
+// below — "/" plus the 8 locale-prefixed patterns — is therefore
+// already complete: it matches every real page and nothing else. The
+// bare, unprefixed legacy paths (/dashboard, /services, /bookings,
+// /provider) are NOT matched here on purpose; they no longer exist as
+// real pages at all, only as `redirects()` sources in next.config.ts
+// (Groups 1-4's compatibility layer), which runs earlier in Next.js's
+// request pipeline and always redirects to a locale-prefixed URL
+// before this middleware would ever see the request. This is also why
+// invalid-locale handling (e.g. /xx/services) is NOT this middleware's
+// job: the matcher's strict locale alternation means a path with an
+// unrecognized locale segment never matches it at all and falls
+// through to normal App Router resolution, where
+// src/app/[locale]/layout.tsx's own hasLocale() check calls notFound()
+// — verified live, not assumed (see Group 6's verification report).
+//
+// This is also an allowlist, not a denylist: unlike next-intl's usual
+// "match everything except /api, _next, and files with an extension"
+// example matcher, this one can only ever match "/" or a locale
+// prefix. /api/**, /_next/**, /favicon.ico, and every file under
+// public/ (images, fonts, logo.*) are excluded by construction, not by
+// an exclusion pattern that could miss a future asset type. No
+// robots.txt/sitemap.xml/manifest.webmanifest exists in this project
+// (verified during Group 5's SEO survey); if one is added later under
+// src/app/, it still needs no matcher change, for the same reason.
+//
+// `alternateLinks: false` is set on `routing` itself
+// (src/i18n/routing.ts), not passed here — next-intl's own types place
+// that option on the routing config, not as a second argument to
+// createMiddleware(). See routing.ts for the rationale (Phase B
+// Group 5 Closure).
 export default createMiddleware(routing);
 
 // config.matcher IS STATICALLY ANALYZED BY NEXT.JS AT BUILD TIME —

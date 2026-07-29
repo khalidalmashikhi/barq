@@ -966,6 +966,18 @@
 
 ---
 
+### Entry 081 — Architecture Freeze v2: SaaS-Scope Review Closed Out, BARQ-First Roadmap Frozen
+
+- **Date:** 2026-07-23.
+- **Classification:** Governance / Documentation Only. Complexity: Low. Risk: Low. No code, schema, or migration touched.
+- **Files Affected (new):** `docs/08-governance/adr/ADR-0012-architecture-freeze-v2-saas-scope-deferral.md`. **Modified:** `docs/plans/ROADMAP.md` (rewritten to the frozen 10-phase order, Phase 0 through Phase 9, replacing the prior 9-phase order); `BARQ_BIBLE.md` (one new ADR Index line for `ADR-0012`).
+- **Change:** A multi-tenant SaaS architecture review conducted earlier this session (internally: Architecture v2 → v3 — Business Profiles, Module Packs, Entitlement Engine, Capability Layer, rich Quota model, expanded Company lifecycle, Theme Engine, Billing and Marketplace as bounded contexts) was formally closed out by explicit Platform Owner decision: BARQ is not becoming a generic SaaS platform, and remains a tourism marketplace. `ADR-0012` records which parts of that review are accepted as documented-but-unbuilt future architecture (Marketplace as a Bounded Context, Billing as an architecture-only Bounded Context, an independent Theme Engine, Business Profiles as onboarding presets, Module Packs with any future many-to-many dependency/feature model), which are rejected for now (the Capability Layer, and generic SaaS abstractions BARQ does not currently need), and the binding "BARQ First" implementation philosophy (build only what BARQ needs now; document, don't implement, what it may need in two years). `ROADMAP.md` was rewritten to the resulting frozen 10-phase order (Phase 0 Foundation Hardening through Phase 9 Analytics), explicitly superseding the prior 9-phase order and stating that no further phases may be added without a separate, explicit approval.
+- **A deliberate naming decision, surfaced rather than made silently:** the user's request named this deliverable "Architecture Freeze v1," which collides with the pre-existing, unrelated `docs/08-governance/ARCHITECTURE_FREEZE_V1.md` (BARQ's original architecture-phase freeze, covering a different set of ~20 foundational documents and ADRs `0002`/`0004`–`0008`). Rather than overwrite, rename, or risk confusing that document, the new decision was recorded as its own ADR (`ADR-0012`, filename `ADR-0012-architecture-freeze-v2-saas-scope-deferral.md`, titled "Architecture Freeze **v2**") that explicitly cross-references and distinguishes itself from the original freeze rather than colliding with it. `ARCHITECTURE_FREEZE_V1.md` itself was not modified.
+- **Validation Result:** Documentation-only change; no build/test/type-check surface affected. Verified the new ADR follows the same structural convention as `ADR-0011` (Purpose/Scope/Out of Scope/Dependencies/Status/Owner header, then Context/Architecture Decision/Consequences/Documentation/Related Documents/Open Questions/Future ADR References), confirmed `ADR-0012` is the next available ADR number (existing: `0002`, `0004`–`0011`), and confirmed no existing Locked ADR or `ARCHITECTURE_FREEZE_V1.md` was edited.
+- **Governing Rule:** `PROJECT_RULES.md` §4 (ADR requirement for expensive-to-reverse decisions), §20.1–20.2 (AI-assisted-change logging); `ARCHITECTURE_FREEZE_V1.md`'s own Exit Criteria (an ADR superseding architecture is normal evolution, not a freeze breach).
+
+---
+
 ## Related Documents
 - `PROJECT_RULES.md` — the rule (§20.2) requiring this log, and the subject of Entry 001
 - `GLOSSARY.md` — defines the Activity Log / Audit Log distinction this document's purpose draws on

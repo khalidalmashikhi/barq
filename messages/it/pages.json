@@ -1,0 +1,141 @@
+{
+  "about": {
+    "title": "Chi è BARQ",
+    "subtitle": "Un unico luogo affidabile per scoprire e prenotare vere esperienze turistiche.",
+    "missionTitle": "La nostra missione",
+    "missionBody": "Offrire ai viaggiatori un modo rapido e trasparente di scoprire e prenotare esperienze turistiche, e dare ai fornitori locali gli strumenti per raggiungerli — senza che nessuna delle due parti perda fiducia lungo il percorso.",
+    "visionTitle": "La nostra visione",
+    "visionBody": "Un marketplace in cui ogni prenotazione, prezzo e aggiornamento di stato è esattamente ciò che dichiara di essere — a partire dall'Oman, costruito per crescere in tutta la regione.",
+    "platformTitle": "Cosa fa BARQ",
+    "platformBody": "BARQ collega i clienti ai fornitori di esperienze turistiche attraverso un percorso di prenotazione semplice e tracciato — dalla ricerca alla conferma fino al completamento.",
+    "feature": {
+      "searchTitle": "Scopri",
+      "searchBody": "Sfoglia esperienze reali e pubblicate, con prezzi trasparenti stabiliti da ciascun fornitore.",
+      "bookTitle": "Prenota",
+      "bookBody": "Richiedi una fascia oraria in pochi passaggi e ricevi una notifica non appena un fornitore risponde.",
+      "trackTitle": "Traccia",
+      "trackBody": "Segui lo stato esatto della tua prenotazione dalla richiesta al completamento in un unico posto."
+    },
+    "whyTitle": "Perché BARQ",
+    "whyBody": "Ogni prenotazione su BARQ segue lo stesso ciclo di vita tracciato, così clienti e fornitori vedono sempre lo stesso stato, accurato — senza congetture, senza informazioni obsolete.",
+    "principlesTitle": "Principi del marketplace",
+    "principle": {
+      "trust": "Fiducia",
+      "simplicity": "Semplicità",
+      "clarity": "Chiarezza",
+      "confidence": "Sicurezza",
+      "speed": "Velocità"
+    }
+  },
+  "help": {
+    "title": "Centro assistenza",
+    "subtitle": "Guide per prenotare, offrire servizi e tutto il resto.",
+    "searchPlaceholder": "Cerca negli articoli di aiuto...",
+    "searchButton": "Cerca",
+    "faqCardTitle": "Domande frequenti",
+    "faqCardDescription": "Risposte rapide alle domande più comuni su BARQ.",
+    "bookingCardTitle": "Assistenza prenotazioni",
+    "bookingCardDescription": "Come funzionano la ricerca, la richiesta e la cancellazione di una prenotazione.",
+    "providerCardTitle": "Assistenza fornitori",
+    "providerCardDescription": "Gestisci i tuoi servizi, disponibilità e prenotazioni come fornitore.",
+    "contactCardTitle": "Contatti e assistenza",
+    "contactCardDescription": "Come contattarci e cosa fare se qualcosa non funziona."
+  },
+  "faq": {
+    "title": "Domande frequenti",
+    "subtitle": "Risposte alle domande che riceviamo più spesso.",
+    "noResultsLabel": "Nessuna domanda corrispondente trovata",
+    "accountQuestion": "Ho bisogno di un account per prenotare un'esperienza?",
+    "accountAnswer": "Sì. Accedi con il tuo numero di telefono e un codice di verifica monouso — nessuna password da ricordare.",
+    "bookingQuestion": "Come funziona la prenotazione di un'esperienza?",
+    "bookingAnswer": "Invii una richiesta di prenotazione con la fascia oraria preferita e il numero di posti. Il fornitore la conferma successivamente, e riceverai una notifica non appena ciò accade.",
+    "cancellationQuestion": "Posso cancellare una prenotazione dopo averla richiesta?",
+    "cancellationAnswer": "Sì — puoi cancellare da Le mie prenotazioni finché la richiesta è in attesa o confermata. La cancellazione non è più disponibile una volta che l'esperienza è in corso o completata.",
+    "paymentQuestion": "Come viene gestito il pagamento?",
+    "paymentAnswer": "Il prezzo è stabilito da ciascun fornitore e mostrato prima della prenotazione. I dettagli di pagamento vengono gestiti separatamente dalla richiesta di prenotazione stessa.",
+    "providerQuestion": "Come divento fornitore su BARQ?",
+    "providerAnswer": "Gli account fornitore passano attraverso una fase di approvazione prima che le loro esperienze appaiano pubblicamente. Una volta approvati, i fornitori gestiscono i propri servizi, disponibilità e prenotazioni dalla Dashboard fornitore."
+  },
+  "bookingHelp": {
+    "title": "Assistenza prenotazioni",
+    "subtitle": "Una panoramica di come funziona la prenotazione di un'esperienza, dall'inizio alla fine.",
+    "step": {
+      "searchTitle": "Cerca un'esperienza",
+      "searchBody": "Sfoglia le esperienze pubblicate, filtra per prezzo o fornitore, e apri quella che ti interessa.",
+      "requestTitle": "Richiedi una fascia oraria",
+      "requestBody": "Scegli una fascia oraria disponibile e il numero di posti, quindi invia la tua richiesta di prenotazione.",
+      "confirmTitle": "Ricevi una notifica alla conferma",
+      "confirmBody": "Il fornitore esamina la tua richiesta. Vedrai una notifica e uno stato aggiornato non appena la conferma.",
+      "cancelTitle": "Cancella se i tuoi piani cambiano",
+      "cancelBody": "Finché la tua prenotazione è in attesa o confermata, puoi cancellarla in qualsiasi momento da Le mie prenotazioni — nessuna opzione di cancellazione appare una volta che è in corso o completata."
+    }
+  },
+  "providerHelp": {
+    "title": "Assistenza fornitori",
+    "subtitle": "Gestisci le tue esperienze e prenotazioni su BARQ.",
+    "topic": {
+      "servicesTitle": "Gestire i tuoi servizi",
+      "servicesBody": "Crea, modifica, pubblica, metti in pausa o archivia le tue esperienze dalla sezione Servizi della tua Dashboard fornitore.",
+      "availabilityTitle": "Impostare la disponibilità",
+      "availabilityBody": "Apri fasce orarie e imposta la capacità per ogni esperienza in modo che i clienti possano vederle e richiederle.",
+      "bookingsTitle": "Gestire le prenotazioni",
+      "bookingsBody": "Esamina le richieste di prenotazione in arrivo e confermale o gestiscile dalla sezione Prenotazioni — le richieste in attesa della tua risposta sono chiaramente segnalate.",
+      "dashboardTitle": "Leggere la tua dashboard",
+      "dashboardBody": "La tua dashboard mostra metriche reali di prenotazioni e servizi — i numeri riflettono solo ciò che è realmente accaduto sulla piattaforma."
+    }
+  },
+  "contact": {
+    "title": "Contatti e assistenza",
+    "subtitle": "Come contattarci e ottenere aiuto.",
+    "noticeTitle": "Il contatto diretto non è ancora collegato",
+    "noticeBody": "Una casella di assistenza dedicata o un modulo di contatto non sono ancora attivi su BARQ. Nel frattempo, il Centro assistenza qui sotto copre le domande più comuni.",
+    "helpCenterTitle": "Visita il Centro assistenza",
+    "helpCenterBody": "Domande frequenti, guida alle prenotazioni e guida per i fornitori sono già tutte disponibili lì.",
+    "bookingIssuesTitle": "Domande su una prenotazione specifica",
+    "bookingIssuesBody": "Apri la prenotazione da Le mie prenotazioni — la sua pagina di dettaglio mostra la cronologia completa degli stati e la situazione attuale."
+  },
+  "terms": {
+    "title": "Termini di servizio",
+    "section": {
+      "acceptanceTitle": "Accettazione dei termini",
+      "usingPlatformTitle": "Utilizzo della piattaforma",
+      "bookingsAndPaymentsTitle": "Prenotazioni e pagamenti",
+      "providerObligationsTitle": "Obblighi del fornitore",
+      "liabilityTitle": "Limitazione di responsabilità",
+      "changesTitle": "Modifiche a questi termini"
+    }
+  },
+  "privacy": {
+    "title": "Informativa sulla privacy",
+    "section": {
+      "informationCollectedTitle": "Informazioni raccolte",
+      "howWeUseItTitle": "Come utilizziamo le informazioni",
+      "dataSharingTitle": "Condivisione dei dati",
+      "dataRetentionTitle": "Conservazione dei dati",
+      "yourRightsTitle": "I tuoi diritti"
+    }
+  },
+  "cookies": {
+    "title": "Politica sui cookie",
+    "section": {
+      "whatAreCookiesTitle": "Cosa sono i cookie",
+      "howWeUseCookiesTitle": "Come utilizziamo i cookie",
+      "managingCookiesTitle": "Gestire i cookie"
+    }
+  },
+  "bookingPolicy": {
+    "title": "Politica di prenotazione e cancellazione",
+    "section": {
+      "cancellationTitle": "Idoneità alla cancellazione",
+      "cancellationBody": "Una prenotazione può essere cancellata gratuitamente finché è nello stato In attesa o Confermata. Una volta che un'esperienza è in corso o è stata completata, la cancellazione non è più disponibile. Questa regola si applica allo stesso modo a ogni prenotazione su BARQ.",
+      "paymentsTitle": "Pagamenti",
+      "providerObligationsTitle": "Obblighi del fornitore",
+      "disputesTitle": "Controversie"
+    }
+  },
+  "legal": {
+    "placeholderNotice": "Questa pagina delinea la struttura che seguirà il documento legale definitivo di BARQ. È un segnaposto, non ancora una politica revisionata legalmente.",
+    "lastUpdatedPlaceholder": "Bozza — non ancora finalizzata",
+    "sectionPlaceholderBody": "Il contenuto completo di questa sezione è in fase di finalizzazione e apparirà qui."
+  }
+}

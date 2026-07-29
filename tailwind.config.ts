@@ -1,14 +1,21 @@
 import type { Config } from "tailwindcss";
 
-// Design tokens — sourced directly from the BARQ visual identity brief.
-// Colors and typography below are exact values from that brief, not
-// invented alternatives, per the frontend-design skill's guidance to
-// follow a brief's pinned-down direction exactly.
+// Design tokens.
 //
-// This also resolves DESIGN_SYSTEM.md's own previously-open decisions
-// (§22 Open Decision #1, specific color palette; #2, specific typefaces)
-// — should be reflected back into that document as a follow-up, not
-// silently left inconsistent with what ships here.
+// Brand Identity Reset (2026-07) — Phase 1: Brand Foundation. Colors
+// below were replaced from the original purple/teal/amber palette to
+// match the new official logo (public/Barqlogo.png), which contains no
+// purple at all. Every value was extracted via pixel-sampling the real
+// PNG (Node + sharp: clustered every opaque, non-white pixel into color
+// families, then computed the pixel-count-weighted average per family)
+// — not eyedropped or guessed. See docs/10-design/DESIGN_SYSTEM.md for
+// the full extraction methodology, sample counts, and WCAG contrast
+// validation this palette is based on.
+//
+// Typography (fontFamily below) is UNCHANGED by the brand reset — IBM
+// Plex Sans / IBM Plex Sans Arabic already paired well with the new
+// mark's geometric quality, confirmed during the brand analysis, no
+// replacement needed.
 
 const config: Config = {
   darkMode: "class", // structural readiness only — no toggle implemented yet,
@@ -19,24 +26,57 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Navy — extracted from the logo's calligraphy stroke/wordmark
+        // (114,189 sampled px, the largest region in the mark).
+        // 10.45:1 contrast on white — AAA, safe for text and solid
+        // buttons.
         primary: {
-          DEFAULT: "#4F2D8C",
+          DEFAULT: "#094367",
           foreground: "#FFFFFF",
         },
+        // Bright Teal (DEFAULT) — the logo's facet/flight-arc color;
+        // decorative use only, 2.39:1 on white — FAILS AA as text or as
+        // a solid button fill with white text. "700" is a second,
+        // genuinely distinct dark teal ALSO extracted from the logo
+        // (not synthesized) — 5.37:1, AA-safe for text/buttons.
         secondary: {
-          DEFAULT: "#2C7A7B",
+          DEFAULT: "#1ABBAF",
           foreground: "#FFFFFF",
+          700: "#077588",
         },
+        // Orange (DEFAULT) — the logo's diamond/airplane accent color;
+        // decorative use only, 2.75:1 on white in either direction —
+        // FAILS AA. foreground is Navy (best available pairing, 3.80:1
+        // — AA for large text/UI components, not small body text).
+        // "700" is a darkened derivative (not present in the source
+        // logo) specifically for buttons/functional text needing full
+        // AA — 4.65:1 with white text.
         accent: {
-          DEFAULT: "#F5B942",
-          foreground: "#1E1B2E",
+          DEFAULT: "#F27B2E",
+          foreground: "#094367",
+          700: "#B55C22",
+        },
+        // Sand — extracted from the logo's tan/gold facet. Decorative/
+        // tint use only (2.34:1 on white — fails AA in both
+        // directions); safe as a low-opacity background tint with Navy
+        // text on top (the existing bg-*/15-style pattern already used
+        // for icon chips throughout this app).
+        muted: {
+          DEFAULT: "#D4A05E",
+          foreground: "#094367",
         },
         background: "#F7F8FA",
         card: "#FFFFFF",
         foreground: "#0F172A",
-        border: "rgba(15, 23, 42, 0.08)",
+        border: "rgba(9, 67, 103, 0.08)",
         success: "#16A34A",
         danger: "#DC2626",
+        // New semantic colors (Phase 1) — deliberately NOT derived from
+        // the logo's hues: warning/info are utility colors with their
+        // own strong conventional meaning, same reasoning success/danger
+        // already followed.
+        warning: "#F2A61E",
+        info: "#1E5265",
       },
       fontFamily: {
         // IBM Plex Sans Arabic chosen over Tajawal: IBM Plex ships a

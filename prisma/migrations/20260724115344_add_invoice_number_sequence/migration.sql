@@ -1,0 +1,15 @@
+-- Invoice Number sequence — Phase 2.13 (Invoice Foundation). Mirrors
+-- booking_contract_number_seq's exact precedent (migration
+-- 20260720124151_add_booking_contract): Prisma's schema DSL only
+-- supports autoincrement() on an Int primary key, not a
+-- custom-formatted string column, so a plain Postgres sequence is the
+-- standard, concurrency-safe primitive here too — called via
+-- `SELECT nextval(...)` from src/lib/invoicing/generate-invoice-number.ts
+-- and formatted there into e.g. "BARQ-2026-000123". A rolled-back
+-- transaction "burns" a number (the sequence advances regardless of
+-- transaction outcome) — normal, accepted behavior for a human-readable
+-- reference number, same as the contract-number precedent already
+-- documents. No schema.prisma model change accompanies this — the
+-- Invoice model already has every field it needs (invoiceNumber,
+-- content, status, issuedAt); this migration is purely additive.
+CREATE SEQUENCE "invoice_number_seq" START WITH 1;

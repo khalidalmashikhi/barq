@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Notifiche",
+  "emptyStateLabel": "Nessuna notifica ancora",
+  "noNotificationsOnPageLabel": "Nessuna notifica in questa pagina",
+  "markAllReadButton": "Segna tutte come lette",
+  "markReadAriaLabel": "Segna come letta",
+  "unreadBadgeAriaLabel": "{count} notifiche non lette",
+  "viewAllLabel": "Visualizza tutte le notifiche",
+  "categoryNew": "Nuovo",
+  "categoryConfirmed": "Confermato",
+  "categoryRejected": "Rifiutato",
+  "categoryCancelled": "Annullato",
+  "categoryExpired": "Scaduto",
+  "categoryReview": "Recensione",
+  "categoryGeneral": "Generale"
+}

@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Powiadomienia",
+  "emptyStateLabel": "Brak powiadomień",
+  "noNotificationsOnPageLabel": "Brak powiadomień na tej stronie",
+  "markAllReadButton": "Oznacz wszystkie jako przeczytane",
+  "markReadAriaLabel": "Oznacz jako przeczytane",
+  "unreadBadgeAriaLabel": "{count} nieprzeczytanych powiadomień",
+  "viewAllLabel": "Zobacz wszystkie powiadomienia",
+  "categoryNew": "Nowe",
+  "categoryConfirmed": "Potwierdzone",
+  "categoryRejected": "Odrzucone",
+  "categoryCancelled": "Anulowane",
+  "categoryExpired": "Wygasłe",
+  "categoryReview": "Recenzja",
+  "categoryGeneral": "Ogólne"
+}

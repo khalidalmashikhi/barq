@@ -1,8 +1,15 @@
 {
   "phase0Placeholder": "[ru/seo] Phase 0 infrastructure placeholder (Russian) — not yet translated",
-  "pageTitleTemplate": "[ru] pageTitleTemplate {page} {appName} — not yet translated",
-  "serviceNotFoundTitle": "[ru] serviceNotFoundTitle — not yet translated",
-  "defaultDescription": "[ru] defaultDescription — not yet translated",
-  "servicesListDescription": "[ru] servicesListDescription — not yet translated",
-  "serviceDescriptionFallback": "[ru] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "Впечатление не найдено",
+  "defaultDescription": "BARQ — умная платформа туристических операций",
+  "servicesListDescription": "Изучайте надёжные туристические впечатления в Султанате Оман",
+  "serviceDescriptionFallback": "Забронируйте {serviceName} от {providerName} через {appName}",
+  "providerNotFoundTitle": "Поставщик не найден",
+  "providerDescriptionFallback": "Откройте для себя туристические впечатления от {providerName} на {appName}",
+  "legalTermsDescription": "Условия использования BARQ для бронирования туристических впечатлений в Омане — структурный черновик, ещё не окончательный юридический документ.",
+  "legalPrivacyDescription": "Как BARQ обрабатывает персональные данные — структурный черновик, ещё не окончательный юридический документ.",
+  "legalCookiesDescription": "Как BARQ использует файлы cookie на своей платформе — структурный черновик, ещё не окончательный юридический документ.",
+  "legalBookingPolicyDescription": "Политика бронирования, подтверждения и отмены BARQ — структурный черновик, ещё не окончательный юридический документ.",
+  "loginDescription": "Войдите в BARQ, чтобы бронировать туристические впечатления по всему Оману и управлять своими бронированиями."
 }

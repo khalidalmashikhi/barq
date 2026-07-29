@@ -8,5 +8,15 @@
   "slotFull": "Sorry, the remaining capacity for this slot was just taken",
   "bookingNotFound": "Booking not found",
   "bookingNotCancellable": "This booking cannot be cancelled in its current status",
-  "unknownError": "Something went wrong, please try again"
+  "unknownError": "Something went wrong, please try again",
+  "duplicateBooking": "You already have a booking for this time slot",
+  "noProviderProfile": "You need to complete your provider profile before performing this action. Contact support if this message persists.",
+  "bookingNotPending": "This booking is no longer awaiting the provider's response",
+  "bookingNotStartable": "This booking cannot be started in its current status",
+  "bookingNotCompletable": "This booking cannot be completed in its current status",
+  "bookingNotReviewable": "This booking cannot be reviewed — only completed bookings are eligible",
+  "alreadyReviewed": "You've already submitted a review for this booking",
+  "invalidRating": "Please select a rating between 1 and 5",
+  "invalidContent": "Please write a short review before submitting",
+  "rateLimited": "You're making requests too quickly. Please wait a moment and try again."
 }

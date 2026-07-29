@@ -9,11 +9,12 @@ This README is intentionally minimal. The actual entry point to this project's d
 ## Local Development
 
 ```bash
+cp .env.example .env   # fill in the required values
 npm install
 npm run dev
 ```
 
-> **Note:** This project was scaffolded in a sandboxed environment without package-registry network access. Dependencies in `package.json` have not yet been installed or verified in this environment — run `npm install` in a normal development environment before first use.
+`npm install` also generates the Prisma Client automatically (`postinstall`). `npm run dev`/`npm run build` validate required environment variables first (`scripts/validate-env.ts`) and fail fast with a clear message if one is missing or malformed — see `.env.example` for the full list.
 
 ## Stack
 

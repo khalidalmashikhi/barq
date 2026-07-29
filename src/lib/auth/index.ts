@@ -14,8 +14,11 @@ export {
   requireAuth,
   requireCustomer,
   requireProvider,
+  requireApprovedProvider,
   requireStaff,
   requireAdmin,
+  hasActiveAdminProfile,
+  resolveProviderStatus,
 } from "./rbac";
 export type { AuthContext } from "./rbac";
 export { withApiAuth } from "./api-guard";

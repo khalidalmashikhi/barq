@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "browse": "Przeglądaj atrakcje",
+    "howItWorks": "Jak działa BARQ",
+    "destinations": "Kierunki podróży",
+    "signIn": "Zaloguj się",
+    "myAccount": "Moje konto",
+    "openMenu": "Otwórz menu",
+    "closeMenu": "Zamknij menu"
+  },
+  "hero": {
+    "eyebrow": "Oman na nowo odkryty",
+    "title": "Odkryj najbardziej niezapomniane atrakcje Omanu",
+    "subtitle": "Rezerwuj sprawdzone wycieczki, przewodników i przygody w całym Omanie w kilka minut — zweryfikowani dostawcy, przejrzyste ceny, zero problemów.",
+    "searchPlaceholder": "Szukaj atrakcji, miast lub aktywności",
+    "searchButton": "Szukaj",
+    "ctaPrimary": "Przeglądaj atrakcje",
+    "ctaSecondary": "Jak to działa",
+    "photoComingSoon": "Prawdziwe zdjęcia Omanu — wkrótce"
+  },
+  "trustBar": {
+    "providers": "Zaufani lokalni dostawcy",
+    "verified": "Zweryfikowane atrakcje",
+    "booking": "Bezpieczna rezerwacja",
+    "multilingual": "Wsparcie wielojęzyczne"
+  },
+  "credibility": {
+    "verified": "Zweryfikowani dostawcy",
+    "tracked": "Śledzone rezerwacje",
+    "transparent": "Przejrzyste ceny",
+    "secureSignIn": "Bezpieczne logowanie"
+  },
+  "featured": {
+    "title": "Polecane atrakcje",
+    "subtitle": "Starannie wybrane przygody, które kochają podróżnicy w całym Omanie",
+    "viewAll": "Zobacz wszystkie atrakcje",
+    "emptyTitle": "Nowe atrakcje już wkrótce",
+    "emptyDescription": "Nasi dostawcy przygotowują się do publikacji swoich pierwszych atrakcji. Zajrzyj tu ponownie wkrótce."
+  },
+  "categories": {
+    "title": "Przeglądaj według kategorii",
+    "subtitle": "Znajdź przygodę, która do Ciebie przemawia",
+    "desertSafari": "Safari pustynne",
+    "mountainTours": "Wycieczki górskie",
+    "coastalTrips": "Wycieczki nadmorskie i plażowe",
+    "culturalTours": "Wycieczki kulturowe",
+    "cityExperiences": "Atrakcje miejskie",
+    "adventureSports": "Sporty przygodowe"
+  },
+  "destinations": {
+    "featuredLabel": "Polecane",
+    "title": "Popularne kierunki",
+    "subtitle": "Miejsca, które podróżnicy odkrywają właśnie teraz",
+    "muscat": "Maskat",
+    "salalah": "Salalah",
+    "nizwa": "Nizwa",
+    "wahibaSands": "Piaski Wahiba",
+    "jebelAkhdar": "Jebel Akhdar",
+    "musandam": "Musandam"
+  },
+  "providers": {
+    "title": "Zaufani dostawcy",
+    "subtitle": "Każdy dostawca w BARQ jest weryfikowany, zanim będzie mógł opublikować atrakcję",
+    "verifiedBadge": "Zweryfikowany dostawca"
+  },
+  "howItWorks": {
+    "title": "Jak działa BARQ",
+    "subtitle": "Rezerwacja kolejnej atrakcji zajmuje trzy proste kroki",
+    "step1Title": "Odkryj",
+    "step1Description": "Przeglądaj zweryfikowane atrakcje w całym Omanie, filtrowane według kierunku, kategorii i ceny.",
+    "step2Title": "Zarezerwuj",
+    "step2Description": "Zaloguj się za pomocą numeru telefonu, wybierz datę i potwierdź rezerwację w kilka minut.",
+    "step3Title": "Przeżyj",
+    "step3Description": "Poznaj swojego przewodnika lub dostawcę i ciesz się płynną, godną zaufania atrakcją od początku do końca."
+  },
+  "whyChoose": {
+    "title": "Dlaczego BARQ",
+    "subtitle": "Stworzone dla podróżników, którzy oczekują więcej",
+    "trustTitle": "Zweryfikowane i godne zaufania",
+    "trustDescription": "Każdy dostawca jest sprawdzany i zatwierdzany, zanim będzie mógł zaoferować atrakcję.",
+    "transparentTitle": "Przejrzyste ceny",
+    "transparentDescription": "Zobacz pełną cenę z góry — bez ukrytych opłat i niespodzianek przy płatności.",
+    "fastTitle": "Szybka i prosta rezerwacja",
+    "fastDescription": "Rezerwuj w kilka minut dzięki logowaniu przez numer telefonu — bez haseł, bez utrudnień.",
+    "supportTitle": "Wsparcie, kiedy go potrzebujesz",
+    "supportDescription": "Nasz zespół jest gotowy pomóc przed, w trakcie i po Twojej atrakcji."
+  },
+  "stats": {
+    "title": "BARQ w liczbach",
+    "experiencesLabel": "Wyselekcjonowanych atrakcji",
+    "providersLabel": "Zweryfikowanych dostawców",
+    "destinationsLabel": "Obsługiwanych kierunków",
+    "customersLabel": "Zadowolonych podróżników"
+  },
+  "testimonials": {
+    "title": "Co mówią podróżnicy",
+    "subtitle": "Prawdziwe opinie ze społeczności BARQ",
+    "placeholderNote": "Opinie podróżników pojawią się wkrótce.",
+    "quote1": "Rezerwacja była tak prosta jak wysłanie wiadomości do znajomego — a nasz przewodnik był fantastyczny.",
+    "author1": "Podróżnik, Maskat",
+    "quote2": "Przejrzyste ceny i zweryfikowany dostawca zrobiły ogromną różnicę.",
+    "author2": "Podróżniczka, Salalah"
+  },
+  "faq": {
+    "title": "Najczęściej zadawane pytania",
+    "subtitle": "Wszystko, co warto wiedzieć przed rezerwacją",
+    "q1": "Jak zarezerwować atrakcję w BARQ?",
+    "a1": "Zaloguj się za pomocą numeru telefonu, przeglądaj atrakcje, wybierz datę i potwierdź rezerwację — bez potrzeby podawania hasła.",
+    "q2": "Czy dostawcy BARQ są zweryfikowani?",
+    "a2": "Tak. Każdy dostawca jest sprawdzany i zatwierdzany przez nasz zespół, zanim będzie mógł opublikować atrakcję.",
+    "q3": "Czy mogę anulować rezerwację?",
+    "a3": "Tak, rezerwacje można anulować, zanim zostaną potwierdzone przez dostawcę. Sprawdź szczegóły rezerwacji, aby poznać warunki.",
+    "q4": "Jakie języki obsługuje BARQ?",
+    "a4": "BARQ jest dostępny w języku arabskim, angielskim i kilku innych, z pełnym wsparciem w każdym oferowanym języku."
+  },
+  "cta": {
+    "title": "Gotowy, by odkrywać Oman?",
+    "subtitle": "Dołącz do BARQ już dziś i zarezerwuj swoją kolejną niezapomnianą atrakcję.",
+    "button": "Zacznij teraz"
+  },
+  "footer": {
+    "tagline": "Premium marketplace turystyczny Omanu.",
+    "browseHeading": "Odkrywaj",
+    "companyHeading": "Firma",
+    "aboutLink": "O BARQ",
+    "contactLink": "Kontakt",
+    "rightsReserved": "Wszelkie prawa zastrzeżone.",
+    "helpLink": "Centrum pomocy",
+    "termsLink": "Regulamin",
+    "privacyLink": "Polityka prywatności",
+    "cookiesLink": "Polityka plików cookie"
+  }
+}

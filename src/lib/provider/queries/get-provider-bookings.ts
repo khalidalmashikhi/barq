@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import type { BookingStatus } from "@prisma/client";
 
@@ -79,6 +80,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export async function getProviderBookings(filters: ProviderBookingListFilters): Promise<ProviderBookingListResult> {
   const { provider } = await requireProvider();
+  const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -134,7 +136,7 @@ export async function getProviderBookings(filters: ProviderBookingListFilters): 
 
   const items: ProviderBookingListItem[] = (bookings as BookingRow[]).map((booking) => ({
     id: booking.id,
-    serviceName: extractText(booking.service.name) || "تجربة",
+    serviceName: extractLocalizedText(booking.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     status: booking.status,
     seats: booking.seats,
     priceSnapshot:

@@ -1,8 +1,15 @@
 {
   "phase0Placeholder": "[it/seo] Phase 0 infrastructure placeholder (Italian) — not yet translated",
-  "pageTitleTemplate": "[it] pageTitleTemplate {page} {appName} — not yet translated",
-  "serviceNotFoundTitle": "[it] serviceNotFoundTitle — not yet translated",
-  "defaultDescription": "[it] defaultDescription — not yet translated",
-  "servicesListDescription": "[it] servicesListDescription — not yet translated",
-  "serviceDescriptionFallback": "[it] serviceDescriptionFallback {serviceName} {providerName} {appName} — not yet translated"
+  "pageTitleTemplate": "{page} | {appName}",
+  "serviceNotFoundTitle": "Esperienza non trovata",
+  "defaultDescription": "BARQ — Piattaforma intelligente per la gestione del turismo",
+  "servicesListDescription": "Esplora esperienze turistiche affidabili nel Sultanato dell'Oman",
+  "serviceDescriptionFallback": "Prenota {serviceName} di {providerName} tramite {appName}",
+  "providerNotFoundTitle": "Fornitore non trovato",
+  "providerDescriptionFallback": "Scopri le esperienze turistiche di {providerName} su {appName}",
+  "legalTermsDescription": "I Termini di Servizio di BARQ per prenotare esperienze turistiche in Oman — una bozza strutturale, non ancora un documento legale definitivo.",
+  "legalPrivacyDescription": "Come BARQ tratta i dati personali — una bozza strutturale, non ancora un documento legale definitivo.",
+  "legalCookiesDescription": "Come BARQ utilizza i cookie sulla propria piattaforma — una bozza strutturale, non ancora un documento legale definitivo.",
+  "legalBookingPolicyDescription": "La politica di prenotazione, conferma e cancellazione di BARQ — una bozza strutturale, non ancora un documento legale definitivo.",
+  "loginDescription": "Accedi a BARQ per prenotare esperienze turistiche in tutto l'Oman e gestire le tue prenotazioni."
 }

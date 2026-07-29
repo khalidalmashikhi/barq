@@ -35,16 +35,33 @@ export function DashboardHero() {
             disabled
           />
           <span className="hidden h-6 w-px bg-border sm:block" />
-          <button type="button" className="hidden items-center gap-1.5 px-3 text-sm text-foreground/60 sm:flex" aria-label={t("locationLabel")}>
+          <button
+            type="button"
+            disabled
+            aria-disabled
+            title={t("comingSoonLabel")}
+            className="hidden cursor-not-allowed items-center gap-1.5 px-3 text-sm text-foreground/35 sm:flex"
+            aria-label={t("locationLabel")}
+          >
             <MapPin size={16} strokeWidth={1.75} />
             {t("locationLabel")}
           </button>
-          <button type="button" className="hidden rounded-full p-2.5 text-foreground/60 hover:bg-background sm:flex" aria-label={t("filterLabel")}>
+          <button
+            type="button"
+            disabled
+            aria-disabled
+            title={t("comingSoonLabel")}
+            className="hidden cursor-not-allowed rounded-full p-2.5 text-foreground/35 sm:flex"
+            aria-label={t("filterLabel")}
+          >
             <SlidersHorizontal size={16} strokeWidth={1.75} />
           </button>
           <button
             type="button"
-            className="shrink-0 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            disabled
+            aria-disabled
+            title={t("comingSoonLabel")}
+            className="shrink-0 cursor-not-allowed rounded-full bg-foreground/10 px-6 py-2.5 text-sm font-medium text-foreground/35"
           >
             {t("searchButtonLabel")}
           </button>

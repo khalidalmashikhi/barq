@@ -1,6 +1,9 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import type { Locale } from "@/i18n/locales";
+import { foldBookingStatusCounts, type FoldedBookingStatusCounts } from "./fold-booking-status-counts";
 
 // Dashboard data fetching — Engineering Sprint (Dashboard Data Wiring).
 //
@@ -22,6 +25,18 @@ export type DashboardBookingSummary = {
   confirmedAt: Date | null;
 };
 
+/// Customer Experience Platform — a real Booking row for the "Recent
+/// Bookings" list, ordered by createdAt (when the request was made),
+/// distinct from DashboardBookingSummary (confirmedAt-ordered, CONFIRMED-
+/// only "upcoming trips" list) since this one spans every status.
+export type DashboardRecentBookingItem = {
+  id: string;
+  serviceName: string;
+  status: string;
+  priceSnapshot: string | null;
+  createdAt: Date;
+};
+
 export type DashboardFeaturedService = {
   id: string;
   name: string;
@@ -37,6 +52,24 @@ export type DashboardData = {
   upcomingBookings: DashboardBookingSummary[];
   featuredServices: DashboardFeaturedService[];
   mostBookedServices: DashboardFeaturedService[];
+  /// Customer Experience Platform — real groupBy(by:["status"]), folded
+  /// via the pure foldBookingStatusCounts() helper (see that file for
+  /// the documented active/cancelled definitions). Missing statuses are
+  /// zero, never undefined.
+  bookingStatusCounts: FoldedBookingStatusCounts;
+  /// Real count of this customer's own written Review rows.
+  reviewsGivenCount: number;
+  /// Real count of COMPLETED bookings with no Review yet — computed
+  /// live on every render, never persisted, per this phase's "no
+  /// fabricated data" requirement.
+  awaitingReviewCount: number;
+  /// Real, most-recently-created bookings (any status) — labeled
+  /// "Recent Bookings," deliberately not "Recent Activity": this is a
+  /// list of Booking rows ordered by createdAt, not a multi-event
+  /// activity/audit source (that would be a different, unbuilt
+  /// feature — see ActivityFeed's own honest-empty-state comment,
+  /// left untouched by this phase).
+  recentBookings: DashboardRecentBookingItem[];
 };
 
 // Minimal local type for Service query results with provider/prices
@@ -53,6 +86,8 @@ type ServiceWithJoins = {
 };
 
 export async function getDashboardData(barqUserId: string): Promise<DashboardData> {
+  const locale = await getLocale();
+
   const customer = await prisma.customer.findUnique({
     where: { userId: barqUserId },
   });
@@ -65,8 +100,8 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
     // Honest empty state — no fabricated numbers for a user with no
     // Customer profile yet, per explicit requirement #7.
     const [featuredServices, mostBookedServices] = await Promise.all([
-      getFeaturedServices(),
-      getMostBookedServices(),
+      getFeaturedServices(locale),
+      getMostBookedServices(locale),
     ]);
     return {
       hasCustomerProfile: false,
@@ -76,10 +111,23 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
       upcomingBookings: [],
       featuredServices,
       mostBookedServices,
+      bookingStatusCounts: { total: 0, active: 0, completed: 0, cancelled: 0 },
+      reviewsGivenCount: 0,
+      awaitingReviewCount: 0,
+      recentBookings: [],
     };
   }
 
-  const [activeBookingsCount, upcomingBookingsRaw, featuredServices, mostBookedServices] = await Promise.all([
+  const [
+    activeBookingsCount,
+    upcomingBookingsRaw,
+    featuredServices,
+    mostBookedServices,
+    statusCountRows,
+    reviewsGivenCount,
+    awaitingReviewCount,
+    recentBookingsRaw,
+  ] = await Promise.all([
     prisma.booking.count({
       where: {
         customerId: customer.id,
@@ -95,18 +143,63 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
       take: 5,
       include: { service: true },
     }),
-    getFeaturedServices(),
-    getMostBookedServices(),
+    getFeaturedServices(locale),
+    getMostBookedServices(locale),
+    // Customer Experience Platform — one groupBy answers Total/
+    // Completed/Cancelled all at once, folded via the pure
+    // foldBookingStatusCounts() helper below. Kept as its own query,
+    // never merged with the review counts that follow (a booking-count
+    // query and a review-count query are deliberately separate
+    // abstractions, per this phase's own instruction).
+    prisma.booking.groupBy({
+      by: ["status"],
+      where: { customerId: customer.id },
+      _count: true,
+    }),
+    prisma.review.count({ where: { customerId: customer.id } }),
+    // "Awaiting Review" — COMPLETED bookings this customer has not yet
+    // reviewed. Computed live on every render (never persisted), same
+    // "opt-in visibility" computed-condition convention already used by
+    // the Provider dashboard's ServiceInsights/CapacityAlerts.
+    prisma.booking.count({
+      where: { customerId: customer.id, status: "COMPLETED", review: null },
+    }),
+    prisma.booking.findMany({
+      where: { customerId: customer.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 5,
+      include: { service: true },
+    }),
   ]);
 
   const upcomingBookings: DashboardBookingSummary[] = upcomingBookingsRaw.map(
     (booking: { id: string; status: string; confirmedAt: Date | null; service: { name: unknown } }) => ({
       id: booking.id,
-      serviceName: extractText(booking.service.name) || "تجربة",
+      serviceName: extractLocalizedText(booking.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
       status: booking.status,
       confirmedAt: booking.confirmedAt,
     })
   );
+
+  type RecentBookingRow = {
+    id: string;
+    status: string;
+    priceSnapshotAmount: unknown;
+    priceSnapshotCurrency: string | null;
+    createdAt: Date;
+    service: { name: unknown };
+  };
+
+  const recentBookings: DashboardRecentBookingItem[] = (recentBookingsRaw as RecentBookingRow[]).map((booking) => ({
+    id: booking.id,
+    serviceName: extractLocalizedText(booking.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+    status: booking.status,
+    priceSnapshot:
+      booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
+        ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
+        : null,
+    createdAt: booking.createdAt,
+  }));
 
   return {
     hasCustomerProfile: true,
@@ -116,10 +209,14 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
     upcomingBookings,
     featuredServices,
     mostBookedServices,
+    bookingStatusCounts: foldBookingStatusCounts(statusCountRows),
+    reviewsGivenCount,
+    awaitingReviewCount,
+    recentBookings,
   };
 }
 
-async function getMostBookedServices(): Promise<DashboardFeaturedService[]> {
+async function getMostBookedServices(locale: Locale): Promise<DashboardFeaturedService[]> {
   // Real aggregation over existing Booking/Service data — a GROUP BY +
   // COUNT, not an invented recommendation feature. Excludes CANCELLED
   // so a service isn't "most booked" on the back of cancellations.
@@ -148,13 +245,13 @@ async function getMostBookedServices(): Promise<DashboardFeaturedService[]> {
     .filter((service: ServiceWithJoins | undefined): service is ServiceWithJoins => Boolean(service))
     .map((service: ServiceWithJoins) => ({
       id: service.id,
-      name: extractText(service.name) || "تجربة",
-      providerName: extractText(service.provider.businessName) || "مزود خدمة",
+      name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+      providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
       price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
     }));
 }
 
-async function getFeaturedServices(): Promise<DashboardFeaturedService[]> {
+async function getFeaturedServices(locale: Locale): Promise<DashboardFeaturedService[]> {
   const services = await prisma.service.findMany({
     where: { status: "PUBLISHED" },
     take: 6,
@@ -167,8 +264,8 @@ async function getFeaturedServices(): Promise<DashboardFeaturedService[]> {
 
   return services.map((service: ServiceWithJoins) => ({
     id: service.id,
-    name: extractText(service.name) || "تجربة",
-    providerName: extractText(service.provider.businessName) || "مزود خدمة",
+    name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+    providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
   }));
 }

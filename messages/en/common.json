@@ -5,5 +5,19 @@
   "paginationAriaLabel": "Pagination",
   "paginationStatus": "Page {page} of {totalPages}",
   "appName": "BARQ",
-  "myAccountLabel": "My Account"
+  "myAccountLabel": "My Account",
+  "languageAriaLabel": "Language",
+  "messagesAriaLabel": "Messages",
+  "comingSoonLabel": "Coming soon",
+  "notificationsAriaLabel": "Notifications",
+  "skipToContentLabel": "Skip to content",
+  "offlineNotice": "You're offline — some features may not work.",
+  "openMenuAriaLabel": "Open menu",
+  "closeMenuAriaLabel": "Close menu",
+  "notFoundTitle": "Page not found",
+  "notFoundDescription": "The page you're looking for doesn't exist or may have been moved.",
+  "backToHomeButton": "Back to Home",
+  "errorTitle": "Something went wrong",
+  "errorDescription": "An unexpected error occurred. Please try again, or return to the home page.",
+  "tryAgainButton": "Try Again"
 }

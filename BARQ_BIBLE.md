@@ -155,6 +155,8 @@ Every architectural decision that is expensive to reverse is recorded as an ADR,
 - `ADR-0008` — AI Agent Boundaries
 - `ADR-0010` — Multilingual Architecture Expansion (8 officially targeted interface languages; supersedes `ADR-0005`'s language-count scope only)
 - `ADR-0011` — API First & Mobile Ready Architecture (complements `ADR-0005`/`ADR-0010`, does not supersede either)
+- `ADR-0012` — Architecture Freeze v2: SaaS-Scope Deferral & BARQ-First Implementation Reset (closes out the multi-tenant SaaS architecture review; accepts Marketplace/Billing/Theme-Engine as documented future seams, rejects a Capability Layer and other SaaS abstractions BARQ does not need now; distinct from, and does not supersede, `ARCHITECTURE_FREEZE_V1.md`)
+- `ADR-0013` — Marketplace Bounded Context (Category & SubCategory) (Phase 1.1 — formally amends the Locked `DOMAIN_MODEL.md` to add Marketplace as Bounded Context #16, owning the new `Category`/`SubCategory` entities; the first amendment to that document since its original Batch approval)
 
 **A known gap, stated plainly:** `ADR-0001` (documentation architecture) and `ADR-0003` (documentation order) were referenced by name in this project's early history but were never created as standalone files — both are largely superseded in practice by `PROJECT_RULES.md`'s later Progressive Documentation rules and by `ARCHITECTURE_FREEZE_V1.md` itself. They are not fixed in this pass; whether they should be reconstructed for historical completeness or formally retired is an open item for whoever governs this project's ADR history next.
 

@@ -1,0 +1,57 @@
+# 01 — Current State (as-built inventory)
+
+**Read this file first for any non-trivial task.** It captures what is actually real in the repository today, as distinct from what is planned (`03-PRODUCT-REQUIREMENTS.md`) or aspirational in the older architecture docs. Last inspected during the project-memory phase that created this file; re-verify against real files before relying on a claim here for anything security- or money-adjacent.
+
+This file gives the capability-level summary; `15-DATA-DICTIONARY.md` gives the entity-level detail behind each row of the table below, `16-BUSINESS-RULES.md` gives the specific, ID'd rules (with honest enforcement status) that govern each capability, `18-DOMAIN-MODEL.md` gives the Bounded-Context grouping, and `21-ENGINE-SPECIFICATIONS.md` gives the per-engine Purpose/Responsibilities/Dependencies detail.
+
+## Architecture
+
+Single Next.js 15 (App Router) + React 19 + TypeScript application at the repo root — **not a monorepo** (no `turbo.json`/`pnpm-workspace.yaml`/`nx.json`). PostgreSQL via Prisma (37 models, `prisma/schema.prisma`), Better Auth for phone+OTP authentication, next-intl for 8-locale i18n, deployed on Vercel (`vercel-build` script runs `prisma migrate deploy && next build`; one cron job, `expire-stale-bookings`, every 30 minutes).
+
+```
+src/app/          Next.js routes ([locale]/ pages + api/ route handlers)
+src/lib/          domain logic: booking/, provider/, admin/, contracts/, otp/, auth/, audit/,
+                  observability/, notifications/, services/, dashboard/, i18n/
+src/components/   UI components, grouped by feature area
+src/i18n/         next-intl config — locales.ts, routing.ts, request.ts
+prisma/           schema.prisma, migrations/, seed.ts
+messages/         8 locale dirs × 10 JSON namespaces (static, developer-maintained)
+scripts/          env-schema.ts + validate-env.ts (predev/prebuild gate, fails fast on bad config)
+docs/             12 numbered subdirectories + docs/08-governance/adr/ (10 ADRs)
+```
+
+## Per-capability reality check
+
+| Area | State today |
+|---|---|
+| **Categories** | **Real (Phase 1.1/1.2), with a temporary customer-facing bridge (2026-07-26).** `Category`/`SubCategory` models exist, admin-gated CRUD + admin UI (`/admin/categories`) via `src/lib/categories/`. `Service.categoryId` still does not exist — no relational link between `Service` and `Category`. Homepage/dashboard category cards now navigate to `/{locale}/services?category=<slug>` and the services page applies a **temporary keyword-match filter** (`getServices()`'s `categoryKeyword`, matching a category's translated label as a substring against `Service.name`) — an honest, explicitly-temporary UX bridge, not real categorization. The relational fix is proposed, not approved: `ADR-0014-service-category-relational-taxonomy.md` (Draft) + `../plans/RELATIONAL-SERVICE-TAXONOMY-PLAN.md`. Owned by Marketplace, Bounded Context #16 (`ADR-0013`). `Service.serviceType` remains an unrelated CTI discriminator; code comments still warn against using it as a category filter. |
+| **Category visibility states** (PUBLIC/HIDDEN/LINK_ONLY/INVITE_ONLY/SCHEDULED/ARCHIVED) | **Real (Phase 1.1).** `CategoryVisibilityStatus` enum, enforced by `category-visibility-policy.ts`'s transition matrix. See BR-004. |
+| **Pricing** | `Price` model exists (amount, currency, status ACTIVE\|SUPERSEDED) — provider-managed only, no admin pricing-rule UI, no admin/provider/both-with-approval/RFQ control modes. |
+| **Commissions** | `Commission` model exists but supports **only a fixed 3-tier percentage** (`TIER_12`/`TIER_10`/`TIER_8`). No fixed-fee, hybrid, zero, or manually-agreed commission concept. |
+| **Financial tracking** | Gross amount/currency, a confirmation-time snapshot of price+commission on `Booking`, payment capture/refund state (`PaymentStatus`), ledger movement (`WalletTransaction`). **Not tracked anywhere**: discounts, taxes, an explicit net-amount field, settlement/transfer-to-bank status. No bank-account field exists on `Provider` at all. |
+| **Admin capabilities** | **Substantial, real CRUD across most of the marketplace** (corrected 2026-07-27 — a much earlier version of this row, claiming "exactly one admin capability," was stale and contradicted by the actual code; repository code is the source of truth). `src/app/[locale]/admin/` has real route groups for Providers, Services, Prices, Availability, Bookings, Categories, Feature Flags, Homepage Sections, **plus, added by the Admin Operations Platform phase, Customers (read-only, `/admin/customers`) and Reviews (read-only, `/admin/reviews`)**. `/admin` itself is now a real operational Overview dashboard (`getAdminOverview()`) — platform metrics (customers/providers/published services/booking-status breakdown/reviews+average rating/completed gross revenue by currency/database connectivity), operational queues (pending provider approvals, bookings awaiting provider, bookings in progress, recently cancelled, recent reviews), and Provider/Customer operational insight lists (recently joined providers, providers without services, providers with no completed bookings, providers with no recent booking activity in 30 days, recently registered customers, customers with most bookings, customers awaiting reviews) — replacing what was previously a bare redirect to `/admin/providers`. `src/lib/admin/` has ~70+ files (create/update/approve/archive/cancel/capture/refund/list/detail queries). RBAC: every admin query/action calls `requireAdmin()` itself in addition to the layout-level gate (defense in depth, not redundancy). Reviews admin remains **read-only by design** — the schema's `ReviewModerationState` (PUBLISHED\|FLAGGED\|REMOVED) is filterable but no code anywhere sets FLAGGED/REMOVED or exposes a moderation action; no review-lifecycle/moderation workflow exists. **Corrected 2026-07-27 (Payment Experience & Financial Operations phase)** — Payments now has a real, read-only admin UI (`/admin/payments`, `/admin/payments/[id]`, backed by the pre-existing `get-payments.ts`/`get-payment-detail.ts`, the latter additively extended with `providerId`/`serviceId`/`invoice` for cross-linking). `capture-payment.ts`/`refund-payment.ts` (Stripe-backed, defaulting to a no-op unless `PAYMENT_PROVIDER=STRIPE`) still exist in the backend but remain **intentionally unwired to any UI** — no capture/refund button, form, or action menu exists anywhere in the codebase. |
+| **Provider onboarding** | 4-field form only (`businessNameAr`/`businessNameEn` required, `businessDescriptionAr`/`businessDescriptionEn` optional) via `src/lib/provider/apply-as-provider.ts`. No individual-vs-commercial distinction, no document uploads (no commercial registration, municipal licence, tenancy agreement, bank info, logo, website, Maps location, or opening-hours fields anywhere in the schema). **BR-001 (approval gating) is now enforced**: a provider whose `status` is not `APPROVED` cannot create, edit, publish, unpublish, archive, or duplicate a service, or create/edit/delete availability (`requireApprovedProvider()`, `src/lib/auth/rbac.ts`) — see `16-BUSINESS-RULES.md`. |
+| **Provider resource models** | `Driver`, `Guide`, `Asset`/`Vehicle` exist but are resources a Provider *owns* (inventory), not alternate provider types or onboarding paths. |
+| **Translation** | 8 static locale JSON files (`messages/{ar,en,de,it,pl,fr,cs,ru}/*.json`), developer-curated per ADR-0010. No AI-assisted workflow, no draft/review/approved translation-state concept. |
+| **Direct-contact exposure** | Already fully prevented — not via a policy engine, but because no contact-exposing feature has been built. "Contact Provider" is an honestly-disabled placeholder button (own code comment: "no backing messaging system"). No phone/WhatsApp/email is ever rendered to a customer. |
+| **"ساعدني" / support channel** | **Does not exist.** Zero matches anywhere in the repo. |
+| **Support tickets** | `SupportTicket` model + `SupportTicketStatus` enum exist in schema — **zero code references anywhere in `src/`.** 100% schema-only. |
+| **Internal messaging** | **Does not exist.** No `Message`/`Conversation` model anywhere. |
+| **Notifications** | Real `Notification` model + Notification Center (list/unread-count/mark-read) exist. Channel enum is `WHATSAPP \| EMAIL \| SMS` only — one-way, system-generated, no admin-configurable trigger rules. |
+| **CMS / dynamic homepage** | **Corrected 2026-07-27** — a real `HomepageSection` model + admin CRUD (`/admin/homepage-sections`, ordering + visibility) **does** exist, and the public homepage (`src/app/[locale]/page.tsx`) **does** read it via `getHomepageSectionRenderOrder()`, gated by the `homepage_dynamic_sections` feature flag — this row previously claimed neither existed. Of the 13 registry section keys, only 3 (Featured Experiences, Providers, Stats) query real *content*; the rest render static JSX + i18n strings regardless of the flag. What's still genuinely absent: a way to edit a section's own content (copy/images) from the admin UI — only ordering/visibility are admin-controlled today. |
+| **Feature flags** | **Real** (corrected 2026-07-27 — previously stale). A real `FeatureFlag` model (`key`, `enabled`, `description`) with admin CRUD (`/admin/feature-flags`, `src/lib/feature-flags/`) — global on/off only, no scoping/rollout logic per its own documented scope. |
+| **AI Center** | `AIAgent` model + `AIAgentStatus` enum exist (governed by ADR-0008's 17 permanent AI boundaries) — **zero application code** reads/writes it. `LLM_GATEWAY_API_KEY` is a reserved, unused env var. |
+| **Audit trail** | `AuditLog` model (added Phase 5.2) + `BookingStatusEvent`/`BookingContractEvent` exist and are written to on real mutations (provider approval, service publish/unpublish/archive, availability changes, booking status changes) — **but nothing reads them in any UI.** Write-only today. |
+| **Permissions** | RBAC via `src/lib/auth/rbac.ts` — 4 fixed roles (`requireAuth`/`requireCustomer`/`requireProvider`/`requireStaff`/`requireAdmin`), solid and code-controlled, but role-based, not a granular/configurable permission engine. |
+| **Workflow/Rule/Form-Builder engines** | **Do not exist as generic engines.** Two hardcoded, domain-specific state machines exist (`src/lib/booking/lifecycle/`, `src/lib/contracts/lifecycle/` + `src/lib/contracts/execution/`) — solid precedent for *how* to build a real engine later, but neither is generic or admin-configurable. No `Form`/`FormField` model exists. |
+| **Business Engine** | **Does not exist.** Everything above is either hardcoded or narrowly provider/admin-specific — no unifying, admin-configurable business-rule layer. |
+
+## Known drift between the architectural constitution and reality
+
+- **ADR-0011 mandates versioned public APIs** (`/api/v1/...`) — the actual API surface under `src/app/api/` has zero versioning today.
+- **ADR-0009 (Better Auth user-model separation) is still "Draft v0.1 — Architecture Review pending"** in its own document header, even though the schema already implements the decision it describes (`AuthUser` model exists, `Session`/`Account` already target it).
+- `messages/ar/landing.json` uses the incorrect Arabic spelling **"بارق"** in 13 places; `messages/ar/common.json`'s `appName` correctly uses **"برق"**. See `13-OPEN-QUESTIONS.md`.
+
+## Full engine-by-engine gap table
+
+See `../plans/ROADMAP.md` for the complete current-state-vs-target breakdown of all 15 planned engines, and `AGENTS.md` for the summarized list.

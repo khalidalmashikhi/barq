@@ -1,0 +1,141 @@
+{
+  "about": {
+    "title": "À propos de BARQ",
+    "subtitle": "Un lieu unique et fiable pour découvrir et réserver de véritables expériences touristiques.",
+    "missionTitle": "Notre mission",
+    "missionBody": "Offrir aux voyageurs un moyen rapide et transparent de découvrir et réserver des expériences touristiques, et donner aux prestataires locaux les outils pour les atteindre — sans que ni l'un ni l'autre ne perde confiance en chemin.",
+    "visionTitle": "Notre vision",
+    "visionBody": "Une place de marché où chaque réservation, chaque prix et chaque mise à jour de statut est exactement ce qu'elle prétend être — en commençant par Oman, conçue pour se développer dans toute la région.",
+    "platformTitle": "Ce que fait BARQ",
+    "platformBody": "BARQ connecte les clients aux prestataires d'expériences touristiques via un parcours de réservation simple et suivi — de la recherche à la confirmation jusqu'à l'achèvement.",
+    "feature": {
+      "searchTitle": "Découvrir",
+      "searchBody": "Parcourez de véritables expériences publiées, avec des prix transparents fixés par chaque prestataire.",
+      "bookTitle": "Réserver",
+      "bookBody": "Demandez un créneau horaire en quelques étapes et soyez notifié dès qu'un prestataire répond.",
+      "trackTitle": "Suivre",
+      "trackBody": "Suivez le statut exact de votre réservation, de la demande jusqu'à l'achèvement, en un seul endroit."
+    },
+    "whyTitle": "Pourquoi BARQ",
+    "whyBody": "Chaque réservation sur BARQ suit le même cycle de vie tracé, afin que clients et prestataires voient toujours le même statut, exact — sans conjecture, sans information obsolète.",
+    "principlesTitle": "Principes de la place de marché",
+    "principle": {
+      "trust": "Confiance",
+      "simplicity": "Simplicité",
+      "clarity": "Clarté",
+      "confidence": "Assurance",
+      "speed": "Rapidité"
+    }
+  },
+  "help": {
+    "title": "Centre d'aide",
+    "subtitle": "Des guides pour réserver, proposer des services, et tout ce qui se trouve entre les deux.",
+    "searchPlaceholder": "Rechercher dans l'aide...",
+    "searchButton": "Rechercher",
+    "faqCardTitle": "Questions fréquentes",
+    "faqCardDescription": "Réponses rapides aux questions les plus courantes sur BARQ.",
+    "bookingCardTitle": "Aide à la réservation",
+    "bookingCardDescription": "Comment fonctionnent la recherche, la demande et l'annulation d'une réservation.",
+    "providerCardTitle": "Aide aux prestataires",
+    "providerCardDescription": "Gérer vos services, vos disponibilités et vos réservations en tant que prestataire.",
+    "contactCardTitle": "Contact et support",
+    "contactCardDescription": "Comment nous contacter et que faire si quelque chose ne fonctionne pas."
+  },
+  "faq": {
+    "title": "Questions fréquentes",
+    "subtitle": "Réponses aux questions que nous recevons le plus souvent.",
+    "noResultsLabel": "Aucune question correspondante trouvée",
+    "accountQuestion": "Ai-je besoin d'un compte pour réserver une expérience ?",
+    "accountAnswer": "Oui. Vous vous connectez avec votre numéro de téléphone et un code de vérification à usage unique — aucun mot de passe à retenir.",
+    "bookingQuestion": "Comment fonctionne la réservation d'une expérience ?",
+    "bookingAnswer": "Vous soumettez une demande de réservation avec votre créneau horaire préféré et le nombre de places. Le prestataire la confirme ensuite, et vous êtes notifié dès que cela se produit.",
+    "cancellationQuestion": "Puis-je annuler une réservation après l'avoir demandée ?",
+    "cancellationAnswer": "Oui — vous pouvez annuler depuis Mes réservations tant que la demande est en attente ou confirmée. L'annulation n'est plus possible une fois l'expérience en cours ou terminée.",
+    "paymentQuestion": "Comment le paiement est-il géré ?",
+    "paymentAnswer": "Le prix est fixé par chaque prestataire et affiché avant la réservation. Les détails du paiement sont traités séparément de la demande de réservation elle-même.",
+    "providerQuestion": "Comment devenir prestataire sur BARQ ?",
+    "providerAnswer": "Les comptes prestataires passent par une étape d'approbation avant que leurs expériences n'apparaissent publiquement. Une fois approuvés, les prestataires gèrent leurs propres services, disponibilités et réservations depuis le tableau de bord prestataire."
+  },
+  "bookingHelp": {
+    "title": "Aide à la réservation",
+    "subtitle": "Un aperçu du fonctionnement de la réservation d'une expérience, du début à la fin.",
+    "step": {
+      "searchTitle": "Rechercher une expérience",
+      "searchBody": "Parcourez les expériences publiées, filtrez par prix ou prestataire, et ouvrez celle qui vous intéresse.",
+      "requestTitle": "Demander un créneau horaire",
+      "requestBody": "Choisissez un créneau horaire disponible et le nombre de places, puis soumettez votre demande de réservation.",
+      "confirmTitle": "Être notifié lors de la confirmation",
+      "confirmBody": "Le prestataire examine votre demande. Vous verrez une notification et un statut mis à jour dès qu'il la confirme.",
+      "cancelTitle": "Annuler si vos projets changent",
+      "cancelBody": "Tant que votre réservation est en attente ou confirmée, vous pouvez l'annuler à tout moment depuis Mes réservations — aucune option d'annulation n'apparaît une fois qu'elle est en cours ou terminée."
+    }
+  },
+  "providerHelp": {
+    "title": "Aide aux prestataires",
+    "subtitle": "Gérer vos expériences et réservations sur BARQ.",
+    "topic": {
+      "servicesTitle": "Gérer vos services",
+      "servicesBody": "Créez, modifiez, publiez, mettez en pause ou archivez vos expériences depuis la section Services de votre tableau de bord prestataire.",
+      "availabilityTitle": "Définir les disponibilités",
+      "availabilityBody": "Ouvrez des créneaux horaires et définissez la capacité de chaque expérience afin que les clients puissent les voir et les demander.",
+      "bookingsTitle": "Gérer les réservations",
+      "bookingsBody": "Examinez les demandes de réservation entrantes et confirmez-les ou gérez-les depuis la section Réservations — les demandes en attente de votre réponse sont clairement signalées.",
+      "dashboardTitle": "Lire votre tableau de bord",
+      "dashboardBody": "Votre tableau de bord affiche de véritables indicateurs de réservations et de services — les chiffres reflètent uniquement ce qui s'est réellement passé sur la plateforme."
+    }
+  },
+  "contact": {
+    "title": "Contact et support",
+    "subtitle": "Comment nous contacter et obtenir de l'aide.",
+    "noticeTitle": "Le contact direct n'est pas encore connecté",
+    "noticeBody": "Une boîte de support dédiée ou un formulaire de contact ne sont pas encore mis en place sur BARQ. En attendant, le Centre d'aide ci-dessous couvre les questions les plus courantes.",
+    "helpCenterTitle": "Visiter le Centre d'aide",
+    "helpCenterBody": "Les questions fréquentes, l'aide à la réservation et l'aide aux prestataires y sont toutes disponibles dès maintenant.",
+    "bookingIssuesTitle": "Questions sur une réservation spécifique",
+    "bookingIssuesBody": "Ouvrez la réservation depuis Mes réservations — sa page de détail affiche l'historique complet des statuts et l'état actuel."
+  },
+  "terms": {
+    "title": "Conditions d'utilisation",
+    "section": {
+      "acceptanceTitle": "Acceptation des conditions",
+      "usingPlatformTitle": "Utilisation de la plateforme",
+      "bookingsAndPaymentsTitle": "Réservations et paiements",
+      "providerObligationsTitle": "Obligations du prestataire",
+      "liabilityTitle": "Limitation de responsabilité",
+      "changesTitle": "Modifications de ces conditions"
+    }
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "section": {
+      "informationCollectedTitle": "Informations que nous collectons",
+      "howWeUseItTitle": "Comment nous utilisons les informations",
+      "dataSharingTitle": "Partage des données",
+      "dataRetentionTitle": "Conservation des données",
+      "yourRightsTitle": "Vos droits"
+    }
+  },
+  "cookies": {
+    "title": "Politique de cookies",
+    "section": {
+      "whatAreCookiesTitle": "Que sont les cookies",
+      "howWeUseCookiesTitle": "Comment nous utilisons les cookies",
+      "managingCookiesTitle": "Gérer les cookies"
+    }
+  },
+  "bookingPolicy": {
+    "title": "Politique de réservation et d'annulation",
+    "section": {
+      "cancellationTitle": "Éligibilité à l'annulation",
+      "cancellationBody": "Une réservation peut être annulée gratuitement tant qu'elle est au statut En attente ou Confirmée. Une fois qu'une expérience est en cours ou terminée, l'annulation n'est plus possible. Cette règle s'applique de la même manière à chaque réservation sur BARQ.",
+      "paymentsTitle": "Paiements",
+      "providerObligationsTitle": "Obligations du prestataire",
+      "disputesTitle": "Litiges"
+    }
+  },
+  "legal": {
+    "placeholderNotice": "Cette page présente la structure que suivra le document juridique final de BARQ. Il s'agit d'un espace réservé, pas encore d'une politique révisée juridiquement.",
+    "lastUpdatedPlaceholder": "Brouillon — pas encore finalisé",
+    "sectionPlaceholderBody": "Le contenu complet de cette section est en cours de finalisation et apparaîtra ici."
+  }
+}

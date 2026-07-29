@@ -5,5 +5,19 @@
   "paginationAriaLabel": "ترقيم الصفحات",
   "paginationStatus": "صفحة {page} من {totalPages}",
   "appName": "برق",
-  "myAccountLabel": "حسابي"
+  "myAccountLabel": "حسابي",
+  "languageAriaLabel": "اللغة",
+  "messagesAriaLabel": "الرسائل",
+  "comingSoonLabel": "قريباً",
+  "notificationsAriaLabel": "الإشعارات",
+  "skipToContentLabel": "تخطَّ إلى المحتوى",
+  "offlineNotice": "أنت غير متصل بالإنترنت — قد لا تعمل بعض الميزات.",
+  "openMenuAriaLabel": "فتح القائمة",
+  "closeMenuAriaLabel": "إغلاق القائمة",
+  "notFoundTitle": "الصفحة غير موجودة",
+  "notFoundDescription": "الصفحة التي تبحث عنها غير موجودة أو ربما تم نقلها.",
+  "backToHomeButton": "العودة إلى الرئيسية",
+  "errorTitle": "حدث خطأ ما",
+  "errorDescription": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى، أو العودة إلى الصفحة الرئيسية.",
+  "tryAgainButton": "حاول مرة أخرى"
 }

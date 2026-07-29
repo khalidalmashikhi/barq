@@ -33,10 +33,16 @@ import type { User } from "@prisma/client";
 //    number. This is the direct, minimal resolution of that open
 //    question, not a full answer to DOMAIN_MODEL.md's separate,
 //    still-open Question #1 (whether one User may hold multiple roles).
-// 3. Otherwise, create a new, bare BARQ User — Identity only, per
-//    DOMAIN_MODEL.md's explicit separation from Customer/Provider/
-//    Staff/Admin profiles. No profile is created here; a freshly
-//    resolved User has no role until a separate process assigns one.
+// 3. Otherwise, create a new, bare BARQ User plus its Customer profile,
+//    atomically in one transaction (Phase 5.1 — Production Readiness:
+//    self-service signup). Customer has no required fields beyond
+//    userId, so every genuinely new phone number is a real Customer
+//    the moment it exists — closing the launch-blocking gap where a
+//    real signup could authenticate but never book (requireCustomer()
+//    would throw ForbiddenError forever with no self-service path to
+//    resolve it). Provider remains a deliberate, separate upgrade via
+//    the new self-service application flow (see apply-as-provider.ts),
+//    not something granted automatically here.
 
 export async function resolveBarqUser(authUserId: string): Promise<User> {
   const existingLink = await prisma.user.findUnique({
@@ -60,6 +66,11 @@ export async function resolveBarqUser(authUserId: string): Promise<User> {
     );
   }
 
+  // Captured as its own const so the null-check above stays proven true
+  // inside the $transaction callback below — TypeScript's narrowing of
+  // authUser.phoneNumber does not persist across that function boundary.
+  const phoneNumber = authUser.phoneNumber;
+
   const unlinkedExistingUser = await prisma.user.findFirst({
     where: {
       phoneNumber: authUser.phoneNumber,
@@ -74,11 +85,17 @@ export async function resolveBarqUser(authUserId: string): Promise<User> {
     });
   }
 
-  return prisma.user.create({
-    data: {
-      phoneNumber: authUser.phoneNumber,
-      phoneNumberVerified: authUser.phoneNumberVerified,
-      authUserId,
-    },
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        phoneNumber,
+        phoneNumberVerified: authUser.phoneNumberVerified,
+        authUserId,
+      },
+    });
+
+    await tx.customer.create({ data: { userId: user.id } });
+
+    return user;
   });
 }

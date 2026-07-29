@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Уведомления",
+  "emptyStateLabel": "Пока нет уведомлений",
+  "noNotificationsOnPageLabel": "На этой странице нет уведомлений",
+  "markAllReadButton": "Отметить все как прочитанные",
+  "markReadAriaLabel": "Отметить как прочитанное",
+  "unreadBadgeAriaLabel": "{count} непрочитанных уведомлений",
+  "viewAllLabel": "Просмотреть все уведомления",
+  "categoryNew": "Новое",
+  "categoryConfirmed": "Подтверждено",
+  "categoryRejected": "Отклонено",
+  "categoryCancelled": "Отменено",
+  "categoryExpired": "Истёк срок",
+  "categoryReview": "Отзыв",
+  "categoryGeneral": "Общее"
+}

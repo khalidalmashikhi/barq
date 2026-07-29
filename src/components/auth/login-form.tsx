@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,6 +32,12 @@ import { Card } from "@/components/ui/card";
 // etc.). ar/en values in messages/{ar,en}/auth.json are copied verbatim
 // from strings.ts. Server Action calls, state machine, and OTP
 // interaction are untouched.
+//
+// PHASE B GROUP 1: useRouter now comes from @/i18n/navigation instead
+// of next/navigation — /dashboard moved under [locale] in this same
+// group, and the locale-aware router.push("/dashboard") auto-prepends
+// whichever locale this form is currently rendered under, rather than
+// navigating to a now-dead unprefixed path.
 
 const OTP_LENGTH = 6;
 
@@ -39,6 +45,7 @@ type Step = "phone" | "otp";
 
 export function LoginForm() {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("auth");
   const [step, setStep] = useState<Step>("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -90,7 +97,7 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push("/dashboard", { locale });
       router.refresh();
     } catch {
       setError(t("genericError"));
@@ -151,6 +158,7 @@ export function LoginForm() {
               id="phoneNumber"
               type="tel"
               inputMode="tel"
+              autoComplete="tel"
               required
               value={phoneNumber}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPhoneNumber(event.target.value)}
@@ -191,6 +199,7 @@ export function LoginForm() {
                   }}
                   type="text"
                   inputMode="numeric"
+                  autoComplete={index === 0 ? "one-time-code" : "off"}
                   maxLength={1}
                   value={digit}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) =>

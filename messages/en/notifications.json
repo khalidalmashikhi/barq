@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Notifications",
+  "emptyStateLabel": "No notifications yet",
+  "noNotificationsOnPageLabel": "No notifications on this page",
+  "markAllReadButton": "Mark all as read",
+  "markReadAriaLabel": "Mark as read",
+  "unreadBadgeAriaLabel": "{count} unread notifications",
+  "viewAllLabel": "View all notifications",
+  "categoryNew": "New",
+  "categoryConfirmed": "Confirmed",
+  "categoryRejected": "Rejected",
+  "categoryCancelled": "Cancelled",
+  "categoryExpired": "Expired",
+  "categoryReview": "Review",
+  "categoryGeneral": "General"
+}

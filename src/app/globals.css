@@ -7,6 +7,13 @@
   color values so non-Tailwind contexts (raw CSS, third-party components)
   can reference the same palette without drift (Single Source of Truth).
 
+  Brand Identity Reset (2026-07) — Phase 1: Brand Foundation. Values
+  below match tailwind.config.ts's own updated palette — see that
+  file's comment for the pixel-extraction methodology. Dark-mode values
+  are hand-lightened equivalents of the same extracted hues (not a
+  separate extraction), consistent with the existing "structural
+  scaffolding only, not V1" caveat this block already carried.
+
   Dark-mode block is structural scaffolding only (DESIGN_SYSTEM.md "Dark
   Mode Readiness... not V1") — values are reasonable computed equivalents
   of the light palette, not a separately approved design decision. No
@@ -15,29 +22,29 @@
 */
 
 :root {
-  --color-primary: #4f2d8c;
+  --color-primary: #094367;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #2c7a7b;
+  --color-secondary: #1abbaf;
   --color-secondary-foreground: #ffffff;
-  --color-accent: #f5b942;
-  --color-accent-foreground: #1e1b2e;
+  --color-accent: #f27b2e;
+  --color-accent-foreground: #094367;
   --color-background: #f7f8fa;
   --color-card: #ffffff;
   --color-foreground: #0f172a;
-  --color-border: rgba(15, 23, 42, 0.08);
+  --color-border: rgba(9, 67, 103, 0.08);
   --color-success: #16a34a;
   --color-danger: #dc2626;
 }
 
 .dark {
-  --color-primary: #6b46c1;
+  --color-primary: #3d7484;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #38a3a5;
+  --color-secondary: #3dd6c9;
   --color-secondary-foreground: #ffffff;
-  --color-accent: #f7c65f;
-  --color-accent-foreground: #1e1b2e;
-  --color-background: #0f0b1e;
-  --color-card: #1a1530;
+  --color-accent: #f6935a;
+  --color-accent-foreground: #0f0b1e;
+  --color-background: #0a1620;
+  --color-card: #10222f;
   --color-foreground: #f1f5f9;
   --color-border: rgba(241, 245, 249, 0.08);
   --color-success: #22c55e;
@@ -54,8 +61,14 @@ body {
    components, so the "premium" look stays consistent and centrally
    adjustable, not redefined per file. */
 
+/* Phase 3 Wave 1 fix: the previous stop (#1abbaf, raw Bright Teal)
+   put white text at ~2.4:1 contrast wherever this class is used
+   (Hero/Stats/CTA all lay white text over it) — a direct violation of
+   the binding rule that Bright Teal must never carry white text
+   (DESIGN_SYSTEM.md §4). Dark Teal (#077588, 5.37:1 AA) replaces it;
+   same gradient feel, safe contrast everywhere this class is used. */
 .bg-luxury-gradient {
-  background: linear-gradient(160deg, #2a1a52 0%, #4f2d8c 45%, #2c7a7b 100%);
+  background: linear-gradient(160deg, #062837 0%, #094367 45%, #077588 100%);
 }
 
 .bg-glass {
@@ -66,16 +79,16 @@ body {
 
 .shadow-premium {
   box-shadow:
-    0 1px 2px rgba(15, 61, 46, 0.04),
-    0 8px 24px rgba(15, 61, 46, 0.08),
-    0 24px 48px rgba(15, 61, 46, 0.06);
+    0 1px 2px rgba(9, 67, 103, 0.04),
+    0 8px 24px rgba(9, 67, 103, 0.08),
+    0 24px 48px rgba(9, 67, 103, 0.06);
 }
 
 .shadow-premium-lg {
   box-shadow:
-    0 2px 4px rgba(15, 61, 46, 0.05),
-    0 16px 40px rgba(15, 61, 46, 0.12),
-    0 32px 64px rgba(15, 61, 46, 0.1);
+    0 2px 4px rgba(9, 67, 103, 0.05),
+    0 16px 40px rgba(9, 67, 103, 0.12),
+    0 32px 64px rgba(9, 67, 103, 0.1);
 }
 
 /* Entrance animation — used once, deliberately, on page-load content

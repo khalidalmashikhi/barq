@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { ServiceStatus } from "@prisma/client";
 
 // Provider Services query — Provider Dashboard Phase 1b.
@@ -55,6 +56,14 @@ export type ProviderServiceListItem = {
   price: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /// Provider Operations Foundation, Priority 3 — real, computed signal
+  /// (never stored): true only for a PUBLISHED service with zero
+  /// upcoming OPEN Availability rows, i.e. a service a customer could
+  /// find but couldn't actually book right now. Always false for
+  /// DRAFT/PAUSED/ARCHIVED services — "unbookable" isn't a meaningful
+  /// warning for a service that isn't publicly listed in the first
+  /// place.
+  hasNoUpcomingAvailability: boolean;
 };
 
 export type ProviderServiceListResult = {
@@ -69,6 +78,7 @@ const DEFAULT_PAGE_SIZE = 12;
 
 export async function getProviderServices(filters: ProviderServiceListFilters): Promise<ProviderServiceListResult> {
   const { provider } = await requireProvider();
+  const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -115,13 +125,30 @@ export async function getProviderServices(filters: ProviderServiceListFilters): 
     prices: Array<{ amount: unknown; currency: string }>;
   };
 
+  // One supplementary query for the whole page, not one per row: which
+  // of this page's PUBLISHED services already have at least one
+  // upcoming OPEN slot. Everything else on the page is skipped (a
+  // DRAFT/PAUSED/ARCHIVED service is never "unbookable" in a way worth
+  // flagging).
+  const publishedIds = (services as ServiceRow[]).filter((s) => s.status === "PUBLISHED").map((s) => s.id);
+  const servicesWithUpcomingSlots =
+    publishedIds.length > 0
+      ? await prisma.availability.findMany({
+          where: { serviceId: { in: publishedIds }, state: "OPEN", startTime: { gt: new Date() } },
+          select: { serviceId: true },
+          distinct: ["serviceId"],
+        })
+      : [];
+  const idsWithUpcomingSlots = new Set(servicesWithUpcomingSlots.map((row) => row.serviceId));
+
   let items: ProviderServiceListItem[] = (services as ServiceRow[]).map((service) => ({
     id: service.id,
-    name: extractText(service.name) || "تجربة",
+    name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     status: service.status,
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
     createdAt: service.createdAt,
     updatedAt: service.updatedAt,
+    hasNoUpcomingAvailability: service.status === "PUBLISHED" && !idsWithUpcomingSlots.has(service.id),
   }));
 
   if (filters.sort === "price_asc" || filters.sort === "price_desc") {

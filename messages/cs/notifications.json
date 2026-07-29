@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Oznámení",
+  "emptyStateLabel": "Zatím žádná oznámení",
+  "noNotificationsOnPageLabel": "Na této stránce nejsou žádná oznámení",
+  "markAllReadButton": "Označit vše jako přečtené",
+  "markReadAriaLabel": "Označit jako přečtené",
+  "unreadBadgeAriaLabel": "{count} nepřečtených oznámení",
+  "viewAllLabel": "Zobrazit všechna oznámení",
+  "categoryNew": "Nové",
+  "categoryConfirmed": "Potvrzeno",
+  "categoryRejected": "Zamítnuto",
+  "categoryCancelled": "Zrušeno",
+  "categoryExpired": "Vypršelo",
+  "categoryReview": "Recenze",
+  "categoryGeneral": "Obecné"
+}

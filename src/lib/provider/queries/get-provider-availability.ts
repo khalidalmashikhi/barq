@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import type { AvailabilitySlotState } from "@prisma/client";
 
@@ -121,6 +122,7 @@ export async function getProviderAvailability(
   filters: ProviderAvailabilityFilters
 ): Promise<ProviderAvailabilityListResult> {
   const { provider } = await requireProvider();
+  const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -177,7 +179,7 @@ export async function getProviderAvailability(
   const items: ProviderAvailabilityListItem[] = (slots as AvailabilityRow[]).map((slot) => ({
     id: slot.id,
     serviceId: slot.serviceId,
-    serviceName: extractText(slot.service.name) || "تجربة",
+    serviceName: extractLocalizedText(slot.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     startTime: slot.startTime,
     endTime: slot.endTime,
     state: slot.state,

@@ -2,7 +2,8 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 
 // Booking detail query — Engineering Sprint (Availability Engine).
 //
@@ -16,6 +17,8 @@ import { extractText } from "@/lib/i18n/extract-text";
 
 export type BookingDetail = {
   id: string;
+  serviceId: string;
+  providerId: string;
   serviceName: string;
   providerName: string;
   status: string;
@@ -24,6 +27,15 @@ export type BookingDetail = {
   slotStartTime: Date | null;
   confirmedAt: Date | null;
   createdAt: Date;
+  /// Marketplace Completion (Review Creation Flow) — whether this
+  /// booking already has a Review (Review.bookingId is @unique, so
+  /// this is a plain existence check, not a count).
+  hasReview: boolean;
+  /// Payment Experience & Financial Operations phase — Payment.id when
+  /// one exists for this booking (Payment.bookingId is @unique), so
+  /// the page can link to /payments/[id] honestly; null renders an
+  /// honest "no Payment yet" state instead of a broken link.
+  paymentId: string | null;
 };
 
 export async function getBookingDetail(bookingId: string): Promise<BookingDetail | null> {
@@ -39,13 +51,15 @@ export async function getBookingDetail(bookingId: string): Promise<BookingDetail
 
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, customerId: customer.id },
-    include: { service: true, provider: true, availability: true },
+    include: { service: true, provider: true, availability: true, review: true, payment: { select: { id: true } } },
   });
 
   if (!booking) return null;
 
   type BookingRow = {
     id: string;
+    serviceId: string;
+    providerId: string;
     status: string;
     seats: number;
     priceSnapshotAmount: unknown;
@@ -55,14 +69,19 @@ export async function getBookingDetail(bookingId: string): Promise<BookingDetail
     service: { name: unknown };
     provider: { businessName: unknown };
     availability: { startTime: Date } | null;
+    review: unknown;
+    payment: { id: string } | null;
   };
 
   const row = booking as BookingRow;
+  const locale = await getLocale();
 
   return {
     id: row.id,
-    serviceName: extractText(row.service.name) || "تجربة",
-    providerName: extractText(row.provider.businessName) || "مزود خدمة",
+    serviceId: row.serviceId,
+    providerId: row.providerId,
+    serviceName: extractLocalizedText(row.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+    providerName: extractLocalizedText(row.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     status: row.status,
     priceSnapshot:
       row.priceSnapshotAmount !== null && row.priceSnapshotCurrency
@@ -72,5 +91,7 @@ export async function getBookingDetail(bookingId: string): Promise<BookingDetail
     slotStartTime: row.availability?.startTime ?? null,
     confirmedAt: row.confirmedAt,
     createdAt: row.createdAt,
+    hasReview: row.review !== null,
+    paymentId: row.payment?.id ?? null,
   };
 }

@@ -48,3 +48,7 @@ next-env.d.ts
 .vercel
 
 .claude/
+
+# Load-test session pool (docs/11-release/LOAD_TEST_PLAN.md) — live
+# staging session cookies, never committed.
+scripts/load-test/.session-pool.json

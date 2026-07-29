@@ -1,5 +1,6 @@
 import { History } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
 // Recent activity (🕒) — no customer-facing Activity model exists.
@@ -16,10 +17,7 @@ export async function ActivityFeed() {
         <span aria-hidden>🕒</span>
         {t("recentActivityTitle")}
       </h3>
-      <div className="mt-6 flex flex-col items-center gap-2 py-6 text-center">
-        <History size={28} strokeWidth={1.5} className="text-foreground/25" />
-        <p className="text-sm text-foreground/50">{t("noActivityLabel")}</p>
-      </div>
+      <EmptyState icon={History} message={t("noActivityLabel")} className="mt-6 border-none" padding="py-6" />
     </Card>
   );
 }

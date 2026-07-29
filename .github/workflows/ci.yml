@@ -1,0 +1,96 @@
+name: CI
+
+# Phase C.1 (Infrastructure & Quality) — first CI workflow for this
+# repository. Enforces the Quality Gates already specified in
+# docs/02-domain-architecture/TECH_STACK.md §14 (automated tests must
+# pass before merge to main) and §16 (dependency scanning integrated
+# into the pipeline) — this workflow implements those requirements,
+# it does not invent new ones.
+#
+# No Playwright/e2e step: docs/02-domain-architecture/TECH_STACK.md §17
+# approves Playwright, but no playwright.config or spec files exist yet
+# in this repository (verified) — running `npm run test:e2e` here would
+# only fail on a missing config, not test anything real. Add an e2e job
+# once real Playwright tests exist, rather than carrying a step that
+# can't currently do its job.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Typecheck, Lint, Unit Tests, Build
+    runs-on: ubuntu-latest
+    env:
+      # Placeholder values, not real credentials — this job only
+      # needs to satisfy scripts/validate-env.ts's shape checks and
+      # let `prisma generate` run (which reads schema.prisma, not a
+      # live database); no step here executes a real database query
+      # or a real Better Auth request.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+      BETTER_AUTH_SECRET: "ci-placeholder-secret"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency audit
+        # Non-blocking for now: known findings are all transitive,
+        # dev-only tooling dependencies (vitest's esbuild/vite chain,
+        # Next's bundled postcss) whose fixes are major, breaking
+        # version bumps (see Phase C.1 report) — not something to force
+        # through a routine PR. Still runs on every build so new,
+        # unrelated findings are visible in the log. Revisit once a
+        # dedicated dependency-upgrade pass resolves the current ones,
+        # then tighten this to fail the build (drop `|| true`).
+        run: npm audit --audit-level=critical || true
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Phase 5.2 (Production Hardening) — the job-level env above never
+      # set NODE_ENV=production, so scripts/env-schema.ts's
+      # production-only rules (NEXT_PUBLIC_APP_URL, BETTER_AUTH_SECRET
+      # length, OTP_PROVIDER, CRON_SECRET) were never actually exercised
+      # before merge. This step runs the same validator with
+      # NODE_ENV=production and a full set of placeholder-but-correctly-
+      # shaped production values, scoped to this step only (not the job
+      # env) so the later `npm run build` step keeps building in its
+      # normal, non-production-gated local/CI mode.
+      - name: Validate production env shape
+        run: npx tsx scripts/validate-env.ts
+        env:
+          NODE_ENV: production
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          BETTER_AUTH_SECRET: "ci-placeholder-secret-at-least-32-characters-long"
+          BETTER_AUTH_URL: "https://barq.example"
+          NEXT_PUBLIC_BETTER_AUTH_URL: "https://barq.example"
+          NEXT_PUBLIC_APP_URL: "https://barq.example"
+          OTP_PROVIDER: "twilio"
+          TWILIO_ACCOUNT_SID: "ACplaceholder00000000000000000000"
+          TWILIO_AUTH_TOKEN: "ci-placeholder-token"
+          TWILIO_FROM_NUMBER: "+10000000000"
+          CRON_SECRET: "ci-placeholder-cron-secret"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build

@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "browse": "Erlebnisse entdecken",
+    "howItWorks": "So funktioniert BARQ",
+    "destinations": "Reiseziele",
+    "signIn": "Anmelden",
+    "myAccount": "Mein Konto",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen"
+  },
+  "hero": {
+    "eyebrow": "Oman neu entdeckt",
+    "title": "Entdecken Sie Omans unvergesslichste Erlebnisse",
+    "subtitle": "Buchen Sie vertrauenswürdige Touren, Guides und Abenteuer in ganz Oman in wenigen Minuten — geprüfte Anbieter, transparente Preise, ganz ohne Aufwand.",
+    "searchPlaceholder": "Erlebnisse, Städte oder Aktivitäten suchen",
+    "searchButton": "Suchen",
+    "ctaPrimary": "Erlebnisse entdecken",
+    "ctaSecondary": "So funktioniert's",
+    "photoComingSoon": "Echte Fotos aus Oman — demnächst"
+  },
+  "trustBar": {
+    "providers": "Vertrauenswürdige lokale Anbieter",
+    "verified": "Geprüfte Erlebnisse",
+    "booking": "Sichere Buchung",
+    "multilingual": "Mehrsprachiger Support"
+  },
+  "credibility": {
+    "verified": "Geprüfte Anbieter",
+    "tracked": "Nachverfolgte Buchungen",
+    "transparent": "Transparente Preise",
+    "secureSignIn": "Sichere Anmeldung"
+  },
+  "featured": {
+    "title": "Ausgewählte Erlebnisse",
+    "subtitle": "Sorgfältig ausgewählte Abenteuer, die Reisende in ganz Oman lieben",
+    "viewAll": "Alle Erlebnisse ansehen",
+    "emptyTitle": "Neue Erlebnisse sind unterwegs",
+    "emptyDescription": "Unsere Anbieter bereiten gerade ihre ersten Erlebnisse vor. Schauen Sie bald wieder vorbei."
+  },
+  "categories": {
+    "title": "Nach Kategorie entdecken",
+    "subtitle": "Finden Sie das Abenteuer, das zu Ihnen passt",
+    "desertSafari": "Wüstensafaris",
+    "mountainTours": "Bergtouren",
+    "coastalTrips": "Küsten- und Strandausflüge",
+    "culturalTours": "Kulturelle Touren",
+    "cityExperiences": "Stadterlebnisse",
+    "adventureSports": "Abenteuersport"
+  },
+  "destinations": {
+    "featuredLabel": "Empfohlen",
+    "title": "Beliebte Reiseziele",
+    "subtitle": "Orte, die Reisende gerade entdecken",
+    "muscat": "Maskat",
+    "salalah": "Salalah",
+    "nizwa": "Nizwa",
+    "wahibaSands": "Wahiba-Sande",
+    "jebelAkhdar": "Jebel Akhdar",
+    "musandam": "Musandam"
+  },
+  "providers": {
+    "title": "Vertrauenswürdige Anbieter",
+    "subtitle": "Jeder Anbieter auf BARQ wird geprüft, bevor er ein Erlebnis veröffentlichen kann",
+    "verifiedBadge": "Geprüfter Anbieter"
+  },
+  "howItWorks": {
+    "title": "So funktioniert BARQ",
+    "subtitle": "Die Buchung Ihres nächsten Erlebnisses dauert nur drei einfache Schritte",
+    "step1Title": "Entdecken",
+    "step1Description": "Durchstöbern Sie geprüfte Erlebnisse in ganz Oman, gefiltert nach Reiseziel, Kategorie und Preis.",
+    "step2Title": "Buchen",
+    "step2Description": "Melden Sie sich mit Ihrer Telefonnummer an, wählen Sie Ihr Datum und bestätigen Sie Ihre Buchung in Minuten.",
+    "step3Title": "Erleben",
+    "step3Description": "Treffen Sie Ihren Guide oder Anbieter und genießen Sie ein nahtloses, vertrauenswürdiges Erlebnis von Anfang bis Ende."
+  },
+  "whyChoose": {
+    "title": "Warum BARQ wählen",
+    "subtitle": "Gemacht für Reisende, die mehr erwarten",
+    "trustTitle": "Geprüft & Vertrauenswürdig",
+    "trustDescription": "Jeder Anbieter wird geprüft und freigegeben, bevor er ein Erlebnis listen kann.",
+    "transparentTitle": "Transparente Preise",
+    "transparentDescription": "Sehen Sie den vollständigen Preis im Voraus — keine versteckten Gebühren, keine Überraschungen an der Kasse.",
+    "fastTitle": "Schnelle & einfache Buchung",
+    "fastDescription": "Buchen Sie in Minuten mit Anmeldung per Telefonnummer — ohne Passwörter, ohne Reibung.",
+    "supportTitle": "Support, wenn Sie ihn brauchen",
+    "supportDescription": "Unser Team hilft Ihnen vor, während und nach Ihrem Erlebnis."
+  },
+  "stats": {
+    "title": "BARQ in Zahlen",
+    "experiencesLabel": "Kuratierte Erlebnisse",
+    "providersLabel": "Geprüfte Anbieter",
+    "destinationsLabel": "Abgedeckte Reiseziele",
+    "customersLabel": "Zufriedene Reisende"
+  },
+  "testimonials": {
+    "title": "Was Reisende sagen",
+    "subtitle": "Echtes Feedback aus der BARQ-Community",
+    "placeholderNote": "Reisebewertungen folgen in Kürze.",
+    "quote1": "Die Buchung war so einfach wie einer Freundin zu schreiben — und unser Guide war fantastisch.",
+    "author1": "Reisender, Maskat",
+    "quote2": "Transparente Preise und ein geprüfter Anbieter haben den entscheidenden Unterschied gemacht.",
+    "author2": "Reisende, Salalah"
+  },
+  "faq": {
+    "title": "Häufig gestellte Fragen",
+    "subtitle": "Alles, was Sie vor der Buchung wissen müssen",
+    "q1": "Wie buche ich ein Erlebnis auf BARQ?",
+    "a1": "Melden Sie sich mit Ihrer Telefonnummer an, durchstöbern Sie Erlebnisse, wählen Sie Ihr Datum und bestätigen Sie Ihre Buchung — ganz ohne Passwort.",
+    "q2": "Sind BARQ-Anbieter geprüft?",
+    "a2": "Ja. Jeder Anbieter wird von unserem Team geprüft und freigegeben, bevor er ein Erlebnis veröffentlichen kann.",
+    "q3": "Kann ich eine Buchung stornieren?",
+    "a3": "Ja, Buchungen können storniert werden, bevor sie vom Anbieter bestätigt werden. Details zur Berechtigung finden Sie in Ihrer Buchung.",
+    "q4": "Welche Sprachen unterstützt BARQ?",
+    "a4": "BARQ ist auf Arabisch, Englisch und in mehreren weiteren Sprachen verfügbar, mit vollständiger Unterstützung in jeder angebotenen Sprache."
+  },
+  "cta": {
+    "title": "Bereit, Oman zu entdecken?",
+    "subtitle": "Werden Sie noch heute Teil von BARQ und buchen Sie Ihr nächstes unvergessliches Erlebnis.",
+    "button": "Jetzt starten"
+  },
+  "footer": {
+    "tagline": "Omans erstklassiger Tourismus-Marktplatz.",
+    "browseHeading": "Entdecken",
+    "companyHeading": "Unternehmen",
+    "aboutLink": "Über BARQ",
+    "contactLink": "Kontakt",
+    "rightsReserved": "Alle Rechte vorbehalten.",
+    "helpLink": "Hilfe-Center",
+    "termsLink": "Nutzungsbedingungen",
+    "privacyLink": "Datenschutzerklärung",
+    "cookiesLink": "Cookie-Richtlinie"
+  }
+}

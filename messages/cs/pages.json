@@ -1,0 +1,141 @@
+{
+  "about": {
+    "title": "O BARQ",
+    "subtitle": "Jedno důvěryhodné místo pro objevování a rezervaci skutečných turistických zážitků.",
+    "missionTitle": "Naše mise",
+    "missionBody": "Dát cestovatelům rychlý a transparentní způsob, jak objevovat a rezervovat turistické zážitky, a místním poskytovatelům nástroje, jak je oslovit — aniž by kterákoli strana po cestě ztratila důvěru.",
+    "visionTitle": "Naše vize",
+    "visionBody": "Tržiště, kde je každá rezervace, cena a aktualizace stavu přesně tím, čím se zdá být — počínaje Ománem, vybudované tak, aby rostlo napříč celým regionem.",
+    "platformTitle": "Co BARQ dělá",
+    "platformBody": "BARQ propojuje zákazníky s poskytovateli turistických zážitků prostřednictvím jednoduchého, sledovaného rezervačního procesu — od hledání přes potvrzení až po dokončení.",
+    "feature": {
+      "searchTitle": "Objevujte",
+      "searchBody": "Procházejte skutečné, zveřejněné zážitky s transparentními cenami stanovenými každým poskytovatelem.",
+      "bookTitle": "Rezervujte",
+      "bookBody": "Vyžádejte si termín během několika kroků a nechte se upozornit, jakmile poskytovatel odpoví.",
+      "trackTitle": "Sledujte",
+      "trackBody": "Sledujte přesný stav své rezervace od žádosti až po dokončení na jednom místě."
+    },
+    "whyTitle": "Proč BARQ",
+    "whyBody": "Každá rezervace na BARQ prochází stejným sledovaným životním cyklem, takže zákazníci a poskytovatelé vždy vidí stejný, přesný stav — žádné hádání, žádné zastaralé informace.",
+    "principlesTitle": "Principy tržiště",
+    "principle": {
+      "trust": "Důvěra",
+      "simplicity": "Jednoduchost",
+      "clarity": "Srozumitelnost",
+      "confidence": "Jistota",
+      "speed": "Rychlost"
+    }
+  },
+  "help": {
+    "title": "Centrum nápovědy",
+    "subtitle": "Návody pro rezervaci, poskytování služeb a všechno mezi tím.",
+    "searchPlaceholder": "Hledat v nápovědě...",
+    "searchButton": "Hledat",
+    "faqCardTitle": "Často kladené otázky",
+    "faqCardDescription": "Rychlé odpovědi na nejčastější otázky o BARQ.",
+    "bookingCardTitle": "Nápověda k rezervaci",
+    "bookingCardDescription": "Jak funguje vyhledávání, žádost a zrušení rezervace.",
+    "providerCardTitle": "Nápověda pro poskytovatele",
+    "providerCardDescription": "Správa vašich služeb, dostupnosti a rezervací jako poskytovatel.",
+    "contactCardTitle": "Kontakt a podpora",
+    "contactCardDescription": "Jak nás kontaktovat a co dělat, když něco nefunguje."
+  },
+  "faq": {
+    "title": "Často kladené otázky",
+    "subtitle": "Odpovědi na otázky, které slýcháme nejčastěji.",
+    "noResultsLabel": "Nebyly nalezeny žádné odpovídající otázky",
+    "accountQuestion": "Potřebuji účet k rezervaci zážitku?",
+    "accountAnswer": "Ano. Přihlašujete se pomocí telefonního čísla a jednorázového ověřovacího kódu — žádné heslo, které byste si museli pamatovat.",
+    "bookingQuestion": "Jak funguje rezervace zážitku?",
+    "bookingAnswer": "Odešlete žádost o rezervaci s preferovaným termínem a počtem míst. Poskytovatel ji poté potvrdí a jakmile se tak stane, budete informováni.",
+    "cancellationQuestion": "Mohu rezervaci po jejím odeslání zrušit?",
+    "cancellationAnswer": "Ano — můžete ji zrušit v sekci Moje rezervace, dokud je žádost čekající nebo potvrzená. Jakmile zážitek začne probíhat nebo je dokončen, zrušení již není možné.",
+    "paymentQuestion": "Jak probíhá platba?",
+    "paymentAnswer": "Cenu stanovuje každý poskytovatel a zobrazuje se před rezervací. Podrobnosti o platbě se řeší odděleně od samotné žádosti o rezervaci.",
+    "providerQuestion": "Jak se stanu poskytovatelem na BARQ?",
+    "providerAnswer": "Účty poskytovatelů procházejí schvalovacím krokem, než se jejich zážitky zobrazí veřejně. Po schválení poskytovatelé spravují své vlastní služby, dostupnost a rezervace z Panelu poskytovatele."
+  },
+  "bookingHelp": {
+    "title": "Nápověda k rezervaci",
+    "subtitle": "Průvodce tím, jak funguje rezervace zážitku od začátku do konce.",
+    "step": {
+      "searchTitle": "Vyhledejte zážitek",
+      "searchBody": "Procházejte zveřejněné zážitky, filtrujte podle ceny nebo poskytovatele a otevřete ten, který vás zajímá.",
+      "requestTitle": "Vyžádejte si termín",
+      "requestBody": "Vyberte dostupný termín a počet míst a poté odešlete žádost o rezervaci.",
+      "confirmTitle": "Nechte se upozornit při potvrzení",
+      "confirmBody": "Poskytovatel vaši žádost posoudí. Jakmile ji potvrdí, uvidíte upozornění a aktualizovaný stav.",
+      "cancelTitle": "Zrušte, pokud se vaše plány změní",
+      "cancelBody": "Dokud je vaše rezervace čekající nebo potvrzená, můžete ji kdykoli zrušit v sekci Moje rezervace — jakmile začne probíhat nebo je dokončena, možnost zrušení se již nezobrazuje."
+    }
+  },
+  "providerHelp": {
+    "title": "Nápověda pro poskytovatele",
+    "subtitle": "Správa vašich zážitků a rezervací na BARQ.",
+    "topic": {
+      "servicesTitle": "Správa vašich služeb",
+      "servicesBody": "Vytvářejte, upravujte, publikujte, pozastavujte nebo archivujte své zážitky v sekci Služby vašeho Panelu poskytovatele.",
+      "availabilityTitle": "Nastavení dostupnosti",
+      "availabilityBody": "Otevírejte termíny a nastavujte kapacitu pro každý zážitek, aby je zákazníci mohli vidět a poptávat.",
+      "bookingsTitle": "Zpracování rezervací",
+      "bookingsBody": "Kontrolujte příchozí žádosti o rezervaci a potvrzujte je nebo je spravujte v sekci Rezervace — žádosti čekající na vaši odpověď jsou jasně označeny.",
+      "dashboardTitle": "Čtení vašeho panelu",
+      "dashboardBody": "Váš panel zobrazuje skutečné metriky rezervací a služeb — čísla odrážejí pouze to, co se skutečně stalo na platformě."
+    }
+  },
+  "contact": {
+    "title": "Kontakt a podpora",
+    "subtitle": "Jak nás kontaktovat a získat pomoc.",
+    "noticeTitle": "Přímý kontakt zatím není propojen",
+    "noticeBody": "Vyhrazená schránka podpory nebo kontaktní formulář zatím na BARQ nejsou zprovozněny. Zatím nejčastější otázky pokrývá Centrum nápovědy níže.",
+    "helpCenterTitle": "Navštívit Centrum nápovědy",
+    "helpCenterBody": "Časté dotazy, nápověda k rezervaci a nápověda pro poskytovatele jsou tam již nyní k dispozici.",
+    "bookingIssuesTitle": "Dotazy ke konkrétní rezervaci",
+    "bookingIssuesBody": "Otevřete rezervaci v sekci Moje rezervace — na stránce s jejími detaily uvidíte kompletní historii stavů a aktuální stav."
+  },
+  "terms": {
+    "title": "Podmínky služby",
+    "section": {
+      "acceptanceTitle": "Přijetí podmínek",
+      "usingPlatformTitle": "Používání platformy",
+      "bookingsAndPaymentsTitle": "Rezervace a platby",
+      "providerObligationsTitle": "Povinnosti poskytovatele",
+      "liabilityTitle": "Omezení odpovědnosti",
+      "changesTitle": "Změny těchto podmínek"
+    }
+  },
+  "privacy": {
+    "title": "Zásady ochrany osobních údajů",
+    "section": {
+      "informationCollectedTitle": "Informace, které shromažďujeme",
+      "howWeUseItTitle": "Jak informace používáme",
+      "dataSharingTitle": "Sdílení údajů",
+      "dataRetentionTitle": "Uchovávání údajů",
+      "yourRightsTitle": "Vaše práva"
+    }
+  },
+  "cookies": {
+    "title": "Zásady používání souborů cookie",
+    "section": {
+      "whatAreCookiesTitle": "Co jsou soubory cookie",
+      "howWeUseCookiesTitle": "Jak soubory cookie používáme",
+      "managingCookiesTitle": "Správa souborů cookie"
+    }
+  },
+  "bookingPolicy": {
+    "title": "Zásady rezervace a zrušení",
+    "section": {
+      "cancellationTitle": "Nárok na zrušení",
+      "cancellationBody": "Rezervaci lze zdarma zrušit, dokud je ve stavu Čekající nebo Potvrzená. Jakmile zážitek začne probíhat nebo je dokončen, zrušení již není možné. Toto pravidlo platí stejně pro každou rezervaci na BARQ.",
+      "paymentsTitle": "Platby",
+      "providerObligationsTitle": "Povinnosti poskytovatele",
+      "disputesTitle": "Spory"
+    }
+  },
+  "legal": {
+    "placeholderNotice": "Tato stránka nastiňuje strukturu, kterou bude následovat konečný právní dokument BARQ. Jde o zástupný obsah, zatím ne o právně schválené zásady.",
+    "lastUpdatedPlaceholder": "Návrh — zatím nedokončeno",
+    "sectionPlaceholderBody": "Úplný obsah této sekce se dokončuje a objeví se zde."
+  }
+}

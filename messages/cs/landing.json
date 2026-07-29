@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "browse": "Prozkoumat zážitky",
+    "howItWorks": "Jak funguje BARQ",
+    "destinations": "Destinace",
+    "signIn": "Přihlásit se",
+    "myAccount": "Můj účet",
+    "openMenu": "Otevřít menu",
+    "closeMenu": "Zavřít menu"
+  },
+  "hero": {
+    "eyebrow": "Omán znovu objevený",
+    "title": "Objevte ty nejnezapomenutelnější zážitky Ománu",
+    "subtitle": "Rezervujte si ověřené prohlídky, průvodce a dobrodružství po celém Ománu během pár minut — prověření poskytovatelé, transparentní ceny, žádné starosti.",
+    "searchPlaceholder": "Hledat zážitky, města nebo aktivity",
+    "searchButton": "Hledat",
+    "ctaPrimary": "Prozkoumat zážitky",
+    "ctaSecondary": "Jak to funguje",
+    "photoComingSoon": "Skutečné fotografie Ománu — již brzy"
+  },
+  "trustBar": {
+    "providers": "Důvěryhodní místní poskytovatelé",
+    "verified": "Ověřené zážitky",
+    "booking": "Bezpečná rezervace",
+    "multilingual": "Vícejazyčná podpora"
+  },
+  "credibility": {
+    "verified": "Ověření poskytovatelé",
+    "tracked": "Sledované rezervace",
+    "transparent": "Transparentní ceny",
+    "secureSignIn": "Bezpečné přihlášení"
+  },
+  "featured": {
+    "title": "Doporučené zážitky",
+    "subtitle": "Pečlivě vybraná dobrodružství, která milují cestovatelé po celém Ománu",
+    "viewAll": "Zobrazit všechny zážitky",
+    "emptyTitle": "Nové zážitky jsou na cestě",
+    "emptyDescription": "Naši poskytovatelé se chystají zveřejnit své první zážitky. Zkuste to znovu brzy."
+  },
+  "categories": {
+    "title": "Prozkoumat podle kategorie",
+    "subtitle": "Najděte typ dobrodružství, který vám sedí",
+    "desertSafari": "Pouštní safari",
+    "mountainTours": "Horské výlety",
+    "coastalTrips": "Pobřežní a plážové výlety",
+    "culturalTours": "Kulturní prohlídky",
+    "cityExperiences": "Městské zážitky",
+    "adventureSports": "Dobrodružné sporty"
+  },
+  "destinations": {
+    "featuredLabel": "Doporučené",
+    "title": "Oblíbené destinace",
+    "subtitle": "Místa, která cestovatelé právě objevují",
+    "muscat": "Muskat",
+    "salalah": "Salálah",
+    "nizwa": "Nizwá",
+    "wahibaSands": "Písky Wahíba",
+    "jebelAkhdar": "Džabal Achdar",
+    "musandam": "Musandam"
+  },
+  "providers": {
+    "title": "Důvěryhodní poskytovatelé",
+    "subtitle": "Každý poskytovatel na BARQ je ověřen, než může zveřejnit zážitek",
+    "verifiedBadge": "Ověřený poskytovatel"
+  },
+  "howItWorks": {
+    "title": "Jak funguje BARQ",
+    "subtitle": "Rezervace vašeho dalšího zážitku zabere jen tři jednoduché kroky",
+    "step1Title": "Objevte",
+    "step1Description": "Procházejte ověřené zážitky po celém Ománu, filtrované podle destinace, kategorie a ceny.",
+    "step2Title": "Rezervujte",
+    "step2Description": "Přihlaste se pomocí telefonního čísla, vyberte datum a potvrďte rezervaci během pár minut.",
+    "step3Title": "Zažijte",
+    "step3Description": "Setkejte se se svým průvodcem nebo poskytovatelem a užijte si bezproblémový, důvěryhodný zážitek od začátku do konce."
+  },
+  "whyChoose": {
+    "title": "Proč zvolit BARQ",
+    "subtitle": "Vytvořeno pro cestovatele, kteří očekávají víc",
+    "trustTitle": "Ověřeno a důvěryhodné",
+    "trustDescription": "Každý poskytovatel je před zveřejněním zážitku zkontrolován a schválen.",
+    "transparentTitle": "Transparentní ceny",
+    "transparentDescription": "Uvidíte celou cenu předem — žádné skryté poplatky, žádná překvapení u platby.",
+    "fastTitle": "Rychlá a jednoduchá rezervace",
+    "fastDescription": "Rezervujte během pár minut díky přihlášení telefonním číslem — bez hesel, bez komplikací.",
+    "supportTitle": "Podpora, když ji potřebujete",
+    "supportDescription": "Náš tým je tu, aby vám pomohl před zážitkem, během něj i po něm."
+  },
+  "stats": {
+    "title": "BARQ v číslech",
+    "experiencesLabel": "Vybraných zážitků",
+    "providersLabel": "Ověřených poskytovatelů",
+    "destinationsLabel": "Pokrytých destinací",
+    "customersLabel": "Spokojených cestovatelů"
+  },
+  "testimonials": {
+    "title": "Co říkají cestovatelé",
+    "subtitle": "Skutečné ohlasy z komunity BARQ",
+    "placeholderNote": "Recenze cestovatelů budou brzy k dispozici.",
+    "quote1": "Rezervace byla stejně snadná jako napsat zprávu kamarádovi — a náš průvodce byl skvělý.",
+    "author1": "Cestovatel, Muskat",
+    "quote2": "Transparentní ceny a ověřený poskytovatel udělaly velký rozdíl.",
+    "author2": "Cestovatelka, Salálah"
+  },
+  "faq": {
+    "title": "Často kladené otázky",
+    "subtitle": "Vše, co potřebujete vědět před rezervací",
+    "q1": "Jak si rezervuji zážitek na BARQ?",
+    "a1": "Přihlaste se pomocí telefonního čísla, procházejte zážitky, vyberte datum a potvrďte rezervaci — bez nutnosti hesla.",
+    "q2": "Jsou poskytovatelé BARQ ověření?",
+    "a2": "Ano. Každého poskytovatele prověří a schválí náš tým, než může zveřejnit zážitek.",
+    "q3": "Mohu rezervaci zrušit?",
+    "a3": "Ano, rezervace lze zrušit předtím, než je poskytovatel potvrdí. Podmínky zjistíte v detailu své rezervace.",
+    "q4": "Jaké jazyky BARQ podporuje?",
+    "a4": "BARQ je k dispozici v arabštině, angličtině a několika dalších jazycích s plnou podporou v každém nabízeném jazyce."
+  },
+  "cta": {
+    "title": "Připraveni objevovat Omán?",
+    "subtitle": "Připojte se k BARQ ještě dnes a rezervujte si svůj další nezapomenutelný zážitek.",
+    "button": "Začít"
+  },
+  "footer": {
+    "tagline": "Prémiové turistické tržiště Ománu.",
+    "browseHeading": "Prozkoumat",
+    "companyHeading": "Společnost",
+    "aboutLink": "O BARQ",
+    "contactLink": "Kontaktujte nás",
+    "rightsReserved": "Všechna práva vyhrazena.",
+    "helpLink": "Centrum nápovědy",
+    "termsLink": "Podmínky služby",
+    "privacyLink": "Zásady ochrany osobních údajů",
+    "cookiesLink": "Zásady používání souborů cookie"
+  }
+}

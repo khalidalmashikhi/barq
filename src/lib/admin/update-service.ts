@@ -1,0 +1,101 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { isValidUuid } from "@/lib/uuid";
+import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
+
+// Update Service (admin-initiated) — Phase 2.3 (Service Foundation).
+// Mirrors src/lib/provider/update-service.ts's validation and field
+// scope exactly (only name/description; status changes go through the
+// separate transition-service-status.ts actions, price changes are out
+// of scope per this phase's DO-NOT list) — no ownership check, since an
+// Admin manages every Service, not just one Provider's own. Unlike the
+// self-service action (which predates Phase 5.2's audit log system),
+// this one audits every call, per this phase's explicit requirement.
+
+export type UpdateServiceResult = { ok: true } | { ok: false; error: ServiceAdminActionErrorCode };
+
+export async function updateService(serviceId: string, formData: FormData): Promise<UpdateServiceResult> {
+  if (!isValidUuid(serviceId)) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  const nameAr = formData.get("nameAr");
+  const nameEn = formData.get("nameEn");
+  const descriptionAr = formData.get("descriptionAr");
+  const descriptionEn = formData.get("descriptionEn");
+
+  if (typeof nameAr !== "string" || typeof nameEn !== "string") {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  const trimmedNameAr = nameAr.trim();
+  const trimmedNameEn = nameEn.trim();
+
+  if (!trimmedNameAr || !trimmedNameEn) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  const trimmedDescriptionAr = typeof descriptionAr === "string" ? descriptionAr.trim() : "";
+  const trimmedDescriptionEn = typeof descriptionEn === "string" ? descriptionEn.trim() : "";
+
+  let admin;
+  try {
+    const auth = await requireAdmin();
+    admin = auth.admin;
+  } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      redirect("/");
+    }
+    if (error instanceof ForbiddenError) {
+      return { ok: false, error: "NO_ADMIN_PROFILE" };
+    }
+    throw error;
+  }
+
+  try {
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+
+    if (!service) {
+      return { ok: false, error: "SERVICE_NOT_FOUND" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.service.update({
+        where: { id: serviceId },
+        data: {
+          name: { ar: trimmedNameAr, en: trimmedNameEn },
+          description:
+            trimmedDescriptionAr || trimmedDescriptionEn
+              ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
+              : undefined,
+        },
+      });
+
+      await recordAuditEvent(
+        {
+          actorType: "ADMIN",
+          actorId: admin.id,
+          action: "service.updated",
+          entityType: "Service",
+          entityId: serviceId,
+          previousValue: { name: service.name as object },
+          newValue: { name: { ar: trimmedNameAr, en: trimmedNameEn } },
+        },
+        tx
+      );
+    });
+
+    return { ok: true };
+  } catch (error) {
+    logger.error("updateService.unexpected_error", {
+      serviceId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return { ok: false, error: "UNKNOWN_ERROR" };
+  }
+}

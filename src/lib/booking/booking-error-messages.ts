@@ -21,12 +21,18 @@ import type { BookingActionErrorCode } from "./booking-action-errors";
 const BOOKING_ERROR_TRANSLATION_KEYS = {
   INVALID_INPUT: "invalidInput",
   NO_CUSTOMER_PROFILE: "noCustomerProfile",
+  NO_PROVIDER_PROFILE: "noProviderProfile",
   SERVICE_UNAVAILABLE: "serviceUnavailable",
   PRICE_UNAVAILABLE: "priceUnavailable",
   SLOT_UNAVAILABLE: "slotUnavailable",
   SLOT_FULL: "slotFull",
+  DUPLICATE_BOOKING: "duplicateBooking",
   BOOKING_NOT_FOUND: "bookingNotFound",
   BOOKING_NOT_CANCELLABLE: "bookingNotCancellable",
+  BOOKING_NOT_PENDING: "bookingNotPending",
+  BOOKING_NOT_STARTABLE: "bookingNotStartable",
+  BOOKING_NOT_COMPLETABLE: "bookingNotCompletable",
+  RATE_LIMITED: "rateLimited",
   UNKNOWN_ERROR: "unknownError",
 } as const satisfies Record<BookingActionErrorCode, string>;
 

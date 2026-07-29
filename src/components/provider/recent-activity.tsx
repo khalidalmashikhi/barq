@@ -1,4 +1,5 @@
 import { Inbox } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
@@ -26,22 +27,33 @@ import type { ProviderRecentBookingItem } from "@/lib/provider/queries/get-provi
 // internally (not the server's runtime-local timezone) and resolves
 // the BCP-47 tag from the current request locale via getLocale(),
 // rather than a hardcoded "ar-OM" literal.
+//
+// Provider Analytics & Business Insights — title/icon/emptyMessage are
+// now optional overrides (defaulting to the original "Recent Activity"
+// values) so this exact component can be reused for a second,
+// differently-scoped list (Recently Cancelled Bookings) instead of
+// duplicating this markup — the existing call site is unchanged.
 
 type ProviderRecentActivityProps = {
   items: ProviderRecentBookingItem[];
+  title?: string;
+  icon?: LucideIcon;
+  emptyMessage?: string;
 };
 
-export async function ProviderRecentActivity({ items }: ProviderRecentActivityProps) {
+export async function ProviderRecentActivity({ items, title, icon, emptyMessage }: ProviderRecentActivityProps) {
   const t = await getServerTranslator("provider");
+  const tBooking = await getServerTranslator("booking");
   const locale = await getLocale();
+  const Icon = icon ?? Inbox;
 
   return (
     <Card hoverLift={false}>
-      <h2 className="text-lg font-semibold text-foreground">{t("recentActivityTitle")}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{title ?? t("recentActivityTitle")}</h2>
 
       {items.length === 0 ? (
         <div className="mt-6">
-          <EmptyState icon={Inbox} message={t("noActivityLabel")} padding="py-8" />
+          <EmptyState icon={Icon} message={emptyMessage ?? t("noActivityLabel")} padding="py-8" />
         </div>
       ) : (
         <ol className="mt-6 flex flex-col gap-4">
@@ -63,7 +75,7 @@ export async function ProviderRecentActivity({ items }: ProviderRecentActivityPr
               <div className="flex items-center gap-3">
                 {item.priceSnapshot && <span className="text-sm font-semibold text-primary">{item.priceSnapshot}</span>}
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${getBookingStatusStyle(item.status)}`}>
-                  {getBookingStatusLabel(item.status)}
+                  {getBookingStatusLabel(item.status, tBooking)}
                 </span>
               </div>
             </li>

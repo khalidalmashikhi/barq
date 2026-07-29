@@ -1,0 +1,141 @@
+{
+  "about": {
+    "title": "About BARQ",
+    "subtitle": "A single, trustworthy place to discover and book real tourism experiences.",
+    "missionTitle": "Our Mission",
+    "missionBody": "To give travelers a fast, transparent way to discover and book tourism experiences, and to give local providers the tools to reach them — without either side losing trust along the way.",
+    "visionTitle": "Our Vision",
+    "visionBody": "A marketplace where every booking, price, and status update is exactly what it claims to be — starting in Oman, built to grow across the region.",
+    "platformTitle": "What BARQ Does",
+    "platformBody": "BARQ connects customers with tourism experience providers through a simple, tracked booking flow — from search to confirmation to completion.",
+    "feature": {
+      "searchTitle": "Discover",
+      "searchBody": "Browse real, published experiences with transparent pricing set by each provider.",
+      "bookTitle": "Book",
+      "bookBody": "Request a time slot in a few steps and get notified the moment a provider responds.",
+      "trackTitle": "Track",
+      "trackBody": "Follow your booking's exact status from request to completion in one place."
+    },
+    "whyTitle": "Why BARQ",
+    "whyBody": "Every booking on BARQ moves through the same tracked lifecycle, so customers and providers always see the same, accurate status — no guesswork, no stale information.",
+    "principlesTitle": "Marketplace Principles",
+    "principle": {
+      "trust": "Trust",
+      "simplicity": "Simplicity",
+      "clarity": "Clarity",
+      "confidence": "Confidence",
+      "speed": "Speed"
+    }
+  },
+  "help": {
+    "title": "Help Center",
+    "subtitle": "Guides for booking, providing, and everything in between.",
+    "searchPlaceholder": "Search help articles...",
+    "searchButton": "Search",
+    "faqCardTitle": "Frequently Asked Questions",
+    "faqCardDescription": "Quick answers to the most common questions about BARQ.",
+    "bookingCardTitle": "Booking Help",
+    "bookingCardDescription": "How searching, requesting, and cancelling a booking works.",
+    "providerCardTitle": "Provider Help",
+    "providerCardDescription": "Managing your services, availability, and bookings as a provider.",
+    "contactCardTitle": "Contact & Support",
+    "contactCardDescription": "How to reach us and what to do if something isn't working."
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Answers to the questions we hear most often.",
+    "noResultsLabel": "No matching questions found",
+    "accountQuestion": "Do I need an account to book an experience?",
+    "accountAnswer": "Yes. You sign in with your phone number and a one-time verification code — no password to remember.",
+    "bookingQuestion": "How does booking an experience work?",
+    "bookingAnswer": "You submit a booking request with your preferred time slot and number of seats. The provider then confirms it, and you're notified as soon as that happens.",
+    "cancellationQuestion": "Can I cancel a booking after requesting it?",
+    "cancellationAnswer": "Yes — you can cancel from My Bookings while the request is pending or confirmed. Cancellation isn't available once the experience is in progress or completed.",
+    "paymentQuestion": "How is payment handled?",
+    "paymentAnswer": "Pricing is set by each provider and shown before you book. Payment details are handled separately from the booking request itself.",
+    "providerQuestion": "How do I become a provider on BARQ?",
+    "providerAnswer": "Provider accounts go through an approval step before their experiences appear publicly. Once approved, providers manage their own services, availability, and bookings from the Provider Dashboard."
+  },
+  "bookingHelp": {
+    "title": "Booking Help",
+    "subtitle": "A walk-through of how booking an experience works, start to finish.",
+    "step": {
+      "searchTitle": "Search for an experience",
+      "searchBody": "Browse published experiences, filter by price or provider, and open the one you're interested in.",
+      "requestTitle": "Request a time slot",
+      "requestBody": "Choose an available time slot and the number of seats, then submit your booking request.",
+      "confirmTitle": "Get notified when confirmed",
+      "confirmBody": "The provider reviews your request. You'll see a notification and an updated status the moment they confirm it.",
+      "cancelTitle": "Cancel if your plans change",
+      "cancelBody": "While your booking is pending or confirmed, you can cancel it any time from My Bookings — no cancellation option appears once it's in progress or completed."
+    }
+  },
+  "providerHelp": {
+    "title": "Provider Help",
+    "subtitle": "Managing your experiences and bookings on BARQ.",
+    "topic": {
+      "servicesTitle": "Managing your services",
+      "servicesBody": "Create, edit, publish, pause, or archive your experiences from the Services section of your Provider Dashboard.",
+      "availabilityTitle": "Setting availability",
+      "availabilityBody": "Open time slots and set capacity for each experience so customers can see and request them.",
+      "bookingsTitle": "Handling bookings",
+      "bookingsBody": "Review incoming booking requests and confirm or manage them from the Bookings section — requests awaiting your response are clearly flagged.",
+      "dashboardTitle": "Reading your dashboard",
+      "dashboardBody": "Your dashboard shows real booking and service metrics — figures reflect only what has actually happened on the platform."
+    }
+  },
+  "contact": {
+    "title": "Contact & Support",
+    "subtitle": "How to reach us and get help.",
+    "noticeTitle": "Direct contact isn't connected yet",
+    "noticeBody": "A dedicated support inbox or contact form isn't wired up on BARQ yet. In the meantime, the Help Center below covers the most common questions.",
+    "helpCenterTitle": "Visit the Help Center",
+    "helpCenterBody": "FAQs, booking guidance, and provider guidance are all available there right now.",
+    "bookingIssuesTitle": "Questions about a specific booking",
+    "bookingIssuesBody": "Open the booking from My Bookings — its detail page shows the full status history and current state."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "section": {
+      "acceptanceTitle": "Acceptance of Terms",
+      "usingPlatformTitle": "Using the Platform",
+      "bookingsAndPaymentsTitle": "Bookings & Payments",
+      "providerObligationsTitle": "Provider Obligations",
+      "liabilityTitle": "Limitation of Liability",
+      "changesTitle": "Changes to These Terms"
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "section": {
+      "informationCollectedTitle": "Information We Collect",
+      "howWeUseItTitle": "How We Use Information",
+      "dataSharingTitle": "Data Sharing",
+      "dataRetentionTitle": "Data Retention",
+      "yourRightsTitle": "Your Rights"
+    }
+  },
+  "cookies": {
+    "title": "Cookie Policy",
+    "section": {
+      "whatAreCookiesTitle": "What Are Cookies",
+      "howWeUseCookiesTitle": "How We Use Cookies",
+      "managingCookiesTitle": "Managing Cookies"
+    }
+  },
+  "bookingPolicy": {
+    "title": "Booking & Cancellation Policy",
+    "section": {
+      "cancellationTitle": "Cancellation Eligibility",
+      "cancellationBody": "A booking can be cancelled free of charge while it is in Pending or Confirmed status. Once an experience is in progress or has been completed, cancellation is no longer available. This rule applies the same way to every booking on BARQ.",
+      "paymentsTitle": "Payments",
+      "providerObligationsTitle": "Provider Obligations",
+      "disputesTitle": "Disputes"
+    }
+  },
+  "legal": {
+    "placeholderNotice": "This page outlines the structure BARQ's final legal document will follow. It is a placeholder, not a legally reviewed policy yet.",
+    "lastUpdatedPlaceholder": "Draft — not yet finalized",
+    "sectionPlaceholderBody": "This section's full content is being finalized and will appear here."
+  }
+}

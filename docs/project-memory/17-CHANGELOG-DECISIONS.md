@@ -1,0 +1,83 @@
+# 17 — Changelog & Decisions Timeline
+
+The permanent architectural and product decision timeline. Distinct from `12-DECISIONS.md`, which logs granular, tactical implementation decisions made *during* a specific phase of work (e.g., "reused enum X instead of creating a new one"); this file logs the higher-level decisions that shape the product and architecture across phases. Cross-link between the two where a tactical decision was made *in service of* one of these — don't duplicate the same fact in both files.
+
+Entries marked **ADR-backed** correspond to a formally Approved (or, for ADR-0009, still-Draft) Architecture Decision Record under `docs/08-governance/adr/` — the ADR is the authoritative source; this timeline summarizes it. Entries marked **Product Direction — not yet an ADR** are real, stated product decisions captured in `docs/project-memory/` during this project's documentation phases, but have not gone through the formal ADR/RFC process (`docs/00-foundation/PROJECT_RULES.md`) — they are durable working direction, not yet a Locked architectural constitution entry. Do not conflate the two when citing authority for a decision.
+
+---
+
+### 2026-07-05 — Modular Monolith, not microservices
+**Decision:** BARQ is one deployable application, internally divided into modules aligned to `DOMAIN_MODEL.md`'s Bounded Contexts; cross-module access only through explicit interfaces/domain events.
+**Reason:** Avoids premature distributed-systems complexity while still keeping module boundaries real and enforced.
+**Impact:** Every future engine (Category, Business, Financial, etc.) is a new module within the same app, not a new service. **ADR-backed: ADR-0002.**
+
+### 2026-07-05 — Bilingual by design (Arabic + English co-equal)
+**Decision:** Arabic and English are co-equal architecture, not "Arabic + a bolted-on translation layer." RTL designed-in, no hardcoded strings, language-neutral domain/API layer.
+**Reason:** BARQ's core market is bilingual by nature; retrofitting bilingual support after building English-first was judged more expensive than designing for it from the start.
+**Impact:** Every entity holding user-facing text (Provider, Service, Notification, etc.) uses a bilingual `{ar, en}` JSON shape from day one. **ADR-backed: ADR-0005** (language-count scope later superseded by ADR-0010; all other principles remain fully in force).
+
+### 2026-07-05 — PostgreSQL + Prisma + UUID v7 database baseline
+**Decision:** PostgreSQL as the primary database, Prisma as ORM, UUID v7 primary keys, all timestamps UTC, money as Decimal/Currency pairs (never Float), files in Object Storage with DB storing metadata only.
+**Reason:** UUID v7 gives time-ordered, index-friendly, multi-region-ready IDs without the coordination cost of sequential integers across a future distributed setup.
+**Impact:** Every model created since follows this convention without exception (verified — all 37 current models use `@id @default(uuid(7))`). **ADR-backed: ADR-0006.**
+
+### 2026-07-05 — Next.js / TypeScript / Node.js / Vercel stack
+**Decision:** Next.js + React + TypeScript frontend; Next.js Route Handlers + Server Actions on Node.js LTS backend; Vercel hosting (dev and initial production).
+**Reason:** Single-framework simplicity for a small team, with Vercel's tight Next.js integration reducing deployment friction.
+**Impact:** `vercel-build` script, `vercel.json` cron config, and the entire deployment pipeline (Phase 5.2) are built specifically against this choice. **ADR-backed: ADR-0007.** Vercel platform affinity is explicitly noted in the ADR as an accepted, non-permanent trade-off.
+
+### 2026-07-05 — AI Agent Boundaries: 17 permanent rules
+**Decision:** An AI agent may never bypass authorization, access the database directly outside its granted API, modify financial records or execute payouts, or approve providers/finalize contracts autonomously — every such action requires mandatory human approval and is universally auditable.
+**Reason:** BARQ handles real money and real trust decisions (provider verification); autonomous AI action in these areas is an unacceptable risk regardless of how capable the AI becomes.
+**Impact:** Binding on any future AI Center work (planned engine #14, roadmap Phase 8) — see `11-SECURITY-POLICY.md` and BR-020. **ADR-backed: ADR-0008.**
+
+### 2026-07-07 — Better Auth gets its own AuthUser model, separate from domain User
+**Decision:** Better Auth's infrastructure-owned fields (name, email, emailVerified, phone) live on a new `AuthUser` model; BARQ's domain `User` stays UUID-v7-only with no name/email fields, linked via a nullable unique field.
+**Reason:** Keeps Better Auth's library-specific requirements from leaking into and constraining the domain model.
+**Impact:** `Session`/`Account` FKs target `AuthUser`, not `User`. **ADR-backed: ADR-0009 — still Draft v0.1, Architecture Review pending**, even though the schema already implements it. See `13-OPEN-QUESTIONS.md`.
+
+### 2026-07-11 — Multilingual expansion to 8 officially targeted languages
+**Decision:** Arabic, English, German, Italian, Polish, French, Czech, Russian — expanding from ADR-0005's original 2-language scope.
+**Reason:** Broader tourist origin coverage for Oman's international visitor base.
+**Impact:** `messages/` directory structure, `src/i18n/locales.ts`, and `src/middleware.ts`'s locale matcher all reflect exactly these 8 locales. **ADR-backed: ADR-0010** (supersedes ADR-0005's language-count scope only — all of ADR-0005's other principles remain in force).
+
+### 2026-07-11 — API-First & Mobile-Ready Architecture
+**Decision:** Reusable capabilities exposed via stable, versioned APIs (not Server-Action-only); one shared business-logic layer serves Web, a future mobile app, AI agents, and future partners alike; domain layer independent of React/Next.js.
+**Reason:** Avoids duplicating business logic across a future mobile app or partner integration; keeps the option open to add a React Native/Expo client without a rewrite.
+**Impact:** Every future engine's capabilities should be designed API-first from the start. **Known current drift**: no `/api/v1/` versioning exists on any endpoint today — see BR-018. **ADR-backed: ADR-0011.**
+
+### 2026-07-22 — Product direction: full product requirements, 15 planned platform engines
+**Decision:** BARQ's product direction expands to include: data-driven categories/subcategories with configurable visibility (`PUBLIC`/`HIDDEN`/`LINK_ONLY`/`INVITE_ONLY`/`SCHEDULED`/`ARCHIVED`); individual-vs-commercial provider onboarding with category-specific requirements; a full financial model distinguishing gross/discount/tax/commission/net/paid/outstanding/settlement/transfer; flexible commission models (percentage/fixed/hybrid/zero/manual); flexible pricing control (admin/provider/both-with-approval/RFQ); and 15 named platform engines to realize all of this.
+**Reason:** Stated as the long-range product vision to guide incremental engine-by-engine implementation, one scoped phase at a time.
+**Impact:** Captured in full in `03-PRODUCT-REQUIREMENTS.md`; broken into a phased roadmap in `../plans/ROADMAP.md`. **Product Direction — not yet an ADR.** Should be formalized into one or more ADRs once the first engine (Dynamic Category Management) reaches implementation, per `docs/00-foundation/PROJECT_RULES.md`'s ADR/RFC process.
+
+### 2026-07-22 — Official Arabic name is "برق"
+**Decision:** The platform's official Arabic name is "برق," never "بارق."
+**Reason:** Brand/naming correctness.
+**Impact:** `messages/ar/common.json`'s `appName` already correctly uses "برق." A known inconsistency exists in `messages/ar/landing.json` (13 uses of "بارق") — flagged for a future content-correction pass, not fixed as part of a documentation-only phase. See BR-022, `13-OPEN-QUESTIONS.md`. **Product Direction — not yet an ADR** (a naming correction is unlikely to need one, but is tracked here for permanence).
+
+### 2026-07-22 — Communication stays inside BARQ; provider contact information is hidden from tourists
+**Decision:** Provider direct phone/WhatsApp/email must never be exposed to tourists; all customer-provider communication (messaging, support tickets, booking inquiries, quote requests) must be mediated by BARQ.
+**Reason:** Trust, safety, and platform-stickiness (disintermediation prevention) for a marketplace business model.
+**Impact:** Already true today by omission (no contact-exposing feature exists yet) — becomes an actively enforced design constraint for the future Internal Messaging Center and Support Center. See `10-COMMUNICATION-POLICY.md`, BR-002/BR-003. **Product Direction — not yet an ADR.**
+
+### 2026-07-22 — Security remains code-controlled; business configuration becomes admin-controlled where safe
+**Decision:** Core security, authentication, payment integrity, and permission enforcement must remain code-controlled. Business configuration (categories, pricing, commissions, translations, homepage content) may become admin-controlled where doing so is safe.
+**Reason:** Balances the product goal of a fully configurable, no-deploy-needed business platform against the non-negotiable need for security/financial integrity to never be misconfigurable by non-engineering staff.
+**Impact:** The governing dividing line for every future engine's design — see `11-SECURITY-POLICY.md`, BR-006. **Product Direction — not yet an ADR**, though it is consistent with and extends ADR-0008's existing human-in-the-loop principle for AI specifically.
+
+### 2026-07-23 — BR-001 (provider-approval enforcement) closed from Target to Enforced
+**Decision:** A provider whose `status` is not `APPROVED` (i.e. `APPLIED`, `UNDER_REVIEW`, `REJECTED`, or `SUSPENDED`) is now blocked in code from creating, editing, publishing, unpublishing, archiving, or duplicating a service, and from creating, editing, deleting, or bulk-creating availability slots.
+**Reason:** `16-BUSINESS-RULES.md` had documented this as a real, verified gap since the initial Project Memory Enhancement pass — `requireProvider()` only confirmed a `Provider` row existed, never that it had been approved. Phase 0 (Foundation Hardening) closed the gap via `requireApprovedProvider()`, a narrow composition over `requireProvider()` (`ARCHITECTURE_PRINCIPLES.md` Principle 18 — composition over duplication), scoped to exactly the 8 service/availability-management call sites BR-001 named.
+**Impact:** `src/lib/auth/rbac.ts` gains `requireApprovedProvider()`; `src/lib/auth/errors.ts`'s `ForbiddenError` gains an optional `code` field to distinguish `PROVIDER_NOT_APPROVED` from a missing provider profile; 8 provider action files updated; translations added in all 8 locales; 9 test files / 34 tests cover the new behavior (3 of those test files — `create-service`, `update-service`, `duplicate-service` — were written in Phase 0.1, closing a gap where the action files existed but had no test coverage at all). Booking-lifecycle actions (accept/reject/start/complete) and read-only provider queries were deliberately left ungated — out of BR-001's named scope, and moot in practice since an unapproved provider cannot have a `PUBLISHED` service to receive bookings against. **Product Direction — not yet an ADR** (an RBAC composition of this size was judged not to require one; see `ARCHITECTURE_PRINCIPLES.md` for the general principle it follows).
+
+---
+
+### 2026-07-26 — Relational Service Taxonomy proposed (Draft ADR-0014), not yet approved
+**Decision:** No architectural decision made yet — this entry records that a proposal now exists. The UX/Navigation Remediation phase (same date) shipped a temporary keyword-match category filter (`getServices()`'s `categoryKeyword`) as an honest, explicitly-temporary UX bridge, since `Service` has no relationship to `Category`/`SubCategory` in the schema. A follow-up documentation/planning task produced `ADR-0014-service-category-relational-taxonomy.md` (Draft — proposes a single nullable `Service.categoryId` + optional nullable `subCategoryId`, rejecting a many-to-many join table as unneeded speculative generality) and `docs/plans/RELATIONAL-SERVICE-TAXONOMY-PLAN.md` (a 4-Stage implementation plan: schema/migration foundation, service assignment/admin support, relational marketplace filtering, compatibility removal/hardening).
+**Reason:** The keyword bridge was scoped as temporary from the moment it shipped; this closes the loop by proposing — not yet approving — the relational fix `07-CATEGORIES.md` and `ADR-0013` had already named as deferred future work.
+**Impact:** `ROADMAP.md`'s Phase 3 (Service Engine) gains a named sub-scope pointing at both new documents. `07-CATEGORIES.md` and `13-OPEN-QUESTIONS.md` updated to reflect the proposal exists. **Neither the ADR nor the plan is approved** — no schema, code, or test was touched by this documentation/planning task, and no implementation Stage may begin without its own separate approval. **ADR-backed: ADR-0014 (Draft, not approved).**
+
+## Not yet dated / pending formal decision
+
+- **Dynamic Category Management, Dynamic Forms, Dynamic Pricing, Dynamic Commission Engine, AI-assisted translation workflow**: all stated as target direction (see `03-PRODUCT-REQUIREMENTS.md`, individual entity pages in `15-DATA-DICTIONARY.md`), but no implementation decision (schema design, engine architecture) has been made yet for any of them — that happens per-engine, in each engine's own separately-approved implementation phase. This timeline will gain a new entry, with a real date, when each is actually decided — not before.

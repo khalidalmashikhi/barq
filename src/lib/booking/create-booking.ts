@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
+import { recordBookingCreated, transitionBooking } from "@/lib/booking/lifecycle";
+import { dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+import { logger } from "@/lib/logger";
+import { checkRateLimit } from "@/lib/rate-limit/rate-limiter";
+import { getBookingCreateRateLimit } from "@/lib/rate-limit/rate-limit-config";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
 // Create booking — Engineering Sprint (Availability Engine).
@@ -93,8 +98,31 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     throw error;
   }
 
+  // Production Hardening — Rate Limiting. Keyed on the authenticated
+  // customer's own id (mirrors this codebase's existing OTP rate limits
+  // keying on the identity being protected, not the request's IP —
+  // see check-resend-cooldown.ts/check-daily-send-limit.ts), so this
+  // guards against a single account scripting repeated bookings, not
+  // against distinct legitimate customers sharing a NAT/proxy IP.
+  // Checked only after authentication succeeds — an unauthenticated
+  // caller can never consume another customer's bucket.
+  const rateLimit = checkRateLimit(`booking-create:${customer.id}`, getBookingCreateRateLimit());
+  if (!rateLimit.allowed) {
+    logger.warn("createBooking.rate_limited", { customerId: customer.id, retryAfterSeconds: rateLimit.retryAfterSeconds });
+    return { ok: false, error: "RATE_LIMITED" };
+  }
+
+  // Production Blocker fix — this re-fetch previously trusted
+  // Service.status alone, never re-checking the provider's own
+  // status/visibility. A provider archived (DEACTIVATED) after
+  // publishing a service kept every one of their services fully
+  // bookable through this action indefinitely — matches this file's
+  // own stated principle ("nothing from the client is trusted... always
+  // re-read from the database here") by re-reading provider status too,
+  // the same gate get-service-detail.ts's getServiceById() and
+  // get-services.ts's listing query already apply.
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, status: "PUBLISHED" },
+    where: { id: serviceId, status: "PUBLISHED", provider: { status: "APPROVED", visible: true } },
   });
 
   if (!service) {
@@ -126,10 +154,38 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     if (!availability) {
       return { ok: false, error: "SLOT_UNAVAILABLE" };
     }
+
+    // Duplicate-booking prevention (Phase C.3 Group 1): the same
+    // customer creating a second, active booking for the exact same
+    // slot has no legitimate use case distinct from "increase seats"
+    // on their existing booking (already supported by the `seats`
+    // field above) — this guards against the ordinary double-submit
+    // case (double-click, a retried request after a slow response).
+    // Best-effort, not atomic: like the capacity guard before Entry
+    // 067 introduced the raw-SQL UPDATE, this is a plain read-then-act
+    // check, not a database-level constraint, so two truly simultaneous
+    // requests from the same customer could theoretically both pass it.
+    // A schema-level unique constraint on (customerId, availabilityId)
+    // would close that gap but is a Prisma schema change, out of this
+    // phase's low-risk scope — documented as a follow-up, not
+    // implemented here. Scoped to slot-based bookings only: a
+    // slot-less service has no natural "same booking" concept to
+    // dedupe against, and repeat bookings there may be legitimate.
+    const existingBooking = await prisma.booking.findFirst({
+      where: {
+        customerId: customer.id,
+        availabilityId,
+        status: { not: "CANCELLED" },
+      },
+    });
+
+    if (existingBooking) {
+      return { ok: false, error: "DUPLICATE_BOOKING" };
+    }
   }
 
   try {
-    const bookingId = await prisma.$transaction(async (tx) => {
+    const { bookingId, hookContext } = await prisma.$transaction(async (tx) => {
       if (availabilityId !== null) {
         // The atomic guard — see the concurrency note above for why
         // this must be raw SQL and why it is safe under concurrent load.
@@ -162,8 +218,29 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
         },
       });
 
-      return booking.id;
+      // Phase E.1 (Booking Lifecycle Engine): the first Booking Timeline
+      // entry, written in the same transaction as the booking itself so
+      // a booking can never exist without at least one history row.
+      await recordBookingCreated({ bookingId: booking.id, actorType: "CUSTOMER", actorId: customer.id }, tx);
+
+      // Phase 4.1: CREATED is a real but momentary status — every new
+      // booking immediately advances to PENDING_PROVIDER inside this
+      // same transaction, so a booking is never observed sitting at
+      // plain CREATED in normal operation. The hook (provider
+      // notification) fires only after this transaction actually
+      // commits — see the dispatchLifecycleHook call below.
+      const hookContext = await transitionBooking(
+        { bookingId: booking.id, toStatus: "PENDING_PROVIDER", actorType: "SYSTEM" },
+        tx
+      );
+
+      return { bookingId: booking.id, hookContext };
     });
+
+    // Fired only after the transaction above has actually committed —
+    // see transition-booking.ts's own comment for why this must happen
+    // out here, not inside transitionBooking() itself.
+    await dispatchLifecycleHook(hookContext);
 
     return { ok: true, bookingId };
   } catch (error) {
@@ -172,8 +249,14 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     }
     // Genuinely unexpected — never expose Prisma/internal exception
     // details to the client; log server-side only and return the
-    // generic code.
-    console.error("[createBooking] unexpected error", error);
+    // generic code. Phase D.3: routed through the shared structured
+    // logger, and only error.message (never the full exception object
+    // — no stack trace, no Prisma error target/values) is captured, per
+    // this codebase's "no sensitive data in logs" standard.
+    logger.error("createBooking.unexpected_error", {
+      serviceId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 }

@@ -4,5 +4,12 @@
   "serviceNotFoundTitle": "Experience Not Found",
   "defaultDescription": "BARQ — Smart Tourism Operations Platform",
   "servicesListDescription": "Explore trustworthy tourism experiences in the Sultanate of Oman",
-  "serviceDescriptionFallback": "Book {serviceName} from {providerName} via {appName}"
+  "serviceDescriptionFallback": "Book {serviceName} from {providerName} via {appName}",
+  "providerNotFoundTitle": "Provider Not Found",
+  "providerDescriptionFallback": "Discover tourism experiences by {providerName} on {appName}",
+  "legalTermsDescription": "BARQ's Terms of Service for booking tourism experiences in Oman — a structural draft, not yet a finalized legal document.",
+  "legalPrivacyDescription": "How BARQ handles personal data — a structural draft, not yet a finalized legal document.",
+  "legalCookiesDescription": "How BARQ uses cookies on its platform — a structural draft, not yet a finalized legal document.",
+  "legalBookingPolicyDescription": "BARQ's booking, confirmation, and cancellation policy — a structural draft, not yet a finalized legal document.",
+  "loginDescription": "Sign in to BARQ to book tourism experiences across Oman and manage your bookings."
 }

@@ -1,0 +1,141 @@
+{
+  "about": {
+    "title": "Über BARQ",
+    "subtitle": "Ein einziger, vertrauenswürdiger Ort, um echte touristische Erlebnisse zu entdecken und zu buchen.",
+    "missionTitle": "Unsere Mission",
+    "missionBody": "Reisenden eine schnelle, transparente Möglichkeit zu bieten, touristische Erlebnisse zu entdecken und zu buchen, und lokalen Anbietern die Werkzeuge, um sie zu erreichen — ohne dass eine Seite dabei das Vertrauen verliert.",
+    "visionTitle": "Unsere Vision",
+    "visionBody": "Ein Marktplatz, auf dem jede Buchung, jeder Preis und jede Statusaktualisierung genau das ist, was sie vorgibt zu sein — beginnend in Oman, gebaut, um in der Region zu wachsen.",
+    "platformTitle": "Was BARQ macht",
+    "platformBody": "BARQ verbindet Kunden mit Anbietern touristischer Erlebnisse über einen einfachen, nachverfolgbaren Buchungsablauf — von der Suche über die Bestätigung bis zum Abschluss.",
+    "feature": {
+      "searchTitle": "Entdecken",
+      "searchBody": "Durchstöbern Sie echte, veröffentlichte Erlebnisse mit transparenten, von jedem Anbieter festgelegten Preisen.",
+      "bookTitle": "Buchen",
+      "bookBody": "Fordern Sie in wenigen Schritten ein Zeitfenster an und werden Sie benachrichtigt, sobald ein Anbieter antwortet.",
+      "trackTitle": "Verfolgen",
+      "trackBody": "Verfolgen Sie den genauen Status Ihrer Buchung von der Anfrage bis zum Abschluss an einem Ort."
+    },
+    "whyTitle": "Warum BARQ",
+    "whyBody": "Jede Buchung auf BARQ durchläuft denselben nachverfolgten Lebenszyklus, sodass Kunden und Anbieter stets denselben, korrekten Status sehen — kein Rätselraten, keine veralteten Informationen.",
+    "principlesTitle": "Marktplatz-Prinzipien",
+    "principle": {
+      "trust": "Vertrauen",
+      "simplicity": "Einfachheit",
+      "clarity": "Klarheit",
+      "confidence": "Sicherheit",
+      "speed": "Geschwindigkeit"
+    }
+  },
+  "help": {
+    "title": "Hilfe-Center",
+    "subtitle": "Anleitungen zum Buchen, Anbieten und allem dazwischen.",
+    "searchPlaceholder": "Hilfeartikel durchsuchen...",
+    "searchButton": "Suchen",
+    "faqCardTitle": "Häufig gestellte Fragen",
+    "faqCardDescription": "Schnelle Antworten auf die häufigsten Fragen zu BARQ.",
+    "bookingCardTitle": "Buchungshilfe",
+    "bookingCardDescription": "Wie Suche, Anfrage und Stornierung einer Buchung funktionieren.",
+    "providerCardTitle": "Anbieter-Hilfe",
+    "providerCardDescription": "Verwaltung Ihrer Dienstleistungen, Verfügbarkeiten und Buchungen als Anbieter.",
+    "contactCardTitle": "Kontakt & Support",
+    "contactCardDescription": "Wie Sie uns erreichen und was zu tun ist, wenn etwas nicht funktioniert."
+  },
+  "faq": {
+    "title": "Häufig gestellte Fragen",
+    "subtitle": "Antworten auf die Fragen, die wir am häufigsten hören.",
+    "noResultsLabel": "Keine passenden Fragen gefunden",
+    "accountQuestion": "Brauche ich ein Konto, um ein Erlebnis zu buchen?",
+    "accountAnswer": "Ja. Sie melden sich mit Ihrer Telefonnummer und einem einmaligen Bestätigungscode an — kein Passwort zu merken.",
+    "bookingQuestion": "Wie funktioniert die Buchung eines Erlebnisses?",
+    "bookingAnswer": "Sie senden eine Buchungsanfrage mit Ihrem bevorzugten Zeitfenster und der Anzahl der Plätze. Der Anbieter bestätigt sie anschließend, und Sie werden benachrichtigt, sobald dies geschieht.",
+    "cancellationQuestion": "Kann ich eine Buchung nach der Anfrage stornieren?",
+    "cancellationAnswer": "Ja — Sie können unter Meine Buchungen stornieren, solange die Anfrage aussteht oder bestätigt ist. Eine Stornierung ist nicht mehr möglich, sobald das Erlebnis begonnen hat oder abgeschlossen ist.",
+    "paymentQuestion": "Wie wird die Zahlung abgewickelt?",
+    "paymentAnswer": "Die Preise werden von jedem Anbieter festgelegt und vor der Buchung angezeigt. Zahlungsdetails werden getrennt von der eigentlichen Buchungsanfrage abgewickelt.",
+    "providerQuestion": "Wie werde ich Anbieter auf BARQ?",
+    "providerAnswer": "Anbieterkonten durchlaufen einen Genehmigungsschritt, bevor ihre Erlebnisse öffentlich erscheinen. Nach der Genehmigung verwalten Anbieter ihre eigenen Dienstleistungen, Verfügbarkeiten und Buchungen über das Anbieter-Dashboard."
+  },
+  "bookingHelp": {
+    "title": "Buchungshilfe",
+    "subtitle": "Ein Rundgang durch die Buchung eines Erlebnisses, von Anfang bis Ende.",
+    "step": {
+      "searchTitle": "Nach einem Erlebnis suchen",
+      "searchBody": "Durchstöbern Sie veröffentlichte Erlebnisse, filtern Sie nach Preis oder Anbieter und öffnen Sie das Erlebnis, das Sie interessiert.",
+      "requestTitle": "Ein Zeitfenster anfragen",
+      "requestBody": "Wählen Sie ein verfügbares Zeitfenster und die Anzahl der Plätze, und senden Sie dann Ihre Buchungsanfrage.",
+      "confirmTitle": "Benachrichtigung bei Bestätigung erhalten",
+      "confirmBody": "Der Anbieter prüft Ihre Anfrage. Sie sehen eine Benachrichtigung und einen aktualisierten Status, sobald er sie bestätigt.",
+      "cancelTitle": "Stornieren, wenn sich Ihre Pläne ändern",
+      "cancelBody": "Solange Ihre Buchung aussteht oder bestätigt ist, können Sie sie jederzeit unter Meine Buchungen stornieren — sobald sie begonnen hat oder abgeschlossen ist, erscheint keine Stornierungsoption mehr."
+    }
+  },
+  "providerHelp": {
+    "title": "Anbieter-Hilfe",
+    "subtitle": "Verwaltung Ihrer Erlebnisse und Buchungen auf BARQ.",
+    "topic": {
+      "servicesTitle": "Ihre Dienstleistungen verwalten",
+      "servicesBody": "Erstellen, bearbeiten, veröffentlichen, pausieren oder archivieren Sie Ihre Erlebnisse im Bereich Dienstleistungen Ihres Anbieter-Dashboards.",
+      "availabilityTitle": "Verfügbarkeit festlegen",
+      "availabilityBody": "Öffnen Sie Zeitfenster und legen Sie die Kapazität für jedes Erlebnis fest, damit Kunden sie sehen und anfragen können.",
+      "bookingsTitle": "Buchungen bearbeiten",
+      "bookingsBody": "Prüfen Sie eingehende Buchungsanfragen und bestätigen oder verwalten Sie sie im Bereich Buchungen — Anfragen, die auf Ihre Antwort warten, sind klar gekennzeichnet.",
+      "dashboardTitle": "Ihr Dashboard lesen",
+      "dashboardBody": "Ihr Dashboard zeigt echte Buchungs- und Dienstleistungskennzahlen — die Zahlen spiegeln nur das wider, was tatsächlich auf der Plattform passiert ist."
+    }
+  },
+  "contact": {
+    "title": "Kontakt & Support",
+    "subtitle": "Wie Sie uns erreichen und Hilfe erhalten.",
+    "noticeTitle": "Direkter Kontakt ist noch nicht verbunden",
+    "noticeBody": "Ein dedizierter Support-Posteingang oder ein Kontaktformular ist auf BARQ noch nicht eingerichtet. In der Zwischenzeit deckt das Hilfe-Center unten die häufigsten Fragen ab.",
+    "helpCenterTitle": "Hilfe-Center besuchen",
+    "helpCenterBody": "FAQs, Buchungshinweise und Anbieterhinweise sind dort bereits jetzt verfügbar.",
+    "bookingIssuesTitle": "Fragen zu einer bestimmten Buchung",
+    "bookingIssuesBody": "Öffnen Sie die Buchung unter Meine Buchungen — ihre Detailseite zeigt den vollständigen Statusverlauf und den aktuellen Zustand."
+  },
+  "terms": {
+    "title": "Nutzungsbedingungen",
+    "section": {
+      "acceptanceTitle": "Annahme der Bedingungen",
+      "usingPlatformTitle": "Nutzung der Plattform",
+      "bookingsAndPaymentsTitle": "Buchungen & Zahlungen",
+      "providerObligationsTitle": "Pflichten des Anbieters",
+      "liabilityTitle": "Haftungsbeschränkung",
+      "changesTitle": "Änderungen dieser Bedingungen"
+    }
+  },
+  "privacy": {
+    "title": "Datenschutzerklärung",
+    "section": {
+      "informationCollectedTitle": "Informationen, die wir erfassen",
+      "howWeUseItTitle": "Wie wir Informationen verwenden",
+      "dataSharingTitle": "Datenweitergabe",
+      "dataRetentionTitle": "Datenspeicherung",
+      "yourRightsTitle": "Ihre Rechte"
+    }
+  },
+  "cookies": {
+    "title": "Cookie-Richtlinie",
+    "section": {
+      "whatAreCookiesTitle": "Was sind Cookies",
+      "howWeUseCookiesTitle": "Wie wir Cookies verwenden",
+      "managingCookiesTitle": "Cookies verwalten"
+    }
+  },
+  "bookingPolicy": {
+    "title": "Buchungs- und Stornierungsbedingungen",
+    "section": {
+      "cancellationTitle": "Stornierungsberechtigung",
+      "cancellationBody": "Eine Buchung kann kostenlos storniert werden, solange sie sich im Status Ausstehend oder Bestätigt befindet. Sobald ein Erlebnis begonnen hat oder abgeschlossen wurde, ist eine Stornierung nicht mehr möglich. Diese Regel gilt gleichermaßen für jede Buchung auf BARQ.",
+      "paymentsTitle": "Zahlungen",
+      "providerObligationsTitle": "Pflichten des Anbieters",
+      "disputesTitle": "Streitfälle"
+    }
+  },
+  "legal": {
+    "placeholderNotice": "Diese Seite skizziert die Struktur, der BARQs endgültiges Rechtsdokument folgen wird. Es handelt sich um einen Platzhalter, noch keine rechtlich geprüfte Richtlinie.",
+    "lastUpdatedPlaceholder": "Entwurf — noch nicht finalisiert",
+    "sectionPlaceholderBody": "Der vollständige Inhalt dieses Abschnitts wird derzeit finalisiert und erscheint hier."
+  }
+}

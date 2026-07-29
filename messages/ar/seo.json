@@ -4,5 +4,12 @@
   "serviceNotFoundTitle": "التجربة غير موجودة",
   "defaultDescription": "برق — منصة تشغيل سياحي ذكية",
   "servicesListDescription": "استكشف التجارب السياحية الموثوقة في سلطنة عُمان",
-  "serviceDescriptionFallback": "احجز {serviceName} من {providerName} عبر {appName}"
+  "serviceDescriptionFallback": "احجز {serviceName} من {providerName} عبر {appName}",
+  "providerNotFoundTitle": "مزود الخدمة غير موجود",
+  "providerDescriptionFallback": "اكتشف تجارب سياحية من {providerName} عبر {appName}",
+  "legalTermsDescription": "شروط الخدمة الخاصة ببرق لحجز التجارب السياحية في عُمان — مسودة هيكلية، وليست وثيقة قانونية نهائية بعد.",
+  "legalPrivacyDescription": "كيفية تعامل برق مع البيانات الشخصية — مسودة هيكلية، وليست وثيقة قانونية نهائية بعد.",
+  "legalCookiesDescription": "كيفية استخدام برق لملفات تعريف الارتباط على منصتها — مسودة هيكلية، وليست وثيقة قانونية نهائية بعد.",
+  "legalBookingPolicyDescription": "سياسة الحجز والتأكيد والإلغاء في برق — مسودة هيكلية، وليست وثيقة قانونية نهائية بعد.",
+  "loginDescription": "سجّل الدخول إلى برق لحجز تجارب سياحية في جميع أنحاء عُمان وإدارة حجوزاتك."
 }

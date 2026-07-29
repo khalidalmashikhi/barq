@@ -14,10 +14,23 @@ export class UnauthenticatedError extends Error {
   }
 }
 
-/** A valid session exists, but the required role is not present. Maps to HTTP 403. */
+/**
+ * A valid session exists, but the required role is not present — or is
+ * present but doesn't meet some further, named condition (e.g. a
+ * Provider that exists but isn't yet APPROVED). Maps to HTTP 403.
+ *
+ * `code` is optional and lets a caller distinguish *why* authorization
+ * failed without needing a second error class per reason (Phase 0 —
+ * Foundation Hardening, added for requireApprovedProvider()'s
+ * PROVIDER_NOT_APPROVED case). Existing throws that omit it are
+ * unaffected — this is additive, not a breaking change.
+ */
 export class ForbiddenError extends Error {
-  constructor(message = "Insufficient permissions") {
+  code?: string;
+
+  constructor(message = "Insufficient permissions", code?: string) {
     super(message);
     this.name = "ForbiddenError";
+    this.code = code;
   }
 }

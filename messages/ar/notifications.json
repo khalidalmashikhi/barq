@@ -1,0 +1,16 @@
+{
+  "pageTitle": "الإشعارات",
+  "emptyStateLabel": "لا توجد إشعارات بعد",
+  "noNotificationsOnPageLabel": "لا توجد إشعارات في هذه الصفحة",
+  "markAllReadButton": "تعليم الكل كمقروء",
+  "markReadAriaLabel": "تعليم كمقروء",
+  "unreadBadgeAriaLabel": "{count} إشعارات غير مقروءة",
+  "viewAllLabel": "عرض جميع الإشعارات",
+  "categoryNew": "جديد",
+  "categoryConfirmed": "مؤكد",
+  "categoryRejected": "مرفوض",
+  "categoryCancelled": "ملغى",
+  "categoryExpired": "منتهي الصلاحية",
+  "categoryReview": "تقييم",
+  "categoryGeneral": "عام"
+}

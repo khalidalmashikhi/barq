@@ -11,7 +11,7 @@
 
 ## A Note on the BARQ Logo
 
-Section 4 instructs this document to reference the BARQ logo for color derivation and Section 3 instructs it not to redesign the logo. No logo file has been provided in this conversation. This document therefore defines the color system's **structure and roles** (§4) and brand identity's **qualities** (§3) without inventing specific hex values as if derived from a real asset that hasn't been supplied — doing so would be fabricating a brand fact, not designing from one. Wherever a specific value would normally appear, this document states the requirement instead and flags it in Open Decisions (§22). This is stated once here rather than repeated at every instance below.
+**Update (2026-07, Brand Identity Reset, Phase 1–2):** the official BARQ logo now exists (`public/Barqlogo.png`) and the color values this section previously deferred are resolved — see §4 below. The reasoning that follows was true when this document was first written and is kept for the historical record: Section 4 originally instructed this document to reference the BARQ logo for color derivation and Section 3 instructed it not to redesign the logo, but no logo file had been supplied, so specific hex values were deliberately not invented — doing so would have been fabricating a brand fact, not designing from one. That gap is now closed; Open Decision #1 (§22) is resolved accordingly.
 
 ---
 
@@ -38,20 +38,38 @@ BARQ's design system exists to make a premium, trustworthy tourism platform feel
 - **Voice:** Direct, respectful, never patronizing — consistent with treating both Customers and Providers as capable adults (per this project's own tone conventions applied to product voice).
 - **Tone:** Warm but not casual in Arabic or English — the same register in both languages, not a formal English voice paired with an overly casual Arabic one or vice versa, which would itself be a bilingual-parity failure (`ADR-0005`).
 - **Visual Direction:** Light-first (§4), clean typography-led hierarchy (§5), generous whitespace, restrained use of color reserved for meaning (status, action) rather than decoration.
-- **Logo:** Not redesigned by this document, per instruction. The existing BARQ logo's colors inform §4's palette once the actual asset is available (see the note at the top of this document) — this document does not invent logo-derived values in its absence.
+- **Logo:** Not redesigned by this document, per instruction. The official BARQ logo (`public/Barqlogo.png`) now exists; its colors inform §4's palette below (see the note at the top of this document for how that gap was closed). The mark fuses an abstract Arabic calligraphic stroke (referencing "برق" — lightning/flash, the brand name itself) with a faceted, gem-like badge in warm and cool tones, plus a full lockup (wordmark, tagline, flight motif) reinforcing speed/movement. Two official exports exist for implementation use: `public/branding/barq-mark.png` (icon-only, for compact placements) and `public/branding/barq-logo-full.png` (full lockup, for placements with real space) — both mechanical crops of the single source asset, nothing redrawn.
 
 ## 4. Color System
 
-**Structure and roles**, without invented hex values (see note above):
+**Resolved (2026-07, Brand Identity Reset).** Every value below was extracted directly from the official logo (`public/Barqlogo.png`) via pixel-sampling — every opaque, non-white pixel clustered into color families, then averaged per family, weighted by pixel count — not eyedropped or invented. Full extraction methodology, sample counts, and WCAG contrast validation live in the Phase 1/2 implementation record; this section states the approved roles and rules.
 
-- **Primary:** The dominant brand color, derived from the BARQ logo once available — carries the platform's primary calls-to-action and brand presence.
-- **Secondary:** A complementary color supporting Primary, used for secondary actions and accents that shouldn't compete with Primary.
-- **Accent:** A distinct highlight color for drawing attention to a specific, limited element (e.g. a live-tracking indicator) — used sparingly, consistent with Clarity over Decoration (§2).
-- **Success / Warning / Error:** Semantic colors with meaning fixed regardless of brand palette changes — a Booking Confirmed state, a Wallet low-balance warning, and a Payment failure must always be visually distinguishable by color alone as a supporting (never sole) signal, per §15's accessibility requirement that color is never the only means of conveying status.
-- **Neutral:** A grayscale range for text, borders, and non-semantic UI structure — the majority of any screen's actual pixel area, consistent with Clarity over Decoration.
+| Role | Hex | Status |
+|---|---|---|
+| Primary — Navy | `#094367` | Functional — 10.45:1 on white (AAA). Safe for text and solid buttons. |
+| Secondary (Dark Teal) | `#077588` | Functional — 5.37:1 on white (AA). Safe for text and solid buttons. Genuinely extracted from the logo, not synthesized. |
+| Secondary (Bright Teal) | `#1ABBAF` | Decorative only — 2.39:1 on white, FAILS AA in either text direction. |
+| Accent (Orange) | `#F27B2E` | Decorative only — 2.75:1 on white, FAILS AA in either text direction. |
+| Accent, accessible variant | `#B55C22` | Functional — 4.65:1 with white text (AA). A darkened derivative of Accent, for buttons/functional text needing full contrast. |
+| Muted (Sand) | `#D4A05E` | Decorative/tint only — 2.34:1 on white, FAILS AA. Supporting marketing/illustration color, not a UI surface or control color. |
+| Neutral (Warm Grey) | `#918982` | 3.44:1 on white — AA for large text/UI components only, not body text. |
+| Success | `#16A34A` | Semantic, unchanged by the brand reset — no logo anchor; standard accessible green kept for its own conventional meaning. |
+| Danger | `#DC2626` | Semantic, unchanged by the brand reset — same reasoning as Success. |
+| Warning | `#F2A61E` | New semantic color, deliberately not logo-derived (own conventional meaning). |
+| Info | `#1E5265` | New semantic color, deliberately not logo-derived. |
+
+**The binding usage rule:** Navy and Dark Teal are the platform's **functional** colors — they carry text, buttons, links, and any UI element that must pass WCAG AA. Bright Teal, Orange, and Sand are **primarily decorative** — small accents, icons without text on them, illustration fills, low-opacity background tints with Navy text on top (the existing `bg-*/15`-style pattern already used for icon chips). **Raw Orange and raw Bright Teal must never carry white text** — both fail AA (and even the looser 3:1 non-text/UI-component threshold) in that pairing; use the accessible Accent variant (`#B55C22`) or Dark Teal instead wherever a solid color needs a white label. **Sand is a supporting marketing and illustration color, not a standard UI surface or control color** — it belongs in hero treatments, category art, and tinted backgrounds, not in buttons, form fields, or navigation.
+
+**Structure and roles**, restated against the resolved values above:
+
+- **Primary:** Navy — the dominant brand color, carries the platform's primary calls-to-action and brand presence.
+- **Secondary:** Dark Teal (functional) / Bright Teal (decorative) — see the usage rule above; secondary actions and accents that shouldn't compete with Primary.
+- **Accent:** Orange (decorative) / accessible Accent variant (functional) — a distinct highlight color for drawing attention to a specific, limited element (e.g. a live-tracking indicator) — used sparingly, consistent with Clarity over Decoration (§2).
+- **Success / Warning / Error / Info:** Semantic colors with meaning fixed regardless of brand palette — a Booking Confirmed state, a Wallet low-balance warning, and a Payment failure must always be visually distinguishable by color alone as a supporting (never sole) signal, per §15's accessibility requirement that color is never the only means of conveying status.
+- **Neutral:** Warm Grey range for text, borders, and non-semantic UI structure — the majority of any screen's actual pixel area, consistent with Clarity over Decoration.
 - **Surface / Background:** Distinct layering colors so cards, modals, and page background remain visually distinguishable without heavy borders or shadows doing all the work.
-- **Text:** A defined set of text colors (primary text, secondary/muted text, disabled text, on-color text) with contrast ratios meeting §15's WCAG AA target against every Surface/Background/semantic color they appear on — this is a binding constraint on the palette, not a separate accessibility afterthought.
-- **Dark Mode (future):** Not part of V1 (`PRODUCT_REQUIREMENTS.md` §6 doesn't name it explicitly, but this document treats it as future per §20) — the color system's structure (roles above) is designed so a dark-mode palette can be defined later against the same roles, not requiring a redesign of what each color *means*.
+- **Text:** Primary text, secondary/muted text, disabled text, and on-color text all meet §15's WCAG AA target against every Surface/Background/semantic color they appear on — this is a binding constraint on the palette (see the contrast table above), not a separate accessibility afterthought.
+- **Dark Mode (future):** Not part of V1 (`PRODUCT_REQUIREMENTS.md` §6 doesn't name it explicitly, but this document treats it as future per §20) — structural CSS variables exist (lightened equivalents of the same extracted hues) but this is scaffolding only, not a separately approved design decision.
 
 **Accessibility considerations:** Every color role above must satisfy WCAG AA contrast (§15) in both light-mode contexts this document defines now and any future dark-mode context: color is never the sole means of distinguishing state (Success/Warning/Error always pair with an icon or label, not color alone); and the palette must work identically in RTL and LTR layouts, since color has no inherent directionality but surrounding UI does.
 
@@ -210,7 +228,7 @@ Explicitly forbidden, without exception:
 
 Intentionally deferred — not invented here:
 
-1. **Specific color palette values** (§4) — pending the actual BARQ logo asset; this document defines roles only.
+1. ~~Specific color palette values (§4) — pending the actual BARQ logo asset.~~ **Resolved 2026-07** — the logo asset now exists and exact values are documented in §4.
 2. **Specific Arabic and English typefaces** (§5) — pending a real typographic evaluation against the brand direction in §3.
 3. **Arabic numeral presentation** (Western Arabic vs. Eastern Arabic numerals, §16) — a genuine cultural/readability decision, not assumed here.
 4. **Specific breakpoint pixel values** (§9) — deferred to implementation.
@@ -231,7 +249,7 @@ Intentionally deferred — not invented here:
 - `LOCALIZATION.md`, `ACCESSIBILITY.md` *(not yet written)* — will own deeper implementation-adjacent detail this document intentionally stays above
 
 ## Open Questions
-1. This document assumes the BARQ logo, once provided, will inform but not dictate the entire palette (§4 also needs Success/Warning/Error/Neutral roles the logo likely doesn't define). Should logo-derived colors be limited strictly to Primary/Secondary, with the rest designed independently against accessibility requirements? Flagging for confirmation once the actual asset exists, not decided unilaterally now.
+1. ~~Should logo-derived colors be limited strictly to Primary/Secondary...~~ **Resolved 2026-07:** yes — Primary, Secondary, Accent, and Neutral are logo-derived (Navy/Teal/Orange/Warm Grey); Success, Danger, Warning, and Info were deliberately kept independent of the logo, since semantic-status colors carry their own fixed conventional meaning regardless of brand palette (see §4).
 2. Should `LOCALIZATION.md` and `ACCESSIBILITY.md` (both referenced above as not yet written) be sequenced soon, given how much of §15–§16 here defers to them? A sequencing question for whoever directs the next phase, not decided here.
 
 ## Future ADR References

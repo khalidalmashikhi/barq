@@ -1,7 +1,20 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { phoneNumber } from "better-auth/plugins";
+import { createAuthMiddleware } from "better-auth/api";
 import { prisma } from "@/lib/db";
+import { getOtpProvider } from "@/lib/otp/get-otp-provider";
+import { getOtpConfig } from "@/lib/otp/otp-config";
+import { checkResendCooldown } from "@/lib/otp/check-resend-cooldown";
+import { checkDailySendLimit } from "@/lib/otp/check-daily-send-limit";
+import {
+  logOtpRequested,
+  logResendRejected,
+  logDailyLimitRejected,
+  logOtpSent,
+  logOtpSendFailed,
+  logVerifyOutcome,
+} from "@/lib/otp/audit";
 
 // Better Auth server configuration — Engineering Sprint 2 (Auth Foundation),
 // updated by the Phone OTP Schema Support sprint now that `phoneNumberVerified`
@@ -58,6 +71,51 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
 
+  // Phase 5.2 (Production Hardening) — previously unset, meaning
+  // origin/CSRF checking relied entirely on Better Auth's weaker
+  // implicit baseURL-only mode. Explicit allowlist of every real origin
+  // this app is actually served from; .filter(Boolean) drops
+  // NEXT_PUBLIC_APP_URL when it's unset (optional outside production —
+  // see scripts/env-schema.ts). Additive safety only: does not change
+  // behavior for any legitimate request from an origin already implied
+  // by baseURL.
+  trustedOrigins: [process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_APP_URL].filter(
+    (origin): origin is string => Boolean(origin)
+  ),
+
+  // Production Hardening — cookie flags verified against the actual
+  // installed Better Auth version (node_modules/better-auth/dist/
+  // cookies/index.mjs's createCookieGetter/createCookie), not assumed:
+  //
+  //   - httpOnly: true — hardcoded unconditionally by the library
+  //     itself (not derived from any option below). Already correct;
+  //     nothing to configure.
+  //   - sameSite: "lax" — the library's own unconditional default.
+  //     Deliberately left as-is rather than tightened to "strict":
+  //     BARQ's sign-in flow is a full-page redirect after OTP
+  //     verification (no popup/iframe), which "lax" already protects
+  //     correctly, and "strict" would additionally drop the session
+  //     cookie on some cross-site-referred top-level navigations (e.g.
+  //     a shared booking link opened from another site) with no
+  //     security benefit this app actually needs.
+  //   - secure: computed by the library as `useSecureCookies ??
+  //     (baseURL starts with "https://" ? true : isProduction)` — so a
+  //     correctly configured production deploy (BETTER_AUTH_URL
+  //     starting with https://) already gets secure:true today WITHOUT
+  //     this block. Made explicit anyway, tied to NODE_ENV (the same
+  //     production gate every other check in this codebase already
+  //     uses — CSP in next.config.ts, OTP_PROVIDER in env-schema.ts)
+  //     rather than to the exact string shape of BETTER_AUTH_URL: this
+  //     is strictly safer for a misconfigured deploy (BETTER_AUTH_URL
+  //     accidentally left as a bare http:// origin in production would
+  //     previously have silently downgraded the cookie to insecure;
+  //     now it can't) and is a genuine zero-behavior-change no-op for
+  //     every correctly configured environment, dev included (NODE_ENV
+  //     is not "production" there either way).
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
+
   // ADR-0009 — remaps Better Auth's internal "user" concept to the
   // AuthUser model, keeping it fully separate from BARQ's domain User.
   // Session/Account/Verification model names already match Better
@@ -75,31 +133,36 @@ export const auth = betterAuth({
 
   plugins: [
     phoneNumber({
-      // DEVELOPMENT-ONLY delivery: prints the OTP to the server terminal,
-      // never to any client-visible response, never to production logs.
-      // The code itself is generated entirely by Better Auth — this
-      // callback only receives and displays it, per this sprint's
-      // explicit instruction to never generate or hardcode an OTP
-      // ourselves ("prefer Better Auth built-in capabilities... never
-      // duplicate functionality Better Auth already provides").
+      // Production OTP delivery — Phase D.4 (Production OTP Integration).
+      // The code itself is still generated and persisted entirely by
+      // Better Auth (see routes.mjs's sendPhoneNumberOTP) — this
+      // callback only receives an already-generated code and hands it
+      // to the configured provider (src/lib/otp/get-otp-provider.ts),
+      // never generating or storing one itself. Vendor selection is a
+      // config-only concern (OTP_PROVIDER); this callback never
+      // branches on vendor name.
       //
-      // Gated to non-production so this never becomes a real logging
-      // channel for a live OTP (SECURITY.md's "never log sensitive
-      // data" anti-pattern) — a real SMS/WhatsApp delivery provider for
-      // production is explicitly out of this sprint's scope (task said
-      // "Implement development sendOTP()" only) and remains a follow-up.
+      // Audit events: "OTP requested" is logged in the `hooks.before`
+      // below (the request arriving is the meaningful audit event,
+      // even if the resend cooldown then rejects it); "OTP sent"/
+      // "OTP send failed" are logged here, since only this callback
+      // knows whether the provider's send() actually resolved. The OTP
+      // code itself is never included in any log line (SECURITY.md's
+      // "never log sensitive data" anti-pattern; logger.ts's LogContext
+      // type also structurally forbids attaching arbitrary payloads).
+      //
+      // Deliberately NOT swallowed on failure: rethrowing lets Better
+      // Auth's own /phone-number/send-otp response surface a real error
+      // to the client instead of falsely confirming "code sent" when
+      // delivery failed.
       sendOTP: async ({ phoneNumber, code }: { phoneNumber: string; code: string }) => {
-        if (process.env.NODE_ENV === "production") {
-          throw new Error(
-            "sendOTP: no production SMS/WhatsApp delivery is configured yet. " +
-              "This development-only console delivery must not run in production."
-          );
+        try {
+          await getOtpProvider().send({ phoneNumber, code });
+          logOtpSent(phoneNumber);
+        } catch (error) {
+          logOtpSendFailed(phoneNumber, error instanceof Error ? error.message : "unknown error");
+          throw error;
         }
-
-        // Server-terminal only — this is a console.log on the server
-        // process, never part of any HTTP response body, so it cannot
-        // reach the browser regardless of how this action was invoked.
-        console.log(`[DEV OTP] ${phoneNumber} -> ${code}`);
       },
       // Auto-create a User on first successful OTP verification, per
       // DOMAIN_MODEL.md's User lifecycle ("Created (via OTP
@@ -116,20 +179,81 @@ export const auth = betterAuth({
       signUpOnVerification: {
         getTempEmail: (phoneNumber: string) => `${phoneNumber}@phone.barq.internal`,
       },
-      // OTP expiry, resend policy, and rate limiting are AUTHENTICATION.md
-      // §5's and §8's own stated Open Decisions — not invented here.
-      // Better Auth's built-in defaults apply until those decisions are
-      // made and translated into explicit configuration, per this
-      // sprint's instruction to prefer Better Auth's built-ins over any
-      // custom expiration/rate-limiting logic.
+      // Expiration and failed-attempt protection are Better Auth's own
+      // built-in phoneNumber plugin behavior (confirmed by reading
+      // routes.mjs's verifyPhoneNumberOTP: it already checks
+      // `expiresAt < now` and tracks attempts against `allowedAttempts`,
+      // invalidating the code — not the account — once exceeded). Phase
+      // D.4 only makes both explicitly configurable via env vars
+      // instead of leaving them as implicit plugin defaults; the
+      // defaults below match Better Auth's own (300s / 3 attempts)
+      // exactly, so leaving the env vars unset changes nothing.
+      expiresIn: getOtpConfig().expiresInSeconds,
+      allowedAttempts: getOtpConfig().maxAttempts,
     }),
   ],
+
+  // Root-level before/after hooks — Phase D.4. Better Auth's phoneNumber
+  // plugin has no resend-cooldown check at all (confirmed by reading
+  // its route source), so `hooks.before` adds one, scoped to
+  // /phone-number/send-otp only, by querying the plugin's own
+  // Verification table (no new Prisma model). `hooks.after` adds audit
+  // logging for verify outcomes, scoped to /phone-number/verify, by
+  // inspecting the endpoint's thrown/returned APIError — confirmed via
+  // reading dist/api/dispatch.mjs that after-hooks run even when the
+  // endpoint throws, with the error available at `ctx.context.returned`.
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/phone-number/send-otp") return;
+
+      const phoneNumberParam = (ctx.body as { phoneNumber?: string } | undefined)?.phoneNumber;
+      if (!phoneNumberParam) return;
+
+      logOtpRequested(phoneNumberParam);
+
+      const { resendCooldownSeconds, maxSendsPerDay } = getOtpConfig();
+      const cooldown = await checkResendCooldown(phoneNumberParam, resendCooldownSeconds);
+
+      if (!cooldown.allowed) {
+        logResendRejected(phoneNumberParam, cooldown.retryAfterSeconds);
+        throw ctx.error("TOO_MANY_REQUESTS", {
+          message: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another code.`,
+        });
+      }
+
+      // Phase 5.1 (Production Readiness) — the cooldown above only
+      // paces individual resends; it does nothing to cap total daily
+      // volume, the real SMS-cost abuse vector once a real delivery
+      // provider is live (billed per message sent). Checked second,
+      // after the cheaper cooldown check has already passed.
+      const dailyLimit = await checkDailySendLimit(phoneNumberParam, maxSendsPerDay);
+
+      if (!dailyLimit.allowed) {
+        logDailyLimitRejected(phoneNumberParam, dailyLimit.sentInWindow);
+        throw ctx.error("TOO_MANY_REQUESTS", {
+          message: "You've reached the maximum number of verification codes for today. Please try again tomorrow.",
+        });
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/phone-number/verify") return;
+
+      const phoneNumberParam = (ctx.body as { phoneNumber?: string } | undefined)?.phoneNumber;
+      logVerifyOutcome(phoneNumberParam, ctx.context.returned);
+    }),
+  },
 
   session: {
     // Session lifecycle (expiration, refresh) per AUTHENTICATION.md §5 —
     // specific durations remain that document's own Open Decision #1,
-    // not invented here. Better Auth's own defaults apply until that
-    // decision is made and translated into explicit configuration.
+    // not a product policy invented here. Phase 5.2 (Production
+    // Hardening) makes Better Auth's own current defaults (7-day
+    // expiry, 1-day rolling refresh) EXPLICIT rather than implicit —
+    // this is a zero-behavior-change pin, not a new policy: it protects
+    // against a future Better Auth version silently changing its
+    // defaults out from under this app's session duration.
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
   },
 });
 

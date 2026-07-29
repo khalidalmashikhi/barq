@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
-import { extractText } from "@/lib/i18n/extract-text";
+import { getLocale } from "next-intl/server";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 
 // Provider Overview query — Provider Dashboard Phase 1a.
 //
@@ -62,19 +63,72 @@ export type ProviderRecentBookingItem = {
   createdAt: Date;
 };
 
+/// Phase F.3 (Provider Dashboard redesign) — a real booking preview row
+/// carrying its scheduled slot time, distinct from
+/// ProviderRecentBookingItem (which is createdAt-ordered "activity",
+/// not date-ordered "what's coming up"). Used for the new Today's
+/// Bookings / Upcoming Bookings dashboard sections.
+export type ProviderBookingPreviewItem = {
+  id: string;
+  serviceName: string;
+  status: string;
+  seats: number;
+  priceSnapshot: string | null;
+  slotStartTime: Date;
+};
+
+/// Phase 4.2 (Provider Experience, Priority 4 — Dashboard) — a slot
+/// that has reached its full capacity (bookedCount >= capacity) and is
+/// still upcoming. "Fully booked" is a computed condition, never a
+/// stored state (see AvailabilitySlotState's own schema comment) — this
+/// list is the dashboard's only place that computes it, so a provider
+/// can see demand outpacing supply and open more slots if they choose.
+export type ProviderCapacityAlertItem = {
+  id: string;
+  serviceName: string;
+  startTime: Date;
+  capacity: number;
+};
+
 export type ProviderOverviewData = {
   publishedServicesCount: number;
   draftServicesCount: number;
   activeBookingsCount: number;
+  /// Phase F.3 — narrower than activeBookingsCount (PENDING_PROVIDER/
+  /// CONFIRMED/IN_PROGRESS): only bookings genuinely awaiting the
+  /// provider's own confirm/reject decision (status PENDING_PROVIDER,
+  /// updated in Phase 4.1 — CREATED is now a momentary status a booking
+  /// is never actually found resting in). A real, distinct operational
+  /// signal from "active", not a duplicate of it.
+  pendingConfirmationsCount: number;
   todaysBookingsCount: number;
   upcomingBookingsCount: number;
   upcomingOpenSlotsCount: number;
+  /// Phase F.3 — real rows (max 5), ordered by the slot's own start
+  /// time (not createdAt), scoped to today's Oman calendar day.
+  todaysBookings: ProviderBookingPreviewItem[];
+  /// Phase F.3 — real rows (max 5), ordered by slot start time,
+  /// starting after today's Oman calendar day ends (so this list and
+  /// todaysBookings never show the same row twice).
+  upcomingBookings: ProviderBookingPreviewItem[];
   recentActivity: ProviderRecentBookingItem[];
+  /// Phase 4.2 — real rows (max 5), upcoming slots at full capacity,
+  /// ordered by start time. Empty when nothing is currently sold out.
+  capacityAlerts: ProviderCapacityAlertItem[];
+  /// Provider Analytics & Business Insights — real rows (max 5),
+  /// CANCELLED/REJECTED bookings only, newest first. recentActivity
+  /// above already includes these mixed in with every other status
+  /// (it has no status filter) — this is the same shape, scoped down,
+  /// as its own dedicated parallel query in the same Promise.all below
+  /// (not a second round-trip after the fact).
+  recentlyCancelledBookings: ProviderRecentBookingItem[];
 };
 
 export async function getProviderOverview(): Promise<ProviderOverviewData> {
   const { provider } = await requireProvider();
   const providerId = provider.id;
+  const locale = await getLocale();
+  const fallbackServiceName = locale === "ar" ? "تجربة" : "Experience";
 
   const now = new Date();
   const { start: todayStart, end: todayEnd } = getOmanTodayRangeUtc(now);
@@ -83,19 +137,25 @@ export async function getProviderOverview(): Promise<ProviderOverviewData> {
     publishedServicesCount,
     draftServicesCount,
     activeBookingsCount,
+    pendingConfirmationsCount,
     todaysBookingsCount,
     upcomingBookingsCount,
     upcomingOpenSlotsCount,
     recentBookings,
+    todaysBookingRows,
+    upcomingBookingRows,
+    upcomingOpenSlotRows,
+    recentlyCancelledRows,
   ] = await Promise.all([
     prisma.service.count({ where: { providerId, status: "PUBLISHED" } }),
     prisma.service.count({ where: { providerId, status: "DRAFT" } }),
     // Broader than Customer dashboard's own "active" definition (which
-    // excludes CREATED) — for a Provider, a pending/unconfirmed booking
-    // is very much active business needing attention.
+    // excludes PENDING_PROVIDER) — for a Provider, a pending/unconfirmed
+    // booking is very much active business needing attention.
     prisma.booking.count({
-      where: { providerId, status: { in: ["CREATED", "CONFIRMED", "IN_PROGRESS"] } },
+      where: { providerId, status: { in: ["PENDING_PROVIDER", "CONFIRMED", "IN_PROGRESS"] } },
     }),
+    prisma.booking.count({ where: { providerId, status: "PENDING_PROVIDER" } }),
     // Scoped to bookings that reference a scheduled Availability slot
     // only — a booking with no slot has no meaningful "today," and is
     // honestly excluded here rather than folded in some other way.
@@ -122,6 +182,41 @@ export async function getProviderOverview(): Promise<ProviderOverviewData> {
       take: 5,
       include: { service: true },
     }),
+    prisma.booking.findMany({
+      where: {
+        providerId,
+        status: { not: "CANCELLED" },
+        availability: { startTime: { gte: todayStart, lt: todayEnd } },
+      },
+      orderBy: { availability: { startTime: "asc" } },
+      take: 5,
+      include: { service: true, availability: true },
+    }),
+    prisma.booking.findMany({
+      where: {
+        providerId,
+        status: { not: "CANCELLED" },
+        availability: { startTime: { gte: todayEnd } },
+      },
+      orderBy: { availability: { startTime: "asc" } },
+      take: 5,
+      include: { service: true, availability: true },
+    }),
+    // "Fully booked" is a computed condition (bookedCount >= capacity),
+    // never a stored state — see AvailabilitySlotState's own schema
+    // comment — so this fetches upcoming OPEN slots and the filter
+    // happens in JS below, not in this query itself.
+    prisma.availability.findMany({
+      where: { service: { providerId }, state: "OPEN", startTime: { gt: now } },
+      orderBy: { startTime: "asc" },
+      select: { id: true, startTime: true, capacity: true, bookedCount: true, service: { select: { name: true } } },
+    }),
+    prisma.booking.findMany({
+      where: { providerId, status: { in: ["CANCELLED", "REJECTED"] } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 5,
+      include: { service: true },
+    }),
   ]);
 
   type BookingRow = {
@@ -133,24 +228,68 @@ export async function getProviderOverview(): Promise<ProviderOverviewData> {
     service: { name: unknown };
   };
 
-  const recentActivity = (recentBookings as BookingRow[]).map((booking) => ({
-    id: booking.id,
-    serviceName: extractText(booking.service.name) || "تجربة",
-    status: booking.status,
-    priceSnapshot:
-      booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
-        ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
-        : null,
-    createdAt: booking.createdAt,
-  }));
+  type BookingPreviewRow = BookingRow & {
+    seats: number;
+    availability: { startTime: Date } | null;
+  };
+
+  function toRecentActivityItem(booking: BookingRow): ProviderRecentBookingItem {
+    return {
+      id: booking.id,
+      serviceName: extractLocalizedText(booking.service.name, locale) || fallbackServiceName,
+      status: booking.status,
+      priceSnapshot:
+        booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
+          ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
+          : null,
+      createdAt: booking.createdAt,
+    };
+  }
+
+  const recentActivity = (recentBookings as BookingRow[]).map(toRecentActivityItem);
+  const recentlyCancelledBookings = (recentlyCancelledRows as BookingRow[]).map(toRecentActivityItem);
+
+  function toPreviewItem(booking: BookingPreviewRow): ProviderBookingPreviewItem {
+    return {
+      id: booking.id,
+      serviceName: extractLocalizedText(booking.service.name, locale) || fallbackServiceName,
+      status: booking.status,
+      seats: booking.seats,
+      priceSnapshot:
+        booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
+          ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
+          : null,
+      // Non-null by construction — both queries filter on
+      // availability.startTime, which requires a real Availability row.
+      slotStartTime: booking.availability!.startTime,
+    };
+  }
+
+  const todaysBookings = (todaysBookingRows as BookingPreviewRow[]).map(toPreviewItem);
+  const upcomingBookings = (upcomingBookingRows as BookingPreviewRow[]).map(toPreviewItem);
+
+  const capacityAlerts: ProviderCapacityAlertItem[] = upcomingOpenSlotRows
+    .filter((slot) => slot.bookedCount >= slot.capacity)
+    .slice(0, 5)
+    .map((slot) => ({
+      id: slot.id,
+      serviceName: extractLocalizedText(slot.service.name, locale) || fallbackServiceName,
+      startTime: slot.startTime,
+      capacity: slot.capacity,
+    }));
 
   return {
     publishedServicesCount,
     draftServicesCount,
     activeBookingsCount,
+    pendingConfirmationsCount,
     todaysBookingsCount,
     upcomingBookingsCount,
     upcomingOpenSlotsCount,
+    todaysBookings,
+    upcomingBookings,
     recentActivity,
+    capacityAlerts,
+    recentlyCancelledBookings,
   };
 }
