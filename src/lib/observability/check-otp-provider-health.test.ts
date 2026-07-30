@@ -26,6 +26,11 @@ describe("checkOtpProviderHealth", () => {
     expect(checkOtpProviderHealth()).toBe("twilio");
   });
 
+  it("returns \"disabled\" when OTP_PROVIDER=disabled (staging-only mode, reported honestly, not as console)", () => {
+    vi.stubEnv("OTP_PROVIDER", "disabled");
+    expect(checkOtpProviderHealth()).toBe("disabled");
+  });
+
   it("returns \"misconfigured\" for an unknown provider name", () => {
     vi.stubEnv("OTP_PROVIDER", "some-future-vendor");
     expect(checkOtpProviderHealth()).toBe("misconfigured");

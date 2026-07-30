@@ -152,6 +152,67 @@ describe("envSchema — OTP provider", () => {
   });
 });
 
+// fix(deploy): allow disabled OTP delivery in staging — regression tests for
+// APP_ENV and the staging-only OTP_PROVIDER=disabled mode. Confirms disabled
+// is allowed ONLY under APP_ENV=staging, rejected for APP_ENV=production and
+// when APP_ENV is unset, and that APP_ENV=production forces a real provider.
+
+describe("envSchema — APP_ENV / disabled OTP (staging escape hatch)", () => {
+  const prodBase = {
+    ...validBase,
+    BETTER_AUTH_SECRET: "a".repeat(32),
+    NEXT_PUBLIC_APP_URL: "https://staging.barq.example",
+    CRON_SECRET: "a".repeat(32),
+  };
+
+  it("allows OTP_PROVIDER=disabled when APP_ENV=staging (NODE_ENV=production)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({ ...prodBase, APP_ENV: "staging", OTP_PROVIDER: "disabled" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects OTP_PROVIDER=disabled when APP_ENV is unset", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, OTP_PROVIDER: "disabled" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path[0] === "OTP_PROVIDER")).toBe(true);
+    }
+  });
+
+  it("rejects OTP_PROVIDER=disabled when APP_ENV=production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({ ...prodBase, APP_ENV: "production", OTP_PROVIDER: "disabled" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path[0] === "OTP_PROVIDER")).toBe(true);
+    }
+  });
+
+  it("rejects OTP_PROVIDER=console when APP_ENV=production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({ ...prodBase, APP_ENV: "production", OTP_PROVIDER: "console" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path[0] === "OTP_PROVIDER")).toBe(true);
+    }
+  });
+
+  it("requires the Twilio credentials for APP_ENV=production with OTP_PROVIDER=twilio, and passes when present", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({
+      ...prodBase,
+      NEXT_PUBLIC_APP_URL: "https://barq.example",
+      APP_ENV: "production",
+      OTP_PROVIDER: "twilio",
+      TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
+      TWILIO_AUTH_TOKEN: "token",
+      TWILIO_FROM_NUMBER: "+14155238886",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
 // Phase 2.22A (Provider Selection Architecture Refinement) — regression
 // tests for PAYMENT_PROVIDER, mirroring the OTP_PROVIDER block above
 // exactly: defaults to "NONE" and is allowed everywhere, and

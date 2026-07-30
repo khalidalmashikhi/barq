@@ -68,7 +68,12 @@ export function LoginForm() {
       });
 
       if (requestError) {
-        setError(t("genericError"));
+        // OTP_PROVIDER=disabled (staging) fails closed with a stable,
+        // machine-readable code (src/lib/auth/server.ts). Show a clear,
+        // specific localized message for that case; fall back to the generic
+        // error for anything else.
+        const code = (requestError as { code?: string }).code;
+        setError(code === "OTP_DELIVERY_UNAVAILABLE" ? t("otpUnavailable") : t("genericError"));
         return;
       }
 

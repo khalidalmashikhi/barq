@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { ConsoleOtpProvider } from "./providers/console-provider";
+import { DisabledOtpProvider } from "./providers/disabled-provider";
 import { TwilioOtpProvider } from "./providers/twilio-provider";
 
 // Phase D.4 — regression tests for the provider factory: confirms
@@ -29,6 +30,11 @@ describe("getOtpProvider", () => {
     vi.stubEnv("TWILIO_FROM_NUMBER", "+14155238886");
 
     expect(getOtpProvider()).toBeInstanceOf(TwilioOtpProvider);
+  });
+
+  it("returns DisabledOtpProvider when OTP_PROVIDER=disabled (staging-only mode)", () => {
+    vi.stubEnv("OTP_PROVIDER", "disabled");
+    expect(getOtpProvider()).toBeInstanceOf(DisabledOtpProvider);
   });
 
   it("throws when OTP_PROVIDER=twilio is missing credentials", () => {

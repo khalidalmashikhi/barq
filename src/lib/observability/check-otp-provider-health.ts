@@ -13,12 +13,18 @@ import { getOtpProvider } from "@/lib/otp/get-otp-provider";
 // discipline as checkDatabaseHealth()'s "ok"/"error" (never the raw
 // connection string or exception).
 
-export type OtpProviderHealth = "console" | "twilio" | "misconfigured";
+export type OtpProviderHealth = "console" | "twilio" | "disabled" | "misconfigured";
 
 export function checkOtpProviderHealth(): OtpProviderHealth {
   try {
     getOtpProvider();
-    return process.env.OTP_PROVIDER === "twilio" ? "twilio" : "console";
+    // "disabled" is the staging-only mode (no OTP delivery); reported
+    // honestly rather than masqueraded as "console". It is not
+    // "misconfigured" — it constructs successfully and is an intended
+    // staging state — so the /api/health check still treats it as healthy.
+    if (process.env.OTP_PROVIDER === "twilio") return "twilio";
+    if (process.env.OTP_PROVIDER === "disabled") return "disabled";
+    return "console";
   } catch {
     return "misconfigured";
   }

@@ -25,9 +25,16 @@ export const envSchema = z
     BETTER_AUTH_URL: z.string().url("must be a valid URL — Better Auth server base URL"),
     NEXT_PUBLIC_BETTER_AUTH_URL: z.string().url("must be a valid URL — Better Auth browser client base URL"),
     NEXT_PUBLIC_APP_URL: z.string().url("must be a valid URL if set").optional(),
+    // Deployment target, distinct from NODE_ENV (which Vercel always sets to
+    // "production" for any deployed instance, staging included). Governs
+    // whether the staging-only OTP_PROVIDER=disabled mode is permitted — see
+    // the .superRefine() rules below. Optional: unset means local development.
+    APP_ENV: z.enum(["staging", "production"]).optional(),
     // Phase D.4 (Production OTP Integration) — see src/lib/otp/ for the
-    // provider abstraction these select/configure.
-    OTP_PROVIDER: z.enum(["console", "twilio"]).optional().default("console"),
+    // provider abstraction these select/configure. "disabled" is a
+    // staging-only mode (no OTP delivery, fails closed) gated to
+    // APP_ENV=staging by the .superRefine() rules below.
+    OTP_PROVIDER: z.enum(["console", "twilio", "disabled"]).optional().default("console"),
     OTP_CHANNEL: z.enum(["sms", "whatsapp"]).optional(),
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
@@ -97,6 +104,35 @@ export const envSchema = z
           message: "required when PAYMENT_PROVIDER=STRIPE",
         });
       }
+    }
+
+    // OTP_PROVIDER=disabled is a STAGING-ONLY escape hatch (no OTP delivery,
+    // fails closed) for a staging deployment that has no real OTP vendor yet.
+    // It must be explicitly opted into with APP_ENV=staging, and is rejected
+    // everywhere else — including a real production deployment and, crucially,
+    // a deployment that forgot to set APP_ENV — so it can never silently
+    // disable real OTP delivery in an environment where users actually log in.
+    // This check runs regardless of NODE_ENV (it is about the deployment
+    // target, not the Node runtime flag).
+    if (env.OTP_PROVIDER === "disabled" && env.APP_ENV !== "staging") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["OTP_PROVIDER"],
+        message:
+          'OTP_PROVIDER="disabled" is only permitted when APP_ENV="staging" (a staging-only mode with no OTP delivery). Use "twilio" for production or leave it "console" for local development.',
+      });
+    }
+
+    // APP_ENV=production is the strictest target: a real delivery provider is
+    // mandatory. Neither "console" (dev-only) nor "disabled" (staging-only)
+    // can ever be the OTP provider for the real production environment.
+    if (env.APP_ENV === "production" && env.OTP_PROVIDER !== "twilio") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["OTP_PROVIDER"],
+        message:
+          'APP_ENV="production" requires a real OTP provider (OTP_PROVIDER="twilio"); "console" and "disabled" are not allowed in production.',
+      });
     }
 
     if (process.env.NODE_ENV !== "production") return;

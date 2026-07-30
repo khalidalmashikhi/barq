@@ -1,9 +1,10 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { phoneNumber } from "better-auth/plugins";
-import { createAuthMiddleware } from "better-auth/api";
+import { createAuthMiddleware, APIError } from "better-auth/api";
 import { prisma } from "@/lib/db";
 import { getOtpProvider } from "@/lib/otp/get-otp-provider";
+import { OtpDeliveryUnavailableError } from "@/lib/otp/providers/disabled-provider";
 import { getOtpConfig } from "@/lib/otp/otp-config";
 import { checkResendCooldown } from "@/lib/otp/check-resend-cooldown";
 import { checkDailySendLimit } from "@/lib/otp/check-daily-send-limit";
@@ -161,6 +162,17 @@ export const auth = betterAuth({
           logOtpSent(phoneNumber);
         } catch (error) {
           logOtpSendFailed(phoneNumber, error instanceof Error ? error.message : "unknown error");
+          // OTP_PROVIDER=disabled (staging-only) fails closed with this typed
+          // error. Surface a stable, machine-readable code (never the OTP,
+          // never a secret) so the client can show a clear localized
+          // "delivery unavailable" message — see login-form.tsx. Fails
+          // closed: no OTP is issued, no bypass is created.
+          if (error instanceof OtpDeliveryUnavailableError) {
+            throw new APIError("SERVICE_UNAVAILABLE", {
+              code: "OTP_DELIVERY_UNAVAILABLE",
+              message: "OTP delivery is unavailable in this environment.",
+            });
+          }
           throw error;
         }
       },

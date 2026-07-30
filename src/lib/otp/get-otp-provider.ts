@@ -1,6 +1,7 @@
 import "server-only";
 import type { OtpProvider } from "./provider";
 import { ConsoleOtpProvider } from "./providers/console-provider";
+import { DisabledOtpProvider } from "./providers/disabled-provider";
 import { TwilioOtpProvider, type TwilioChannel } from "./providers/twilio-provider";
 
 // Provider factory — Phase D.4. The ONLY place in the application that
@@ -21,6 +22,12 @@ export function getOtpProvider(): OtpProvider {
     case "console":
       return new ConsoleOtpProvider();
 
+    // Staging-only mode (OTP_PROVIDER=disabled, gated to APP_ENV=staging by
+    // scripts/env-schema.ts). Constructs successfully so the app can boot,
+    // but every send() fails closed — see providers/disabled-provider.ts.
+    case "disabled":
+      return new DisabledOtpProvider();
+
     case "twilio": {
       const accountSid = process.env.TWILIO_ACCOUNT_SID;
       const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -40,6 +47,6 @@ export function getOtpProvider(): OtpProvider {
     }
 
     default:
-      throw new Error(`getOtpProvider: unknown OTP_PROVIDER "${providerName}" (expected "console" or "twilio")`);
+      throw new Error(`getOtpProvider: unknown OTP_PROVIDER "${providerName}" (expected "console", "twilio", or "disabled")`);
   }
 }
