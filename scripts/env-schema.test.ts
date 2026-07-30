@@ -152,6 +152,41 @@ describe("envSchema — OTP provider", () => {
   });
 });
 
+// fix(db): use transaction pooling for Vercel runtime — DIRECT_URL (the
+// Prisma datasource `directUrl`, session pooler) is consumed by Prisma's
+// migration engine, never read in src/, and Prisma itself hard-fails
+// validate/migrate if it is missing. It therefore stays OPTIONAL in this
+// schema (so the CI production-shape check keeps passing without it); these
+// tests lock that contract — accepted when present, not required when absent.
+describe("envSchema — DIRECT_URL (Prisma directUrl)", () => {
+  it("is optional: production validation still passes without DIRECT_URL", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({
+      ...validBase,
+      BETTER_AUTH_SECRET: "a".repeat(32),
+      NEXT_PUBLIC_APP_URL: "https://barq.example",
+      OTP_PROVIDER: "twilio",
+      TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
+      TWILIO_AUTH_TOKEN: "token",
+      TWILIO_FROM_NUMBER: "+14155238886",
+      CRON_SECRET: "a".repeat(32),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("is accepted when present", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({
+      ...validBase,
+      DIRECT_URL: "postgresql://user:pass@localhost:5432/barq",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.DIRECT_URL).toBe("postgresql://user:pass@localhost:5432/barq");
+    }
+  });
+});
+
 // fix(deploy): allow disabled OTP delivery in staging — regression tests for
 // APP_ENV and the staging-only OTP_PROVIDER=disabled mode. Confirms disabled
 // is allowed ONLY under APP_ENV=staging, rejected for APP_ENV=production and

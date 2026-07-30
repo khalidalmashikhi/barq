@@ -27,7 +27,7 @@ Related existing documents (not duplicated): [`STAGING_EXECUTION_GUIDE.md`](STAG
 
 ### Supabase (PostgreSQL)
 - **Purpose:** The application database (Prisma → PostgreSQL).
-- **Current status:** Staging — approved: Supabase **Supavisor Session Pooler, port 5432** single URL (no `directUrl`, no schema change). Not yet created. Production DB — `OWNER INPUT REQUIRED`.
+- **Current status:** Staging — Supabase two-URL model: `DATABASE_URL` = **Transaction pooler, port 6543** (`pgbouncer=true&connection_limit=1`) for the app; `DIRECT_URL` = **Session pooler, port 5432** for migrations. `prisma/schema.prisma` declares `url` + `directUrl` (revised after a runtime session-pool exhaustion fix — see `STAGING_EXECUTION_GUIDE.md` D-1). Production DB — `OWNER INPUT REQUIRED`.
 - **Repository dependency:** `prisma/schema.prisma` datasource `url = env("DATABASE_URL")`; `prisma migrate deploy` inside `vercel-build`; `src/lib/observability/check-database-health.ts` (`SELECT 1`).
 - **Owner:** `OWNER INPUT REQUIRED`.
 - **Verification method:** D-1 acceptance test — `prisma migrate deploy` + `prisma migrate status` against the session-pooler URL (runbook §2.3). Health endpoint reports `database=ok`.

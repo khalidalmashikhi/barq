@@ -21,6 +21,15 @@ import { z } from "zod";
 export const envSchema = z
   .object({
     DATABASE_URL: z.string().min(1, "required — ADR-0006 (PostgreSQL via Prisma)"),
+    // Prisma datasource `directUrl` (prisma/schema.prisma) — the session/direct
+    // endpoint used by `prisma migrate deploy` (vercel-build) and the Prisma
+    // CLI, since the migration engine cannot run through the transaction-mode
+    // pooler that DATABASE_URL now points at. Not read anywhere in src/ (only
+    // by Prisma itself), and Prisma already hard-fails validate/migrate if it
+    // is missing — so this stays optional here (a known, documented key)
+    // rather than a second, redundant gate that would also need adding to
+    // .github/workflows/ci.yml's production-shape check.
+    DIRECT_URL: z.string().optional(),
     BETTER_AUTH_SECRET: z.string().min(1, "required — AUTHENTICATION.md §4 (Better Auth)"),
     BETTER_AUTH_URL: z.string().url("must be a valid URL — Better Auth server base URL"),
     NEXT_PUBLIC_BETTER_AUTH_URL: z.string().url("must be a valid URL — Better Auth browser client base URL"),

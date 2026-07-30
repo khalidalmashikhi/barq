@@ -128,7 +128,7 @@ Perform in this order. Do **not** trigger the first deploy until §2 (Postgres) 
 
 ## 4. Remaining Owner Decisions (genuine judgment calls)
 
-> **RESOLVED (Stage 3).** All five decisions below were approved by the owner and are now locked in [`STAGING_PROVISIONING_RUNBOOK.md`](STAGING_PROVISIONING_RUNBOOK.md): (1) Supabase **session-mode single URL** (port 5432), no `directUrl`, no schema change; (2) Vercel **Pro** (cron runs as written); (3) domain **`staging.barq.om`**, falling back to the Vercel-generated domain if DNS isn't ready; (4) dedicated **`staging`** branch; (5) monitoring vendor **Better Stack**. The original decision text is retained below for provenance.
+> **RESOLVED (Stage 3), with decision #1 later REVISED.** Decisions locked in [`STAGING_PROVISIONING_RUNBOOK.md`](STAGING_PROVISIONING_RUNBOOK.md): (1) Supabase pooling — **initially** session-mode single URL, **now REVISED** to the two-URL model (`DATABASE_URL` = Transaction pooler 6543 with `pgbouncer=true&connection_limit=1`; `DIRECT_URL` = Session pooler 5432; `schema.prisma` declares `url` + `directUrl`) after the single-URL approach exhausted the session pool at runtime under Vercel serverless — see `STAGING_EXECUTION_GUIDE.md` D-1; (2) Vercel **Pro**; (3) domain **`staging.barq.om`** with Vercel-domain fallback; (4) dedicated **`staging`** branch; (5) **Better Stack**. Original decision text retained below for provenance.
 
 Everything else is mechanical once inputs (§1) are supplied. These are not:
 

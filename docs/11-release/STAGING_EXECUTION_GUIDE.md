@@ -21,7 +21,17 @@ Two facts in the current repository force a choice that this guide cannot make f
   - **(B)** Use a transaction-mode pooler (Neon pooled / Supabase `:6543`) and add `directUrl = env("DIRECT_URL")` to the datasource. **This is a `schema.prisma` change, out of scope, and needs explicit approval.**
 - **Action:** confirm the staging DB provider supplies a session-mode pooled endpoint and validate it with the Stage 2 acceptance test before §3 proceeds. If only a transaction-mode pooler is available, Option B (schema change) requires approval.
 
-> **Approved (Stage 1 → Stage 2):** no-code path only — do **not** modify `schema.prisma`, do **not** add `directUrl`. The staging provider must supply a session-mode pooled endpoint whose `prisma migrate deploy` compatibility is verified against vendor docs and the empirical acceptance test.
+> **SUPERSEDED (staging runtime fix — Option B now adopted).** The single-URL session-mode approach was validated in Stage-B migration testing but then **exhausted the Supabase session pool at runtime** under Vercel serverless fan-out (`FATAL: EMAXCONNSESSION — max clients reached in session mode`, `pool_size: 15`). Owner approved the schema change. The datasource now uses **both** URLs:
+>
+> ```
+> datasource db {
+>   provider  = "postgresql"
+>   url       = env("DATABASE_URL")   // Transaction pooler, 6543, pgbouncer=true&connection_limit=1 — runtime
+>   directUrl = env("DIRECT_URL")     // Session pooler, 5432 — migrations/CLI only
+> }
+> ```
+>
+> Transaction-mode multiplexing (many serverless instances share a small upstream pool) + `connection_limit=1` per instance is what resolves `EMAXCONNSESSION`; `directUrl` (session pooler) is what keeps `prisma migrate deploy` working, since the migration engine cannot run through a transaction-mode pooler. Set both env vars per `STAGING_ENV_TEMPLATE.md`. This is the production-correct configuration going forward.
 
 ### D-2 — Staging must not be publicly crawlable, but `robots.ts` cannot express that per-environment
 

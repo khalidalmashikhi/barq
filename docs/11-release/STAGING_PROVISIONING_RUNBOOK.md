@@ -8,7 +8,7 @@ The step-by-step runbook an operator + owner follow together to provision BARQ s
 
 | Area | Locked choice |
 |---|---|
-| Database | **Supabase PostgreSQL**, **Supavisor Session Pooler, port 5432** only. Not the transaction pooler (`:6543`). No `schema.prisma` change, no `directUrl`/`DIRECT_URL`. |
+| Database | **Supabase PostgreSQL**, two-URL model (updated after a runtime session-pool exhaustion fix — see `STAGING_EXECUTION_GUIDE.md` D-1): `DATABASE_URL` = **Transaction pooler, port 6543** (`pgbouncer=true&connection_limit=1`) for the app; `DIRECT_URL` = **Session pooler, port 5432** for migrations. `prisma/schema.prisma` now declares `url` + `directUrl`. |
 | Hosting | Separate **Vercel Pro** project, name **`barq-staging`**, **Node.js 20.x**, build command **`npm run vercel-build`**. |
 | Git | Dedicated **`staging`** branch. No commit/push unless explicitly instructed. |
 | Domain | Preferred **`staging.barq.om`**; if DNS not ready, use the generated Vercel domain temporarily. |
@@ -116,7 +116,7 @@ The smoke test is a **manual browser sequence**, not a script. Open the (protect
 Execute A → J in order. Each **⏸ PAUSE** hands control to the owner and states exactly what to do, what NOT to paste, and the safe confirmation to return before the next step.
 
 ### A. Supabase creation ⏸ PAUSE
-- **Owner does:** create the Supabase project under the chosen org (Form #2) in the chosen region (Form #3). Copy the **Session Pooler** connection string (host on port **5432**) from Project → Settings → Database → Connection string → *Session pooler*. Append `?sslmode=require` if not present.
+- **Owner does:** create the Supabase project under the chosen org (Form #2) in the chosen region (Form #3). Copy **two** connection strings from Project → Settings → Database → Connection string: the **Transaction pooler** (port **6543**) for `DATABASE_URL` — append `?pgbouncer=true&connection_limit=1` — and the **Session pooler** (port **5432**) for `DIRECT_URL`. Append `sslmode=require` where your project requires TLS.
 - **Value/confirmation needed:** project created; session-pooler (5432) string obtained; billing tier noted.
 - **Do NOT paste:** the connection string (it contains the DB password).
 - **Safe confirmation to return:** *"Supabase project created in `<region>`; session-pooler (5432) connection string obtained; SSL required."*
@@ -134,7 +134,7 @@ Execute A → J in order. Each **⏸ PAUSE** hands control to the owner and stat
 - **Safe confirmation to return:** *"`barq-staging` created on Pro; Production Branch=staging, Node 20.x, build=`npm run vercel-build`; not deployed."*
 
 ### D. Environment variables ⏸ PAUSE
-- **Owner does:** in `barq-staging` → Settings → Environment Variables, add every **Required** variable from [`STAGING_ENV_TEMPLATE.md`](STAGING_ENV_TEMPLATE.md) §1 — the `DATABASE_URL` (session pooler), freshly generated `BETTER_AUTH_SECRET` and `CRON_SECRET`, the `*_URL` values (use `https://staging.barq.om` if DNS is ready, else the Vercel-generated URL for now), `OTP_PROVIDER=twilio`, `OTP_CHANNEL=sms` + the three **live** staging Twilio values (Form #6–8, **not** Test Credentials), and `PAYMENT_PROVIDER=NONE`.
+- **Owner does:** in `barq-staging` → Settings → Environment Variables, add every **Required** variable from [`STAGING_ENV_TEMPLATE.md`](STAGING_ENV_TEMPLATE.md) §1 — `DATABASE_URL` (**Transaction pooler, 6543**, `pgbouncer=true&connection_limit=1`) and `DIRECT_URL` (**Session pooler, 5432**), freshly generated `BETTER_AUTH_SECRET` and `CRON_SECRET`, the `*_URL` values (use `https://staging.barq.om` if DNS is ready, else the Vercel-generated URL for now), `OTP_PROVIDER=twilio`, `OTP_CHANNEL=sms` + the three **live** staging Twilio values (Form #6–8, **not** Test Credentials), and `PAYMENT_PROVIDER=NONE`.
 - **Value/confirmation needed:** all Required vars present and staging-only.
 - **Do NOT paste:** any of the values — they are entered directly in Vercel. Never put secrets in `NEXT_PUBLIC_*`.
 - **Safe confirmation to return:** *"All Required env vars set in barq-staging (staging-only values); live staging Twilio creds in place; PAYMENT_PROVIDER=NONE."*

@@ -70,8 +70,18 @@
 // =============================================================================
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime/serverless connection — Supabase Transaction Pooler (port 6543,
+  // pgbouncer=true, connection_limit=1). Transaction-mode multiplexing is
+  // what prevents Supavisor session-pool exhaustion (EMAXCONNSESSION) under
+  // Vercel's serverless fan-out; see docs/11-release/STAGING_EXECUTION_GUIDE.md
+  // (D-1) for the full rationale.
+  url       = env("DATABASE_URL")
+  // Migration/CLI connection — Supabase Session Pooler (port 5432). Prisma's
+  // migration engine cannot run through a transaction-mode pooler, so
+  // `prisma migrate deploy` (invoked by vercel-build) uses this direct/session
+  // endpoint instead. Not used by the running app (Prisma Client uses `url`).
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {

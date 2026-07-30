@@ -20,11 +20,14 @@ The single source of truth for what is *required* is `scripts/env-schema.ts`, en
 
 Set every variable in this section in the **staging** Vercel project's environment-variable scope only.
 
-### Database
+### Database — two-URL pooling model
+
+The Prisma datasource uses `url` + `directUrl` (`prisma/schema.prisma`). Both point at the **isolated** staging Postgres — never the production DB, never a developer's local DB.
 
 | Variable | Description | Expected format |
 |---|---|---|
-| `DATABASE_URL` 🔑 ⚠️ | Connection string for the **isolated** staging Postgres. Must be the **session-mode pooled** endpoint (no-code path — see `STAGING_PROVISIONING_PREP.md`), never the production DB, never a developer's local DB. | `postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require` (Supabase session pooler uses port `5432`) |
+| `DATABASE_URL` 🔑 ⚠️ | **Runtime** connection (Prisma Client). Supabase **Transaction pooler, port 6543**, with `pgbouncer=true&connection_limit=1`. Transaction-mode multiplexing + `connection_limit=1` per serverless instance is what prevents Supavisor session-pool exhaustion (`EMAXCONNSESSION`) under Vercel's fan-out. | `postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require` |
+| `DIRECT_URL` 🔑 ⚠️ | **Migration/CLI** connection used by `prisma migrate deploy` (vercel-build); the migration engine cannot run through the transaction pooler. Supabase **Session pooler, port 5432**. Not used by the running app. | `postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require` |
 
 ### Authentication (Better Auth)
 
@@ -96,7 +99,6 @@ Deliberately excluded so the staging config stays minimal and production-safe. S
 | `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_KEY`, `OBJECT_STORAGE_SECRET` | Documented in `.env.example` but **unconsumed by any code path** today (confirmed in `src/lib/contracts/execution/signed-url.ts`'s own comment). |
 | `WHATSAPP_API_TOKEN`, `LLM_GATEWAY_API_KEY`, `GOOGLE_MAPS_API_KEY` | Reserved integration keys — documented in `.env.example`, read by **no** code path. |
 | `NODE_ENV` | Managed automatically by Vercel for deployed instances (set to `production`). Never set it by hand. |
-| `DIRECT_URL` / `directUrl` | Not part of the schema (no-code path). Introducing it is an approval-gated `schema.prisma` change, explicitly out of scope. |
 
 ---
 
