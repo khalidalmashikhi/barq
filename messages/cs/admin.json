@@ -503,5 +503,18 @@
   "um_suspendButton": "Pozastavit",
   "um_reactivateButton": "Znovu aktivovat",
   "um_phoneVerified": "Telefon ověřen",
-  "um_phoneUnverified": "Telefon neověřen"
+  "um_phoneUnverified": "Telefon neověřen",
+  "um_backToUsers": "Zpět na správu uživatelů",
+  "um_detail_userId": "ID uživatele",
+  "um_detail_created": "Vytvořeno",
+  "um_detail_lastLogin": "Poslední přihlášení",
+  "um_detail_grantedBy": "Uděleno uživatelem",
+  "um_detail_roles": "Role",
+  "um_lastLoginNever": "Nikdy",
+  "um_grantedByUnknown": "Neznámé — vytvořeno před auditem přístupů",
+  "um_auditHistoryTitle": "Historie auditu",
+  "um_auditNoEvents": "Zatím žádné události auditu",
+  "um_auditActorLabel": "Aktér",
+  "um_customerPaymentsTitle": "Platby",
+  "um_customerNoPayments": "Zatím žádné platby"
 }

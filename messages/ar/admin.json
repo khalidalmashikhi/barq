@@ -503,5 +503,18 @@
   "um_suspendButton": "إيقاف",
   "um_reactivateButton": "إعادة تفعيل",
   "um_phoneVerified": "الهاتف موثّق",
-  "um_phoneUnverified": "الهاتف غير موثّق"
+  "um_phoneUnverified": "الهاتف غير موثّق",
+  "um_backToUsers": "العودة إلى إدارة المستخدمين",
+  "um_detail_userId": "معرّف المستخدم",
+  "um_detail_created": "تاريخ الإنشاء",
+  "um_detail_lastLogin": "آخر تسجيل دخول",
+  "um_detail_grantedBy": "مُنِح بواسطة",
+  "um_detail_roles": "الأدوار",
+  "um_lastLoginNever": "أبداً",
+  "um_grantedByUnknown": "غير معروف — أُنشئ قبل تدقيق الوصول",
+  "um_auditHistoryTitle": "سجل التدقيق",
+  "um_auditNoEvents": "لا توجد أحداث تدقيق بعد",
+  "um_auditActorLabel": "المنفّذ",
+  "um_customerPaymentsTitle": "المدفوعات",
+  "um_customerNoPayments": "لا توجد مدفوعات بعد"
 }

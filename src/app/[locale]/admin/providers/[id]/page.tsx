@@ -9,6 +9,8 @@ import { archiveProvider } from "@/lib/admin/archive-provider";
 import { publishProvider, unpublishProvider } from "@/lib/admin/toggle-provider-visibility";
 import { getProviderStatusBadgeVariant, getProviderStatusTranslationKey } from "@/lib/admin/presentation/provider-status";
 import { isProviderAdminActionErrorCode, getProviderAdminErrorTranslationKey } from "@/lib/admin/provider-admin-errors";
+import { getAuditEventsForEntity, type AuditEventItem } from "@/lib/admin/get-audit-events-for-entity";
+import { AuditHistory } from "@/components/admin/audit-history";
 import { isValidUuid } from "@/lib/uuid";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +67,13 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
 
   const errorMessage = error && isProviderAdminActionErrorCode(error) ? t(getProviderAdminErrorTranslationKey(error)) : null;
   const isPending = provider.status === "APPLIED" || provider.status === "UNDER_REVIEW";
+
+  let auditEvents: AuditEventItem[] = [];
+  try {
+    auditEvents = await getAuditEventsForEntity("Provider", id);
+  } catch {
+    auditEvents = [];
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -223,6 +232,8 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
           </Link>
         </div>
       </Card>
+
+      <AuditHistory events={auditEvents} title={t("um_auditHistoryTitle")} emptyLabel={t("um_auditNoEvents")} actorLabel={t("um_auditActorLabel")} locale={locale} />
     </div>
   );
 }

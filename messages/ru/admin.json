@@ -503,5 +503,18 @@
   "um_suspendButton": "Приостановить",
   "um_reactivateButton": "Повторно активировать",
   "um_phoneVerified": "Телефон подтверждён",
-  "um_phoneUnverified": "Телефон не подтверждён"
+  "um_phoneUnverified": "Телефон не подтверждён",
+  "um_backToUsers": "Назад к управлению пользователями",
+  "um_detail_userId": "ID пользователя",
+  "um_detail_created": "Создан",
+  "um_detail_lastLogin": "Последний вход",
+  "um_detail_grantedBy": "Предоставлено",
+  "um_detail_roles": "Роли",
+  "um_lastLoginNever": "Никогда",
+  "um_grantedByUnknown": "Неизвестно — создано до аудита доступа",
+  "um_auditHistoryTitle": "История аудита",
+  "um_auditNoEvents": "Событий аудита пока нет",
+  "um_auditActorLabel": "Инициатор",
+  "um_customerPaymentsTitle": "Платежи",
+  "um_customerNoPayments": "Платежей пока нет"
 }

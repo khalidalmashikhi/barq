@@ -27,14 +27,26 @@ export type CustomerReviewPreviewItem = {
   createdAt: Date;
 };
 
+export type CustomerPaymentPreviewItem = {
+  id: string;
+  serviceName: string;
+  amount: string;
+  currency: string;
+  status: string;
+  createdAt: Date;
+};
+
 export type CustomerDetail = {
   id: string;
+  userId: string;
   phoneNumber: string;
   createdAt: Date;
   bookingCount: number;
   reviewCount: number;
+  paymentCount: number;
   recentBookings: CustomerBookingPreviewItem[];
   recentReviews: CustomerReviewPreviewItem[];
+  recentPayments: CustomerPaymentPreviewItem[];
 } | null;
 
 const PREVIEW_LIMIT = 10;
@@ -58,7 +70,7 @@ export async function getCustomerDetail(customerId: string): Promise<CustomerDet
     return null;
   }
 
-  const [bookingRows, reviewRows] = await Promise.all([
+  const [bookingRows, reviewRows, paymentRows, paymentCount] = await Promise.all([
     prisma.booking.findMany({
       where: { customerId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -71,10 +83,20 @@ export async function getCustomerDetail(customerId: string): Promise<CustomerDet
       take: PREVIEW_LIMIT,
       include: { rating: true, booking: { select: { service: { select: { name: true } } } } },
     }),
+    // Customer-scoped payments via the existing Payment -> Booking -> customerId
+    // relation (no schema change). Amounts are money — returned as strings.
+    prisma.payment.findMany({
+      where: { booking: { customerId } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: PREVIEW_LIMIT,
+      select: { id: true, amount: true, currency: true, status: true, createdAt: true, booking: { select: { service: { select: { name: true } } } } },
+    }),
+    prisma.payment.count({ where: { booking: { customerId } } }),
   ]);
 
   type BookingRow = { id: string; status: string; createdAt: Date; service: { name: unknown } };
   type ReviewRow = { id: string; createdAt: Date; rating: { value: number } | null; booking: { service: { name: unknown } } };
+  type PaymentRow = { id: string; amount: { toString(): string }; currency: string; status: string; createdAt: Date; booking: { service: { name: unknown } } };
 
   const recentBookings: CustomerBookingPreviewItem[] = (bookingRows as BookingRow[]).map((booking) => ({
     id: booking.id,
@@ -90,8 +112,18 @@ export async function getCustomerDetail(customerId: string): Promise<CustomerDet
     createdAt: review.createdAt,
   }));
 
+  const recentPayments: CustomerPaymentPreviewItem[] = (paymentRows as PaymentRow[]).map((payment) => ({
+    id: payment.id,
+    serviceName: extractLocalizedText(payment.booking.service.name, locale) || fallbackServiceName,
+    amount: payment.amount.toString(),
+    currency: payment.currency,
+    status: payment.status,
+    createdAt: payment.createdAt,
+  }));
+
   const customerRow = customer as unknown as {
     id: string;
+    userId: string;
     createdAt: Date;
     user: { phoneNumber: string };
     _count: { bookings: number; reviews: number };
@@ -99,11 +131,14 @@ export async function getCustomerDetail(customerId: string): Promise<CustomerDet
 
   return {
     id: customerRow.id,
+    userId: customerRow.userId,
     phoneNumber: customerRow.user.phoneNumber,
     createdAt: customerRow.createdAt,
     bookingCount: customerRow._count.bookings,
     reviewCount: customerRow._count.reviews,
+    paymentCount,
     recentBookings,
     recentReviews,
+    recentPayments,
   };
 }

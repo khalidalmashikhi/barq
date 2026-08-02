@@ -356,10 +356,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <div className="flex flex-col gap-3">
             {adminItems!.map((admin) => (
               <div key={admin.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="min-w-0 flex-1">
+                <Link href={`/admin/users/administrators/${admin.id}`} className="min-w-0 flex-1">
                   <p dir="ltr" className="truncate text-start font-medium text-foreground">{admin.phoneNumber}</p>
                   <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">ID {admin.userId} · {dateFmt(admin.createdAt)}</p>
-                </div>
+                </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   {admin.id === currentAdminId && <Badge variant="info">{t("um_youLabel")}</Badge>}
                   <Badge variant={statusVariant(admin.status)}>{statusLabel(admin.status)}</Badge>
@@ -400,7 +400,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <div className="flex flex-col gap-3">
             {staffItems!.map((member) => (
               <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="min-w-0 flex-1">
+                <Link href={`/admin/users/staff/${member.id}`} className="min-w-0 flex-1">
                   <p dir="ltr" className="truncate text-start font-medium text-foreground">{member.phoneNumber}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     {member.roles.length === 0 ? (
@@ -409,7 +409,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                       member.roles.map((role) => <Badge key={role} variant="default">{t(`um_role_${role}`)}</Badge>)
                     )}
                   </div>
-                </div>
+                </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge variant={statusVariant(member.status)}>{statusLabel(member.status)}</Badge>
                   <details>

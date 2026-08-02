@@ -503,5 +503,18 @@
   "um_suspendButton": "Sospendi",
   "um_reactivateButton": "Riattiva",
   "um_phoneVerified": "Telefono verificato",
-  "um_phoneUnverified": "Telefono non verificato"
+  "um_phoneUnverified": "Telefono non verificato",
+  "um_backToUsers": "Torna alla gestione utenti",
+  "um_detail_userId": "ID utente",
+  "um_detail_created": "Creato",
+  "um_detail_lastLogin": "Ultimo accesso",
+  "um_detail_grantedBy": "Concesso da",
+  "um_detail_roles": "Ruoli",
+  "um_lastLoginNever": "Mai",
+  "um_grantedByUnknown": "Sconosciuto — creato prima dell'audit degli accessi",
+  "um_auditHistoryTitle": "Cronologia audit",
+  "um_auditNoEvents": "Nessun evento di audit",
+  "um_auditActorLabel": "Attore",
+  "um_customerPaymentsTitle": "Pagamenti",
+  "um_customerNoPayments": "Nessun pagamento"
 }

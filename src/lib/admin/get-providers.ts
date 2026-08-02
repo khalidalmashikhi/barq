@@ -87,7 +87,9 @@ export async function getProviders(filters: ProviderListFilters = {}): Promise<P
   const items: ProviderListItem[] = providers.map((provider) => ({
     id: provider.id,
     userId: provider.userId,
-    phoneNumber: provider.user.phoneNumber,
+    // `user` is always loaded by the include above in production; the optional
+    // chain only guards synthetic test stores that don't model the relation.
+    phoneNumber: provider.user?.phoneNumber ?? "",
     businessName: extractLocalizedText(provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     slug: provider.slug,
     status: provider.status,

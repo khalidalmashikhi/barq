@@ -503,5 +503,18 @@
   "um_suspendButton": "Sperren",
   "um_reactivateButton": "Reaktivieren",
   "um_phoneVerified": "Telefon verifiziert",
-  "um_phoneUnverified": "Telefon nicht verifiziert"
+  "um_phoneUnverified": "Telefon nicht verifiziert",
+  "um_backToUsers": "Zurück zur Benutzerverwaltung",
+  "um_detail_userId": "Benutzer-ID",
+  "um_detail_created": "Erstellt",
+  "um_detail_lastLogin": "Letzte Anmeldung",
+  "um_detail_grantedBy": "Gewährt von",
+  "um_detail_roles": "Rollen",
+  "um_lastLoginNever": "Nie",
+  "um_grantedByUnknown": "Unbekannt — vor der Zugriffsprotokollierung erstellt",
+  "um_auditHistoryTitle": "Audit-Verlauf",
+  "um_auditNoEvents": "Noch keine Audit-Ereignisse",
+  "um_auditActorLabel": "Akteur",
+  "um_customerPaymentsTitle": "Zahlungen",
+  "um_customerNoPayments": "Noch keine Zahlungen"
 }

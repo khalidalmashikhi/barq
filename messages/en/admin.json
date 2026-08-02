@@ -503,5 +503,18 @@
   "um_suspendButton": "Suspend",
   "um_reactivateButton": "Reactivate",
   "um_phoneVerified": "Phone verified",
-  "um_phoneUnverified": "Phone not verified"
+  "um_phoneUnverified": "Phone not verified",
+  "um_backToUsers": "Back to User Management",
+  "um_detail_userId": "User ID",
+  "um_detail_created": "Created",
+  "um_detail_lastLogin": "Last login",
+  "um_detail_grantedBy": "Granted by",
+  "um_detail_roles": "Roles",
+  "um_lastLoginNever": "Never",
+  "um_grantedByUnknown": "Unknown — created before access auditing",
+  "um_auditHistoryTitle": "Audit history",
+  "um_auditNoEvents": "No audit events yet",
+  "um_auditActorLabel": "Actor",
+  "um_customerPaymentsTitle": "Payments",
+  "um_customerNoPayments": "No payments yet"
 }
