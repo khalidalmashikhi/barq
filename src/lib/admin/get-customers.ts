@@ -25,6 +25,7 @@ export type CustomerListItem = {
   id: string;
   userId: string;
   phoneNumber: string;
+  phoneNumberVerified: boolean;
   status: string;
   createdAt: Date;
   bookingCount: number;
@@ -79,7 +80,7 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        user: { select: { phoneNumber: true, status: true } },
+        user: { select: { phoneNumber: true, phoneNumberVerified: true, status: true } },
         _count: { select: { bookings: true, reviews: true } },
       },
     }),
@@ -89,7 +90,7 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
     id: string;
     userId: string;
     createdAt: Date;
-    user: { phoneNumber: string; status: string };
+    user: { phoneNumber: string; phoneNumberVerified: boolean; status: string };
     _count: { bookings: number; reviews: number };
   };
 
@@ -97,6 +98,7 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
     id: customer.id,
     userId: customer.userId,
     phoneNumber: customer.user.phoneNumber,
+    phoneNumberVerified: customer.user.phoneNumberVerified,
     status: customer.user.status,
     createdAt: customer.createdAt,
     bookingCount: customer._count.bookings,

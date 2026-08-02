@@ -5,8 +5,8 @@ import { ShieldCheck, UserPlus } from "lucide-react";
 import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getAdmins, type AdminListItem } from "@/lib/admin/get-admins";
 import { getStaff, type StaffListItem } from "@/lib/admin/get-staff";
-import { getProviders } from "@/lib/admin/get-providers";
-import { getCustomers } from "@/lib/admin/get-customers";
+import { getProviders, type ProviderListItem } from "@/lib/admin/get-providers";
+import { getCustomers, type CustomerListItem } from "@/lib/admin/get-customers";
 import { addAdmin } from "@/lib/admin/add-admin";
 import { activateAdmin } from "@/lib/admin/activate-admin";
 import { deactivateAdmin } from "@/lib/admin/deactivate-admin";
@@ -15,6 +15,14 @@ import { updateStaffRoles } from "@/lib/admin/update-staff-roles";
 import { deactivateStaff } from "@/lib/admin/deactivate-staff";
 import { reactivateStaff } from "@/lib/admin/reactivate-staff";
 import { STAFF_ROLES } from "@/lib/admin/staff-roles";
+import { approveProvider } from "@/lib/admin/approve-provider";
+import { archiveProvider } from "@/lib/admin/archive-provider";
+import { publishProvider, unpublishProvider } from "@/lib/admin/toggle-provider-visibility";
+import { suspendProvider } from "@/lib/admin/suspend-provider";
+import { reactivateProvider } from "@/lib/admin/reactivate-provider";
+import { deactivateCustomer, suspendCustomer, reactivateCustomer } from "@/lib/admin/customer-lifecycle";
+import { getProviderStatusBadgeVariant, getProviderStatusTranslationKey } from "@/lib/admin/presentation/provider-status";
+import { isProviderAdminActionErrorCode, getProviderAdminErrorTranslationKey } from "@/lib/admin/provider-admin-errors";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
@@ -49,6 +57,10 @@ const NOTICE_CODES = [
   "granted", "reactivated", "already_active", "activated", "deactivated", "already_deactivated",
   "staff_created", "staff_reactivated", "staff_roles_updated", "staff_already_current",
   "staff_deactivated", "staff_already_deactivated", "staff_already_active",
+  "provider_approved", "provider_suspended", "provider_already_suspended", "provider_reactivated",
+  "provider_already_active", "provider_deactivated", "provider_published", "provider_unpublished",
+  "customer_deactivated", "customer_already_deactivated", "customer_suspended",
+  "customer_already_suspended", "customer_reactivated", "customer_already_active",
 ] as const;
 const ERROR_CODES = [
   "INVALID_INPUT",
@@ -61,6 +73,7 @@ const ERROR_CODES = [
   "EMPTY_ROLES",
   "INVALID_ROLE",
   "STAFF_NOT_FOUND",
+  "USER_HAS_PRIVILEGED_ROLE",
   "UNKNOWN_ERROR",
 ] as const;
 
@@ -78,8 +91,6 @@ function statusVariant(status: string): BadgeVariant {
       return "info";
   }
 }
-
-type RowVM = { key: string; primary: string; secondary?: string; status: string; meta: string[] };
 
 type SearchParams = { tab?: string; q?: string; status?: string; page?: string; notice?: string; error?: string };
 
@@ -125,6 +136,20 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       case "staff_deactivated": return t("um_notice_staff_deactivated");
       case "staff_already_deactivated": return t("um_notice_staff_already_deactivated");
       case "staff_already_active": return t("um_notice_staff_already_active");
+      case "provider_approved": return t("um_notice_provider_approved");
+      case "provider_suspended": return t("um_notice_provider_suspended");
+      case "provider_already_suspended": return t("um_notice_provider_already_suspended");
+      case "provider_reactivated": return t("um_notice_provider_reactivated");
+      case "provider_already_active": return t("um_notice_provider_already_active");
+      case "provider_deactivated": return t("um_notice_provider_deactivated");
+      case "provider_published": return t("um_notice_provider_published");
+      case "provider_unpublished": return t("um_notice_provider_unpublished");
+      case "customer_deactivated": return t("um_notice_customer_deactivated");
+      case "customer_already_deactivated": return t("um_notice_customer_already_deactivated");
+      case "customer_suspended": return t("um_notice_customer_suspended");
+      case "customer_already_suspended": return t("um_notice_customer_already_suspended");
+      case "customer_reactivated": return t("um_notice_customer_reactivated");
+      case "customer_already_active": return t("um_notice_customer_already_active");
       default: return "";
     }
   };
@@ -141,14 +166,16 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       case "EMPTY_ROLES": return t("um_error_EMPTY_ROLES");
       case "INVALID_ROLE": return t("um_error_INVALID_ROLE");
       case "STAFF_NOT_FOUND": return t("um_error_STAFF_NOT_FOUND");
+      case "USER_HAS_PRIVILEGED_ROLE": return t("um_error_USER_HAS_PRIVILEGED_ROLE");
       default: return t("um_error_UNKNOWN_ERROR");
     }
   };
 
   let result: { items: unknown[]; page: number; totalPages: number; totalCount: number };
-  let rows: RowVM[] = [];
   let adminItems: AdminListItem[] | null = null;
   let staffItems: StaffListItem[] | null = null;
+  let providerItems: ProviderListItem[] | null = null;
+  let customerItems: CustomerListItem[] | null = null;
   let currentAdminId: string | null = null;
   try {
     if (tab === "administrators") {
@@ -163,23 +190,11 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     } else if (tab === "providers") {
       const r = await getProviders({ q, status: status as ProviderStatus | undefined, page });
       result = r;
-      rows = r.items.map((p) => ({
-        key: p.id,
-        primary: p.businessName,
-        secondary: p.phoneNumber,
-        status: p.status,
-        meta: [p.city ?? "", dateFmt(p.createdAt)].filter(Boolean),
-      }));
+      providerItems = r.items;
     } else {
       const r = await getCustomers({ q, status: status as UserStatus | undefined, page });
       result = r;
-      rows = r.items.map((c) => ({
-        key: c.id,
-        primary: c.phoneNumber,
-        secondary: `ID ${c.userId}`,
-        status: c.status,
-        meta: [t("customerBookingCountLabel", { count: c.bookingCount }), t("customerReviewCountLabel", { count: c.reviewCount }), dateFmt(c.createdAt)],
-      }));
+      customerItems = r.items;
     }
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
@@ -194,14 +209,24 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   }
 
   const hasActiveFilter = Boolean(q || status);
-  const listCount = tab === "administrators" ? (adminItems?.length ?? 0) : tab === "staff" ? (staffItems?.length ?? 0) : rows.length;
+  const listCount =
+    tab === "administrators" ? (adminItems?.length ?? 0)
+    : tab === "staff" ? (staffItems?.length ?? 0)
+    : tab === "providers" ? (providerItems?.length ?? 0)
+    : (customerItems?.length ?? 0);
   const isOutOfRangePage = result.totalCount > 0 && listCount === 0 && page > 1;
   const basePath = getPathname({ href: "/admin/users", locale });
   const searchPlaceholder = tab === "providers" ? t("um_searchPlaceholderProvider") : t("um_searchPlaceholderPhoneId");
   const emptyMessage = isOutOfRangePage ? t("um_emptyPage") : hasActiveFilter ? t("um_emptyMatch") : t("um_empty");
 
   const notice = params.notice && (NOTICE_CODES as readonly string[]).includes(params.notice) ? noticeMessage(params.notice) : null;
-  const errorMsg = params.error && (ERROR_CODES as readonly string[]).includes(params.error) ? errorMessage(params.error) : null;
+  const errorMsg = params.error
+    ? (ERROR_CODES as readonly string[]).includes(params.error)
+      ? errorMessage(params.error)
+      : isProviderAdminActionErrorCode(params.error)
+        ? t(getProviderAdminErrorTranslationKey(params.error))
+        : null
+    : null;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-8 py-8">
@@ -441,25 +466,81 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             ))}
           </div>
         )
-      ) : rows.length === 0 ? (
-        <EmptyState icon={ShieldCheck} message={emptyMessage} />
+      ) : tab === "providers" ? (
+        (providerItems?.length ?? 0) === 0 ? (
+          <EmptyState icon={ShieldCheck} message={emptyMessage} />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {providerItems!.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <Link href={`/admin/providers/${p.id}`} className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-foreground">{p.businessName}</p>
+                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">{p.phoneNumber} · ID {p.userId}</p>
+                </Link>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  <Badge variant={getProviderStatusBadgeVariant(p.status)}>{t(getProviderStatusTranslationKey(p.status))}</Badge>
+                  <Badge variant={p.visible ? "success" : "default"}>{p.visible ? t("providerVisibleLabel") : t("providerHiddenLabel")}</Badge>
+                  {(p.status === "APPLIED" || p.status === "UNDER_REVIEW") && (
+                    <form action={async () => { "use server"; const r = await approveProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_approved` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{t("approveButton")}</SubmitButton>
+                    </form>
+                  )}
+                  {p.status === "APPROVED" && (
+                    <form action={async () => { "use server"; const r = await suspendProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_${r.outcome}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent-foreground hover:bg-accent/10 disabled:opacity-50">{t("um_suspendButton")}</SubmitButton>
+                    </form>
+                  )}
+                  {p.status === "SUSPENDED" && (
+                    <form action={async () => { "use server"; const r = await reactivateProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_${r.outcome}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{t("um_reactivateButton")}</SubmitButton>
+                    </form>
+                  )}
+                  <form action={async () => { "use server"; const r = p.visible ? await unpublishProvider(p.id) : await publishProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=${p.visible ? "provider_unpublished" : "provider_published"}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
+                    <SubmitButton className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/70 hover:bg-accent/20 disabled:opacity-50">{p.visible ? t("unpublishProviderButton") : t("publishProviderButton")}</SubmitButton>
+                  </form>
+                  {p.status !== "DEACTIVATED" && (
+                    <form action={async () => { "use server"; const r = await archiveProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_deactivated` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50">{t("um_deactivateButton")}</SubmitButton>
+                    </form>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : (
-        <div className="flex flex-col gap-3">
-          {rows.map((row) => (
-            <div key={row.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-              <div className="min-w-0 flex-1">
-                <p dir="ltr" className="truncate text-start font-medium text-foreground">{row.primary}</p>
-                {row.secondary ? <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">{row.secondary}</p> : null}
+        (customerItems?.length ?? 0) === 0 ? (
+          <EmptyState icon={ShieldCheck} message={emptyMessage} />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {customerItems!.map((c) => (
+              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <Link href={`/admin/customers/${c.id}`} className="min-w-0 flex-1">
+                  <p dir="ltr" className="truncate text-start font-medium text-foreground">{c.phoneNumber}</p>
+                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">ID {c.userId} · {c.phoneNumberVerified ? t("um_phoneVerified") : t("um_phoneUnverified")}</p>
+                </Link>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  <Badge variant={statusVariant(c.status)}>{statusLabel(c.status)}</Badge>
+                  {c.status === "ACTIVE" && (
+                    <form action={async () => { "use server"; const r = await suspendCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent-foreground hover:bg-accent/10 disabled:opacity-50">{t("um_suspendButton")}</SubmitButton>
+                    </form>
+                  )}
+                  {c.status !== "ACTIVE" && (
+                    <form action={async () => { "use server"; const r = await reactivateCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{t("um_activateButton")}</SubmitButton>
+                    </form>
+                  )}
+                  {c.status !== "DEACTIVATED" && (
+                    <form action={async () => { "use server"; const r = await deactivateCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}>
+                      <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50">{t("um_deactivateButton")}</SubmitButton>
+                    </form>
+                  )}
+                </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
-                {row.meta.map((m, i) => (
-                  <span key={i} className="text-xs text-foreground/60">{m}</span>
-                ))}
-                <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       <Pagination page={result.page} totalPages={result.totalPages} searchParams={params} basePath={basePath} />
