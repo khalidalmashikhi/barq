@@ -1,6 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { isValidUuid } from "@/lib/uuid";
+import type { UserStatus } from "@prisma/client";
 
 // Admin Customer list query — Admin Operations Platform.
 //
@@ -21,7 +23,9 @@ import { requireAdmin } from "@/lib/auth";
 
 export type CustomerListItem = {
   id: string;
+  userId: string;
   phoneNumber: string;
+  status: string;
   createdAt: Date;
   bookingCount: number;
   reviewCount: number;
@@ -29,6 +33,9 @@ export type CustomerListItem = {
 
 export type CustomerListFilters = {
   q?: string;
+  // Customer access-status is User.status (Customer has no status of its own),
+  // per the approved User & Access Management design.
+  status?: UserStatus;
   page?: number;
   pageSize?: number;
 };
@@ -49,7 +56,20 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
 
-  const where = filters.q ? { user: { phoneNumber: { contains: filters.q } } } : {};
+  // Search by phone (contains) or, when the query is a valid UUID, by exact
+  // User ID — never by name/email (none exist). A single non-UUID phone search
+  // keeps the plain { user: { phoneNumber } } shape; multiple clauses combine
+  // under AND.
+  const clauses = [];
+  if (filters.status) clauses.push({ user: { status: filters.status } });
+  if (filters.q) {
+    clauses.push(
+      isValidUuid(filters.q)
+        ? { OR: [{ user: { phoneNumber: { contains: filters.q } } }, { userId: filters.q }] }
+        : { user: { phoneNumber: { contains: filters.q } } }
+    );
+  }
+  const where = clauses.length === 0 ? {} : clauses.length === 1 ? clauses[0] : { AND: clauses };
 
   const [totalCount, customers] = await Promise.all([
     prisma.customer.count({ where }),
@@ -59,7 +79,7 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        user: { select: { phoneNumber: true } },
+        user: { select: { phoneNumber: true, status: true } },
         _count: { select: { bookings: true, reviews: true } },
       },
     }),
@@ -67,14 +87,17 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
 
   type CustomerRow = {
     id: string;
+    userId: string;
     createdAt: Date;
-    user: { phoneNumber: string };
+    user: { phoneNumber: string; status: string };
     _count: { bookings: number; reviews: number };
   };
 
   const items: CustomerListItem[] = (customers as CustomerRow[]).map((customer) => ({
     id: customer.id,
+    userId: customer.userId,
     phoneNumber: customer.user.phoneNumber,
+    status: customer.user.status,
     createdAt: customer.createdAt,
     bookingCount: customer._count.bookings,
     reviewCount: customer._count.reviews,

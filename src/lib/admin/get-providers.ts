@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { isValidUuid } from "@/lib/uuid";
 import type { ProviderStatus } from "@prisma/client";
 
 // Admin Provider list query — Phase 2 (Provider Foundation). Mirrors
@@ -17,6 +18,8 @@ import type { ProviderStatus } from "@prisma/client";
 
 export type ProviderListItem = {
   id: string;
+  userId: string;
+  phoneNumber: string;
   businessName: string;
   slug: string | null;
   status: string;
@@ -50,12 +53,17 @@ export async function getProviders(filters: ProviderListFilters = {}): Promise<P
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
 
-  // Same JSON-path search strategy as get-categories.ts/get-services.ts.
+  // Search by bilingual businessName (JSON path, same strategy as
+  // get-categories.ts/get-services.ts), plus — for the User & Access
+  // Management view — the owning User's phone number (contains) and, when the
+  // query is a valid UUID, the exact User ID. Never name/email (none exist).
   const searchClause = filters.q
     ? {
         OR: [
           { businessName: { path: ["ar"], string_contains: filters.q } },
           { businessName: { path: ["en"], string_contains: filters.q } },
+          { user: { phoneNumber: { contains: filters.q } } },
+          ...(isValidUuid(filters.q) ? [{ userId: filters.q }] : []),
         ],
       }
     : {};
@@ -72,11 +80,14 @@ export async function getProviders(filters: ProviderListFilters = {}): Promise<P
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
+      include: { user: { select: { phoneNumber: true } } },
     }),
   ]);
 
   const items: ProviderListItem[] = providers.map((provider) => ({
     id: provider.id,
+    userId: provider.userId,
+    phoneNumber: provider.user.phoneNumber,
     businessName: extractLocalizedText(provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     slug: provider.slug,
     status: provider.status,

@@ -37,6 +37,14 @@ describe("getAdminNavItems", () => {
     );
   });
 
+  // User & Access Management (Batch 2).
+  it("includes a navigable User Management route", () => {
+    const items = getAdminNavItems(t, "en") as NavItem[];
+    expect(items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "navUserManagement", href: "/admin/users" })])
+    );
+  });
+
   it("preserves every pre-existing admin route", () => {
     const items = getAdminNavItems(t, "en") as NavItem[];
     const hrefs = items.map((item) => item.href);

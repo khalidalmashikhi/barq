@@ -46,6 +46,8 @@ describe("getProviders", () => {
     findManyMock.mockResolvedValue([
       {
         id: "provider-1",
+        userId: "019f4e4e-8116-7052-b15e-b79b5ccb1af9",
+        user: { phoneNumber: "+96890000002" },
         businessName: { ar: "شركة", en: "Trips Co" },
         slug: "trips-co",
         status: "APPROVED",
@@ -61,10 +63,12 @@ describe("getProviders", () => {
     expect(requireAdminMock).toHaveBeenCalled();
     expect(result.totalCount).toBe(1);
     expect(result.page).toBe(1);
-    expect(result.items).toEqual([expect.objectContaining({ businessName: "Trips Co", status: "APPROVED" })]);
+    expect(result.items).toEqual([
+      expect.objectContaining({ businessName: "Trips Co", status: "APPROVED", phoneNumber: "+96890000002" }),
+    ]);
   });
 
-  it("passes a search filter through to the where clause", async () => {
+  it("searches businessName and phone for a non-UUID query (no userId clause)", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     getLocaleMock.mockResolvedValue("en");
     countMock.mockResolvedValue(0);
@@ -77,6 +81,28 @@ describe("getProviders", () => {
         OR: [
           { businessName: { path: ["ar"], string_contains: "trips" } },
           { businessName: { path: ["en"], string_contains: "trips" } },
+          { user: { phoneNumber: { contains: "trips" } } },
+        ],
+      },
+    });
+  });
+
+  it("adds an exact User ID clause when the query is a valid UUID", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    const uuid = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
+    await getProviders({ q: uuid });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { businessName: { path: ["ar"], string_contains: uuid } },
+          { businessName: { path: ["en"], string_contains: uuid } },
+          { user: { phoneNumber: { contains: uuid } } },
+          { userId: uuid },
         ],
       },
     });
