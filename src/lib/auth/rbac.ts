@@ -65,6 +65,25 @@ export async function requireAuth(): Promise<AuthContext> {
 
   const barqUser = await resolveBarqUser(session.user.id);
 
+  // User & Access Management (Batch 1) — real status-based authorization.
+  // A punitively terminated account (SUSPENDED/DEACTIVATED) keeps a valid
+  // Better Auth session until it expires, so authentication alone is not
+  // enough — this is the single choke point every require*() helper builds
+  // on, so denying here revokes access to every page, Server Action, and API
+  // for such a user in one place. Deliberately a DENYLIST (only the two
+  // terminal statuses), never an allowlist: CREATED/VERIFIED/ACTIVE all pass,
+  // so normal freshly-signed-in users (default status CREATED) are unaffected.
+  // Does NOT touch Better Auth or the authentication flow — a post-auth
+  // authorization check only.
+  if (barqUser.status === "SUSPENDED" || barqUser.status === "DEACTIVATED") {
+    logger.warn("auth.forbidden", {
+      userId: barqUser.id,
+      reason: "user_status",
+      currentUserStatus: barqUser.status,
+    });
+    throw new ForbiddenError("Account is not active", "USER_INACTIVE");
+  }
+
   return { authUserId: session.user.id, barqUser };
 }
 
@@ -229,8 +248,11 @@ export async function requireStaff(role?: StaffRole) {
     where: { userId: barqUser.id },
   });
 
-  if (!staff) {
-    logger.warn("auth.forbidden", { userId: barqUser.id, requiredRole: "Staff" });
+  // User & Access Management (Batch 1) — a DEACTIVATED Staff member must lose
+  // access, mirroring the Admin rule above. Existing ForbiddenError semantics
+  // preserved.
+  if (!staff || staff.status !== "ACTIVE") {
+    logger.warn("auth.forbidden", { userId: barqUser.id, requiredRole: "Staff", currentStaffStatus: staff?.status });
     throw new ForbiddenError("Staff role required");
   }
 
@@ -253,8 +275,18 @@ export async function requireAdmin() {
     where: { userId: barqUser.id },
   });
 
-  if (!admin) {
-    logger.warn("auth.forbidden", { userId: barqUser.id, requiredRole: "Admin" });
+  // User & Access Management (Batch 1) — a DEACTIVATED Admin must lose access,
+  // not merely be flagged. Previously this checked only existence, so
+  // deactivation (Admin.status) had no effect on the actual gate. Now aligned
+  // with hasActiveAdminProfile()'s existing status===ACTIVE rule. The thrown
+  // ForbiddenError is unchanged, so every existing call site (which catches it
+  // generically) behaves exactly as before for a non-active admin.
+  if (!admin || admin.status !== "ACTIVE") {
+    logger.warn("auth.forbidden", {
+      userId: barqUser.id,
+      requiredRole: "Admin",
+      currentAdminStatus: admin?.status,
+    });
     throw new ForbiddenError("Admin role required");
   }
 
