@@ -44,7 +44,7 @@ describe("DisabledOtpProvider", () => {
     expect(error).toBeInstanceOf(OtpDeliveryUnavailableError);
     const serialized = JSON.stringify({
       message: (error as Error).message,
-      code: (error as OtpDeliveryUnavailableError).code,
+      code: (error as { code?: string }).code,
     });
     expect(serialized).toContain("OTP_DELIVERY_UNAVAILABLE");
     expect(serialized).not.toMatch(/\d{4,}/); // no code-shaped digit run
