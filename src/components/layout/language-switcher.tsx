@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link, usePathname } from "@/i18n/navigation";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { locales, type Locale } from "@/i18n/locales";
+import { switchLocalePath } from "@/i18n/switch-locale-path";
 
 // Language switcher — Phase 2 navbar revision (Brand Identity Reset).
 //
@@ -12,9 +14,22 @@ import { locales, type Locale } from "@/i18n/locales";
 // (the only existing "languageAriaLabel" consumer, AppTopBar's Globe
 // button, is a decorative placeholder with no dropdown/action — see
 // its own file). This is the first real, functional one: a compact
-// dropdown that switches locale via next-intl's own Link+locale
-// mechanism (same pathname, different locale prefix) — no client-side
-// routing logic invented, just the documented next-intl pattern.
+// dropdown that switches locale.
+//
+// LOCALE-SWITCH CORRECTNESS: the target href is built by the
+// deterministic `switchLocalePath` helper (src/i18n/switch-locale-path.ts)
+// from the FULL current path (locale segment included), then navigated to
+// with a plain next/link `<Link>`. This deliberately does NOT use
+// next-intl's `usePathname()` + `<Link locale>` pairing: that pairing
+// strips only the *current* locale (and only when `useLocale()` agrees
+// with the URL) and then unconditionally prepends a locale, which is what
+// produced doubled roots like `/de/en` or `/fr/fr` whenever the two
+// diverged or the URL already carried a stray locale. The helper instead
+// strips every leading locale segment and prepends exactly one target —
+// self-healing an already-doubled URL — while preserving the route, query
+// string and hash. A plain next/link is required here: next-intl's own
+// `Link` would re-prefix the already-locale-complete href and re-introduce
+// the duplication.
 //
 // Native-script display names, not English names for each language —
 // a Czech speaker should see "Čeština", not "Czech".
@@ -37,9 +52,23 @@ type LanguageSwitcherProps = {
 export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
   const [open, setOpen] = useState(false);
   const locale = useLocale() as Locale;
+  // Full current path INCLUDING the locale segment (e.g. `/de/services`).
+  // next/navigation's usePathname is used deliberately (not next-intl's) so
+  // the value is deterministic and independent of locale negotiation — the
+  // `switchLocalePath` helper does the locale replacement itself.
   const pathname = usePathname();
+  // Query string + hash are only available on the client. Reading them from
+  // window (post-mount) rather than useSearchParams avoids forcing a
+  // Suspense boundary on every page that renders the navbar, while still
+  // preserving `?query` and `#hash` across a locale switch. The initial
+  // (server) render links to the bare path; the effect fills in the suffix.
+  const [locationSuffix, setLocationSuffix] = useState("");
   const t = useTranslations("common");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLocationSuffix(window.location.search + window.location.hash);
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -50,6 +79,8 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const currentPath = `${pathname}${locationSuffix}`;
 
   return (
     <div ref={containerRef} className="relative">
@@ -73,8 +104,7 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
           {locales.map((code) => (
             <Link
               key={code}
-              href={pathname}
-              locale={code}
+              href={switchLocalePath(currentPath, code)}
               role="menuitem"
               onClick={() => {
                 setOpen(false);
