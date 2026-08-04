@@ -75,7 +75,7 @@ vi.mock("@/lib/db", () => ({
       findMany: async () =>
         [...store.values()]
           .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.getTime() - b.createdAt.getTime())
-          .map((c) => ({ ...c, subCategories: [] })),
+          .map((c) => ({ ...c, children: [] })),
       count: async () => store.size,
     },
     auditLog: { create: async () => ({}) },

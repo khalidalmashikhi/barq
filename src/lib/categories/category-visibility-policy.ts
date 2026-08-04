@@ -30,19 +30,20 @@ export function isValidScheduledVisibility(scheduledVisibleAt: Date | null | und
   return scheduledVisibleAt !== null && scheduledVisibleAt !== undefined && scheduledVisibleAt.getTime() > Date.now();
 }
 
-// Resolves 07-CATEGORIES.md's open SubCategory-inheritance question: a
-// SubCategory holds its own visibilityStatus, but can never read as more
-// visible than its parent Category — a HIDDEN/ARCHIVED parent makes every
-// child effectively invisible regardless of the child's own status, since a
-// customer could never navigate to it through the (non-existent yet)
-// Marketplace browsing surface Category feeds. Category itself has no
-// parent, so it only ever consults its own status.
-export function isSubCategoryEffectivelyVisible(
-  subCategoryStatus: CategoryVisibilityStatus,
-  parentCategoryStatus: CategoryVisibilityStatus
+// Effective visibility across the Category tree (ADR-0015). A node can never
+// read as more visible than its ancestors: a HIDDEN or ARCHIVED ancestor makes
+// the whole subtree effectively invisible, regardless of the node's own
+// status. This generalizes the former SubCategory-only rule to evaluate EVERY
+// ancestor (not just the immediate parent), so it stays correct if the tree's
+// max depth is ever raised. A root (no ancestors) is effectively visible iff
+// it is itself PUBLIC. Preserves the original semantics exactly: only HIDDEN/
+// ARCHIVED ancestors gate; other ancestor states do not.
+export function isCategoryEffectivelyVisible(
+  nodeStatus: CategoryVisibilityStatus,
+  ancestorStatuses: readonly CategoryVisibilityStatus[] = []
 ): boolean {
-  if (parentCategoryStatus === "HIDDEN" || parentCategoryStatus === "ARCHIVED") {
+  if (ancestorStatuses.some((status) => status === "HIDDEN" || status === "ARCHIVED")) {
     return false;
   }
-  return subCategoryStatus === "PUBLIC";
+  return nodeStatus === "PUBLIC";
 }

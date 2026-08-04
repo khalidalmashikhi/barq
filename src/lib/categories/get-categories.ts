@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
-import { isSubCategoryEffectivelyVisible } from "./category-visibility-policy";
+import { isCategoryEffectivelyVisible } from "./category-visibility-policy";
 import type { CategoryVisibilityStatus } from "@prisma/client";
 
 // Admin Category list query — Phase 1.1 (Core Business Platform),
@@ -30,9 +30,10 @@ export type CategoryListItem = {
   id: string;
   name: string;
   slug: string;
+  serviceTypeKey: string;
   visibilityStatus: string;
   sortOrder: number;
-  subCategories: CategoryListSubItem[];
+  children: CategoryListSubItem[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -72,6 +73,11 @@ export async function getCategories(filters: CategoryListFilters = {}): Promise<
     : {};
 
   const where = {
+    // Only root categories are listed at the top level (ADR-0015); their
+    // children are nested below via the `children` include. Search/visibility
+    // filters apply to the roots, matching the pre-collapse behavior where the
+    // list only ever showed top-level categories.
+    parentId: null,
     ...(filters.visibilityStatus ? { visibilityStatus: filters.visibilityStatus } : {}),
     ...searchClause,
   };
@@ -84,7 +90,7 @@ export async function getCategories(filters: CategoryListFilters = {}): Promise<
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        subCategories: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+        children: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       },
     }),
   ]);
@@ -93,14 +99,15 @@ export async function getCategories(filters: CategoryListFilters = {}): Promise<
     id: category.id,
     name: extractLocalizedText(category.name, locale) || category.slug,
     slug: category.slug,
+    serviceTypeKey: category.serviceTypeKey,
     visibilityStatus: category.visibilityStatus,
     sortOrder: category.sortOrder,
-    subCategories: category.subCategories.map((subCategory) => ({
-      id: subCategory.id,
-      name: extractLocalizedText(subCategory.name, locale) || subCategory.slug,
-      slug: subCategory.slug,
-      visibilityStatus: subCategory.visibilityStatus,
-      effectivelyVisible: isSubCategoryEffectivelyVisible(subCategory.visibilityStatus, category.visibilityStatus),
+    children: category.children.map((child) => ({
+      id: child.id,
+      name: extractLocalizedText(child.name, locale) || child.slug,
+      slug: child.slug,
+      visibilityStatus: child.visibilityStatus,
+      effectivelyVisible: isCategoryEffectivelyVisible(child.visibilityStatus, [category.visibilityStatus]),
     })),
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,

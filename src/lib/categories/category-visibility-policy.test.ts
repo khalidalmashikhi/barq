@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { canTransitionCategoryVisibility, isValidScheduledVisibility, isSubCategoryEffectivelyVisible } = await import(
+const { canTransitionCategoryVisibility, isValidScheduledVisibility, isCategoryEffectivelyVisible } = await import(
   "./category-visibility-policy"
 );
 
@@ -47,18 +47,31 @@ describe("isValidScheduledVisibility", () => {
   });
 });
 
-describe("isSubCategoryEffectivelyVisible", () => {
-  it("is invisible when the parent Category is HIDDEN, regardless of the SubCategory's own status", () => {
-    expect(isSubCategoryEffectivelyVisible("PUBLIC", "HIDDEN")).toBe(false);
+describe("isCategoryEffectivelyVisible", () => {
+  it("treats a root (no ancestors) as visible iff it is itself PUBLIC", () => {
+    expect(isCategoryEffectivelyVisible("PUBLIC")).toBe(true);
+    expect(isCategoryEffectivelyVisible("PUBLIC", [])).toBe(true);
+    expect(isCategoryEffectivelyVisible("HIDDEN")).toBe(false);
+    expect(isCategoryEffectivelyVisible("LINK_ONLY")).toBe(false);
   });
 
-  it("is invisible when the parent Category is ARCHIVED, regardless of the SubCategory's own status", () => {
-    expect(isSubCategoryEffectivelyVisible("PUBLIC", "ARCHIVED")).toBe(false);
+  it("is invisible when any ancestor is HIDDEN, regardless of the node's own status", () => {
+    expect(isCategoryEffectivelyVisible("PUBLIC", ["HIDDEN"])).toBe(false);
   });
 
-  it("is visible only when both the SubCategory and its parent are PUBLIC", () => {
-    expect(isSubCategoryEffectivelyVisible("PUBLIC", "PUBLIC")).toBe(true);
-    expect(isSubCategoryEffectivelyVisible("HIDDEN", "PUBLIC")).toBe(false);
-    expect(isSubCategoryEffectivelyVisible("LINK_ONLY", "PUBLIC")).toBe(false);
+  it("is invisible when any ancestor is ARCHIVED, regardless of the node's own status", () => {
+    expect(isCategoryEffectivelyVisible("PUBLIC", ["ARCHIVED"])).toBe(false);
+  });
+
+  it("is visible only when the node is PUBLIC and no ancestor is HIDDEN/ARCHIVED", () => {
+    expect(isCategoryEffectivelyVisible("PUBLIC", ["PUBLIC"])).toBe(true);
+    expect(isCategoryEffectivelyVisible("HIDDEN", ["PUBLIC"])).toBe(false);
+    expect(isCategoryEffectivelyVisible("LINK_ONLY", ["PUBLIC"])).toBe(false);
+  });
+
+  it("evaluates EVERY ancestor — one HIDDEN/ARCHIVED ancestor anywhere hides the node", () => {
+    expect(isCategoryEffectivelyVisible("PUBLIC", ["PUBLIC", "PUBLIC"])).toBe(true);
+    expect(isCategoryEffectivelyVisible("PUBLIC", ["PUBLIC", "HIDDEN"])).toBe(false);
+    expect(isCategoryEffectivelyVisible("PUBLIC", ["ARCHIVED", "PUBLIC"])).toBe(false);
   });
 });

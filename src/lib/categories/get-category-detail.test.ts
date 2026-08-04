@@ -51,17 +51,19 @@ describe("getCategoryDetail", () => {
     expect(result).toBeNull();
   });
 
-  it("returns both-language name and effective SubCategory visibility", async () => {
+  it("returns both-language name, vertical, parentId, and effective child visibility", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue({
       id: CATEGORY_ID,
       name: { ar: "أنشطة", en: "Activities" },
       slug: "activities",
+      serviceTypeKey: "EXPERIENCE",
+      parentId: null,
       visibilityStatus: "PUBLIC",
       scheduledVisibleAt: null,
-      subCategories: [
+      children: [
         {
-          id: "subcategory-1",
+          id: "child-1",
           name: { ar: "رحلة صحراوية", en: "Desert Safari" },
           slug: "desert-safari",
           visibilityStatus: "PUBLIC",
@@ -76,10 +78,12 @@ describe("getCategoryDetail", () => {
       expect.objectContaining({
         id: CATEGORY_ID,
         name: { ar: "أنشطة", en: "Activities" },
+        serviceTypeKey: "EXPERIENCE",
+        parentId: null,
         visibilityStatus: "PUBLIC",
-        subCategories: [
+        children: [
           expect.objectContaining({
-            id: "subcategory-1",
+            id: "child-1",
             effectivelyVisible: true,
           }),
         ],

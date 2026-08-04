@@ -23,6 +23,11 @@ import type { CategoryActionErrorCode } from "./category-errors";
 // ordering get-categories.ts already uses) by swapping sortOrder with the
 // adjacent sibling — simpler and less error-prone for an admin UI than
 // asking for a raw numeric position, and needs no drag-and-drop client code.
+//
+// SIBLING-SCOPED (ADR-0015): reordering is ALWAYS scoped to the node's own
+// sibling group (same parentId) — roots reorder among roots, a parent's
+// children reorder among that parent's children, never mixed. This works
+// identically for a root (parentId null) and a child.
 
 export type ReorderCategoryResult = { ok: true } | { ok: false; error: CategoryActionErrorCode };
 
@@ -46,7 +51,19 @@ async function move(categoryId: string, direction: "up" | "down"): Promise<Reord
   }
 
   try {
+    const target = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { parentId: true },
+    });
+    if (!target) {
+      return { ok: false, error: "CATEGORY_NOT_FOUND" };
+    }
+
+    // Only this node's siblings (same parentId) participate in the swap —
+    // `where: { parentId }` with a null value matches roots, with a uuid
+    // matches that parent's children.
     const ordered = await prisma.category.findMany({
+      where: { parentId: target.parentId },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, sortOrder: true },
     });

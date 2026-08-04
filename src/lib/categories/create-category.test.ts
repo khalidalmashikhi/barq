@@ -97,7 +97,7 @@ describe("createCategory", () => {
 
     expect(result).toEqual({ ok: true, categoryId: "category-1" });
     expect(categoryCreateMock).toHaveBeenCalledWith({
-      data: { name: { ar: "فئة", en: "Category" }, slug: "activities", serviceTypeKey: "EXPERIENCE", sortOrder: 0 },
+      data: { name: { ar: "فئة", en: "Category" }, slug: "activities", serviceTypeKey: "EXPERIENCE", parentId: null, depth: 0, sortOrder: 0 },
     });
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -121,7 +121,7 @@ describe("createCategory", () => {
     await createCategory(buildFormData({ nameAr: "فئة أخرى", nameEn: "Another Category", slug: "another-category" }));
 
     expect(categoryCreateMock).toHaveBeenCalledWith({
-      data: { name: { ar: "فئة أخرى", en: "Another Category" }, slug: "another-category", serviceTypeKey: "EXPERIENCE", sortOrder: 5 },
+      data: { name: { ar: "فئة أخرى", en: "Another Category" }, slug: "another-category", serviceTypeKey: "EXPERIENCE", parentId: null, depth: 0, sortOrder: 5 },
     });
   });
 
@@ -148,6 +148,65 @@ describe("createCategory", () => {
     );
 
     expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(categoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  const PARENT_ID = "019f4e4e-8116-7052-b15e-0000000000aa";
+
+  it("creates a child under a parent, inheriting the parent's vertical and depth+1 (ADR-0015)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    // first findUnique = slug check (free); second = parent lookup.
+    categoryFindUniqueMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ depth: 0, serviceTypeKey: "TRANSPORT" });
+    categoryAggregateMock.mockResolvedValue({ _max: { sortOrder: null } });
+    categoryCreateMock.mockResolvedValue({ id: "child-1" });
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await createCategory(
+      buildFormData({ nameAr: "حافلات", nameEn: "Buses", slug: "buses", parentId: PARENT_ID })
+    );
+
+    expect(result).toEqual({ ok: true, categoryId: "child-1" });
+    expect(categoryCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ slug: "buses", parentId: PARENT_ID, depth: 1, serviceTypeKey: "TRANSPORT" }),
+    });
+    // sortOrder is scoped to the parent's children.
+    expect(categoryAggregateMock).toHaveBeenCalledWith(expect.objectContaining({ where: { parentId: PARENT_ID } }));
+  });
+
+  it("rejects a child whose supplied serviceTypeKey conflicts with the parent's", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    categoryFindUniqueMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ depth: 0, serviceTypeKey: "EXPERIENCE" });
+
+    const result = await createCategory(
+      buildFormData({ nameAr: "حافلات", nameEn: "Buses", slug: "buses", parentId: PARENT_ID, serviceTypeKey: "TRANSPORT" })
+    );
+
+    expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(categoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns PARENT_NOT_FOUND when the parent does not exist", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    categoryFindUniqueMock.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+    const result = await createCategory(
+      buildFormData({ nameAr: "حافلات", nameEn: "Buses", slug: "buses", parentId: PARENT_ID })
+    );
+
+    expect(result).toEqual({ ok: false, error: "PARENT_NOT_FOUND" });
+    expect(categoryCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns DEPTH_EXCEEDED when the parent is already at the maximum depth", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    // parent at depth 1 → child would be depth 2 >= MAX_CATEGORY_DEPTH (2).
+    categoryFindUniqueMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ depth: 1, serviceTypeKey: "EXPERIENCE" });
+
+    const result = await createCategory(
+      buildFormData({ nameAr: "عميق", nameEn: "Deep", slug: "deep", parentId: PARENT_ID })
+    );
+
+    expect(result).toEqual({ ok: false, error: "DEPTH_EXCEEDED" });
     expect(categoryCreateMock).not.toHaveBeenCalled();
   });
 });

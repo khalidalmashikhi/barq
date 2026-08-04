@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("getCategories", () => {
-  it("requires an Admin and returns a paginated result with effective SubCategory visibility", async () => {
+  it("requires an Admin and returns a paginated result with effective child visibility", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     countMock.mockResolvedValue(1);
     findManyMock.mockResolvedValue([
@@ -48,13 +48,14 @@ describe("getCategories", () => {
         id: "category-1",
         name: { ar: "أنشطة", en: "Activities" },
         slug: "activities",
+        serviceTypeKey: "EXPERIENCE",
         visibilityStatus: "HIDDEN",
         sortOrder: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
-        subCategories: [
+        children: [
           {
-            id: "subcategory-1",
+            id: "child-1",
             name: { ar: "رحلة صحراوية", en: "Desert Safari" },
             slug: "desert-safari",
             visibilityStatus: "PUBLIC",
@@ -73,10 +74,11 @@ describe("getCategories", () => {
       expect.objectContaining({
         id: "category-1",
         name: "Activities",
+        serviceTypeKey: "EXPERIENCE",
         visibilityStatus: "HIDDEN",
-        subCategories: [
+        children: [
           expect.objectContaining({
-            id: "subcategory-1",
+            id: "child-1",
             name: "Desert Safari",
             visibilityStatus: "PUBLIC",
             // Parent is HIDDEN, so the child is never effectively visible
@@ -88,13 +90,14 @@ describe("getCategories", () => {
     ]);
   });
 
-  it("passes a visibilityStatus filter through to the where clause", async () => {
+  it("lists only root categories and passes a visibilityStatus filter through to the where clause", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     countMock.mockResolvedValue(0);
     findManyMock.mockResolvedValue([]);
 
     await getCategories({ visibilityStatus: "PUBLIC" });
 
-    expect(countMock).toHaveBeenCalledWith({ where: { visibilityStatus: "PUBLIC" } });
+    // parentId: null scopes the list to roots (children nest via the include).
+    expect(countMock).toHaveBeenCalledWith({ where: { parentId: null, visibilityStatus: "PUBLIC" } });
   });
 });
