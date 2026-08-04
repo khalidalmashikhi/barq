@@ -4,7 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getCategoryDetail } from "@/lib/categories/get-category-detail";
-import { createSubCategory } from "@/lib/categories/create-subcategory";
+import { createCategory } from "@/lib/categories/create-category";
 import { isCategoryActionErrorCode, getCategoryErrorTranslationKey } from "@/lib/categories/category-errors";
 import { isValidUuid } from "@/lib/uuid";
 import { Card } from "@/components/ui/card";
@@ -73,7 +73,10 @@ export default async function NewSubCategoryPage({ params, searchParams }: Props
         <form
           action={async (formData: FormData) => {
             "use server";
-            const result = await createSubCategory(categoryId, formData);
+            // A child category uses the SAME create action as a root (ADR-0015);
+            // parentId (below) makes it a depth-1 child that inherits the
+            // parent's vertical. No serviceTypeKey field here — it is inherited.
+            const result = await createCategory(formData);
             if (!result.ok) {
               redirect({ href: `/admin/categories/${categoryId}/subcategories/new?error=${result.error}`, locale });
               return;
@@ -82,6 +85,7 @@ export default async function NewSubCategoryPage({ params, searchParams }: Props
           }}
           className="flex flex-col gap-4"
         >
+          <input type="hidden" name="parentId" value={categoryId} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-foreground/50">{t("categoryNameArLabel")}</span>

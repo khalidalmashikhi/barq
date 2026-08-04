@@ -100,7 +100,7 @@ export default async function AdminCategoriesPage({ searchParams }: { searchPara
               <Link href={`/admin/categories/${category.id}`} className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{category.name}</p>
                 <p className="mt-0.5 text-xs text-foreground/40">
-                  /{category.slug} · {category.subCategories.length} {t("subcategoriesLabel")}
+                  /{category.slug} · {category.children.length} {t("subcategoriesLabel")}
                 </p>
               </Link>
 

@@ -4,7 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getCategoryDetail } from "@/lib/categories/get-category-detail";
-import { updateSubCategory } from "@/lib/categories/update-subcategory";
+import { updateCategory } from "@/lib/categories/update-category";
 import { isCategoryActionErrorCode, getCategoryErrorTranslationKey } from "@/lib/categories/category-errors";
 import { isValidUuid } from "@/lib/uuid";
 import { Card } from "@/components/ui/card";
@@ -54,8 +54,10 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
     throw err;
   }
 
-  const subCategory = category?.subCategories.find((s) => s.id === subCategoryId);
-  if (!category || !subCategory) {
+  // A "sub-category" is a depth-1 child Category (ADR-0015). The route param
+  // is kept for backward-compatible URLs; it addresses a child Category record.
+  const child = category?.children.find((c) => c.id === subCategoryId);
+  if (!category || !child) {
     notFound();
   }
 
@@ -76,7 +78,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
         <form
           action={async (formData: FormData) => {
             "use server";
-            const result = await updateSubCategory(subCategoryId, formData);
+            const result = await updateCategory(subCategoryId, formData);
             if (!result.ok) {
               redirect({ href: `/admin/categories/${categoryId}/subcategories/${subCategoryId}/edit?error=${result.error}`, locale });
               return;
@@ -93,7 +95,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
                 name="nameAr"
                 required
                 dir="rtl"
-                defaultValue={subCategory.name.ar}
+                defaultValue={child.name.ar}
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
@@ -104,7 +106,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
                 name="nameEn"
                 required
                 dir="ltr"
-                defaultValue={subCategory.name.en}
+                defaultValue={child.name.en}
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
@@ -118,7 +120,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
               required
               pattern="[a-z0-9]+(-[a-z0-9]+)*"
               dir="ltr"
-              defaultValue={subCategory.slug}
+              defaultValue={child.slug}
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <span className="text-xs text-foreground/40">{t("categorySlugHintLabel")}</span>

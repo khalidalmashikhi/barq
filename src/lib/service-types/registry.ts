@@ -38,14 +38,17 @@ export const DEFAULT_SERVICE_TYPE_KEY: ServiceTypeKey = "EXPERIENCE";
 
 // Admin-facing i18n label key per vertical, resolved in the `admin` namespace.
 // Presentation metadata only — never behavior.
-export const SERVICE_TYPE_LABEL_KEYS: Record<ServiceTypeKey, string> = {
+// `as const satisfies` preserves the literal label-key types so next-intl's
+// t() accepts `SERVICE_TYPE_LABEL_KEYS[key]` as a real message key (a plain
+// Record<…, string> would widen them to `string` and fail the typed lookup).
+export const SERVICE_TYPE_LABEL_KEYS = {
   EXPERIENCE: "serviceTypeExperience",
   TRANSPORT: "serviceTypeTransport",
   ACCOMMODATION: "serviceTypeAccommodation",
   DINING: "serviceTypeDining",
   EVENT: "serviceTypeEvent",
   RENTAL: "serviceTypeRental",
-};
+} as const satisfies Record<ServiceTypeKey, string>;
 
 // Runtime guard: is `value` one of the governed vertical keys? Used by every
 // write path that accepts a serviceTypeKey, so an invalid value can never

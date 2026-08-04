@@ -5,8 +5,7 @@ import { ArrowRight, Layers, Plus, ArrowUp, ArrowDown, Edit } from "lucide-react
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getCategoryDetail } from "@/lib/categories/get-category-detail";
 import { setCategoryVisibility, archiveCategory } from "@/lib/categories/transition-category-visibility";
-import { archiveSubCategory } from "@/lib/categories/transition-subcategory-visibility";
-import { moveSubCategoryUp, moveSubCategoryDown } from "@/lib/categories/reorder-subcategory";
+import { moveCategoryUp, moveCategoryDown } from "@/lib/categories/reorder-category";
 import { getCategoryVisibilityStyle, getCategoryVisibilityTranslationKey } from "@/lib/categories/presentation/category-visibility";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -170,29 +169,31 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
         </Link>
       </div>
 
-      {category.subCategories.length === 0 ? (
+      {category.children.length === 0 ? (
         <EmptyState icon={Layers} message={t("noSubcategoriesLabel")} />
       ) : (
         <div className="flex flex-col gap-3">
-          {category.subCategories.map((subCategory) => (
-            <div key={subCategory.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+          {category.children.map((child) => (
+            <div key={child.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-foreground">{subCategory.name.en}</p>
-                <p className="mt-0.5 text-xs text-foreground/40">/{subCategory.slug}</p>
+                <p className="truncate font-medium text-foreground">{child.name.en}</p>
+                <p className="mt-0.5 text-xs text-foreground/40">/{child.slug}</p>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${getCategoryVisibilityStyle(subCategory.visibilityStatus)}`}>
-                  {t(getCategoryVisibilityTranslationKey(subCategory.visibilityStatus))}
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${getCategoryVisibilityStyle(child.visibilityStatus)}`}>
+                  {t(getCategoryVisibilityTranslationKey(child.visibilityStatus))}
                 </span>
-                {!subCategory.effectivelyVisible && subCategory.visibilityStatus === "PUBLIC" && (
+                {!child.effectivelyVisible && child.visibilityStatus === "PUBLIC" && (
                   <span className="text-xs text-foreground/40">{t("hiddenByParentLabel")}</span>
                 )}
 
+                {/* Child categories use the SAME Category actions as roots
+                    (ADR-0015); reorder is sibling-scoped by parentId. */}
                 <form
                   action={async () => {
                     "use server";
-                    await moveSubCategoryUp(subCategory.id);
+                    await moveCategoryUp(child.id);
                     redirect({ href: `/admin/categories/${id}`, locale });
                   }}
                 >
@@ -203,7 +204,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
                 <form
                   action={async () => {
                     "use server";
-                    await moveSubCategoryDown(subCategory.id);
+                    await moveCategoryDown(child.id);
                     redirect({ href: `/admin/categories/${id}`, locale });
                   }}
                 >
@@ -213,18 +214,18 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
                 </form>
 
                 <Link
-                  href={`/admin/categories/${id}/subcategories/${subCategory.id}/edit`}
+                  href={`/admin/categories/${id}/subcategories/${child.id}/edit`}
                   className="rounded-full border border-border p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground"
                   aria-label={t("editSubcategoryButton")}
                 >
                   <Edit size={14} strokeWidth={1.75} />
                 </Link>
 
-                {subCategory.visibilityStatus !== "ARCHIVED" && (
+                {child.visibilityStatus !== "ARCHIVED" && (
                   <form
                     action={async () => {
                       "use server";
-                      const result = await archiveSubCategory(subCategory.id);
+                      const result = await archiveCategory(child.id);
                       if (!result.ok) {
                         redirect({ href: `/admin/categories/${id}?error=${result.error}`, locale });
                         return;
