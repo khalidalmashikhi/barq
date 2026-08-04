@@ -5,8 +5,9 @@ import { Globe, Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { locales, type Locale } from "@/i18n/locales";
+import { locales } from "@/i18n/locales";
 import { switchLocalePath } from "@/i18n/switch-locale-path";
+import { LOCALE_LABELS, resolveActiveLocale } from "@/i18n/active-locale";
 
 // Language switcher — Phase 2 navbar revision (Brand Identity Reset).
 //
@@ -31,19 +32,17 @@ import { switchLocalePath } from "@/i18n/switch-locale-path";
 // `Link` would re-prefix the already-locale-complete href and re-introduce
 // the duplication.
 //
-// Native-script display names, not English names for each language —
-// a Czech speaker should see "Čeština", not "Czech".
-
-const LOCALE_NAMES: Record<Locale, string> = {
-  ar: "العربية",
-  en: "English",
-  de: "Deutsch",
-  it: "Italiano",
-  pl: "Polski",
-  fr: "Français",
-  cs: "Čeština",
-  ru: "Русский",
-};
+// ACTIVE-LOCALE CORRECTNESS: the displayed language (button label +
+// active-item indicator) is derived from the routed URL via
+// `resolveActiveLocale`, NOT from next-intl's `useLocale()` alone.
+// `useLocale()` reads from the NextIntlClientProvider in the root layout,
+// which a soft client-side navigation preserves — leaving it stale after a
+// locale switch (label stuck on the previous language while the new
+// locale's content renders). The routed URL is always fresh, so it is the
+// source of truth here; `useLocale()` is passed only as a fallback for a
+// path with no locale segment. Native-script display names live in
+// `@/i18n/active-locale` (LOCALE_LABELS) so the URL→label mapping is a
+// single testable unit — a Czech speaker sees "Čeština", not "Czech".
 
 type LanguageSwitcherProps = {
   onSelect?: () => void;
@@ -51,7 +50,6 @@ type LanguageSwitcherProps = {
 
 export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
   const [open, setOpen] = useState(false);
-  const locale = useLocale() as Locale;
   // Full current path INCLUDING the locale segment (e.g. `/de/services`).
   // next/navigation's usePathname is used deliberately (not next-intl's) so
   // the value is deterministic and independent of locale negotiation — the
@@ -64,7 +62,13 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
   // (server) render links to the bare path; the effect fills in the suffix.
   const [locationSuffix, setLocationSuffix] = useState("");
   const t = useTranslations("common");
+  const localeFromContext = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Displayed locale derives from the routed URL (always fresh after a
+  // soft navigation); next-intl's useLocale() is only a fallback for a
+  // path with no locale segment. This is what keeps the label in sync.
+  const activeLocale = resolveActiveLocale(pathname, localeFromContext);
 
   useEffect(() => {
     setLocationSuffix(window.location.search + window.location.hash);
@@ -93,7 +97,7 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
         className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/15 hover:text-foreground"
       >
         <Globe size={16} strokeWidth={1.75} aria-hidden />
-        <span>{LOCALE_NAMES[locale]}</span>
+        <span>{LOCALE_LABELS[activeLocale]}</span>
       </button>
 
       {open && (
@@ -111,11 +115,11 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
                 onSelect?.();
               }}
               className={`flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-accent/15 ${
-                code === locale ? "font-medium text-primary" : "text-foreground/70"
+                code === activeLocale ? "font-medium text-primary" : "text-foreground/70"
               }`}
             >
-              {LOCALE_NAMES[code]}
-              {code === locale && <Check size={14} strokeWidth={2} aria-hidden />}
+              {LOCALE_LABELS[code]}
+              {code === activeLocale && <Check size={14} strokeWidth={2} aria-hidden />}
             </Link>
           ))}
         </div>
