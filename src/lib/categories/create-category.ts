@@ -8,6 +8,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidServiceTypeKey, DEFAULT_SERVICE_TYPE_KEY, type ServiceTypeKey } from "@/lib/service-types";
+import { MAX_CATEGORY_DEPTH } from "./category-tree";
 import type { CategoryActionErrorCode } from "./category-errors";
 
 // Create Category — Phase 1.1, extended for the self-referential tree
@@ -24,13 +25,6 @@ import type { CategoryActionErrorCode } from "./category-errors";
 export type CreateCategoryResult = { ok: true; categoryId: string } | { ok: false; error: CategoryActionErrorCode };
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
-// The one place the tree's maximum depth is defined (ADR-0015 / BR-027).
-// Number of levels allowed: root = depth 0, child = depth 1. A node whose
-// depth would be >= this is rejected, so depth values are 0..(MAX-1). Hard cap
-// 3; raising it later is a code change here (plus a UUID `path` column when
-// subtree filtering is needed) — never a schema migration.
-export const MAX_CATEGORY_DEPTH = 2;
 
 export async function createCategory(formData: FormData): Promise<CreateCategoryResult> {
   const nameAr = formData.get("nameAr");

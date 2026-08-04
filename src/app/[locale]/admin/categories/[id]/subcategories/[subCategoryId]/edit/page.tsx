@@ -13,12 +13,11 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 
-// Edit SubCategory — Phase 1.2 (Category Admin UI). Mirrors
-// admin/categories/[id]/edit/page.tsx's shape, one level deeper. Reuses
-// getCategoryDetail() (already returns nested subCategories with raw
-// bilingual Json) rather than adding a new query — no duplicated
-// data-fetching logic for a single-subcategory lookup this phase never
-// otherwise needs.
+// Edit child category ("sub-category") — Phase 1.2 UI, on the collapsed
+// Category tree (ADR-0015). A sub-category is a depth-1 child Category; this
+// route is kept for backward-compatible URLs but calls the SAME updateCategory
+// action. Reuses getCategoryDetail() (which returns the parent's `children`
+// with raw bilingual Json) to locate the child rather than adding a new query.
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },

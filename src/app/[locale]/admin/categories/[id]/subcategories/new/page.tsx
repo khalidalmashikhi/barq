@@ -13,10 +13,12 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 
-// Create SubCategory — Phase 1.2 (Category Admin UI). Mirrors
-// admin/categories/new/page.tsx's form shape, scoped under its parent
-// Category (fetched only to confirm it exists and to show its name in
-// the breadcrumb — createSubCategory() re-validates ownership itself).
+// Create child category ("sub-category") — Phase 1.2 UI, on the collapsed
+// Category tree (ADR-0015). A sub-category is a depth-1 child Category; this
+// route is kept for backward-compatible URLs but calls the SAME createCategory
+// action with a hidden parentId (the child inherits the parent's vertical).
+// The parent is fetched only to confirm it exists and show its name in the
+// breadcrumb — createCategory() re-validates everything itself.
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
