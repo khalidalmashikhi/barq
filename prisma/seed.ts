@@ -41,7 +41,85 @@ function bilingual(ar: string, en: string) {
   return { ar, en };
 }
 
+// Canonical Oman taxonomy (ADR-0015). INSERT-IF-ABSENT ONLY: each category is
+// upserted by its unique slug with an EMPTY `update`, so an existing row is
+// never overwritten — this protects an admin-modified production taxonomy and
+// is fully idempotent (running the seed twice makes no further changes).
+// Children inherit their parent's serviceTypeKey (depth 1). Seeded PUBLIC so
+// the taxonomy is usable; admins can change visibility freely afterwards.
+async function seedCanonicalTaxonomy() {
+  type ChildDef = { slug: string; ar: string; en: string };
+  type RootDef = { slug: string; ar: string; en: string; serviceTypeKey: string; children?: ChildDef[] };
+
+  const roots: RootDef[] = [
+    { slug: "tours", ar: "جولات", en: "Tours", serviceTypeKey: "EXPERIENCE", children: [
+      { slug: "cultural-tours", ar: "جولات ثقافية", en: "Cultural Tours" },
+      { slug: "desert-safari", ar: "رحلات صحراوية", en: "Desert Safari" },
+    ] },
+    { slug: "transport", ar: "نقل", en: "Transport", serviceTypeKey: "TRANSPORT" },
+    { slug: "camping", ar: "تخييم", en: "Camping", serviceTypeKey: "EXPERIENCE", children: [
+      { slug: "luxury-camping", ar: "تخييم فاخر", en: "Luxury Camping" },
+      { slug: "family-camping", ar: "تخييم عائلي", en: "Family Camping" },
+    ] },
+    { slug: "beaches", ar: "شواطئ", en: "Beaches", serviceTypeKey: "EXPERIENCE" },
+    { slug: "diving", ar: "غوص", en: "Diving", serviceTypeKey: "EXPERIENCE", children: [
+      { slug: "reef-diving", ar: "غوص الشعاب المرجانية", en: "Reef Diving" },
+    ] },
+    { slug: "photography", ar: "تصوير", en: "Photography", serviceTypeKey: "EXPERIENCE" },
+    { slug: "mountains", ar: "جبال", en: "Mountains", serviceTypeKey: "EXPERIENCE" },
+    { slug: "accommodation", ar: "إقامة", en: "Accommodation", serviceTypeKey: "ACCOMMODATION" },
+    { slug: "restaurants", ar: "مطاعم", en: "Restaurants", serviceTypeKey: "DINING" },
+    { slug: "activities", ar: "أنشطة", en: "Activities", serviceTypeKey: "EXPERIENCE" },
+  ];
+
+  let rootOrder = 0;
+  let childCount = 0;
+  for (const root of roots) {
+    const rootRow = await prisma.category.upsert({
+      where: { slug: root.slug },
+      update: {},
+      create: {
+        name: bilingual(root.ar, root.en),
+        slug: root.slug,
+        serviceTypeKey: root.serviceTypeKey,
+        parentId: null,
+        depth: 0,
+        sortOrder: rootOrder,
+        visibilityStatus: "PUBLIC",
+      },
+    });
+    rootOrder++;
+
+    let childOrder = 0;
+    for (const child of root.children ?? []) {
+      await prisma.category.upsert({
+        where: { slug: child.slug },
+        update: {},
+        create: {
+          name: bilingual(child.ar, child.en),
+          slug: child.slug,
+          // A child always inherits its parent's vertical (ADR-0015).
+          serviceTypeKey: root.serviceTypeKey,
+          parentId: rootRow.id,
+          depth: 1,
+          sortOrder: childOrder,
+          visibilityStatus: "PUBLIC",
+        },
+      });
+      childOrder++;
+      childCount++;
+    }
+  }
+
+  console.log(`Canonical taxonomy ensured (insert-if-absent): ${roots.length} root categories + ${childCount} children.`);
+}
+
 async function main() {
+  // Runs on EVERY seed, BEFORE the marker early-return below, so an
+  // already-seeded database still receives the canonical taxonomy. Safe to
+  // re-run — insert-if-absent, never overwrites (see the function's comment).
+  await seedCanonicalTaxonomy();
+
   const existingMarker = await prisma.user.findUnique({
     where: { phoneNumber: SEED_MARKER_PHONE },
   });
