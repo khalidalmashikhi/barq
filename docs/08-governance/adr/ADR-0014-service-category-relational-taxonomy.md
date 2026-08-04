@@ -4,8 +4,20 @@
 - **Scope:** The cardinality and shape of `Service`'s relationship to `Category`/`SubCategory` only — one field vs. two, nullable vs. required, single-category vs. many-to-many. Whether a join table is warranted.
 - **Out of Scope:** The actual schema edit, migration, admin UI, or query-layer code (none of that is performed by this ADR — decision only, per instruction). Category/SubCategory's own visibility model (`BR-004`, already decided in `ADR-0013`) is not reopened. Discovery/Search/Featured/Campaigns/Recommendations (`ADR-0013`'s named future Marketplace responsibilities beyond plain filtering) are not addressed here.
 - **Dependencies:** `ADR-0013-marketplace-bounded-context.md` (the Category/SubCategory models and Marketplace Bounded Context this ADR extends), `ADR-0012-architecture-freeze-v2-saas-scope-deferral.md` (frozen phase order — this ADR's implementation is detail folded into the existing Phase 3, not a new phase), `docs/project-memory/07-CATEGORIES.md` (this ADR resolves that document's previously-open "how does Category relate to Service" question), `docs/plans/RELATIONAL-SERVICE-TAXONOMY-PLAN.md` (the implementation plan this ADR's recommendation feeds).
-- **Status:** Draft v0.1 — Proposed, not approved. Recorded per the Platform Owner's explicit instruction not to auto-approve.
+- **Status:** Revised & folded into `ADR-0015` (Approved, Frozen). The relational-taxonomy intent is approved; the *shape* is revised — see "Revision (ADR-0015)" below.
 - **Owner:** Khalid Al-Mashikhi (Platform Owner).
+
+---
+
+## Revision (ADR-0015 — frozen)
+
+This ADR originally proposed a **two-table** model (`Category` + `SubCategory`) with **two** nullable foreign keys on `Service` (`categoryId` + `subCategoryId`). `ADR-0015` supersedes that shape:
+
+- `Category`/`SubCategory` collapse into a **single self-referential `Category` tree** (`parentId`); a sub-category is a depth-1 child, not a separate table.
+- `Service` therefore carries **one** nullable `categoryId` pointing at the **most-specific node** (a leaf or a top-level node), not two FKs. Ancestor grouping is by tree traversal (and, later, a UUID `path`).
+- Retained from this ADR unchanged: `categoryId` is **nullable indefinitely** at the schema level, **`onDelete: Restrict`**, and category presence becomes an **application-layer publish-time rule** (P4), never a `NOT NULL` DB constraint.
+
+Everything below is the original proposal, kept for history; where it says "two FKs" / "`subCategoryId`", read the single-FK-to-node revision above.
 
 ---
 

@@ -16,6 +16,7 @@ The official, permanent business rule registry. Every rule has a permanent ID (`
 
 ### BR-004 — Category visibility supports PUBLIC, HIDDEN, LINK_ONLY, INVITE_ONLY, SCHEDULED, ARCHIVED
 **Enforcement status: Enforced in code (Phase 1.1, Core Business Platform).** `Category`/`SubCategory` models exist with a `CategoryVisibilityStatus` enum holding all 6 states; `category-visibility-policy.ts`'s transition matrix (mirroring `service-status-policy.ts`) governs which transitions are valid, enforced by `transition-category-visibility.ts`/`transition-subcategory-visibility.ts`'s admin-gated Server Actions. `SCHEDULED` requires a future `scheduledVisibleAt`; a `SubCategory`'s effective visibility is always the stricter of its own status and its parent `Category`'s (resolves this rule's previously-open inheritance question — see `07-CATEGORIES.md`). See `18-DOMAIN-MODEL.md`'s Marketplace context (Bounded Context #16, `ADR-0013`).
+**Forward note (ADR-0015, frozen):** `SubCategory` is being collapsed into a single self-referential `Category` tree (P1); the 6 visibility states and the stricter-of-ancestors effective-visibility rule are preserved unchanged across the tree. This BR's enforcement description will be updated to the tree model when the P1 collapse actually lands — not claimed here before it does.
 
 ### BR-005 — Admin defines commission policy
 **Enforcement status: Partially enforced.** A `Commission` model exists and is assigned per-provider, but only 3 fixed percentage tiers (`TIER_12`/`TIER_10`/`TIER_8`) — no admin UI sets it (only seed data / direct DB access today), and no per-category/subcategory/service granularity, fixed-fee, hybrid, zero, or manual-agreement model exists. See `08-PRICING-COMMISSIONS.md`.
@@ -70,6 +71,24 @@ The official, permanent business rule registry. Every rule has a permanent ID (`
 
 ### BR-022 — The official Arabic name of the platform is "برق," never "بارق"
 **Enforcement status: Partially enforced — a known, uncorrected inconsistency exists.** `messages/ar/common.json`'s `appName` correctly uses "برق"; `messages/ar/landing.json` incorrectly uses "بارق" in 13 places. See `13-OPEN-QUESTIONS.md` for the tracked content-correction item.
+
+### BR-023 — ServiceType is a code-owned classification, not admin-managed and not a plugin platform
+**Enforcement status: Target (frozen architecture, ADR-0015; P1 introduces the classification).** The authoritative set of ServiceTypes (`EXPERIENCE`/`TRANSPORT`/`ACCOMMODATION`/`DINING`/`EVENT`/`RENTAL`) lives in a code registry, stored on `Category.serviceTypeKey` as a string validated by a `CHECK` constraint — never a Prisma enum, never an admin-CRUD table, never a dynamically-loaded plugin. Behavior interfaces (`BookingStrategy`/`PricingStrategy`) are deferred by the Rule of Two until a second vertical diverges. See `ADR-0015`.
+
+### BR-024 — Category is a browse/SEO taxonomy only; product behavior belongs to ServiceType
+**Enforcement status: Enforced by omission (frozen governance, ADR-0015).** `Category` must never own booking behavior, pricing behavior, commission, cancellation, or refund rules — those belong to ServiceType and the (future) pricing/policy engines. Verified by omission: no such fields exist on `Category`. Binding on every future taxonomy change. See `ADR-0015`, `08-PRICING-COMMISSIONS.md`.
+
+### BR-025 — Provider↔Category is many-to-many; providers may not enter free-text categories
+**Enforcement status: Target (frozen architecture, ADR-0015).** A provider selects one or more provider-selectable categories ("areas of activity") via the `ProviderCategory` join; free-text categories are never accepted. The join model ships in P1; onboarding enforcement is P4. A `isPrimary` flag is deferred (no P1 consumer); when added, "exactly one primary per provider" is enforced by a Postgres partial unique index, not application logic. See `ADR-0015`, `05-PROVIDER-EXPERIENCE.md`.
+
+### BR-026 — Every published Service must have exactly one Category
+**Enforcement status: Target (frozen architecture, ADR-0015).** `Service.categoryId` is a single nullable FK (`onDelete: Restrict`) to the most-specific `Category` node. Existing services may remain `categoryId = NULL` during migration; publish-time enforcement of category presence — mirroring the existing "no publish without an ACTIVE Price" rule — is added in P4, never as a `NOT NULL` database constraint. See `ADR-0015`, `ADR-0014`.
+
+### BR-027 — Category is a single self-referential tree with a governed maximum depth
+**Enforcement status: Target (frozen architecture, ADR-0015; P1 builds it).** `SubCategory` is collapsed into a self-referential `Category` tree (`parentId`). Maximum depth is 2 (hard cap 3), governed by a single code constant (`MAX_CATEGORY_DEPTH`), not a schema constraint and not runtime-admin-configurable. Raising the cap later is a code change (plus a UUID `path` column when subtree filtering is needed), never a schema migration. See `ADR-0015`, `07-CATEGORIES.md`.
+
+### BR-028 — A Service's ServiceType must agree with its Category's ServiceType once categorized
+**Enforcement status: Target (deferred to P4, ADR-0015 open question).** Once `Service.categoryId` is set, the service's vertical (`Service.serviceType` CTI discriminator) must be consistent with `Category.serviceTypeKey`. P1 does not create this inconsistency (services stay uncategorized); reconciliation and enforcement are P4 work. See `ADR-0015`.
 
 ---
 
