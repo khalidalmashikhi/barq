@@ -414,6 +414,7 @@ model Provider {
   bookings       Booking[]       @relation("BookingProvider")
   reviews        Review[]        @relation("ReviewProvider")
   supportTickets SupportTicket[]
+  categoryLinks  ProviderCategory[]
 
   @@index([status])
   @@index([approvedByAdminId])
@@ -512,6 +513,25 @@ model Category {
   /// Bilingual — { "ar": "...", "en": "..." } — see implementation note 2 above.
   name      Json
   slug      String   @unique
+  /// Self-referential tree — ADR-0015 (Taxonomy v2), P1. A "sub-category" is
+  /// a depth-1 child (parentId set), not a separate table. Max depth is 2
+  /// (hard cap 3), enforced by the MAX_CATEGORY_DEPTH code constant, NOT a
+  /// schema/DB constraint (BR-027). No materialized `path` in P1: at depth 2
+  /// ancestry is just parentId — a UUID `path` is added only if/when depth
+  /// grows and subtree filtering is needed (ADR-0015).
+  parentId  String?    @db.Uuid
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[] @relation("CategoryTree")
+  depth     Int        @default(0)
+  /// The vertical this category belongs to — ADR-0015. A plain string
+  /// validated against the code registry (src/lib/service-types) AND a DB
+  /// CHECK constraint (see the P1 migration), deliberately NOT a Prisma enum
+  /// so adding a vertical never needs an ALTER TYPE migration — the same
+  /// convention as FeatureFlag.key / BookingContract.templateKey /
+  /// AuditLog.action. Governed keys: EXPERIENCE, TRANSPORT, ACCOMMODATION,
+  /// DINING, EVENT, RENTAL. Category is browse/SEO only (BR-024) — it never
+  /// carries booking/pricing/commission behavior; that lives on ServiceType.
+  serviceTypeKey String
   visibilityStatus CategoryVisibilityStatus @default(HIDDEN)
   /// Only meaningful when visibilityStatus is SCHEDULED — the moment this
   /// category should automatically become PUBLIC. Nullable because every
@@ -521,10 +541,37 @@ model Category {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
+  /// RETAINED SHADOW — ADR-0015 expand/contract. The P1 expand migration
+  /// copied every sub_categories row into THIS table as a depth-1 child; the
+  /// sub_categories table is kept as an unread backup until a later, verified
+  /// contract migration drops it. The application no longer reads this
+  /// relation (get-categories.ts / get-category-detail.ts use `children`).
+  /// Do not add new consumers.
   subCategories SubCategory[]
+  services      Service[]
+  providerLinks ProviderCategory[]
 
+  @@index([parentId])
+  @@index([serviceTypeKey])
   @@index([visibilityStatus])
   @@map("categories")
+}
+
+/// Provider "areas of activity" — ADR-0015 (BR-025). Many-to-many: a
+/// provider selects one or more provider-selectable categories; no free-text
+/// categories. `isPrimary` is deliberately NOT modeled in P1 (no consumer
+/// yet) — when added in P4, "exactly one primary per provider" will be
+/// enforced by a Postgres partial unique index, not application logic.
+model ProviderCategory {
+  providerId String   @db.Uuid
+  categoryId String   @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([providerId, categoryId])
+  @@index([categoryId])
+  @@map("provider_categories")
 }
 
 model SubCategory {
@@ -559,6 +606,14 @@ model Service {
   name        Json
   description Json?
   status      ServiceStatus @default(DRAFT)
+  /// Marketplace taxonomy link — ADR-0015 (BR-026). Single nullable FK to the
+  /// most-specific Category node (a leaf or a top-level node). Nullable
+  /// indefinitely at the schema level; publish-time "exactly one category"
+  /// enforcement is an application rule added in P4, never a NOT NULL DB
+  /// constraint. onDelete: Restrict — deleting a Category with assigned
+  /// Services must fail loudly, never null out or cascade real Services.
+  categoryId  String?       @db.Uuid
+  category    Category?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   createdAt   DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
 
@@ -569,6 +624,7 @@ model Service {
 
   @@index([providerId])
   @@index([status])
+  @@index([categoryId])
   @@map("services")
 }
 

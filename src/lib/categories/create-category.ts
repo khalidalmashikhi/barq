@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { isValidServiceTypeKey, DEFAULT_SERVICE_TYPE_KEY, type ServiceTypeKey } from "@/lib/service-types";
 import type { CategoryActionErrorCode } from "./category-errors";
 
 // Create Category — Phase 1.1 (Core Business Platform). Mirrors
@@ -36,6 +37,23 @@ export async function createCategory(formData: FormData): Promise<CreateCategory
   const trimmedSlug = slug.trim().toLowerCase();
 
   if (!trimmedNameAr || !trimmedNameEn || !SLUG_PATTERN.test(trimmedSlug)) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  // ServiceType classification (ADR-0015). Every Category belongs to exactly
+  // one vertical, validated against the code-owned registry (the DB CHECK
+  // constraint is the second line of defense). Absent → the default vertical
+  // (EXPERIENCE); present-but-invalid → rejected. The admin form's
+  // serviceTypeKey <select> is wired in a later commit; until then callers
+  // omit it and get the default. (Child/parentId creation arrives in the
+  // tree-collapse commit — this commit only satisfies the new required field.)
+  const serviceTypeKeyRaw = formData.get("serviceTypeKey");
+  let serviceTypeKey: ServiceTypeKey;
+  if (serviceTypeKeyRaw === null || serviceTypeKeyRaw === "") {
+    serviceTypeKey = DEFAULT_SERVICE_TYPE_KEY;
+  } else if (isValidServiceTypeKey(serviceTypeKeyRaw)) {
+    serviceTypeKey = serviceTypeKeyRaw;
+  } else {
     return { ok: false, error: "INVALID_INPUT" };
   }
 
@@ -71,6 +89,7 @@ export async function createCategory(formData: FormData): Promise<CreateCategory
         data: {
           name: { ar: trimmedNameAr, en: trimmedNameEn },
           slug: trimmedSlug,
+          serviceTypeKey,
           sortOrder: nextSortOrder,
         },
       });
@@ -82,7 +101,7 @@ export async function createCategory(formData: FormData): Promise<CreateCategory
           action: "category.created",
           entityType: "Category",
           entityId: category.id,
-          newValue: { name: { ar: trimmedNameAr, en: trimmedNameEn }, slug: trimmedSlug, visibilityStatus: "HIDDEN" },
+          newValue: { name: { ar: trimmedNameAr, en: trimmedNameEn }, slug: trimmedSlug, serviceTypeKey, visibilityStatus: "HIDDEN" },
         },
         tx
       );

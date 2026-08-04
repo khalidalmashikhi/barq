@@ -97,7 +97,7 @@ describe("createCategory", () => {
 
     expect(result).toEqual({ ok: true, categoryId: "category-1" });
     expect(categoryCreateMock).toHaveBeenCalledWith({
-      data: { name: { ar: "فئة", en: "Category" }, slug: "activities", sortOrder: 0 },
+      data: { name: { ar: "فئة", en: "Category" }, slug: "activities", serviceTypeKey: "EXPERIENCE", sortOrder: 0 },
     });
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -106,7 +106,7 @@ describe("createCategory", () => {
         action: "category.created",
         entityType: "Category",
         entityId: "category-1",
-        newValue: expect.objectContaining({ visibilityStatus: "HIDDEN" }),
+        newValue: expect.objectContaining({ visibilityStatus: "HIDDEN", serviceTypeKey: "EXPERIENCE" }),
       }),
     });
   });
@@ -121,7 +121,33 @@ describe("createCategory", () => {
     await createCategory(buildFormData({ nameAr: "فئة أخرى", nameEn: "Another Category", slug: "another-category" }));
 
     expect(categoryCreateMock).toHaveBeenCalledWith({
-      data: { name: { ar: "فئة أخرى", en: "Another Category" }, slug: "another-category", sortOrder: 5 },
+      data: { name: { ar: "فئة أخرى", en: "Another Category" }, slug: "another-category", serviceTypeKey: "EXPERIENCE", sortOrder: 5 },
     });
+  });
+
+  it("persists an explicitly supplied, valid serviceTypeKey (ADR-0015)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    categoryFindUniqueMock.mockResolvedValue(null);
+    categoryAggregateMock.mockResolvedValue({ _max: { sortOrder: null } });
+    categoryCreateMock.mockResolvedValue({ id: "category-3" });
+    auditCreateMock.mockResolvedValue({});
+
+    await createCategory(buildFormData({ nameAr: "نقل", nameEn: "Transport", slug: "transport", serviceTypeKey: "TRANSPORT" }));
+
+    expect(categoryCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ slug: "transport", serviceTypeKey: "TRANSPORT" }),
+    });
+  });
+
+  it("rejects a present-but-invalid serviceTypeKey without creating anything", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    categoryFindUniqueMock.mockResolvedValue(null);
+
+    const result = await createCategory(
+      buildFormData({ nameAr: "فئة", nameEn: "Category", slug: "activities", serviceTypeKey: "HOTEL" })
+    );
+
+    expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(categoryCreateMock).not.toHaveBeenCalled();
   });
 });
