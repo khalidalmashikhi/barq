@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import type { CategoryVisibilityStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
@@ -101,4 +102,25 @@ export async function setCategoryVisibility(
 
 export async function archiveCategory(categoryId: string): Promise<TransitionCategoryVisibilityResult> {
   return transition(categoryId, "ARCHIVED", null);
+}
+
+// Restore an ARCHIVED category — a named convenience wrapper mirroring
+// archiveCategory(), so the admin has a clear one-click action instead of
+// hunting through the visibility selector. Reuses the same transition()
+// internals (visibility state machine, requireAdmin RBAC, in-transaction audit
+// log) — no new state, no schema change. Restores to PUBLIC by default; pass
+// "HIDDEN" for the "restore as hidden" secondary action. On success it
+// revalidates the admin category list and this category's detail so both
+// refresh immediately (the visibility state change is invisible to callers
+// beyond that — same result shape as the other transition actions).
+export async function restoreCategory(
+  categoryId: string,
+  target: "PUBLIC" | "HIDDEN" = "PUBLIC"
+): Promise<TransitionCategoryVisibilityResult> {
+  const result = await transition(categoryId, target, null);
+  if (result.ok) {
+    revalidatePath("/admin/categories");
+    revalidatePath(`/admin/categories/${categoryId}`);
+  }
+  return result;
 }

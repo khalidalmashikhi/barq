@@ -4,7 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight, Layers, Plus, ArrowUp, ArrowDown, Edit } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getCategoryDetail } from "@/lib/categories/get-category-detail";
-import { setCategoryVisibility, archiveCategory } from "@/lib/categories/transition-category-visibility";
+import { setCategoryVisibility, archiveCategory, restoreCategory } from "@/lib/categories/transition-category-visibility";
 import { moveCategoryUp, moveCategoryDown } from "@/lib/categories/reorder-category";
 import { getCategoryVisibilityStyle, getCategoryVisibilityTranslationKey } from "@/lib/categories/presentation/category-visibility";
 import { Card } from "@/components/ui/card";
@@ -30,12 +30,12 @@ const VISIBILITY_STATUSES: CategoryVisibilityStatus[] = ["PUBLIC", "HIDDEN", "LI
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 };
 
 export default async function CategoryDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, notice } = await searchParams;
   const t = await getServerTranslator("admin");
   const locale = await getLocale();
 
@@ -63,6 +63,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
   }
 
   const errorMessage = error && isCategoryActionErrorCode(error) ? t(getCategoryErrorTranslationKey(error)) : null;
+  const noticeMessage = notice === "restored" ? t("categoryRestoredNotice") : null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -91,6 +92,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
       </div>
 
       {errorMessage && <p className="text-sm text-danger">{errorMessage}</p>}
+      {noticeMessage && <p className="text-sm text-success">{noticeMessage}</p>}
 
       <Card hoverLift={false}>
         <h2 className="text-sm font-semibold text-foreground">{t("visibilityControlTitle")}</h2>
@@ -138,7 +140,43 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
           </SubmitButton>
         </form>
 
-        {category.visibilityStatus !== "ARCHIVED" && (
+        {category.visibilityStatus === "ARCHIVED" ? (
+          // Archived: offer clear Restore actions (primary -> PUBLIC, secondary
+          // -> HIDDEN) instead of the Archive action. The visibility selector
+          // above remains available for any other advanced status change.
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <form
+              action={async () => {
+                "use server";
+                const result = await restoreCategory(id);
+                if (!result.ok) {
+                  redirect({ href: `/admin/categories/${id}?error=${result.error}`, locale });
+                  return;
+                }
+                redirect({ href: `/admin/categories/${id}?notice=restored`, locale });
+              }}
+            >
+              <SubmitButton className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                {t("restoreCategoryButton")}
+              </SubmitButton>
+            </form>
+            <form
+              action={async () => {
+                "use server";
+                const result = await restoreCategory(id, "HIDDEN");
+                if (!result.ok) {
+                  redirect({ href: `/admin/categories/${id}?error=${result.error}`, locale });
+                  return;
+                }
+                redirect({ href: `/admin/categories/${id}?notice=restored`, locale });
+              }}
+            >
+              <SubmitButton className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20 disabled:opacity-50">
+                {t("restoreAsHiddenButton")}
+              </SubmitButton>
+            </form>
+          </div>
+        ) : (
           <form
             action={async () => {
               "use server";

@@ -23,6 +23,11 @@ vi.mock("@/lib/auth", () => ({
 const findUniqueMock = vi.fn();
 const updateMock = vi.fn();
 const auditCreateMock = vi.fn();
+const revalidatePathMock = vi.fn();
+
+vi.mock("next/cache", () => ({
+  revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
+}));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -37,7 +42,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-const { setCategoryVisibility, archiveCategory } = await import("./transition-category-visibility");
+const { setCategoryVisibility, archiveCategory, restoreCategory } = await import("./transition-category-visibility");
 
 const CATEGORY_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
@@ -46,6 +51,7 @@ afterEach(() => {
   findUniqueMock.mockReset();
   updateMock.mockReset();
   auditCreateMock.mockReset();
+  revalidatePathMock.mockReset();
 });
 
 describe("setCategoryVisibility", () => {
@@ -154,5 +160,68 @@ describe("archiveCategory", () => {
       where: { id: CATEGORY_ID },
       data: { visibilityStatus: "ARCHIVED", scheduledVisibleAt: null },
     });
+  });
+});
+
+describe("restoreCategory", () => {
+  it("restores to PUBLIC by default and revalidates the list + detail (refresh)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: CATEGORY_ID, visibilityStatus: "ARCHIVED" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await restoreCategory(CATEGORY_ID);
+
+    expect(result).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: CATEGORY_ID },
+      data: { visibilityStatus: "PUBLIC", scheduledVisibleAt: null },
+    });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/categories");
+    expect(revalidatePathMock).toHaveBeenCalledWith(`/admin/categories/${CATEGORY_ID}`);
+  });
+
+  it("restores as HIDDEN when target is HIDDEN", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: CATEGORY_ID, visibilityStatus: "ARCHIVED" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await restoreCategory(CATEGORY_ID, "HIDDEN");
+
+    expect(result).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: CATEGORY_ID },
+      data: { visibilityStatus: "HIDDEN", scheduledVisibleAt: null },
+    });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/categories");
+  });
+
+  it("goes through the shared state machine + audit (records category.visibility_changed)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: CATEGORY_ID, visibilityStatus: "ARCHIVED" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    await restoreCategory(CATEGORY_ID);
+
+    expect(auditCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "category.visibility_changed",
+        previousValue: { visibilityStatus: "ARCHIVED" },
+        newValue: { visibilityStatus: "PUBLIC" },
+      }),
+    });
+  });
+
+  it("does not revalidate when the underlying transition fails", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue(null); // CATEGORY_NOT_FOUND
+
+    const result = await restoreCategory(CATEGORY_ID);
+
+    expect(result).toEqual({ ok: false, error: "CATEGORY_NOT_FOUND" });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
