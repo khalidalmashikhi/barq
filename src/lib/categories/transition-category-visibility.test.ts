@@ -73,12 +73,52 @@ describe("setCategoryVisibility", () => {
 
   it("returns INVALID_VISIBILITY_TRANSITION without mutating anything for an invalid transition", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    // ARCHIVED can restore to PUBLIC/HIDDEN, but not directly to LINK_ONLY.
     findUniqueMock.mockResolvedValue({ id: CATEGORY_ID, visibilityStatus: "ARCHIVED" });
 
-    const result = await setCategoryVisibility(CATEGORY_ID, "PUBLIC");
+    const result = await setCategoryVisibility(CATEGORY_ID, "LINK_ONLY");
 
     expect(result).toEqual({ ok: false, error: "INVALID_VISIBILITY_TRANSITION" });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  // Regression: archiving is no longer terminal — an ARCHIVED category can be
+  // restored to PUBLIC or PRIVATE (HIDDEN), and the DB update actually runs.
+  it("restores an ARCHIVED category to PUBLIC", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: CATEGORY_ID, visibilityStatus: "ARCHIVED" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await setCategoryVisibility(CATEGORY_ID, "PUBLIC");
+
+    expect(result).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: CATEGORY_ID },
+      data: { visibilityStatus: "PUBLIC", scheduledVisibleAt: null },
+    });
+    expect(auditCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "category.visibility_changed",
+        previousValue: { visibilityStatus: "ARCHIVED" },
+        newValue: { visibilityStatus: "PUBLIC" },
+      }),
+    });
+  });
+
+  it("restores an ARCHIVED category to PRIVATE (HIDDEN)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: CATEGORY_ID, visibilityStatus: "ARCHIVED" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await setCategoryVisibility(CATEGORY_ID, "HIDDEN");
+
+    expect(result).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: CATEGORY_ID },
+      data: { visibilityStatus: "HIDDEN", scheduledVisibleAt: null },
+    });
   });
 
   it("returns INVALID_SCHEDULED_DATE when scheduling without a future date", async () => {

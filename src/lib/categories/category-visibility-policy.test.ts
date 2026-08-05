@@ -25,10 +25,26 @@ describe("canTransitionCategoryVisibility", () => {
     expect(canTransitionCategoryVisibility("PUBLIC", "SCHEDULED")).toBe(false);
   });
 
-  it("treats ARCHIVED as terminal", () => {
-    expect(canTransitionCategoryVisibility("ARCHIVED", "PUBLIC")).toBe(false);
-    expect(canTransitionCategoryVisibility("ARCHIVED", "HIDDEN")).toBe(false);
+  it("allows an ARCHIVED category to be restored to PUBLIC or PRIVATE (HIDDEN), but not to itself", () => {
+    expect(canTransitionCategoryVisibility("ARCHIVED", "PUBLIC")).toBe(true);
+    expect(canTransitionCategoryVisibility("ARCHIVED", "HIDDEN")).toBe(true);
     expect(canTransitionCategoryVisibility("ARCHIVED", "ARCHIVED")).toBe(false);
+    // Restore is limited to the two required targets; other states are reached
+    // via HIDDEN as the hub.
+    expect(canTransitionCategoryVisibility("ARCHIVED", "LINK_ONLY")).toBe(false);
+    expect(canTransitionCategoryVisibility("ARCHIVED", "SCHEDULED")).toBe(false);
+  });
+
+  // Regression (archive/restore lifecycle): the four required transitions,
+  // where PRIVATE maps to the existing HIDDEN value.
+  it("supports the full archive ↔ restore lifecycle (all four transitions)", () => {
+    expect(canTransitionCategoryVisibility("PUBLIC", "ARCHIVED")).toBe(true); // PUBLIC -> ARCHIVED
+    expect(canTransitionCategoryVisibility("HIDDEN", "ARCHIVED")).toBe(true); // PRIVATE -> ARCHIVED
+    expect(canTransitionCategoryVisibility("ARCHIVED", "PUBLIC")).toBe(true); // ARCHIVED -> PUBLIC
+    expect(canTransitionCategoryVisibility("ARCHIVED", "HIDDEN")).toBe(true); // ARCHIVED -> PRIVATE
+    // and PUBLIC <-> PRIVATE both directions
+    expect(canTransitionCategoryVisibility("PUBLIC", "HIDDEN")).toBe(true);
+    expect(canTransitionCategoryVisibility("HIDDEN", "PUBLIC")).toBe(true);
   });
 });
 

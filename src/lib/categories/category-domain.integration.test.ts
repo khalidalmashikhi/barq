@@ -139,24 +139,31 @@ describe("Category domain integration (create -> transition -> query)", () => {
     expect(result.items[0]).toEqual(expect.objectContaining({ name: "Activities", visibilityStatus: "HIDDEN" }));
   });
 
-  it("moves HIDDEN -> PUBLIC -> ARCHIVED and then refuses to leave ARCHIVED", async () => {
+  it("supports the full archive -> restore -> re-archive lifecycle, with the list reflecting each step", async () => {
     const created = await createCategory(buildFormData({ nameAr: "أنشطة", nameEn: "Activities", slug: "activities" }));
     if (!created.ok) throw new Error("setup failed");
 
-    const toPublic = await setCategoryVisibility(created.categoryId, "PUBLIC");
-    expect(toPublic).toEqual({ ok: true });
+    const status = async () => (await getCategories()).items[0]?.visibilityStatus;
 
-    const afterPublic = await getCategories();
-    expect(afterPublic.items[0]?.visibilityStatus).toBe("PUBLIC");
+    // 1. archive (from PUBLIC)
+    expect(await setCategoryVisibility(created.categoryId, "PUBLIC")).toEqual({ ok: true });
+    expect(await status()).toBe("PUBLIC");
+    expect(await archiveCategory(created.categoryId)).toEqual({ ok: true });
+    expect(await status()).toBe("ARCHIVED");
 
-    const archived = await archiveCategory(created.categoryId);
-    expect(archived).toEqual({ ok: true });
+    // 2. restore to PUBLIC
+    expect(await setCategoryVisibility(created.categoryId, "PUBLIC")).toEqual({ ok: true });
+    expect(await status()).toBe("PUBLIC");
 
-    const attemptRevive = await setCategoryVisibility(created.categoryId, "PUBLIC");
-    expect(attemptRevive).toEqual({ ok: false, error: "INVALID_VISIBILITY_TRANSITION" });
+    // 3. restore to PRIVATE (HIDDEN) after re-archiving
+    expect(await archiveCategory(created.categoryId)).toEqual({ ok: true });
+    expect(await status()).toBe("ARCHIVED");
+    expect(await setCategoryVisibility(created.categoryId, "HIDDEN")).toEqual({ ok: true });
+    expect(await status()).toBe("HIDDEN");
 
-    const final = await getCategories();
-    expect(final.items[0]?.visibilityStatus).toBe("ARCHIVED");
+    // 4. archive again (from PRIVATE/HIDDEN)
+    expect(await archiveCategory(created.categoryId)).toEqual({ ok: true });
+    expect(await status()).toBe("ARCHIVED");
   });
 
   it("refuses to create two categories with the same slug", async () => {

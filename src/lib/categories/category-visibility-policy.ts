@@ -11,10 +11,14 @@ const TRANSITIONS: Record<CategoryVisibilityStatus, readonly CategoryVisibilityS
   LINK_ONLY: ["PUBLIC", "HIDDEN", "INVITE_ONLY", "ARCHIVED"],
   INVITE_ONLY: ["PUBLIC", "HIDDEN", "LINK_ONLY", "ARCHIVED"],
   SCHEDULED: ["PUBLIC", "HIDDEN", "ARCHIVED"],
-  // Terminal, deliberately: archiving is a one-way action in this phase,
-  // mirroring service-status-policy.ts's own ARCHIVED handling — whether an
-  // archived Category can ever be restored is a distinct future decision.
-  ARCHIVED: [],
+  // NOT terminal: an archived Category can be RESTORED to PUBLIC or to
+  // PRIVATE (HIDDEN) — the two required restore edges of the admin visibility
+  // lifecycle (PUBLIC↔PRIVATE, PUBLIC/PRIVATE→ARCHIVED, ARCHIVED→PUBLIC/PRIVATE).
+  // Restoring to HIDDEN also acts as the hub to reach any other active state
+  // (HIDDEN already transitions to LINK_ONLY/INVITE_ONLY/SCHEDULED), so no
+  // further edges are needed here. "PRIVATE" maps to the existing HIDDEN value
+  // — no new status value is introduced.
+  ARCHIVED: ["PUBLIC", "HIDDEN"],
 };
 
 export function canTransitionCategoryVisibility(
