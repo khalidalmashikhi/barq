@@ -72,7 +72,10 @@ function collectText(node: unknown, acc: string[]): void {
   }
 }
 
-async function renderTexts(visibilityStatus: string): Promise<string[]> {
+async function renderTexts(
+  visibilityStatus: string,
+  searchParams: Record<string, string> = {}
+): Promise<string[]> {
   getCategoryDetailMock.mockResolvedValue({
     id: CATEGORY_ID,
     name: { ar: "فئة", en: "Cat" },
@@ -85,7 +88,7 @@ async function renderTexts(visibilityStatus: string): Promise<string[]> {
   });
   const element = await CategoryDetailPage({
     params: Promise.resolve({ id: CATEGORY_ID }),
-    searchParams: Promise.resolve({}),
+    searchParams: Promise.resolve(searchParams),
   });
   const texts: string[] = [];
   collectText(element, texts);
@@ -97,24 +100,38 @@ afterEach(() => {
 });
 
 describe("CategoryDetailPage — archived-category restore UX", () => {
-  it("shows the Restore actions and hides Archive when the category is ARCHIVED", async () => {
+  it("ARCHIVED: shows both Restore actions, and hides the Archive + visibility-update controls", async () => {
     const texts = await renderTexts("ARCHIVED");
     expect(texts).toContain("restoreCategoryButton");
     expect(texts).toContain("restoreAsHiddenButton");
+    // no competing controls while archived
     expect(texts).not.toContain("archiveCategoryButton");
+    expect(texts).not.toContain("setVisibilityButton");
   });
 
-  it("does NOT show the Restore actions when the category is PUBLIC", async () => {
+  it("PUBLIC: shows the normal visibility controls + Archive, and no Restore actions", async () => {
     const texts = await renderTexts("PUBLIC");
+    expect(texts).toContain("setVisibilityButton");
+    expect(texts).toContain("archiveCategoryButton");
     expect(texts).not.toContain("restoreCategoryButton");
     expect(texts).not.toContain("restoreAsHiddenButton");
-    expect(texts).toContain("archiveCategoryButton");
   });
 
-  it("does NOT show the Restore actions when the category is HIDDEN", async () => {
+  it("HIDDEN: shows the normal visibility controls + Archive, and no Restore actions", async () => {
     const texts = await renderTexts("HIDDEN");
+    expect(texts).toContain("setVisibilityButton");
+    expect(texts).toContain("archiveCategoryButton");
     expect(texts).not.toContain("restoreCategoryButton");
     expect(texts).not.toContain("restoreAsHiddenButton");
-    expect(texts).toContain("archiveCategoryButton");
+  });
+
+  it("shows the success notice after a restore (notice=restored)", async () => {
+    const texts = await renderTexts("PUBLIC", { notice: "restored" });
+    expect(texts).toContain("categoryRestoredNotice");
+  });
+
+  it("does not show the success notice without the notice param", async () => {
+    const texts = await renderTexts("PUBLIC");
+    expect(texts).not.toContain("categoryRestoredNotice");
   });
 });

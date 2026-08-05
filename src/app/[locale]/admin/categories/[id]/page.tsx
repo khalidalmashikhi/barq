@@ -96,54 +96,61 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
 
       <Card hoverLift={false}>
         <h2 className="text-sm font-semibold text-foreground">{t("visibilityControlTitle")}</h2>
-        <form
-          action={async (formData: FormData) => {
-            "use server";
-            const targetStatus = formData.get("visibilityStatus") as CategoryVisibilityStatus;
-            const scheduledRaw = formData.get("scheduledVisibleAt");
-            const scheduledVisibleAt =
-              typeof scheduledRaw === "string" && scheduledRaw ? new Date(scheduledRaw) : undefined;
-            const result = await setCategoryVisibility(id, targetStatus, scheduledVisibleAt);
-            if (!result.ok) {
-              redirect({ href: `/admin/categories/${id}?error=${result.error}`, locale });
-              return;
-            }
-            redirect({ href: `/admin/categories/${id}`, locale });
-          }}
-          className="mt-3 flex flex-wrap items-end gap-3"
-        >
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("visibilityControlTitle")}</span>
-            <select
-              name="visibilityStatus"
-              defaultValue={category.visibilityStatus}
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {VISIBILITY_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {t(getCategoryVisibilityTranslationKey(status))}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("scheduledVisibleAtLabel")}</span>
-            <input
-              type="datetime-local"
-              name="scheduledVisibleAt"
-              defaultValue={category.scheduledVisibleAt ? category.scheduledVisibleAt.toISOString().slice(0, 16) : undefined}
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
-          <SubmitButton className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
-            {t("setVisibilityButton")}
-          </SubmitButton>
-        </form>
+
+        {/* The normal visibility selector + "Update visibility" is shown only
+            for non-archived categories. While archived, it is hidden so it
+            never competes with the clear Restore actions below — restore is the
+            single obvious way out of ARCHIVED. */}
+        {category.visibilityStatus !== "ARCHIVED" && (
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const targetStatus = formData.get("visibilityStatus") as CategoryVisibilityStatus;
+              const scheduledRaw = formData.get("scheduledVisibleAt");
+              const scheduledVisibleAt =
+                typeof scheduledRaw === "string" && scheduledRaw ? new Date(scheduledRaw) : undefined;
+              const result = await setCategoryVisibility(id, targetStatus, scheduledVisibleAt);
+              if (!result.ok) {
+                redirect({ href: `/admin/categories/${id}?error=${result.error}`, locale });
+                return;
+              }
+              redirect({ href: `/admin/categories/${id}`, locale });
+            }}
+            className="mt-3 flex flex-wrap items-end gap-3"
+          >
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-foreground/50">{t("visibilityControlTitle")}</span>
+              <select
+                name="visibilityStatus"
+                defaultValue={category.visibilityStatus}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {VISIBILITY_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {t(getCategoryVisibilityTranslationKey(status))}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-foreground/50">{t("scheduledVisibleAtLabel")}</span>
+              <input
+                type="datetime-local"
+                name="scheduledVisibleAt"
+                defaultValue={category.scheduledVisibleAt ? category.scheduledVisibleAt.toISOString().slice(0, 16) : undefined}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <SubmitButton className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+              {t("setVisibilityButton")}
+            </SubmitButton>
+          </form>
+        )}
 
         {category.visibilityStatus === "ARCHIVED" ? (
-          // Archived: offer clear Restore actions (primary -> PUBLIC, secondary
-          // -> HIDDEN) instead of the Archive action. The visibility selector
-          // above remains available for any other advanced status change.
+          // Archived: the ONLY actions are the clear Restore actions (primary ->
+          // PUBLIC, secondary -> HIDDEN). The visibility selector and Archive
+          // action are hidden so restore is unambiguous.
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <form
               action={async () => {
