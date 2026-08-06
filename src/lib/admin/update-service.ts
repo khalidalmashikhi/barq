@@ -6,6 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
 import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
 
 // Update Service (admin-initiated) — Phase 2.3 (Service Foundation).
@@ -28,6 +29,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
   const nameEn = formData.get("nameEn");
   const descriptionAr = formData.get("descriptionAr");
   const descriptionEn = formData.get("descriptionEn");
+  const rawCategoryId = formData.get("categoryId");
 
   if (typeof nameAr !== "string" || typeof nameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -42,6 +44,10 @@ export async function updateService(serviceId: string, formData: FormData): Prom
 
   const trimmedDescriptionAr = typeof descriptionAr === "string" ? descriptionAr.trim() : "";
   const trimmedDescriptionEn = typeof descriptionEn === "string" ? descriptionEn.trim() : "";
+
+  // Empty categoryId means "leave unchanged" (non-destructive); explicit
+  // un-assignment is out of Task B scope.
+  const submittedCategoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
 
   let admin;
   try {
@@ -64,6 +70,15 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       return { ok: false, error: "SERVICE_NOT_FOUND" };
     }
 
+    // Category only changes when a different, valid category is submitted;
+    // validated against THIS service's serviceType.
+    const categoryChanged = submittedCategoryId !== null && submittedCategoryId !== service.categoryId;
+    if (submittedCategoryId !== null && categoryChanged) {
+      if (!(await assertAssignableCategory(submittedCategoryId, service.serviceType))) {
+        return { ok: false, error: "INVALID_CATEGORY" };
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.service.update({
         where: { id: serviceId },
@@ -73,6 +88,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
             trimmedDescriptionAr || trimmedDescriptionEn
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
+          ...(categoryChanged ? { categoryId: submittedCategoryId } : {}),
         },
       });
 
@@ -88,6 +104,21 @@ export async function updateService(serviceId: string, formData: FormData): Prom
         },
         tx
       );
+
+      if (categoryChanged) {
+        await recordAuditEvent(
+          {
+            actorType: "ADMIN",
+            actorId: admin.id,
+            action: "service.category_changed",
+            entityType: "Service",
+            entityId: serviceId,
+            previousValue: { categoryId: service.categoryId },
+            newValue: { categoryId: submittedCategoryId },
+          },
+          tx
+        );
+      }
     });
 
     return { ok: true };

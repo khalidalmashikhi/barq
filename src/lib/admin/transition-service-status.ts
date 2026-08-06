@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
+import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
@@ -32,7 +33,9 @@ const AUDIT_ACTION_BY_STATUS: Record<ServiceStatus, string> = {
   ARCHIVED: "service.archived",
 };
 
-export type TransitionServiceResult = { ok: true } | { ok: false; error: ServiceAdminActionErrorCode };
+export type TransitionServiceResult =
+  | { ok: true }
+  | { ok: false; error: ServiceAdminActionErrorCode; blockers?: ServicePublishBlocker[] };
 
 async function transition(
   serviceId: string,
@@ -69,11 +72,12 @@ async function transition(
     }
 
     if (toStatus === "PUBLISHED") {
-      const activePrice = await prisma.price.findFirst({
-        where: { serviceId, status: "ACTIVE" },
-      });
-      if (!activePrice) {
-        return { ok: false, error: "NO_ACTIVE_PRICE" };
+      // Single source of publish gating (BR-026 category + active price),
+      // returning ALL blockers in priority order so the UI can show them at once.
+      const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId });
+      const [primaryBlocker] = blockers;
+      if (primaryBlocker) {
+        return { ok: false, error: primaryBlocker, blockers };
       }
     }
 

@@ -22,6 +22,7 @@ export type ServiceDetail = {
   providerId: string;
   providerName: string;
   serviceType: string;
+  categoryId: string | null;
   name: { ar: string; en: string };
   description: { ar: string; en: string } | null;
   status: string;
@@ -56,6 +57,7 @@ export async function getServiceDetail(serviceId: string): Promise<ServiceDetail
     providerId: service.providerId,
     providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     serviceType: service.serviceType,
+    categoryId: service.categoryId,
     name: service.name as { ar: string; en: string },
     description: service.description as { ar: string; en: string } | null,
     status: service.status,

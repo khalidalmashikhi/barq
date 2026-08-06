@@ -27,6 +27,8 @@ export type ProviderServiceForEdit = {
   descriptionAr: string;
   descriptionEn: string;
   status: string;
+  serviceType: string;
+  categoryId: string | null;
 };
 
 function readBilingual(value: unknown): { ar: string; en: string } {
@@ -61,5 +63,7 @@ export async function getProviderServiceForEdit(serviceId: string): Promise<Prov
     descriptionAr: description.ar,
     descriptionEn: description.en,
     status: service.status,
+    serviceType: service.serviceType,
+    categoryId: service.categoryId,
   };
 }

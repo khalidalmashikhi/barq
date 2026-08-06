@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Edit Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -27,6 +29,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
   const nameEn = formData.get("nameEn");
   const descriptionAr = formData.get("descriptionAr");
   const descriptionEn = formData.get("descriptionEn");
+  const rawCategoryId = formData.get("categoryId");
 
   if (typeof nameAr !== "string" || typeof nameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -41,6 +44,11 @@ export async function updateService(serviceId: string, formData: FormData): Prom
 
   const trimmedDescriptionAr = typeof descriptionAr === "string" ? descriptionAr.trim() : "";
   const trimmedDescriptionEn = typeof descriptionEn === "string" ? descriptionEn.trim() : "";
+
+  // An empty categoryId means "leave unchanged" — a non-destructive default so a
+  // published service is never silently un-categorized through the edit form.
+  // Explicit un-assignment is out of Task B scope.
+  const submittedCategoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
 
   let provider;
   try {
@@ -63,15 +71,42 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       return { ok: false, error: "SERVICE_NOT_FOUND" };
     }
 
-    await prisma.service.update({
-      where: { id: serviceId },
-      data: {
-        name: { ar: trimmedNameAr, en: trimmedNameEn },
-        description:
-          trimmedDescriptionAr || trimmedDescriptionEn
-            ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
-            : undefined,
-      },
+    // Category only changes when a different, valid category is submitted;
+    // validated against THIS service's serviceType, never a literal.
+    const categoryChanged = submittedCategoryId !== null && submittedCategoryId !== service.categoryId;
+    if (submittedCategoryId !== null && categoryChanged) {
+      if (!(await assertAssignableCategory(submittedCategoryId, service.serviceType))) {
+        return { ok: false, error: "INVALID_CATEGORY" };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.service.update({
+        where: { id: serviceId },
+        data: {
+          name: { ar: trimmedNameAr, en: trimmedNameEn },
+          description:
+            trimmedDescriptionAr || trimmedDescriptionEn
+              ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
+              : undefined,
+          ...(categoryChanged ? { categoryId: submittedCategoryId } : {}),
+        },
+      });
+
+      if (categoryChanged) {
+        await recordAuditEvent(
+          {
+            actorType: "PROVIDER",
+            actorId: provider.id,
+            action: "service.category_changed",
+            entityType: "Service",
+            entityId: serviceId,
+            previousValue: { categoryId: service.categoryId },
+            newValue: { categoryId: submittedCategoryId },
+          },
+          tx
+        );
+      }
     });
 
     return { ok: true };

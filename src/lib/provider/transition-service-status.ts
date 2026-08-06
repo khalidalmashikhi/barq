@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
+import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import type { ServiceActionErrorCode } from "./service-action-errors";
@@ -29,7 +30,9 @@ const AUDIT_ACTION_BY_STATUS: Record<ServiceStatus, string> = {
 // an ACTIVE Price to create a booking at all), so publish would
 // otherwise produce a dead end a customer could reach but never book.
 
-export type TransitionServiceResult = { ok: true } | { ok: false; error: ServiceActionErrorCode };
+export type TransitionServiceResult =
+  | { ok: true }
+  | { ok: false; error: ServiceActionErrorCode; blockers?: ServicePublishBlocker[] };
 
 async function transition(
   serviceId: string,
@@ -66,11 +69,12 @@ async function transition(
     }
 
     if (toStatus === "PUBLISHED") {
-      const activePrice = await prisma.price.findFirst({
-        where: { serviceId, status: "ACTIVE" },
-      });
-      if (!activePrice) {
-        return { ok: false, error: "NO_ACTIVE_PRICE" };
+      // Single source of publish gating (BR-026 category + active price),
+      // returning ALL blockers in priority order so the UI can show them at once.
+      const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId });
+      const [primaryBlocker] = blockers;
+      if (primaryBlocker) {
+        return { ok: false, error: primaryBlocker, blockers };
       }
     }
 

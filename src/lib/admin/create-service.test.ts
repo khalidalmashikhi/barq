@@ -23,6 +23,11 @@ vi.mock("@/lib/auth", () => ({
 const providerFindUniqueMock = vi.fn();
 const serviceCreateMock = vi.fn();
 const auditCreateMock = vi.fn();
+const assertAssignableCategoryMock = vi.fn();
+
+vi.mock("@/lib/categories/assert-assignable-category", () => ({
+  assertAssignableCategory: (...args: unknown[]) => assertAssignableCategoryMock(...args),
+}));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -65,6 +70,7 @@ afterEach(() => {
   providerFindUniqueMock.mockReset();
   serviceCreateMock.mockReset();
   auditCreateMock.mockReset();
+  assertAssignableCategoryMock.mockReset();
 });
 
 describe("createService", () => {
@@ -129,5 +135,39 @@ describe("createService", () => {
         newValue: expect.objectContaining({ status: "DRAFT" }),
       }),
     });
+  });
+
+  it("assigns a valid category on create and records a category_assigned audit alongside service.created", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    providerFindUniqueMock.mockResolvedValue({ id: PROVIDER_ID });
+    assertAssignableCategoryMock.mockResolvedValue(true);
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await createService(buildFormData(baseFields({ categoryId: "cat-1" })));
+
+    expect(result).toEqual({ ok: true, serviceId: "service-1" });
+    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("cat-1", "EXPERIENCE");
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-1" }) })
+    );
+    expect(auditCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "service.category_assigned",
+        previousValue: { categoryId: null },
+        newValue: { categoryId: "cat-1" },
+      }),
+    });
+  });
+
+  it("rejects an invalid category with INVALID_CATEGORY and creates nothing", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    providerFindUniqueMock.mockResolvedValue({ id: PROVIDER_ID });
+    assertAssignableCategoryMock.mockResolvedValue(false);
+
+    const result = await createService(buildFormData(baseFields({ categoryId: "bad" })));
+
+    expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
+    expect(serviceCreateMock).not.toHaveBeenCalled();
   });
 });

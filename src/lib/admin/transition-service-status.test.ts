@@ -58,7 +58,7 @@ afterEach(() => {
 describe("publishService (admin)", () => {
   it("updates status to PUBLISHED and records an audit event, in the same transaction", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
-    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, status: "DRAFT" });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, status: "DRAFT", categoryId: "cat-1" });
     findFirstMock.mockResolvedValue({ id: "price-1" });
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
@@ -80,16 +80,42 @@ describe("publishService (admin)", () => {
     });
   });
 
-  it("returns NO_ACTIVE_PRICE without mutating anything when the service has no ACTIVE price", async () => {
+  it("returns NO_ACTIVE_PRICE (only) when the service is categorized but has no ACTIVE price", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
-    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, status: "DRAFT" });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, status: "DRAFT", categoryId: "cat-1" });
     findFirstMock.mockResolvedValue(null);
 
     const result = await publishService(SERVICE_ID);
 
-    expect(result).toEqual({ ok: false, error: "NO_ACTIVE_PRICE" });
+    expect(result).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
     expect(updateMock).not.toHaveBeenCalled();
     expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns SERVICE_CATEGORY_REQUIRED when the service is priced but uncategorized (BR-026)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, status: "DRAFT", categoryId: null });
+    findFirstMock.mockResolvedValue({ id: "price-1" });
+
+    const result = await publishService(SERVICE_ID);
+
+    expect(result).toEqual({ ok: false, error: "SERVICE_CATEGORY_REQUIRED", blockers: ["SERVICE_CATEGORY_REQUIRED"] });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns BOTH blockers, category first, when uncategorized and priceless", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, status: "DRAFT", categoryId: null });
+    findFirstMock.mockResolvedValue(null);
+
+    const result = await publishService(SERVICE_ID);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "SERVICE_CATEGORY_REQUIRED",
+      blockers: ["SERVICE_CATEGORY_REQUIRED", "NO_ACTIVE_PRICE"],
+    });
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("returns NO_ADMIN_PROFILE when the caller has no Admin profile", async () => {

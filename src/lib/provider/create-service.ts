@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
+import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Create Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -35,6 +38,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   const descriptionAr = formData.get("descriptionAr");
   const descriptionEn = formData.get("descriptionEn");
   const priceAmount = formData.get("priceAmount");
+  const rawCategoryId = formData.get("categoryId");
 
   if (typeof nameAr !== "string" || typeof nameEn !== "string" || typeof priceAmount !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -51,6 +55,12 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   const trimmedDescriptionAr = typeof descriptionAr === "string" ? descriptionAr.trim() : "";
   const trimmedDescriptionEn = typeof descriptionEn === "string" ? descriptionEn.trim() : "";
 
+  // Category is optional at create (drafts may stay uncategorized; it is required
+  // only at publish). serviceType is the code-owned default for a new service —
+  // never a fresh literal — and the vertical the chosen category must match.
+  const categoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
+  const serviceType = DEFAULT_SERVICE_TYPE_KEY;
+
   let provider;
   try {
     const auth = await requireApprovedProvider();
@@ -65,17 +75,22 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     throw error;
   }
 
+  if (categoryId && !(await assertAssignableCategory(categoryId, serviceType))) {
+    return { ok: false, error: "INVALID_CATEGORY" };
+  }
+
   try {
     const serviceId = await prisma.$transaction(async (tx) => {
       const service = await tx.service.create({
         data: {
           providerId: provider.id,
-          serviceType: "EXPERIENCE",
+          serviceType,
           name: { ar: trimmedNameAr, en: trimmedNameEn },
           description:
             trimmedDescriptionAr || trimmedDescriptionEn
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
+          ...(categoryId ? { categoryId } : {}),
         },
       });
 
@@ -86,6 +101,21 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
           currency: "OMR",
         },
       });
+
+      if (categoryId) {
+        await recordAuditEvent(
+          {
+            actorType: "PROVIDER",
+            actorId: provider.id,
+            action: "service.category_assigned",
+            entityType: "Service",
+            entityId: service.id,
+            previousValue: { categoryId: null },
+            newValue: { categoryId },
+          },
+          tx
+        );
+      }
 
       return service.id;
     });

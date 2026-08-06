@@ -29,6 +29,8 @@ vi.mock("@/lib/auth", () => ({
 
 const findUniqueMock = vi.fn();
 const updateMock = vi.fn();
+const auditCreateMock = vi.fn();
+const assertAssignableCategoryMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -36,7 +38,16 @@ vi.mock("@/lib/db", () => ({
       findUnique: (...args: unknown[]) => findUniqueMock(...args),
       update: (...args: unknown[]) => updateMock(...args),
     },
+    $transaction: async (callback: (tx: unknown) => unknown) =>
+      callback({
+        service: { update: (...args: unknown[]) => updateMock(...args) },
+        auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
+      }),
   },
+}));
+
+vi.mock("@/lib/categories/assert-assignable-category", () => ({
+  assertAssignableCategory: (...args: unknown[]) => assertAssignableCategoryMock(...args),
 }));
 
 const { updateService } = await import("./update-service");
@@ -56,6 +67,8 @@ afterEach(() => {
   requireApprovedProviderMock.mockReset();
   findUniqueMock.mockReset();
   updateMock.mockReset();
+  auditCreateMock.mockReset();
+  assertAssignableCategoryMock.mockReset();
 });
 
 describe("updateService", () => {
@@ -112,5 +125,59 @@ describe("updateService", () => {
         description: { ar: "وصف", en: "Desc" },
       },
     });
+  });
+
+  it("assigns a valid, different category (validated against the service's serviceType) and audits the change", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: null, serviceType: "EXPERIENCE" });
+    assertAssignableCategoryMock.mockResolvedValue(true);
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await updateService(
+      SERVICE_ID,
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", categoryId: "cat-123" })
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("cat-123", "EXPERIENCE");
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-123" }) })
+    );
+    expect(auditCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "service.category_changed",
+        previousValue: { categoryId: null },
+        newValue: { categoryId: "cat-123" },
+      }),
+    });
+  });
+
+  it("rejects an invalid category with INVALID_CATEGORY and mutates nothing", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: null, serviceType: "EXPERIENCE" });
+    assertAssignableCategoryMock.mockResolvedValue(false);
+
+    const result = await updateService(
+      SERVICE_ID,
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", categoryId: "bad-cat" })
+    );
+
+    expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the category untouched (no validation, no audit) when categoryId is omitted", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "existing-cat", serviceType: "EXPERIENCE" });
+    updateMock.mockResolvedValue({});
+
+    const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour" }));
+
+    expect(result).toEqual({ ok: true });
+    expect(assertAssignableCategoryMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+    expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("categoryId");
   });
 });
