@@ -28,6 +28,7 @@ type FakeService = {
   id: string;
   providerId: string;
   serviceType: string;
+  categoryId: string | null;
   name: unknown;
   description: unknown;
   status: string;
@@ -70,15 +71,22 @@ vi.mock("@/lib/db", () => ({
       findFirst: async ({ where }: { where: { serviceId: string; status: string } }) =>
         prices.find((p) => p.serviceId === where.serviceId && p.status === where.status) ?? null,
     },
+    // Any well-formed categoryId resolves to a selectable PUBLIC/EXPERIENCE
+    // category — the tests only ever pass CATEGORY_ID (a valid uuid); an invalid
+    // uuid is rejected upstream by assertAssignableCategory before this runs.
+    category: {
+      findFirst: async () => ({ visibilityStatus: "PUBLIC", serviceTypeKey: "EXPERIENCE", parent: null }),
+    },
     auditLog: { create: async () => ({}) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: {
-          create: async (args: { data: { providerId: string; serviceType: string; name: unknown; description?: unknown } }) => {
+          create: async (args: { data: { providerId: string; serviceType: string; categoryId?: string | null; name: unknown; description?: unknown } }) => {
             const service: FakeService = {
               id: `019f4e4e-8116-7052-b15e-${String(nextId++).padStart(12, "0")}`,
               providerId: args.data.providerId,
               serviceType: args.data.serviceType,
+              categoryId: args.data.categoryId ?? null,
               name: args.data.name,
               description: args.data.description ?? null,
               status: "DRAFT",
@@ -106,6 +114,7 @@ const { publishService, unpublishService, archiveService } = await import("./tra
 const { getServices } = await import("./get-services");
 
 const PROVIDER_ID = "019f8ee1-d869-78d3-9a56-f86a70006365";
+const CATEGORY_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
 function buildFormData(fields: Record<string, string>): FormData {
   const formData = new FormData();
@@ -134,20 +143,31 @@ beforeEach(() => {
 });
 
 describe("Service domain integration (create -> publish/unpublish -> archive -> query)", () => {
-  it("a freshly created service is DRAFT and not publishable without an ACTIVE price", async () => {
-    const created = await createService(buildFormData(baseFields()));
+  it("a freshly created, categorized service is DRAFT and not publishable without an ACTIVE price", async () => {
+    const created = await createService(buildFormData(baseFields({ categoryId: CATEGORY_ID })));
     expect(created).toEqual({ ok: true, serviceId: expect.any(String) });
     if (!created.ok) throw new Error("setup failed");
 
     const publishAttempt = await publishService(created.serviceId);
-    expect(publishAttempt).toEqual({ ok: false, error: "NO_ACTIVE_PRICE" });
+    expect(publishAttempt).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
 
     const list = await getServices();
     expect(list.items).toEqual([expect.objectContaining({ name: "Desert Tour", status: "DRAFT" })]);
   });
 
-  it("a service with an ACTIVE price can be published then unpublished", async () => {
+  it("an uncategorized service cannot be published even with an ACTIVE price (BR-026)", async () => {
     const created = await createService(buildFormData(baseFields()));
+    if (!created.ok) throw new Error("setup failed");
+
+    prices.push({ id: "price-x", serviceId: created.serviceId, amount: "25.00", currency: "OMR", status: "ACTIVE" });
+
+    const publishAttempt = await publishService(created.serviceId);
+    expect(publishAttempt).toEqual({ ok: false, error: "SERVICE_CATEGORY_REQUIRED", blockers: ["SERVICE_CATEGORY_REQUIRED"] });
+    expect(store.get(created.serviceId)?.status).toBe("DRAFT");
+  });
+
+  it("a categorized service with an ACTIVE price can be published then unpublished", async () => {
+    const created = await createService(buildFormData(baseFields({ categoryId: CATEGORY_ID })));
     if (!created.ok) throw new Error("setup failed");
 
     prices.push({ id: "price-1", serviceId: created.serviceId, amount: "25.00", currency: "OMR", status: "ACTIVE" });

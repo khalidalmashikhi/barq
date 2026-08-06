@@ -12,6 +12,8 @@ import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
+import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { CategoryField } from "@/components/categories/category-field";
 
 // Edit Service — Phase 2.4 (Service Admin UI). Mirrors
 // admin/providers/[id]/edit/page.tsx's shape, pre-filled from
@@ -61,6 +63,9 @@ export default async function EditServicePage({ params, searchParams }: Props) {
   }
 
   const errorMessage = error && isServiceAdminActionErrorCode(error) ? t(getServiceAdminErrorTranslationKey(error)) : null;
+
+  // Selectable set scoped to THIS service's own serviceType (never a literal).
+  const categoryTree = await getSelectableCategories(service.serviceType);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -132,6 +137,17 @@ export default async function EditServicePage({ params, searchParams }: Props) {
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
+            <CategoryField
+              name="categoryId"
+              tree={categoryTree}
+              defaultValue={service.categoryId}
+              labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
+            />
+            <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
           </div>
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">

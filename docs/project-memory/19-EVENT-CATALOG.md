@@ -54,9 +54,16 @@
 - **Status:** Implicit.
 - **DOMAIN_MODEL.md §3 equivalent:** None named explicitly (Service lifecycle wasn't broken into events in the original catalog).
 
+### ServiceCategorized
+- **Trigger:** a `categoryId` is set or changed on a Service via create/update (provider or admin).
+- **Producer:** `src/lib/{provider,admin}/{create,update}-service.ts`.
+- **Consumers:** `AuditLog` (real — actions `service.category_assigned` / `service.category_changed`, previous/new `categoryId` only, no localized content); target: Marketplace search-index refresh, Analytics.
+- **Business purpose:** A service is filed under a taxonomy node, making it discoverable (Task B write path, 2026-08-06).
+- **Status:** Real (state change + in-transaction audit write). Emitted as a named audit action, **not** a dispatched domain event — per the deferred domain-events decision, event-shaped names are kept so a future per-domain lifecycle hook can adopt them 1:1.
+
 ### ServicePublished
-- **Trigger:** `publishService()` succeeds (requires an `ACTIVE` `Price` to exist).
-- **Producer:** `src/lib/provider/transition-service-status.ts`.
+- **Trigger:** `publishService()` succeeds (requires BOTH a `categoryId` — BR-026 — AND an `ACTIVE` `Price`; gated by the shared `assertServicePublishable`, which returns all blockers in order).
+- **Producer:** `src/lib/provider/transition-service-status.ts`, `src/lib/admin/transition-service-status.ts`.
 - **Consumers:** `AuditLog` (real, Phase 5.2); target: Marketplace search-index refresh, Analytics.
 - **Business purpose:** A service becomes bookable by customers.
 - **Status:** Real (state change + audit write).

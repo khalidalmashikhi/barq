@@ -8,6 +8,9 @@ import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
+import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { CategoryField } from "@/components/categories/category-field";
+import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 
 // Create Experience — Phase 4.2 (Provider Experience), Priority 1.
 // Collects both ar/en name (Service.name is bilingual-required, see
@@ -29,6 +32,10 @@ export default async function NewServicePage({ searchParams }: Props) {
   const locale = await getLocale();
 
   const errorMessage = error && isServiceActionErrorCode(error) ? t(getServiceErrorTranslationKey(error)) : null;
+
+  // A new service is always DEFAULT_SERVICE_TYPE_KEY (no serviceType picker); the
+  // category set is scoped to that vertical.
+  const categoryTree = await getSelectableCategories(DEFAULT_SERVICE_TYPE_KEY);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -99,6 +106,16 @@ export default async function NewServicePage({ searchParams }: Props) {
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
+            <CategoryField
+              name="categoryId"
+              tree={categoryTree}
+              labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
+            />
+            <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
           </div>
 
           <label className="flex flex-col gap-1.5 sm:w-48">

@@ -123,6 +123,13 @@ export type ServiceListFilters = {
   /// Best-effort category filter — see this file's own "CATEGORY"
   /// comment above. Callers pass an already-resolved display label
   /// (e.g. "Diving"/"الغوص"), not a raw category slug.
+  ///
+  /// @deprecated Legacy keyword bridge (substring match on Service.name),
+  /// predating the relational taxonomy. Task B (write path) now populates the
+  /// real Service.categoryId; TODO(B2 read-path migration): replace this with a
+  /// categoryId filter once existing services are categorized/backfilled, then
+  /// remove this field and the four hardcoded public category slug arrays. Do
+  /// NOT build new consumers on categoryKeyword.
   categoryKeyword?: string;
 };
 
