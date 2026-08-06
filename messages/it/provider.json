@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "Il tuo account fornitore deve essere approvato prima di poter gestire i servizi",
   "serviceErrorNotFound": "Esperienza non trovata",
   "serviceErrorNoActivePrice": "Aggiungi un prezzo prima di pubblicare questa esperienza",
+  "serviceErrorInvalidCategory": "La categoria selezionata non è disponibile per questa esperienza",
+  "serviceErrorCategoryRequired": "Scegli una categoria prima di pubblicare questa esperienza",
   "serviceErrorInvalidTransition": "Questa azione non è disponibile per lo stato attuale dell'esperienza",
   "serviceErrorUnknown": "Qualcosa è andato storto, riprova",
   "backToAvailabilityLabel": "Torna alla disponibilità",

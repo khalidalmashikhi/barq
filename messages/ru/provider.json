@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "Ваш аккаунт поставщика должен быть одобрен, прежде чем вы сможете управлять услугами",
   "serviceErrorNotFound": "Впечатление не найдено",
   "serviceErrorNoActivePrice": "Добавьте цену перед публикацией этого впечатления",
+  "serviceErrorInvalidCategory": "Выбранная категория недоступна для этого впечатления",
+  "serviceErrorCategoryRequired": "Выберите категорию перед публикацией этого впечатления",
   "serviceErrorInvalidTransition": "Это действие недоступно для текущего статуса впечатления",
   "serviceErrorUnknown": "Что-то пошло не так, попробуйте ещё раз",
   "backToAvailabilityLabel": "Назад к доступности",

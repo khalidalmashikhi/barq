@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "يجب أن يكون حساب مزود الخدمة معتمدًا قبل إمكانية إدارة الخدمات",
   "serviceErrorNotFound": "التجربة غير موجودة",
   "serviceErrorNoActivePrice": "أضف سعراً قبل نشر هذه التجربة",
+  "serviceErrorInvalidCategory": "الفئة المحددة غير متاحة لهذه التجربة",
+  "serviceErrorCategoryRequired": "اختر فئة قبل نشر هذه التجربة",
   "serviceErrorInvalidTransition": "هذا الإجراء غير متاح في الحالة الحالية للتجربة",
   "serviceErrorUnknown": "حدث خطأ ما، الرجاء المحاولة مرة أخرى",
   "backToAvailabilityLabel": "العودة إلى التوفر",

@@ -184,6 +184,8 @@
   "serviceErrorNotFound": "Service not found",
   "serviceErrorProviderNotFound": "No provider found with that id",
   "serviceErrorNoActivePrice": "Add a price before publishing this service",
+  "serviceErrorInvalidCategory": "The selected category isn't available for this service",
+  "serviceErrorCategoryRequired": "Choose a category before publishing this service",
   "serviceErrorInvalidTransition": "This action isn't available for the service's current status",
   "serviceErrorUnknown": "Something went wrong, please try again",
   "navServices": "Services",

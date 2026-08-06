@@ -184,6 +184,8 @@
   "serviceErrorNotFound": "Service introuvable",
   "serviceErrorProviderNotFound": "Aucun prestataire trouvé avec cet identifiant",
   "serviceErrorNoActivePrice": "Ajoutez un prix avant de publier ce service",
+  "serviceErrorInvalidCategory": "La catégorie sélectionnée n'est pas disponible pour ce service",
+  "serviceErrorCategoryRequired": "Choisissez une catégorie avant de publier ce service",
   "serviceErrorInvalidTransition": "Cette action n'est pas disponible pour le statut actuel du service",
   "serviceErrorUnknown": "Une erreur s'est produite, veuillez réessayer",
   "navServices": "Services",

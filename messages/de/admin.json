@@ -184,6 +184,8 @@
   "serviceErrorNotFound": "Leistung nicht gefunden",
   "serviceErrorProviderNotFound": "Kein Anbieter mit dieser ID gefunden",
   "serviceErrorNoActivePrice": "Fügen Sie einen Preis hinzu, bevor Sie diese Leistung veröffentlichen",
+  "serviceErrorInvalidCategory": "Die gewählte Kategorie ist für diese Leistung nicht verfügbar",
+  "serviceErrorCategoryRequired": "Wählen Sie eine Kategorie, bevor Sie diese Leistung veröffentlichen",
   "serviceErrorInvalidTransition": "Diese Aktion ist im aktuellen Status der Leistung nicht verfügbar",
   "serviceErrorUnknown": "Etwas ist schiefgelaufen, bitte versuchen Sie es erneut",
   "navServices": "Leistungen",

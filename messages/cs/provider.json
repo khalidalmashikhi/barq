@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "Váš účet poskytovatele musí být schválen, než budete moci spravovat služby",
   "serviceErrorNotFound": "Zážitek nebyl nalezen",
   "serviceErrorNoActivePrice": "Před zveřejněním tohoto zážitku přidejte cenu",
+  "serviceErrorInvalidCategory": "Vybraná kategorie není pro tento zážitek dostupná",
+  "serviceErrorCategoryRequired": "Před zveřejněním tohoto zážitku vyberte kategorii",
   "serviceErrorInvalidTransition": "Tato akce není pro aktuální stav zážitku k dispozici",
   "serviceErrorUnknown": "Něco se pokazilo, zkuste to prosím znovu",
   "backToAvailabilityLabel": "Zpět na dostupnost",

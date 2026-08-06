@@ -184,6 +184,8 @@
   "serviceErrorNotFound": "Služba nebyla nalezena",
   "serviceErrorProviderNotFound": "Nebyl nalezen žádný poskytovatel s tímto ID",
   "serviceErrorNoActivePrice": "Před zveřejněním této služby přidejte cenu",
+  "serviceErrorInvalidCategory": "Vybraná kategorie není pro tuto službu dostupná",
+  "serviceErrorCategoryRequired": "Před zveřejněním této služby vyberte kategorii",
   "serviceErrorInvalidTransition": "Tato akce není pro aktuální stav služby dostupná",
   "serviceErrorUnknown": "Něco se pokazilo, zkuste to prosím znovu",
   "navServices": "Služby",

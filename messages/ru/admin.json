@@ -184,6 +184,8 @@
   "serviceErrorNotFound": "Услуга не найдена",
   "serviceErrorProviderNotFound": "Поставщик с этим идентификатором не найден",
   "serviceErrorNoActivePrice": "Добавьте цену перед публикацией этой услуги",
+  "serviceErrorInvalidCategory": "Выбранная категория недоступна для этой услуги",
+  "serviceErrorCategoryRequired": "Выберите категорию перед публикацией этой услуги",
   "serviceErrorInvalidTransition": "Это действие недоступно для текущего статуса услуги",
   "serviceErrorUnknown": "Что-то пошло не так, попробуйте ещё раз",
   "navServices": "Услуги",

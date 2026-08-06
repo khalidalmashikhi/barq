@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "Ihr Anbieterkonto muss genehmigt sein, bevor Sie Dienstleistungen verwalten können",
   "serviceErrorNotFound": "Erlebnis nicht gefunden",
   "serviceErrorNoActivePrice": "Fügen Sie einen Preis hinzu, bevor Sie dieses Erlebnis veröffentlichen",
+  "serviceErrorInvalidCategory": "Die gewählte Kategorie ist für dieses Erlebnis nicht verfügbar",
+  "serviceErrorCategoryRequired": "Wählen Sie eine Kategorie, bevor Sie dieses Erlebnis veröffentlichen",
   "serviceErrorInvalidTransition": "Diese Aktion ist für den aktuellen Status des Erlebnisses nicht verfügbar",
   "serviceErrorUnknown": "Etwas ist schiefgelaufen, bitte versuchen Sie es erneut",
   "backToAvailabilityLabel": "Zurück zur Verfügbarkeit",

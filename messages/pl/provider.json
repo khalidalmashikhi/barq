@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "Twoje konto dostawcy musi zostać zatwierdzone, zanim będziesz mógł zarządzać usługami",
   "serviceErrorNotFound": "Nie znaleziono atrakcji",
   "serviceErrorNoActivePrice": "Dodaj cenę przed opublikowaniem tej atrakcji",
+  "serviceErrorInvalidCategory": "Wybrana kategoria nie jest dostępna dla tej atrakcji",
+  "serviceErrorCategoryRequired": "Wybierz kategorię przed opublikowaniem tej atrakcji",
   "serviceErrorInvalidTransition": "Ta czynność jest niedostępna dla obecnego statusu atrakcji",
   "serviceErrorUnknown": "Coś poszło nie tak, spróbuj ponownie",
   "backToAvailabilityLabel": "Powrót do dostępności",

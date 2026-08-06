@@ -111,6 +111,8 @@
   "serviceErrorProviderNotApproved": "Your provider account must be approved before you can manage services",
   "serviceErrorNotFound": "Experience not found",
   "serviceErrorNoActivePrice": "Add a price before publishing this experience",
+  "serviceErrorInvalidCategory": "The selected category isn't available for this experience",
+  "serviceErrorCategoryRequired": "Choose a category before publishing this experience",
   "serviceErrorInvalidTransition": "This action isn't available for the experience's current status",
   "serviceErrorUnknown": "Something went wrong, please try again",
   "backToAvailabilityLabel": "Back to Availability",

@@ -184,6 +184,8 @@
   "serviceErrorNotFound": "الخدمة غير موجودة",
   "serviceErrorProviderNotFound": "لم يتم العثور على مزود خدمة بهذا المعرّف",
   "serviceErrorNoActivePrice": "أضف سعرًا قبل نشر هذه الخدمة",
+  "serviceErrorInvalidCategory": "الفئة المحددة غير متاحة لهذه الخدمة",
+  "serviceErrorCategoryRequired": "اختر فئة قبل نشر هذه الخدمة",
   "serviceErrorInvalidTransition": "هذا الإجراء غير متاح لحالة الخدمة الحالية",
   "serviceErrorUnknown": "حدث خطأ ما، يرجى المحاولة مرة أخرى",
   "navServices": "الخدمات",
