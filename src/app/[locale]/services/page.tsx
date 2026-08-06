@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PackageOpen } from "lucide-react";
 import { getServices, getProvidersForFilter } from "@/lib/services/get-services";
+import { getPublicCategoryBySlug } from "@/lib/categories/get-public-category-by-slug";
 import { ServiceFilters } from "@/components/services/service-filters";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -114,7 +115,15 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   const locale = await getLocale();
   const basePath = getPathname({ href: "/services", locale });
 
-  const categoryLabel = await resolveCategoryLabel(params.category);
+  // DUAL READ (B2 Slice 1): resolve the ?category=<slug> to a real, effectively
+  // PUBLIC Category first; when found, filter by the relational categoryId. Only
+  // when the slug is NOT a public category do we fall back to the legacy keyword
+  // bridge (the hardcoded marketing slugs via resolveCategoryLabel). The active-
+  // filter chip label comes from whichever path resolved it. Nothing legacy is
+  // removed — this is purely additive.
+  const publicCategory = params.category ? await getPublicCategoryBySlug(params.category) : null;
+  const legacyCategoryLabel = publicCategory ? undefined : await resolveCategoryLabel(params.category);
+  const categoryLabel = publicCategory?.label ?? legacyCategoryLabel;
 
   const [providers, result] = await Promise.all([
     getProvidersForFilter(),
@@ -125,7 +134,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
       maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
       sort: (params.sort as "newest" | "price_asc" | "price_desc" | undefined) ?? "newest",
       page: params.page ? Number(params.page) : 1,
-      categoryKeyword: categoryLabel,
+      categoryId: publicCategory?.id,
+      categoryKeyword: legacyCategoryLabel,
     }),
   ]);
 

@@ -120,6 +120,12 @@ export type ServiceListFilters = {
   sort?: "newest" | "price_asc" | "price_desc";
   page?: number;
   pageSize?: number;
+  /// Relational category filter (B2 read path) — the real `Service.categoryId`.
+  /// This is the preferred, accurate filter; the caller resolves a public
+  /// category slug to its id and passes it here (see services/page.tsx dual
+  /// read). When both `categoryId` and `categoryKeyword` are set they both
+  /// narrow (AND) — the caller sets only one.
+  categoryId?: string;
   /// Best-effort category filter — see this file's own "CATEGORY"
   /// comment above. Callers pass an already-resolved display label
   /// (e.g. "Diving"/"الغوص"), not a raw category slug.
@@ -235,6 +241,11 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
     // unconditionally, not just when searching.
     provider: { status: "APPROVED" as const, visible: true },
     ...(filters.providerId ? { providerId: filters.providerId } : {}),
+    // Relational category filter (B2 read path) — a direct FK match on
+    // Service.categoryId, distinct from the legacy categoryKeyword name-substring
+    // bridge above. Additive: absent by default, so every existing caller is
+    // unaffected.
+    ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
     ...(searchMatchedIds !== null ? { id: { in: searchMatchedIds } } : {}),
     ...(matchConditions.length > 0 ? { AND: matchConditions } : {}),
   };

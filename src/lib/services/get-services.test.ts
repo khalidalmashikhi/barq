@@ -101,6 +101,55 @@ describe("getServices — categoryKeyword filter (unchanged)", () => {
   });
 });
 
+describe("getServices — categoryId filter (B2 read path)", () => {
+  it("applies categoryId as a direct relational filter (not a name-substring match)", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryId: "cat-1" });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: { status: "PUBLISHED", provider: PROVIDER_GATE, categoryId: "cat-1" },
+    });
+  });
+
+  it("does not add the legacy keyword AND-clause when only categoryId is set", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryId: "cat-1" });
+
+    const arg = countMock.mock.calls[0]![0] as { where: Record<string, unknown> };
+    expect(arg.where).not.toHaveProperty("AND");
+  });
+
+  it("composes categoryId AND categoryKeyword when both are supplied (both narrow together)", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryId: "cat-1", categoryKeyword: "Diving" });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: {
+        status: "PUBLISHED",
+        provider: PROVIDER_GATE,
+        categoryId: "cat-1",
+        AND: [
+          {
+            OR: [
+              { name: { path: ["ar"], string_contains: "Diving" } },
+              { name: { path: ["en"], string_contains: "Diving" } },
+            ],
+          },
+        ],
+      },
+    });
+  });
+});
+
 describe("getServices — search (case-insensitive, multi-field, multi-word)", () => {
   it("calls $queryRaw and intersects the result via id: { in: [...] }", async () => {
     getLocaleMock.mockResolvedValue("en");
