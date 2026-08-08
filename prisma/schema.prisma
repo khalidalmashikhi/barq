@@ -308,10 +308,17 @@ enum AIAgentStatus {
 model User {
   id                  String     @id @default(uuid(7)) @db.Uuid
   phoneNumber         String     @unique
+  /// Optional display name — the one personal, self-editable identity field
+  /// (Finish-Line: Customer Profile). Deliberately kept on the identity `User`
+  /// (not duplicated onto Customer/Provider) so every role reuses one name.
+  /// Nullable + backward-compatible: existing rows default to NULL and every
+  /// read falls back to a masked phone. Reverses the earlier phone-only-minimal
+  /// note below, per the approved finish-line directive to give customers a real
+  /// editable profile. Still NO email/image/emailVerified — only a display name.
+  name                String?
   /// Added by Engineering Sprint (Phone OTP Schema Support) — required by
-  /// Better Auth's phone-number plugin. No email, name, image, or
-  /// emailVerified field was added, per explicit instruction — this is
-  /// the only Better Auth-required addition to User in this sprint.
+  /// Better Auth's phone-number plugin. No email, image, or emailVerified field
+  /// was added, per explicit instruction.
   phoneNumberVerified Boolean    @default(false)
   status              UserStatus @default(CREATED)
   createdAt           DateTime   @default(now()) @db.Timestamptz(6)

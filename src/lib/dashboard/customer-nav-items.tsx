@@ -69,7 +69,7 @@ export function getCustomerNavItems(
       badge: unreadNotificationsCount,
     },
     { label: t("navSaved"), icon: <Heart size={18} strokeWidth={1.75} />, disabledHint: t("comingSoonLabel") },
-    { label: t("navSettings"), icon: <Settings size={18} strokeWidth={1.75} />, disabledHint: t("comingSoonLabel") },
+    { label: t("navSettings"), href: getPathname({ href: "/dashboard/settings", locale }), icon: <Settings size={18} strokeWidth={1.75} /> },
   ];
 
   // An APPROVED provider lands here (the customer dashboard is everyone's

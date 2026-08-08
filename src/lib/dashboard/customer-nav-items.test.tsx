@@ -35,15 +35,18 @@ describe("getCustomerNavItems — Payments route", () => {
 });
 
 describe("getCustomerNavItems — Saved and Settings", () => {
-  it("have no href (non-navigable) but carry a real disabledHint", () => {
+  it("keeps Saved non-navigable with a disabledHint, but Settings is now a real link", () => {
     const items = getCustomerNavItems(fakeT, "en", 0);
     const saved = items.find((item) => item.label === "navSaved");
     const settings = items.find((item) => item.label === "navSettings");
 
+    // Saved (favorites) is still deferred.
     expect(saved?.href).toBeUndefined();
     expect(saved?.disabledHint).toBe("comingSoonLabel");
-    expect(settings?.href).toBeUndefined();
-    expect(settings?.disabledHint).toBe("comingSoonLabel");
+
+    // Settings now routes to the real customer account settings page.
+    expect(settings?.href).toBe("/dashboard/settings");
+    expect(settings?.disabledHint).toBeUndefined();
   });
 });
 
