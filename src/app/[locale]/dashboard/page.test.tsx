@@ -15,10 +15,12 @@ vi.mock("next/navigation", () => ({}));
 
 const requireAuthMock = vi.fn();
 const hasActiveAdminProfileMock = vi.fn();
+const hasApprovedProviderProfileMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
   hasActiveAdminProfile: (...args: unknown[]) => hasActiveAdminProfileMock(...args),
+  hasApprovedProviderProfile: (...args: unknown[]) => hasApprovedProviderProfileMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
 }));
 
@@ -56,6 +58,7 @@ type NavItem = { label: string; href?: string };
 afterEach(() => {
   requireAuthMock.mockReset();
   hasActiveAdminProfileMock.mockReset();
+  hasApprovedProviderProfileMock.mockReset();
   getDashboardDataMock.mockReset();
   getUnreadCountMock.mockReset();
 });
@@ -78,6 +81,7 @@ describe("DashboardPage — Admin Panel nav item", () => {
   it("includes a real 'Admin Panel' nav item pointing at /admin for a user with an active Admin profile", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
     hasActiveAdminProfileMock.mockResolvedValue(true);
+    hasApprovedProviderProfileMock.mockResolvedValue(false);
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
 
@@ -92,6 +96,7 @@ describe("DashboardPage — Admin Panel nav item", () => {
   it("never includes an Admin Panel nav item for a user with no Admin profile", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
     hasActiveAdminProfileMock.mockResolvedValue(false);
+    hasApprovedProviderProfileMock.mockResolvedValue(false);
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
 
