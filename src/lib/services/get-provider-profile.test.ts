@@ -10,6 +10,7 @@ vi.mock("server-only", () => ({}));
 const findFirstMock = vi.fn();
 const serviceCountMock = vi.fn();
 const ratingAggregateMock = vi.fn();
+const providerCategoryFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -21,6 +22,9 @@ vi.mock("@/lib/db", () => ({
     },
     rating: {
       aggregate: (...args: unknown[]) => ratingAggregateMock(...args),
+    },
+    providerCategory: {
+      findMany: (...args: unknown[]) => providerCategoryFindManyMock(...args),
     },
   },
 }));
@@ -37,6 +41,7 @@ afterEach(() => {
   findFirstMock.mockReset();
   serviceCountMock.mockReset();
   ratingAggregateMock.mockReset();
+  providerCategoryFindManyMock.mockReset();
   getLocaleMock.mockReset();
 });
 
@@ -76,6 +81,7 @@ describe("getProviderProfile", () => {
     getLocaleMock.mockResolvedValue("en");
     serviceCountMock.mockResolvedValue(4);
     ratingAggregateMock.mockResolvedValue({ _avg: { value: 4.5 }, _count: { value: 12 } });
+    providerCategoryFindManyMock.mockResolvedValue([]);
 
     const result = await getProviderProfile("desert-trails");
 
@@ -89,6 +95,7 @@ describe("getProviderProfile", () => {
       publishedServicesCount: 4,
       averageRating: 4.5,
       reviewCount: 12,
+      categories: [],
     });
     expect(ratingAggregateMock).toHaveBeenCalledWith({
       where: { review: { providerId: PROVIDER_UUID, moderationState: "PUBLISHED" } },
@@ -109,6 +116,7 @@ describe("getProviderProfile", () => {
     getLocaleMock.mockResolvedValue("en");
     serviceCountMock.mockResolvedValue(0);
     ratingAggregateMock.mockResolvedValue({ _avg: { value: null }, _count: { value: 0 } });
+    providerCategoryFindManyMock.mockResolvedValue([]);
 
     const result = await getProviderProfile("desert-trails");
 

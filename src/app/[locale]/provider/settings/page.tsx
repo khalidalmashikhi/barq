@@ -5,6 +5,9 @@ import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderProfileForEdit } from "@/lib/provider/queries/get-provider-profile-for-edit";
 import { updateProviderProfile } from "@/lib/provider/update-provider-profile";
 import { isProviderProfileActionErrorCode, getProviderProfileErrorTranslationKey } from "@/lib/provider/provider-profile-errors";
+import { getMyProviderCategorySelection } from "@/lib/provider/get-my-provider-category-selection";
+import { setProviderCategories } from "@/lib/provider/set-provider-categories";
+import { ProviderCategoryChecklist } from "@/components/categories/provider-category-checklist";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -23,11 +26,11 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; areasSaved?: string; areasError?: string }>;
 };
 
 export default async function ProviderSettingsPage({ searchParams }: Props) {
-  const { error, saved } = await searchParams;
+  const { error, saved, areasSaved, areasError } = await searchParams;
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
 
@@ -47,6 +50,9 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
   }
 
   const errorMessage = error && isProviderProfileActionErrorCode(error) ? t(getProviderProfileErrorTranslationKey(error)) : null;
+
+  // Areas of activity (Gap G) — admin-managed taxonomy, editable any time.
+  const { tree: categoryTree, selectedIds: selectedCategoryIds } = await getMyProviderCategorySelection();
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -155,6 +161,38 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("settingsSubmitButton")}
+          </SubmitButton>
+        </form>
+      </Card>
+
+      {areasSaved === "1" && <Alert variant="success">{t("areasSavedLabel")}</Alert>}
+      {areasError && <Alert variant="danger">{t("areasErrorLabel")}</Alert>}
+
+      <Card hoverLift={false}>
+        <form
+          action={async (formData: FormData) => {
+            "use server";
+            const result = await setProviderCategories(formData);
+            redirect({
+              href: result.ok ? "/provider/settings?areasSaved=1" : `/provider/settings?areasError=${result.error}`,
+              locale,
+            });
+          }}
+          className="flex flex-col gap-4"
+        >
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">{t("settingsAreasTitle")}</h2>
+            <p className="mt-0.5 text-xs text-foreground/50">{t("settingsAreasHint")}</p>
+          </div>
+
+          <ProviderCategoryChecklist
+            tree={categoryTree}
+            selectedIds={selectedCategoryIds}
+            emptyLabel={t("settingsAreasEmpty")}
+          />
+
+          <SubmitButton className="mt-1 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
+            {t("settingsAreasSubmitButton")}
           </SubmitButton>
         </form>
       </Card>

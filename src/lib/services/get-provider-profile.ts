@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { getProviderCategoryChips, type ProviderCategoryChip } from "@/lib/provider/get-provider-categories";
 
 // Public provider profile (storefront) query — Marketplace Completion.
 //
@@ -33,6 +34,8 @@ export type ProviderProfile = {
   publishedServicesCount: number;
   averageRating: number | null;
   reviewCount: number;
+  // Provider "areas of activity" (Gap G) — effectively-visible categories only.
+  categories: ProviderCategoryChip[];
 };
 
 type ProviderRow = {
@@ -58,13 +61,14 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
   const row = provider as ProviderRow;
   const locale = await getLocale();
 
-  const [publishedServicesCount, ratingAggregate] = await Promise.all([
+  const [publishedServicesCount, ratingAggregate, categories] = await Promise.all([
     prisma.service.count({ where: { providerId: row.id, status: "PUBLISHED" } }),
     prisma.rating.aggregate({
       where: { review: { providerId: row.id, moderationState: "PUBLISHED" } },
       _avg: { value: true },
       _count: { value: true },
     }),
+    getProviderCategoryChips(row.id, locale),
   ]);
 
   return {
@@ -77,5 +81,6 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
     publishedServicesCount,
     averageRating: ratingAggregate._avg.value,
     reviewCount: ratingAggregate._count.value,
+    categories,
   };
 }

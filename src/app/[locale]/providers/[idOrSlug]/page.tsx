@@ -156,6 +156,21 @@ export default async function ProviderProfilePage({ params, searchParams }: Prop
             <p className="mt-4 text-sm leading-relaxed text-foreground/70">{provider.description}</p>
           )}
 
+          {provider.categories.length > 0 && (
+            <div className="mt-4 flex flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-foreground/40">
+                {t("providerAreasHeading")}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {provider.categories.map((category) => (
+                  <Badge key={category.id} variant="info">
+                    {category.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mt-4">
             <ShareButton
               url={providerUrl}
