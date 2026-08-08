@@ -1,0 +1,19 @@
+# BARQ
+
+> BARQ (Arabic: برق) is a multi-language tourism marketplace for the Sultanate of Oman, connecting travellers with verified local providers of accommodation, transport, restaurants, activities and guided experiences. It is an API-first, mobile-ready web application available in 8 interface languages (Arabic, English, German, French, Italian, Polish, Russian, Czech).
+
+## Key pages
+
+- [Home](/): Discover tourism experiences across Oman.
+- [Browse experiences](/en/services): Search, filter and book local tourism services.
+- [About](/en/about): About BARQ.
+- [Help](/en/help): Help centre and FAQs.
+- [Contact](/en/contact): How to reach BARQ.
+- [Terms of Service](/en/terms): Terms governing use of the platform.
+- [Privacy Policy](/en/privacy): How BARQ handles personal data.
+
+## Notes
+
+- Every public page is available in 8 languages via locale-prefixed URLs (e.g. `/ar`, `/en`, `/de`, `/fr`, `/it`, `/pl`, `/ru`, `/cs`); the default locale is Arabic.
+- Authentication is phone number + one-time passcode. Authenticated dashboards (customer, provider, admin) are private and are not indexable.
+- No pricing, ratings or availability shown on the site should be treated as a real-time quote; confirm details on the relevant experience page before booking.
