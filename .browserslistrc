@@ -1,0 +1,15 @@
+# Modern browser baseline — reduces legacy JavaScript transforms and
+# injected polyfills (Lighthouse "Avoid serving legacy JavaScript").
+#
+# Chosen to stay broadly compatible with real devices used across Oman
+# (recent iOS/Android/desktop, ~2022+) while dropping down-level output
+# for browsers BARQ does not target. Adjust upward only with care — a
+# tourism audience uses a wide range of phones.
+chrome >= 109
+edge >= 109
+firefox >= 115
+safari >= 15.6
+ios_saf >= 15.6
+samsung >= 20
+not dead
+not op_mini all

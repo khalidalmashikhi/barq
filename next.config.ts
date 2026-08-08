@@ -6,9 +6,18 @@ const nextConfig: NextConfig = {
   // Omits the "X-Powered-By: Next.js" response header — avoids
   // advertising the framework/version to every client for no benefit.
   poweredByHeader: false,
-  // Image domains and other config are added incrementally as the
-  // corresponding capability is implemented (per
-  // DEPLOYMENT_AND_INFRASTRUCTURE.md) — not invented ahead of need.
+
+  // Image optimization output formats — lets the built-in Next.js Image
+  // Optimizer serve AVIF/WebP (with automatic fallback) to the next/image
+  // sites (logo, hero, carousels). No remotePatterns are added: provider/
+  // service media (Gap C) render via a plain <img> from Supabase Storage,
+  // not next/image, so no remote-host allow-list is needed here yet —
+  // enabling next/image for that host is a documented POST-LAUNCH follow-up.
+  // Purely additive — does not change rendered markup.
+  // (Lighthouse "Improve image delivery".)
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
 
   // Phase C.1 (Infrastructure & Quality) — baseline security headers,
   // extended by Phase D.3 (Production Hardening) below.
@@ -79,6 +88,17 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+          // Cross-Origin-Opener-Policy — isolates this app's browsing
+          // context from any window it opens or that opens it (Lighthouse
+          // Best Practices / Spectre-class mitigation). "same-origin-allow-
+          // popups" is the safe variant: it keeps the isolation guarantee
+          // while still permitting any popup this app might open to
+          // function — BARQ's phone+OTP auth uses no cross-origin popup, so
+          // this is non-breaking. Not the stricter "same-origin" (which can
+          // sever popup opener references) and deliberately without
+          // Cross-Origin-Embedder-Policy (COEP would block cross-origin
+          // subresources with no benefit here).
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
           // Phase D.3 — HSTS. Safe unconditionally: browsers ignore
           // Strict-Transport-Security entirely over a plain-HTTP
           // connection (which local `next dev`/`next start` always
