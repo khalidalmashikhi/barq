@@ -113,7 +113,12 @@ export default async function ServiceDetailPage({ params }: Props) {
       <Navbar />
       <main id="main-content" className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10">
         <FadeIn>
-          <ServiceGallery />
+          {/* Real service media (Gap C) — cover first, then gallery. Empty
+              state renders only when the service genuinely has no media. */}
+          <ServiceGallery
+            images={[service.coverUrl, ...service.gallery].filter((url): url is string => Boolean(url))}
+            alt={service.name}
+          />
         </FadeIn>
 
         {/* Sticky in-page navigation — Phase 3 Wave 2. Plain anchor
@@ -217,7 +222,7 @@ export default async function ServiceDetailPage({ params }: Props) {
                 <h2 className="mb-5 text-lg font-semibold text-foreground">{t("moreFromProviderLabel")}</h2>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   {relatedServices.map((related) => (
-                    <ExperienceCard key={related.id} serviceId={related.id} title={related.name} providerName={related.providerName} price={related.price} imageAspect="premium" />
+                    <ExperienceCard key={related.id} serviceId={related.id} title={related.name} providerName={related.providerName} price={related.price} coverImageUrl={related.coverUrl} imageAspect="premium" />
                   ))}
                 </div>
               </div>

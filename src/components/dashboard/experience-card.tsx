@@ -20,6 +20,14 @@ type ExperienceCardProps = {
   duration?: string;
   category?: string;
   imageSrc?: string;
+  /**
+   * Real uploaded cover media (Media Foundation, Gap C) — a remote Supabase
+   * URL. When present it takes priority over `imageSrc`/the brand-pattern
+   * fallback and renders via a plain lazy <img> (next/image remotePatterns
+   * for the storage host is a POST-LAUNCH follow-up, tied to the Lighthouse
+   * next.config work). Absent → existing behavior unchanged.
+   */
+  coverImageUrl?: string | null;
   layout?: "vertical" | "horizontal";
   className?: string;
   /**
@@ -44,6 +52,7 @@ export function ExperienceCard({
   duration,
   category,
   imageSrc,
+  coverImageUrl,
   layout = "vertical",
   className,
   imageAspect = "legacy",
@@ -73,7 +82,15 @@ export function ExperienceCard({
               : "h-56 w-full"
         )}
       >
-        {imageSrc ? (
+        {coverImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- provider-supplied Supabase host; next/image remotePatterns is a POST-LAUNCH follow-up
+          <img
+            src={coverImageUrl}
+            alt={title}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : imageSrc ? (
           <DestinationImage
             src={imageSrc}
             alt={title}

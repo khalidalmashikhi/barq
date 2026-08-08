@@ -38,6 +38,9 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 // keeps gallery queries and the public grid bounded (Rule 8, performance).
 export const MAX_PROVIDER_PORTFOLIO_ITEMS = 12;
 
+// Upper bound on a service's gallery images — same bounded-query rationale.
+export const MAX_SERVICE_GALLERY_ITEMS = 12;
+
 export type ImageValidationError = "UNSUPPORTED_TYPE" | "TOO_LARGE" | "EMPTY_FILE";
 
 export type ImageValidationResult =

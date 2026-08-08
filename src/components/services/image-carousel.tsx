@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { clsx } from "@/components/ui/clsx";
 
@@ -23,7 +22,8 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
 
   return (
     <div className="relative h-72 overflow-hidden rounded-2xl bg-accent/10 sm:h-96">
-      {activeSrc && <Image src={activeSrc} alt={alt} fill style={{ objectFit: "cover" }} priority={active === 0} />}
+      {/* eslint-disable-next-line @next/next/no-img-element -- provider-supplied Supabase host; next/image remotePatterns is a POST-LAUNCH follow-up (Media Foundation, Gap C) */}
+      {activeSrc && <img src={activeSrc} alt={alt} className="absolute inset-0 h-full w-full object-cover" />}
 
       {images.length > 1 && (
         <>

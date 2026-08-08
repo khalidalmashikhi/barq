@@ -27,6 +27,10 @@ export type ServiceDetail = {
   /// "verified" flag.
   providerStatus: string;
   price: string | null;
+  // Service media (Media Foundation, Gap C) — cover + ordered gallery URLs,
+  // fetched via a bounded relational include on this same query (no N+1).
+  coverUrl: string | null;
+  gallery: string[];
   createdAt: Date;
 };
 
@@ -35,6 +39,7 @@ export type RelatedService = {
   name: string;
   providerName: string;
   price: string | null;
+  coverUrl: string | null;
 };
 
 type ServiceDetailRow = {
@@ -44,6 +49,7 @@ type ServiceDetailRow = {
   providerId: string;
   provider: { businessName: unknown; businessDescription: unknown; status: string };
   prices: Array<{ amount: unknown; currency: string }>;
+  mediaAssets?: Array<{ url: string; kind?: string }>;
   createdAt: Date;
 };
 
@@ -87,6 +93,9 @@ export async function getServiceById(id: string): Promise<ServiceDetail | null> 
     include: {
       provider: true,
       prices: { where: { status: "ACTIVE" }, take: 1 },
+      // Cover + gallery in one bounded, ordered include (no N+1). Capped at
+      // 1 cover + MAX_SERVICE_GALLERY_ITEMS gallery images at write time.
+      mediaAssets: { orderBy: { createdAt: "asc" }, select: { url: true, kind: true } },
     },
   });
 
@@ -94,6 +103,10 @@ export async function getServiceById(id: string): Promise<ServiceDetail | null> 
 
   const row = service as ServiceDetailRow;
   const locale = await getLocale();
+
+  const mediaAssets = row.mediaAssets ?? [];
+  const coverUrl = mediaAssets.find((m) => m.kind === "COVER")?.url ?? null;
+  const gallery = mediaAssets.filter((m) => m.kind === "GALLERY").map((m) => m.url);
 
   return {
     id: row.id,
@@ -104,6 +117,8 @@ export async function getServiceById(id: string): Promise<ServiceDetail | null> 
     providerDescription: extractLocalizedText(row.provider.businessDescription, locale),
     providerStatus: row.provider.status,
     price: row.prices[0] ? `${row.prices[0].amount} ${row.prices[0].currency}` : null,
+    coverUrl,
+    gallery,
     createdAt: row.createdAt,
   };
 }
@@ -130,6 +145,7 @@ export async function getRelatedServices(serviceId: string, providerId: string):
     include: {
       provider: true,
       prices: { where: { status: "ACTIVE" }, take: 1 },
+      mediaAssets: { where: { kind: "COVER" }, take: 1, select: { url: true } },
     },
   });
 
@@ -138,6 +154,7 @@ export async function getRelatedServices(serviceId: string, providerId: string):
     name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
+    coverUrl: service.mediaAssets?.[0]?.url ?? null,
   }));
 }
 

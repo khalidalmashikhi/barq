@@ -183,6 +183,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                 title={service.name}
                 providerName={service.providerName}
                 price={service.price}
+                coverImageUrl={service.coverUrl}
                 imageAspect="premium"
               />
             ))}

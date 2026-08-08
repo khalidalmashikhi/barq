@@ -109,6 +109,9 @@ export type ServiceListItem = {
   providerId: string;
   providerName: string;
   price: string | null;
+  // Service cover image (Media Foundation, Gap C) — the ONE cover per card,
+  // fetched via a bounded relational include (batched by Prisma, never N+1).
+  coverUrl: string | null;
   createdAt: Date;
 };
 
@@ -296,6 +299,10 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
       include: {
         provider: true,
         prices: { where: { status: "ACTIVE" }, take: 1 },
+        // Only the single COVER needed for the card — never the whole gallery
+        // (Rule 8). Prisma batches this include, so it stays one extra query
+        // for the whole page, not one per service.
+        mediaAssets: { where: { kind: "COVER" }, take: 1, select: { url: true } },
       },
     }),
   ]);
@@ -306,6 +313,7 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
     providerId: string;
     provider: { businessName: unknown };
     prices: Array<{ amount: unknown; currency: string }>;
+    mediaAssets: Array<{ url: string }>;
     createdAt: Date;
   };
 
@@ -315,6 +323,7 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
     providerId: service.providerId,
     providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
+    coverUrl: service.mediaAssets[0]?.url ?? null,
     createdAt: service.createdAt,
   }));
 

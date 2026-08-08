@@ -13,6 +13,8 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { CategoryField } from "@/components/categories/category-field";
+import { getServiceMedia } from "@/lib/service/media/get-service-media";
+import { isProviderMediaErrorCode, getProviderMediaErrorTranslationKey } from "@/lib/provider/media/provider-media-errors";
 
 // Edit Experience — Phase 4.2 (Provider Experience), Priority 1. Same
 // shape as the Create page, pre-filled with the real bilingual values
@@ -25,12 +27,18 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    coverSaved?: string;
+    gallerySaved?: string;
+    mediaDeleted?: string;
+    mediaError?: string;
+  }>;
 };
 
 export default async function EditServicePage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, coverSaved, gallerySaved, mediaDeleted, mediaError } = await searchParams;
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
 
@@ -54,9 +62,13 @@ export default async function EditServicePage({ params, searchParams }: Props) {
   }
 
   const errorMessage = error && isServiceActionErrorCode(error) ? t(getServiceErrorTranslationKey(error)) : null;
+  const mediaErrorMessage = mediaError && isProviderMediaErrorCode(mediaError) ? t(getProviderMediaErrorTranslationKey(mediaError)) : null;
 
   // Selectable set is scoped to THIS service's own serviceType (never a literal).
   const categoryTree = await getSelectableCategories(service.serviceType);
+
+  // Service media (Gap C) — one bounded query for cover + gallery.
+  const media = await getServiceMedia(id);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -148,6 +160,118 @@ export default async function EditServicePage({ params, searchParams }: Props) {
             {t("editSubmitButton")}
           </SubmitButton>
         </form>
+      </Card>
+
+      {coverSaved === "1" && <Alert variant="success">{t("serviceCoverSavedLabel")}</Alert>}
+      {gallerySaved === "1" && <Alert variant="success">{t("serviceGallerySavedLabel")}</Alert>}
+      {mediaDeleted === "1" && <Alert variant="success">{t("mediaDeletedLabel")}</Alert>}
+      {mediaErrorMessage && <Alert variant="danger">{mediaErrorMessage}</Alert>}
+
+      {/* Service media (Gap C) — cover + gallery. Native multipart POSTs to
+          the authenticated route handler (op-discriminated); progressively
+          enhanced, no client JS. */}
+      <Card hoverLift={false}>
+        <div className="flex flex-col gap-6">
+          {/* Cover — singleton */}
+          <div className="flex flex-col gap-3">
+            <form action={`/api/provider/services/${id}/media`} method="post" encType="multipart/form-data" className="flex flex-col gap-3">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="op" value="cover" />
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">{t("serviceCoverTitle")}</h2>
+                <p className="mt-0.5 text-xs text-foreground/50">{t("serviceCoverHint")}</p>
+              </div>
+              {media.cover ? (
+                // eslint-disable-next-line @next/next/no-img-element -- provider-supplied Supabase host; next/image remotePatterns is a POST-LAUNCH follow-up
+                <img src={media.cover.url} alt="" className="h-40 w-full rounded-xl border border-border object-cover" />
+              ) : (
+                <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-border text-xs text-foreground/40">
+                  {t("noServiceCoverLabel")}
+                </div>
+              )}
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground/50">{t("serviceCoverUploadButton")}</span>
+                <input
+                  type="file"
+                  name="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  required
+                  className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+                />
+              </label>
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {t("serviceCoverUploadButton")}
+              </button>
+            </form>
+            {media.cover && (
+              <form action={`/api/provider/services/${id}/media`} method="post">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="op" value="delete" />
+                <input type="hidden" name="mediaId" value={media.cover.id} />
+                <button type="submit" className="text-xs font-medium text-danger transition-opacity hover:opacity-80">
+                  {t("mediaDeleteButton")}
+                </button>
+              </form>
+            )}
+          </div>
+
+          <hr className="border-border" />
+
+          {/* Gallery — multi-image */}
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">{t("serviceGalleryTitle")}</h2>
+              <p className="mt-0.5 text-xs text-foreground/50">{t("serviceGalleryHint")}</p>
+            </div>
+            {media.gallery.length > 0 ? (
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {media.gallery.map((item) => (
+                  <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg border border-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- provider-supplied Supabase host; next/image remotePatterns is a POST-LAUNCH follow-up */}
+                    <img src={item.url} alt="" className="h-full w-full object-cover" />
+                    <form action={`/api/provider/services/${id}/media`} method="post" className="absolute end-1 top-1">
+                      <input type="hidden" name="locale" value={locale} />
+                      <input type="hidden" name="op" value="delete" />
+                      <input type="hidden" name="mediaId" value={item.id} />
+                      <button
+                        type="submit"
+                        aria-label={t("mediaDeleteButton")}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-sm leading-none text-white transition-opacity hover:opacity-90"
+                      >
+                        ×
+                      </button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-foreground/40">{t("serviceGalleryEmptyLabel")}</p>
+            )}
+            <form action={`/api/provider/services/${id}/media`} method="post" encType="multipart/form-data" className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="op" value="gallery" />
+              <label className="flex flex-1 flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground/50">{t("serviceGalleryAddLabel")}</span>
+                <input
+                  type="file"
+                  name="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  required
+                  className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+                />
+              </label>
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {t("serviceGalleryAddButton")}
+              </button>
+            </form>
+          </div>
+        </div>
       </Card>
     </div>
   );
