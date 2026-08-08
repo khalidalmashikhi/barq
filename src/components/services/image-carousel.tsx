@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { clsx } from "@/components/ui/clsx";
 
@@ -19,6 +20,7 @@ type ImageCarouselProps = {
 export function ImageCarousel({ images, alt }: ImageCarouselProps) {
   const [active, setActive] = useState(0);
   const activeSrc = images[active] ?? images[0];
+  const t = useTranslations("services");
 
   return (
     <div className="relative h-72 overflow-hidden rounded-2xl bg-accent/10 sm:h-96">
@@ -30,7 +32,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
           <button
             type="button"
             onClick={() => setActive((current) => (current - 1 + images.length) % images.length)}
-            aria-label="Previous image"
+            aria-label={t("carouselPreviousLabel")}
             className="absolute start-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-foreground backdrop-blur-md transition-colors hover:bg-white"
           >
             <ChevronRight size={18} strokeWidth={1.75} className="rtl:hidden" />
@@ -39,7 +41,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
           <button
             type="button"
             onClick={() => setActive((current) => (current + 1) % images.length)}
-            aria-label="Next image"
+            aria-label={t("carouselNextLabel")}
             className="absolute end-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-foreground backdrop-blur-md transition-colors hover:bg-white"
           >
             <ChevronLeft size={18} strokeWidth={1.75} className="rtl:hidden" />

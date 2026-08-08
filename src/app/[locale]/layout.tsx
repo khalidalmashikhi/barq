@@ -1,37 +1,63 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { hasLocale } from "next-intl";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
+import { MotionConfig } from "framer-motion";
 import { routing } from "@/i18n/routing";
+import { getLocaleDirection, type Locale } from "@/i18n/locales";
+import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { SkipLink } from "@/components/ui/skip-link";
+import { OfflineBanner } from "@/components/ui/offline-banner";
+import { toSafeJsonLdString } from "@/lib/seo/safe-json-ld";
+import { plexArabic, plexLatin } from "../fonts";
+import "../globals.css";
 
-// [locale] segment layout — BARQ Internationalization, Phase 0.
+// [locale] layout — the TRUE per-request root of every real BARQ route (BARQ
+// i18n stabilization). It now owns <html>/<body>, the fonts, document
+// direction, the SEO metadata, and NextIntlClientProvider — all derived from
+// the URL's `locale` param, the single source of truth. Because this layout
+// lives AT the [locale] segment, it re-renders on every locale switch
+// (including soft client navigations), so server text, client-component text,
+// <html lang>, and dir all change together — no mixed-language UI, no stale
+// provider. (These previously lived in the root layout above this segment,
+// which does not re-render on a locale switch — see src/app/layout.tsx.)
 //
-// PHASE 0 VALIDATION SCOPE ONLY: this segment exists to prove the
-// full routing/middleware/message-loading/type-safety stack works
-// end-to-end, not to host real migrated pages yet — no existing route
-// (dashboard, services, bookings, provider) is nested under here in
-// this phase, per explicit "do not move route files" scope. The real
-// page migration is later-phase work (Phases B-D of the approved
-// architecture analysis).
-//
-// This is a NESTED layout under the existing root layout
-// (src/app/layout.tsx), which still owns <html>/<body> — this file
-// adds only locale validation.
-//
-// NextIntlClientProvider REMOVED HERE (Phase A.1): it now lives at
-// the true root layout (src/app/layout.tsx) instead, covering the
-// entire app, not just this validation subtree — keeping it here too
-// would be a redundant, nested provider. setRequestLocale below still
-// runs for this segment specifically (its own optimization, unrelated
-// to the provider boundary).
-//
-// Invalid locale segments (e.g. /xx) are NOT silently accepted: any
-// value not in routing.locales triggers notFound(), consistent with
-// this project's existing uniform-404 conventions elsewhere.
+// setRequestLocale(locale) is called in BOTH generateMetadata and the layout
+// so next-intl's server APIs resolve the URL locale under static rendering.
+// An invalid locale segment (/xyz) triggers notFound() — resolved by the
+// root src/app/not-found.tsx (which renders its own <html>/<body>).
+
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 type Props = {
   children: ReactNode;
   params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  if (hasLocale(routing.locales, locale)) {
+    setRequestLocale(locale);
+  }
+
+  const tCommon = await getServerTranslator("common");
+  const tSeo = await getServerTranslator("seo");
+
+  return {
+    metadataBase: new URL(appUrl),
+    title: tCommon("appName"),
+    description: tSeo("defaultDescription"),
+  };
+}
+
+// Phase F.4 (SEO) — minimal Organization JSON-LD (name/url/logo only).
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "BARQ",
+  url: appUrl,
+  logo: `${appUrl}/Barqlogo.png`,
 };
 
 export default async function LocaleLayout({ children, params }: Props) {
@@ -41,10 +67,22 @@ export default async function LocaleLayout({ children, params }: Props) {
     notFound();
   }
 
-  // Enables next-intl's static-rendering optimization for this locale
-  // segment — a no-op for correctness, a real one for build performance
-  // once real pages exist here.
   setRequestLocale(locale);
+  const direction = getLocaleDirection(locale as Locale);
 
-  return children;
+  return (
+    <html lang={locale} dir={direction} className={`${plexArabic.variable} ${plexLatin.variable}`}>
+      <body className="font-sans antialiased">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLdString(organizationJsonLd) }} />
+        {/* Explicit locale from the URL segment — keeps client-component
+            messages/useLocale() in lockstep with server rendering and the
+            document direction, and re-renders them on every locale switch. */}
+        <NextIntlClientProvider locale={locale}>
+          <SkipLink />
+          <OfflineBanner />
+          <MotionConfig reducedMotion="user">{children}</MotionConfig>
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
 }

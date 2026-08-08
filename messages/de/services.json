@@ -44,6 +44,8 @@
   "verifiedProviderLabel": "Verifizierter Anbieter",
   "providerAreasHeading": "Tätigkeitsbereiche",
   "portfolioHeading": "Portfolio",
+  "carouselPreviousLabel": "Vorheriges Bild",
+  "carouselNextLabel": "Nächstes Bild",
   "providerTypeIndividual": "Einzelperson",
   "providerTypeCompany": "Unternehmen",
   "experiencesCountLabel": "{count} Erlebnisse dieses Anbieters",

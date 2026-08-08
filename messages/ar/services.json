@@ -44,6 +44,8 @@
   "verifiedProviderLabel": "مزود موثّق",
   "providerAreasHeading": "مجالات النشاط",
   "portfolioHeading": "معرض الأعمال",
+  "carouselPreviousLabel": "الصورة السابقة",
+  "carouselNextLabel": "الصورة التالية",
   "providerTypeIndividual": "فرد",
   "providerTypeCompany": "شركة",
   "experiencesCountLabel": "{count} تجربة لهذا المزود",

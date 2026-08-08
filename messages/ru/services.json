@@ -44,6 +44,8 @@
   "verifiedProviderLabel": "Проверенный поставщик",
   "providerAreasHeading": "Области деятельности",
   "portfolioHeading": "Портфолио",
+  "carouselPreviousLabel": "Предыдущее изображение",
+  "carouselNextLabel": "Следующее изображение",
   "providerTypeIndividual": "Частное лицо",
   "providerTypeCompany": "Компания",
   "experiencesCountLabel": "{count} впечатлений от этого поставщика",

@@ -49,15 +49,22 @@ export async function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-6 lg:flex">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="rounded-sm text-sm text-foreground/70 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              {t(link.labelKey)}
-            </a>
-          ))}
+          {navLinks.map((link) => {
+            const className =
+              "rounded-sm text-sm text-foreground/70 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+            // In-page anchors (#...) stay raw <a>; real routes use the
+            // locale-aware Link so the current locale prefix is preserved
+            // (a raw <a href="/services"> dropped it — i18n stabilization).
+            return link.href.startsWith("#") ? (
+              <a key={link.href} href={link.href} className={className}>
+                {t(link.labelKey)}
+              </a>
+            ) : (
+              <Link key={link.href} href={link.href} className={className}>
+                {t(link.labelKey)}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">

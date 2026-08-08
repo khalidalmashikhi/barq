@@ -44,6 +44,8 @@
   "verifiedProviderLabel": "Fornitore verificato",
   "providerAreasHeading": "Aree di attività",
   "portfolioHeading": "Portfolio",
+  "carouselPreviousLabel": "Immagine precedente",
+  "carouselNextLabel": "Immagine successiva",
   "providerTypeIndividual": "Individuale",
   "providerTypeCompany": "Azienda",
   "experiencesCountLabel": "{count} esperienze offerte da questo fornitore",

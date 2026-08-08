@@ -42,11 +42,22 @@ export async function Footer() {
           <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-start">
             <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("footer.browseHeading")}</span>
             <nav className="flex flex-col items-center gap-2 sm:items-start">
-              {navLinks.map((link) => (
-                <a key={link.href} href={link.href} className="rounded-sm text-sm text-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-                  {t(link.labelKey)}
-                </a>
-              ))}
+              {navLinks.map((link) => {
+                const className =
+                  "rounded-sm text-sm text-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+                // In-page anchors (#...) stay raw <a>; real routes use the
+                // locale-aware Link so the locale prefix is preserved
+                // (a raw <a href="/services"> dropped it — i18n stabilization).
+                return link.href.startsWith("#") ? (
+                  <a key={link.href} href={link.href} className={className}>
+                    {t(link.labelKey)}
+                  </a>
+                ) : (
+                  <Link key={link.href} href={link.href} className={className}>
+                    {t(link.labelKey)}
+                  </Link>
+                );
+              })}
               <Link href="/login" className="rounded-sm text-sm text-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                 {t("nav.signIn")}
               </Link>

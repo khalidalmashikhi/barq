@@ -44,6 +44,8 @@
   "verifiedProviderLabel": "Verified Provider",
   "providerAreasHeading": "Areas of activity",
   "portfolioHeading": "Portfolio",
+  "carouselPreviousLabel": "Previous image",
+  "carouselNextLabel": "Next image",
   "providerTypeIndividual": "Individual",
   "providerTypeCompany": "Company",
   "experiencesCountLabel": "{count} experiences by this provider",
