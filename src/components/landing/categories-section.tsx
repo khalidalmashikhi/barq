@@ -1,7 +1,7 @@
 import { Tent, Mountain, Waves, Landmark, Building2, Bike, Compass, type LucideIcon } from "lucide-react";
-import { Link } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getPublicRootCategories } from "@/lib/categories/get-public-root-categories";
+import { CategoryDiscoveryCard } from "@/components/categories/category-discovery-card";
 
 // Categories — landing page section 4.
 //
@@ -53,16 +53,7 @@ export async function CategoriesSection() {
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {cards.map(({ key, slug, label, Icon }) => (
-            <Link
-              key={key}
-              href={`/services?category=${slug}`}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <Icon size={22} strokeWidth={1.75} />
-              </span>
-              <span className="text-sm font-medium text-foreground/80">{label}</span>
-            </Link>
+            <CategoryDiscoveryCard key={key} slug={slug} label={label} Icon={Icon} />
           ))}
         </div>
       </div>

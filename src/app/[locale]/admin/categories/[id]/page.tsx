@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { ArrowRight, Layers, Plus, ArrowUp, ArrowDown, Edit } from "lucide-react";
+import { ArrowRight, Layers, Plus, ArrowUp, ArrowDown, Edit, Eye } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getCategoryDetail } from "@/lib/categories/get-category-detail";
 import { setCategoryVisibility, archiveCategory, restoreCategory } from "@/lib/categories/transition-category-visibility";
@@ -81,6 +81,15 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${getCategoryVisibilityStyle(category.visibilityStatus)}`}>
             {t(getCategoryVisibilityTranslationKey(category.visibilityStatus))}
           </span>
+          <Link
+            href={`/admin/categories/${id}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+          >
+            <Eye size={14} strokeWidth={1.75} />
+            {t("previewCategoryButton")}
+          </Link>
           <Link
             href={`/admin/categories/${id}/edit`}
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"

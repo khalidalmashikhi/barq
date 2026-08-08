@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Eye } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderServiceForEdit } from "@/lib/provider/queries/get-provider-service-for-edit";
 import { updateService } from "@/lib/provider/update-service";
@@ -80,7 +80,20 @@ export default async function EditServicePage({ params, searchParams }: Props) {
         {t("backToServicesLabel")}
       </Link>
 
-      <h1 className="text-2xl font-semibold text-foreground">{t("editExperienceTitle")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-foreground">{t("editExperienceTitle")}</h1>
+        {/* Preview the service as customers will see it (even while DRAFT),
+            before publishing (Unified Preview System). Opens in a new tab. */}
+        <Link
+          href={`/provider/services/${id}/preview`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+        >
+          <Eye size={14} strokeWidth={1.75} />
+          {t("previewServiceButton")}
+        </Link>
+      </div>
 
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
 

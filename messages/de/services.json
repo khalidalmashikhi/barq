@@ -46,6 +46,7 @@
   "portfolioHeading": "Portfolio",
   "carouselPreviousLabel": "Vorheriges Bild",
   "carouselNextLabel": "Nächstes Bild",
+  "previewBookingDisabledLabel": "Buchung ist in der Vorschau deaktiviert.",
   "providerTypeIndividual": "Einzelperson",
   "providerTypeCompany": "Unternehmen",
   "experiencesCountLabel": "{count} Erlebnisse dieses Anbieters",

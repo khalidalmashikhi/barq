@@ -46,6 +46,7 @@
   "portfolioHeading": "Portfolio",
   "carouselPreviousLabel": "Immagine precedente",
   "carouselNextLabel": "Immagine successiva",
+  "previewBookingDisabledLabel": "La prenotazione è disabilitata in anteprima.",
   "providerTypeIndividual": "Individuale",
   "providerTypeCompany": "Azienda",
   "experiencesCountLabel": "{count} esperienze offerte da questo fornitore",

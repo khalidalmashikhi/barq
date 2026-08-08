@@ -46,6 +46,7 @@
   "portfolioHeading": "Портфолио",
   "carouselPreviousLabel": "Предыдущее изображение",
   "carouselNextLabel": "Следующее изображение",
+  "previewBookingDisabledLabel": "Бронирование отключено в режиме предпросмотра.",
   "providerTypeIndividual": "Частное лицо",
   "providerTypeCompany": "Компания",
   "experiencesCountLabel": "{count} впечатлений от этого поставщика",

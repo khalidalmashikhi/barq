@@ -4,6 +4,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import type { Locale } from "@/i18n/locales";
 import type { ReviewItem } from "@/components/services/reviews-section";
 
 // Service detail query — Engineering Sprint (Services Marketplace).
@@ -75,6 +76,29 @@ export async function getActivePricesForService(serviceId: string): Promise<Acti
   }));
 }
 
+// Shared row -> ServiceDetail mapping, used by BOTH the gated public read and
+// the ungated preview read so their presentation shape is guaranteed identical
+// (Unified Preview System). Presentation only — it applies no visibility gate.
+function mapServiceDetailRow(row: ServiceDetailRow, locale: Locale): ServiceDetail {
+  const mediaAssets = row.mediaAssets ?? [];
+  const coverUrl = mediaAssets.find((m) => m.kind === "COVER")?.url ?? null;
+  const gallery = mediaAssets.filter((m) => m.kind === "GALLERY").map((m) => m.url);
+
+  return {
+    id: row.id,
+    name: extractLocalizedText(row.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+    description: extractLocalizedText(row.description, locale),
+    providerId: row.providerId,
+    providerName: extractLocalizedText(row.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
+    providerDescription: extractLocalizedText(row.provider.businessDescription, locale),
+    providerStatus: row.provider.status,
+    price: row.prices[0] ? `${row.prices[0].amount} ${row.prices[0].currency}` : null,
+    coverUrl,
+    gallery,
+    createdAt: row.createdAt,
+  };
+}
+
 export async function getServiceById(id: string): Promise<ServiceDetail | null> {
   if (!isValidUuid(id)) return null;
 
@@ -100,27 +124,30 @@ export async function getServiceById(id: string): Promise<ServiceDetail | null> 
   });
 
   if (!service) return null;
+  return mapServiceDetailRow(service as ServiceDetailRow, await getLocale());
+}
 
-  const row = service as ServiceDetailRow;
-  const locale = await getLocale();
+// Unified Preview System — preview-capable read. IDENTICAL shape/mapping to
+// getServiceById, but WITHOUT the PUBLISHED/APPROVED-visible gate, so an
+// authorized provider/admin can preview a DRAFT/PAUSED/unpublished service.
+// This does NOT weaken getServiceById (its gate above is untouched) and no
+// PUBLIC route calls this: authorization (provider ownership / admin RBAC) is
+// enforced by the caller BEFORE this runs. Returns null only for a malformed
+// id or a nonexistent service.
+export async function getServiceForPreview(id: string): Promise<ServiceDetail | null> {
+  if (!isValidUuid(id)) return null;
 
-  const mediaAssets = row.mediaAssets ?? [];
-  const coverUrl = mediaAssets.find((m) => m.kind === "COVER")?.url ?? null;
-  const gallery = mediaAssets.filter((m) => m.kind === "GALLERY").map((m) => m.url);
+  const service = await prisma.service.findUnique({
+    where: { id },
+    include: {
+      provider: true,
+      prices: { where: { status: "ACTIVE" }, take: 1 },
+      mediaAssets: { orderBy: { createdAt: "asc" }, select: { url: true, kind: true } },
+    },
+  });
 
-  return {
-    id: row.id,
-    name: extractLocalizedText(row.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
-    description: extractLocalizedText(row.description, locale),
-    providerId: row.providerId,
-    providerName: extractLocalizedText(row.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
-    providerDescription: extractLocalizedText(row.provider.businessDescription, locale),
-    providerStatus: row.provider.status,
-    price: row.prices[0] ? `${row.prices[0].amount} ${row.prices[0].currency}` : null,
-    coverUrl,
-    gallery,
-    createdAt: row.createdAt,
-  };
+  if (!service) return null;
+  return mapServiceDetailRow(service as ServiceDetailRow, await getLocale());
 }
 
 /// Phase F.2 (Provider Presentation) — a real, cheap count of this

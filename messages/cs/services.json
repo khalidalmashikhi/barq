@@ -46,6 +46,7 @@
   "portfolioHeading": "Portfolio",
   "carouselPreviousLabel": "Předchozí obrázek",
   "carouselNextLabel": "Další obrázek",
+  "previewBookingDisabledLabel": "Rezervace je v náhledu vypnutá.",
   "providerTypeIndividual": "Jednotlivec",
   "providerTypeCompany": "Firma",
   "experiencesCountLabel": "{count} zážitků od tohoto poskytovatele",

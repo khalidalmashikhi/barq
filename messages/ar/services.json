@@ -46,6 +46,7 @@
   "portfolioHeading": "معرض الأعمال",
   "carouselPreviousLabel": "الصورة السابقة",
   "carouselNextLabel": "الصورة التالية",
+  "previewBookingDisabledLabel": "الحجز معطّل في وضع المعاينة.",
   "providerTypeIndividual": "فرد",
   "providerTypeCompany": "شركة",
   "experiencesCountLabel": "{count} تجربة لهذا المزود",

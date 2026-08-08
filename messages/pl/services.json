@@ -46,6 +46,7 @@
   "portfolioHeading": "Portfolio",
   "carouselPreviousLabel": "Poprzednie zdjęcie",
   "carouselNextLabel": "Następne zdjęcie",
+  "previewBookingDisabledLabel": "Rezerwacja jest wyłączona w podglądzie.",
   "providerTypeIndividual": "Osoba prywatna",
   "providerTypeCompany": "Firma",
   "experiencesCountLabel": "{count} atrakcji tego dostawcy",

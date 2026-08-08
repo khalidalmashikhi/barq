@@ -105,6 +105,15 @@ describe("sitemap", () => {
     }
   });
 
+  it("never includes any preview route (Unified Preview System — previews are noindex + out of discovery)", async () => {
+    findManyServiceMock.mockResolvedValue([{ id: "service-1", updatedAt: new Date() }]);
+    findManyProviderMock.mockResolvedValue([{ id: "provider-1", slug: "desert-co", updatedAt: new Date() }]);
+
+    const entries = await sitemap();
+
+    expect(entries.some((e) => e.url.includes("/preview"))).toBe(false);
+  });
+
   it("falls back to localhost when NEXT_PUBLIC_APP_URL is unset", async () => {
     findManyServiceMock.mockResolvedValue([]);
     findManyProviderMock.mockResolvedValue([]);

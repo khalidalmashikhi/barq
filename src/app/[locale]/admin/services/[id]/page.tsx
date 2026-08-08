@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { ArrowRight, Edit, Users, ClipboardList, Tag, CalendarClock } from "lucide-react";
+import { ArrowRight, Edit, Eye, Users, ClipboardList, Tag, CalendarClock } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getServiceDetail } from "@/lib/admin/get-service-detail";
 import { publishService, unpublishService, archiveService } from "@/lib/admin/transition-service-status";
@@ -76,6 +76,15 @@ export default async function ServiceDetailPage({ params, searchParams }: Props)
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={getServiceStatusBadgeVariant(service.status)}>{t(getServiceStatusTranslationKey(service.status))}</Badge>
+          <Link
+            href={`/admin/services/${id}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+          >
+            <Eye size={14} strokeWidth={1.75} />
+            {t("previewServiceButton")}
+          </Link>
           <Link
             href={`/admin/services/${id}/edit`}
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"

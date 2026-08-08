@@ -19,24 +19,24 @@ vi.mock("@/lib/categories/get-public-root-categories", () => ({
   getPublicRootCategories: (...args: unknown[]) => getPublicRootCategoriesMock(...args),
 }));
 
-const { Link: MockLink } = await import("@/i18n/navigation");
 const { CategoriesSection } = await import("./categories-section");
 
 type AnyElement = { type: unknown; props: Record<string, unknown> };
 
-// `.map()`-produced children (the 6 category cards) arrive as a nested
-// array literal inside the grid div's props.children, not auto-
-// flattened — so this walker must recurse into arrays at any depth,
-// not just an element's immediate props.children.
-function collectAnchors(element: unknown, acc: AnyElement[] = []): AnyElement[] {
+// The grid now renders one <CategoryDiscoveryCard slug=... /> per category
+// (the shared customer-facing card, reused by the admin category preview —
+// Unified Preview System). The card resolves slug -> /services?category=<slug>
+// internally, so this test asserts on each card's `slug` prop. The walker
+// recurses into the nested `.map()` array of card elements.
+function collectCardHrefs(element: unknown, acc: string[] = []): string[] {
   if (!element || typeof element !== "object") return acc;
   if (Array.isArray(element)) {
-    for (const child of element) collectAnchors(child, acc);
+    for (const child of element) collectCardHrefs(child, acc);
     return acc;
   }
   const el = element as AnyElement;
-  if (el.type === MockLink) acc.push(el);
-  if (el.props?.children !== undefined) collectAnchors(el.props.children, acc);
+  if (typeof el.props?.slug === "string") acc.push(`/services?category=${el.props.slug as string}`);
+  if (el.props?.children !== undefined) collectCardHrefs(el.props.children, acc);
   return acc;
 }
 
@@ -52,7 +52,7 @@ describe("CategoriesSection — DB-driven with hardcoded fallback (Gap A)", () =
     ]);
 
     const element = await CategoriesSection();
-    const hrefs = collectAnchors(element).map((a) => a.props.href);
+    const hrefs = collectCardHrefs(element);
 
     // Real category slugs drive the grid → each resolves via B2 to a categoryId filter.
     expect(hrefs).toEqual(["/services?category=diving", "/services?category=hiking"]);
@@ -62,7 +62,7 @@ describe("CategoriesSection — DB-driven with hardcoded fallback (Gap A)", () =
     getPublicRootCategoriesMock.mockResolvedValue([]);
 
     const element = await CategoriesSection();
-    const hrefs = collectAnchors(element).map((a) => a.props.href);
+    const hrefs = collectCardHrefs(element);
 
     expect(hrefs).toHaveLength(EXPECTED_SLUGS.length);
     for (const slug of EXPECTED_SLUGS) {

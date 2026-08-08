@@ -46,6 +46,7 @@
   "portfolioHeading": "Portfolio",
   "carouselPreviousLabel": "Image précédente",
   "carouselNextLabel": "Image suivante",
+  "previewBookingDisabledLabel": "La réservation est désactivée en mode aperçu.",
   "providerTypeIndividual": "Indépendant",
   "providerTypeCompany": "Entreprise",
   "experiencesCountLabel": "{count} expériences proposées par ce prestataire",
