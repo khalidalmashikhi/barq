@@ -4,6 +4,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { getProviderCategoryChips, type ProviderCategoryChip } from "@/lib/provider/get-provider-categories";
+import { getProviderMedia } from "@/lib/provider/media/get-provider-media";
 
 // Public provider profile (storefront) query — Marketplace Completion.
 //
@@ -32,6 +33,9 @@ export type ProviderProfile = {
   providerType: string;
   city: string | null;
   logoUrl: string | null;
+  // Provider media (Gap C) — cover banner + portfolio gallery URLs.
+  coverUrl: string | null;
+  portfolio: string[];
   publishedServicesCount: number;
   averageRating: number | null;
   reviewCount: number;
@@ -63,7 +67,7 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
   const row = provider as ProviderRow;
   const locale = await getLocale();
 
-  const [publishedServicesCount, ratingAggregate, categories] = await Promise.all([
+  const [publishedServicesCount, ratingAggregate, categories, media] = await Promise.all([
     prisma.service.count({ where: { providerId: row.id, status: "PUBLISHED" } }),
     prisma.rating.aggregate({
       where: { review: { providerId: row.id, moderationState: "PUBLISHED" } },
@@ -71,6 +75,7 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
       _count: { value: true },
     }),
     getProviderCategoryChips(row.id, locale),
+    getProviderMedia(row.id),
   ]);
 
   return {
@@ -81,6 +86,8 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
     providerType: row.providerType,
     city: row.city,
     logoUrl: row.logoUrl,
+    coverUrl: media.cover?.url ?? null,
+    portfolio: media.portfolio.map((item) => item.url),
     publishedServicesCount,
     averageRating: ratingAggregate._avg.value,
     reviewCount: ratingAggregate._count.value,

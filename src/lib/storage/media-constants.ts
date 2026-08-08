@@ -34,6 +34,10 @@ export type AllowedImageMimeType = keyof typeof ALLOWED_IMAGE_MIME_TYPES;
 // without special body-size configuration.
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+// Upper bound on a provider's portfolio/gallery images — a sane cap that
+// keeps gallery queries and the public grid bounded (Rule 8, performance).
+export const MAX_PROVIDER_PORTFOLIO_ITEMS = 12;
+
 export type ImageValidationError = "UNSUPPORTED_TYPE" | "TOO_LARGE" | "EMPTY_FILE";
 
 export type ImageValidationResult =

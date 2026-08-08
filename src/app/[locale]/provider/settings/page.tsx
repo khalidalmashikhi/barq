@@ -6,6 +6,8 @@ import { getProviderProfileForEdit } from "@/lib/provider/queries/get-provider-p
 import { updateProviderProfile } from "@/lib/provider/update-provider-profile";
 import { isProviderProfileActionErrorCode, getProviderProfileErrorTranslationKey } from "@/lib/provider/provider-profile-errors";
 import { isProviderLogoErrorCode, getProviderLogoErrorTranslationKey } from "@/lib/provider/media/provider-logo-errors";
+import { isProviderMediaErrorCode, getProviderMediaErrorTranslationKey } from "@/lib/provider/media/provider-media-errors";
+import { getProviderMedia } from "@/lib/provider/media/get-provider-media";
 import { getMyProviderCategorySelection } from "@/lib/provider/get-my-provider-category-selection";
 import { setProviderCategories } from "@/lib/provider/set-provider-categories";
 import { ProviderCategoryChecklist } from "@/components/categories/provider-category-checklist";
@@ -34,11 +36,16 @@ type Props = {
     areasError?: string;
     logoSaved?: string;
     logoError?: string;
+    coverSaved?: string;
+    portfolioSaved?: string;
+    mediaDeleted?: string;
+    mediaError?: string;
   }>;
 };
 
 export default async function ProviderSettingsPage({ searchParams }: Props) {
-  const { error, saved, areasSaved, areasError, logoSaved, logoError } = await searchParams;
+  const { error, saved, areasSaved, areasError, logoSaved, logoError, coverSaved, portfolioSaved, mediaDeleted, mediaError } =
+    await searchParams;
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
 
@@ -59,9 +66,20 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
 
   const errorMessage = error && isProviderProfileActionErrorCode(error) ? t(getProviderProfileErrorTranslationKey(error)) : null;
   const logoErrorMessage = logoError && isProviderLogoErrorCode(logoError) ? t(getProviderLogoErrorTranslationKey(logoError)) : null;
+  const mediaErrorMessage = mediaError && isProviderMediaErrorCode(mediaError) ? t(getProviderMediaErrorTranslationKey(mediaError)) : null;
 
   // Areas of activity (Gap G) — admin-managed taxonomy, editable any time.
   const { tree: categoryTree, selectedIds: selectedCategoryIds } = await getMyProviderCategorySelection();
+
+  // Provider media (Gap C) — one bounded query for logo + cover + portfolio.
+  const media = await getProviderMedia(profile.id);
+  // INDIVIDUAL providers read as a person (portrait/avatar); COMPANY as a brand
+  // (logo). Same upload flow/route — only the wording changes (reuses Gap D).
+  const isIndividual = profile.providerType === "INDIVIDUAL";
+  const logoTitle = isIndividual ? t("avatarSectionTitle") : t("logoSectionTitle");
+  const logoHint = isIndividual ? t("avatarSectionHint") : t("logoSectionHint");
+  const logoEmpty = isIndividual ? t("noAvatarLabel") : t("noLogoLabel");
+  const logoButton = isIndividual ? t("avatarUploadButton") : t("logoUploadButton");
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -176,56 +194,161 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
       </Card>
 
       {logoSaved === "1" && <Alert variant="success">{t("logoSavedLabel")}</Alert>}
+      {coverSaved === "1" && <Alert variant="success">{t("coverSavedLabel")}</Alert>}
+      {portfolioSaved === "1" && <Alert variant="success">{t("portfolioSavedLabel")}</Alert>}
+      {mediaDeleted === "1" && <Alert variant="success">{t("mediaDeletedLabel")}</Alert>}
       {logoErrorMessage && <Alert variant="danger">{logoErrorMessage}</Alert>}
+      {mediaErrorMessage && <Alert variant="danger">{mediaErrorMessage}</Alert>}
 
+      {/* Media (Gap C) — logo/avatar, cover, portfolio. Every upload/delete is
+          a native multipart POST to an authenticated route handler: no client
+          JS, progressively enhanced. See the routes' own notes on why. */}
       <Card hoverLift={false}>
-        {/* Native multipart POST to the upload route handler (Gap C) — no
-            client JS, progressively enhanced. See the route's own note on why
-            it is a route handler rather than a server action. */}
-        <form
-          action="/api/provider/media/logo"
-          method="post"
-          encType="multipart/form-data"
-          className="flex flex-col gap-4"
-        >
-          <input type="hidden" name="locale" value={locale} />
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">{t("logoSectionTitle")}</h2>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("logoSectionHint")}</p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {profile.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; next/image remotePatterns intentionally not used here (mirrors the public profile page)
-              <img
-                src={profile.logoUrl}
-                alt=""
-                className="h-16 w-16 rounded-full border border-border object-cover"
-              />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-center text-[10px] leading-tight text-foreground/40">
-                {t("noLogoLabel")}
+        <div className="flex flex-col gap-6">
+          {/* Logo / avatar — singleton. Wording follows ProviderType (Gap D). */}
+          <div className="flex flex-col gap-3">
+            <form action="/api/provider/media/logo" method="post" encType="multipart/form-data" className="flex flex-col gap-3">
+              <input type="hidden" name="locale" value={locale} />
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">{logoTitle}</h2>
+                <p className="mt-0.5 text-xs text-foreground/50">{logoHint}</p>
               </div>
+              <div className="flex items-center gap-4">
+                {profile.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the public profile page
+                  <img src={profile.logoUrl} alt="" className="h-16 w-16 rounded-full border border-border object-cover" />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-center text-[10px] leading-tight text-foreground/40">
+                    {logoEmpty}
+                  </div>
+                )}
+                <label className="flex flex-1 flex-col gap-1.5">
+                  <span className="text-xs font-medium text-foreground/50">{t("logoFileLabel")}</span>
+                  <input
+                    type="file"
+                    name="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    required
+                    className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {logoButton}
+              </button>
+            </form>
+            {media.logo && (
+              <form action="/api/provider/media/delete" method="post">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="mediaId" value={media.logo.id} />
+                <button type="submit" className="text-xs font-medium text-danger transition-opacity hover:opacity-80">
+                  {t("mediaDeleteButton")}
+                </button>
+              </form>
             )}
-            <label className="flex flex-1 flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("logoFileLabel")}</span>
-              <input
-                type="file"
-                name="file"
-                accept="image/png,image/jpeg,image/webp"
-                required
-                className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
-              />
-            </label>
           </div>
 
-          <button
-            type="submit"
-            className="mt-1 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            {t("logoUploadButton")}
-          </button>
-        </form>
+          <hr className="border-border" />
+
+          {/* Cover — singleton, wide banner. */}
+          <div className="flex flex-col gap-3">
+            <form action="/api/provider/media/cover" method="post" encType="multipart/form-data" className="flex flex-col gap-3">
+              <input type="hidden" name="locale" value={locale} />
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">{t("coverSectionTitle")}</h2>
+                <p className="mt-0.5 text-xs text-foreground/50">{t("coverSectionHint")}</p>
+              </div>
+              {media.cover ? (
+                // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the public profile page
+                <img src={media.cover.url} alt="" className="h-32 w-full rounded-xl border border-border object-cover" />
+              ) : (
+                <div className="flex h-32 w-full items-center justify-center rounded-xl border border-dashed border-border text-xs text-foreground/40">
+                  {t("noCoverLabel")}
+                </div>
+              )}
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground/50">{t("logoFileLabel")}</span>
+                <input
+                  type="file"
+                  name="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  required
+                  className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+                />
+              </label>
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {t("coverUploadButton")}
+              </button>
+            </form>
+            {media.cover && (
+              <form action="/api/provider/media/delete" method="post">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="mediaId" value={media.cover.id} />
+                <button type="submit" className="text-xs font-medium text-danger transition-opacity hover:opacity-80">
+                  {t("mediaDeleteButton")}
+                </button>
+              </form>
+            )}
+          </div>
+
+          <hr className="border-border" />
+
+          {/* Portfolio — multi-image gallery (add / delete). */}
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">{t("portfolioSectionTitle")}</h2>
+              <p className="mt-0.5 text-xs text-foreground/50">{t("portfolioSectionHint")}</p>
+            </div>
+            {media.portfolio.length > 0 ? (
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {media.portfolio.map((item) => (
+                  <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg border border-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the public profile page */}
+                    <img src={item.url} alt="" className="h-full w-full object-cover" />
+                    <form action="/api/provider/media/delete" method="post" className="absolute end-1 top-1">
+                      <input type="hidden" name="locale" value={locale} />
+                      <input type="hidden" name="mediaId" value={item.id} />
+                      <button
+                        type="submit"
+                        aria-label={t("mediaDeleteButton")}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-sm leading-none text-white transition-opacity hover:opacity-90"
+                      >
+                        ×
+                      </button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-foreground/40">{t("portfolioEmptyLabel")}</p>
+            )}
+            <form action="/api/provider/media/portfolio" method="post" encType="multipart/form-data" className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
+              <input type="hidden" name="locale" value={locale} />
+              <label className="flex flex-1 flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground/50">{t("portfolioAddLabel")}</span>
+                <input
+                  type="file"
+                  name="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  required
+                  className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+                />
+              </label>
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {t("portfolioAddButton")}
+              </button>
+            </form>
+          </div>
+        </div>
       </Card>
 
       {areasSaved === "1" && <Alert variant="success">{t("areasSavedLabel")}</Alert>}

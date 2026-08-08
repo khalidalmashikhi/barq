@@ -109,6 +109,14 @@ export default async function ProviderProfilePage({ params, searchParams }: Prop
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLdString(localBusinessJsonLd) }} />
       <Navbar />
       <main id="main-content" className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10">
+        {provider.coverUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the logo <img> below
+          <img
+            src={provider.coverUrl}
+            alt=""
+            className="h-40 w-full rounded-2xl border border-border object-cover sm:h-56"
+          />
+        )}
         <FadeIn className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             {provider.logoUrl ? (
@@ -187,6 +195,24 @@ export default async function ProviderProfilePage({ params, searchParams }: Prop
             />
           </div>
         </FadeIn>
+
+        {provider.portfolio.length > 0 && (
+          <FadeIn delay={0.03} className="flex flex-col gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-foreground/40">{t("portfolioHeading")}</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {provider.portfolio.map((url) => (
+                // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the logo <img> above
+                <img
+                  key={url}
+                  src={url}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-square w-full rounded-xl border border-border object-cover"
+                />
+              ))}
+            </div>
+          </FadeIn>
+        )}
 
         {result.items.length === 0 ? (
           <EmptyState

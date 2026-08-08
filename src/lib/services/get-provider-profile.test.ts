@@ -11,6 +11,7 @@ const findFirstMock = vi.fn();
 const serviceCountMock = vi.fn();
 const ratingAggregateMock = vi.fn();
 const providerCategoryFindManyMock = vi.fn();
+const mediaAssetFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -25,6 +26,9 @@ vi.mock("@/lib/db", () => ({
     },
     providerCategory: {
       findMany: (...args: unknown[]) => providerCategoryFindManyMock(...args),
+    },
+    mediaAsset: {
+      findMany: (...args: unknown[]) => mediaAssetFindManyMock(...args),
     },
   },
 }));
@@ -42,6 +46,7 @@ afterEach(() => {
   serviceCountMock.mockReset();
   ratingAggregateMock.mockReset();
   providerCategoryFindManyMock.mockReset();
+  mediaAssetFindManyMock.mockReset();
   getLocaleMock.mockReset();
 });
 
@@ -82,6 +87,10 @@ describe("getProviderProfile", () => {
     serviceCountMock.mockResolvedValue(4);
     ratingAggregateMock.mockResolvedValue({ _avg: { value: 4.5 }, _count: { value: 12 } });
     providerCategoryFindManyMock.mockResolvedValue([]);
+    mediaAssetFindManyMock.mockResolvedValue([
+      { id: "cov", url: "https://example.com/cover.jpg", kind: "COVER" },
+      { id: "pf1", url: "https://example.com/p1.jpg", kind: "PORTFOLIO" },
+    ]);
 
     const result = await getProviderProfile("desert-trails");
 
@@ -92,6 +101,8 @@ describe("getProviderProfile", () => {
       status: "APPROVED",
       city: "Muscat",
       logoUrl: "https://example.com/logo.png",
+      coverUrl: "https://example.com/cover.jpg",
+      portfolio: ["https://example.com/p1.jpg"],
       publishedServicesCount: 4,
       averageRating: 4.5,
       reviewCount: 12,
@@ -117,6 +128,7 @@ describe("getProviderProfile", () => {
     serviceCountMock.mockResolvedValue(0);
     ratingAggregateMock.mockResolvedValue({ _avg: { value: null }, _count: { value: 0 } });
     providerCategoryFindManyMock.mockResolvedValue([]);
+    mediaAssetFindManyMock.mockResolvedValue([]);
 
     const result = await getProviderProfile("desert-trails");
 
@@ -124,5 +136,7 @@ describe("getProviderProfile", () => {
     expect(result?.reviewCount).toBe(0);
     expect(result?.city).toBeNull();
     expect(result?.logoUrl).toBeNull();
+    expect(result?.coverUrl).toBeNull();
+    expect(result?.portfolio).toEqual([]);
   });
 });

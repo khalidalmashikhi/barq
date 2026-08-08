@@ -14,6 +14,7 @@ import { requireProvider } from "@/lib/auth";
 // getProviderServiceForEdit()'s findFirst-by-id-and-owner pattern.
 
 export type ProviderProfileForEdit = {
+  id: string;
   businessNameAr: string;
   businessNameEn: string;
   businessDescriptionAr: string;
@@ -42,6 +43,7 @@ export async function getProviderProfileForEdit(): Promise<ProviderProfileForEdi
   const description = readBilingual(provider.businessDescription);
 
   return {
+    id: provider.id,
     businessNameAr: name.ar,
     businessNameEn: name.en,
     businessDescriptionAr: description.ar,
