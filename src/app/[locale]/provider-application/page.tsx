@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
 import { applyAsProvider } from "@/lib/provider/apply-as-provider";
 import { isProviderApplicationErrorCode, getProviderApplicationErrorTranslationKey } from "@/lib/provider/provider-application-errors";
+import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
+import { ProviderCategoryChecklist } from "@/components/categories/provider-category-checklist";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -67,6 +70,10 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
 
   const errorMessage =
     error && isProviderApplicationErrorCode(error) ? t(getProviderApplicationErrorTranslationKey(error)) : null;
+
+  // Areas of activity for the application form — real admin taxonomy, same
+  // selectable set as Provider Settings (reused checklist + keys).
+  const categoryTree = existingProvider ? null : await getSelectableCategories(DEFAULT_SERVICE_TYPE_KEY);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-12">
@@ -141,6 +148,14 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
                 />
               </label>
             </div>
+
+            {categoryTree && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground/50">{t("settingsAreasTitle")}</span>
+                <p className="text-xs text-foreground/40">{t("settingsAreasHint")}</p>
+                <ProviderCategoryChecklist tree={categoryTree} selectedIds={[]} emptyLabel={t("settingsAreasEmpty")} />
+              </div>
+            )}
 
             <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
               {t("applicationSubmitButton")}

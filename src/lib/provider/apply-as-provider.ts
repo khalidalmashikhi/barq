@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
+import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { logger } from "@/lib/logger";
 import type { ProviderApplicationErrorCode } from "./provider-application-errors";
 
@@ -35,6 +37,16 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
   const businessNameEn = formData.get("businessNameEn");
   const businessDescriptionAr = formData.get("businessDescriptionAr");
   const businessDescriptionEn = formData.get("businessDescriptionEn");
+  // Areas of activity (Gap G-onboarding) — optional at apply; same multi-select,
+  // same taxonomy, same ProviderCategory write as Provider Settings.
+  const categoryIds = [
+    ...new Set(
+      formData
+        .getAll("categoryIds")
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .map((value) => value.trim())
+    ),
+  ];
 
   if (typeof businessNameAr !== "string" || typeof businessNameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -68,16 +80,32 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
       return { ok: false, error: "ALREADY_HAS_PROVIDER_PROFILE" };
     }
 
-    await prisma.provider.create({
-      data: {
-        userId: barqUserId,
-        businessName: { ar: trimmedNameAr, en: trimmedNameEn },
-        businessDescription:
-          trimmedDescriptionAr || trimmedDescriptionEn
-            ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
-            : undefined,
-        status: "APPLIED",
-      },
+    // Re-validate every submitted area against the shared eligibility rule
+    // (effectively-PUBLIC + serviceType-compatible) before creating anything.
+    for (const categoryId of categoryIds) {
+      if (!(await assertAssignableCategory(categoryId, DEFAULT_SERVICE_TYPE_KEY))) {
+        return { ok: false, error: "INVALID_INPUT" };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const provider = await tx.provider.create({
+        data: {
+          userId: barqUserId,
+          businessName: { ar: trimmedNameAr, en: trimmedNameEn },
+          businessDescription:
+            trimmedDescriptionAr || trimmedDescriptionEn
+              ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
+              : undefined,
+          status: "APPLIED",
+        },
+      });
+
+      if (categoryIds.length > 0) {
+        await tx.providerCategory.createMany({
+          data: categoryIds.map((categoryId) => ({ providerId: provider.id, categoryId })),
+        });
+      }
     });
 
     return { ok: true };
