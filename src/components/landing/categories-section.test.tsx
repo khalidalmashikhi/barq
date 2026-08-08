@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 // UX remediation (category navigation fix) — regression test proving
 // every one of the 6 landing-page category cards is a real link to
@@ -12,6 +12,11 @@ vi.mock("@/lib/i18n/get-server-translator", () => ({
 
 vi.mock("@/i18n/navigation", () => ({
   Link: (props: { href: string; children: unknown }) => props,
+}));
+
+const getPublicRootCategoriesMock = vi.fn();
+vi.mock("@/lib/categories/get-public-root-categories", () => ({
+  getPublicRootCategories: (...args: unknown[]) => getPublicRootCategoriesMock(...args),
 }));
 
 const { Link: MockLink } = await import("@/i18n/navigation");
@@ -37,17 +42,32 @@ function collectAnchors(element: unknown, acc: AnyElement[] = []): AnyElement[] 
 
 const EXPECTED_SLUGS = ["desert-safari", "mountain-tours", "coastal-trips", "cultural-tours", "city-experiences", "adventure-sports"];
 
-describe("CategoriesSection — category links", () => {
-  it("links each of the 6 category cards to /services?category=<its own distinct slug>", async () => {
+afterEach(() => getPublicRootCategoriesMock.mockReset());
+
+describe("CategoriesSection — DB-driven with hardcoded fallback (Gap A)", () => {
+  it("renders the real admin-managed PUBLIC root categories (by slug) when they exist", async () => {
+    getPublicRootCategoriesMock.mockResolvedValue([
+      { id: "c1", slug: "diving", label: "Diving" },
+      { id: "c2", slug: "hiking", label: "Hiking" },
+    ]);
+
     const element = await CategoriesSection();
-    const anchors = collectAnchors(element);
-    const hrefs = anchors.map((a) => a.props.href);
+    const hrefs = collectAnchors(element).map((a) => a.props.href);
+
+    // Real category slugs drive the grid → each resolves via B2 to a categoryId filter.
+    expect(hrefs).toEqual(["/services?category=diving", "/services?category=hiking"]);
+  });
+
+  it("falls back to the 6 hardcoded marketing cards when no PUBLIC root categories exist", async () => {
+    getPublicRootCategoriesMock.mockResolvedValue([]);
+
+    const element = await CategoriesSection();
+    const hrefs = collectAnchors(element).map((a) => a.props.href);
 
     expect(hrefs).toHaveLength(EXPECTED_SLUGS.length);
     for (const slug of EXPECTED_SLUGS) {
       expect(hrefs).toContain(`/services?category=${slug}`);
     }
-    // Every href must be distinct — the exact regression this fix corrects.
     expect(new Set(hrefs).size).toBe(EXPECTED_SLUGS.length);
   });
 });

@@ -1,24 +1,24 @@
-import { Tent, Mountain, Waves, Landmark, Building2, Bike } from "lucide-react";
+import { Tent, Mountain, Waves, Landmark, Building2, Bike, Compass, type LucideIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { getPublicRootCategories } from "@/lib/categories/get-public-root-categories";
 
-// Categories — Phase F.1, landing page section 4.
+// Categories — landing page section 4.
 //
-// UX REMEDIATION (category navigation fix): these six cards previously
-// all linked to the same bare "/services" — visually clickable but
-// functionally identical to clicking nothing, since none of them ever
-// actually narrowed the results. Each card now carries a stable `slug`
-// and links to "/services?category=<slug>". services/page.tsx resolves
-// that slug back to this exact translated label and applies it as a
-// real, best-effort filter — see that file's own comment for exactly
-// how, and why it is honestly a keyword match rather than true
-// categorization: Service.serviceType is a technical CTI discriminator,
-// not a business taxonomy (get-services.ts's own documented gap), and
-// the real Category/SubCategory models (ADR-0013) have no relationship
-// to Service at all — confirmed by inspecting prisma/schema.prisma
-// directly, not assumed. Building a genuine Service<->Category link is
-// a real schema change, explicitly out of scope for this fix.
-const categories = [
+// Gap A (homepage real taxonomy): the grid is now driven by the real,
+// admin-managed PUBLIC ROOT categories (getPublicRootCategories) whose slugs
+// resolve through services/page.tsx's dual read to a relational Service.categoryId
+// filter (B2). An admin creating/reordering/hiding a PUBLIC root category is
+// reflected here directly — no hardcoded taxonomy, no showOnHomepage/isFeatured
+// boolean, no schema change.
+//
+// SAFE FALLBACK: until the DB-driven path is proven on staging (and PUBLIC root
+// categories are actually seeded), an EMPTY read falls back to the original six
+// hardcoded marketing cards below, so the homepage never renders an empty grid.
+// Once proven, delete `FALLBACK_CATEGORIES` and the fallback branch — nothing
+// else references them. Real categories use a generic icon until Category
+// intrinsic icons (Task A) exist; the fallback keeps its per-slug icons.
+const FALLBACK_CATEGORIES = [
   { key: "desertSafari", slug: "desert-safari", icon: Tent },
   { key: "mountainTours", slug: "mountain-tours", icon: Mountain },
   { key: "coastalTrips", slug: "coastal-trips", icon: Waves },
@@ -27,8 +27,21 @@ const categories = [
   { key: "adventureSports", slug: "adventure-sports", icon: Bike },
 ] as const;
 
+type CategoryCard = { key: string; slug: string; label: string; Icon: LucideIcon };
+
 export async function CategoriesSection() {
   const t = await getServerTranslator("landing");
+  const realCategories = await getPublicRootCategories();
+
+  const cards: CategoryCard[] =
+    realCategories.length > 0
+      ? realCategories.map((category) => ({ key: category.id, slug: category.slug, label: category.label, Icon: Compass }))
+      : FALLBACK_CATEGORIES.map((category) => ({
+          key: category.key,
+          slug: category.slug,
+          label: t(`categories.${category.key}`),
+          Icon: category.icon,
+        }));
 
   return (
     <section className="px-6 py-20">
@@ -39,7 +52,7 @@ export async function CategoriesSection() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {categories.map(({ key, slug, icon: Icon }) => (
+          {cards.map(({ key, slug, label, Icon }) => (
             <Link
               key={key}
               href={`/services?category=${slug}`}
@@ -48,7 +61,7 @@ export async function CategoriesSection() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                 <Icon size={22} strokeWidth={1.75} />
               </span>
-              <span className="text-sm font-medium text-foreground/80">{t(`categories.${key}`)}</span>
+              <span className="text-sm font-medium text-foreground/80">{label}</span>
             </Link>
           ))}
         </div>
