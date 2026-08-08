@@ -49,7 +49,7 @@ vi.mock("./barq-user", () => ({
   resolveBarqUser: (...args: unknown[]) => resolveBarqUserMock(...args),
 }));
 
-const { hasActiveAdminProfile, requireProvider, requireAuth, requireAdmin, requireStaff } = await import("./rbac");
+const { hasActiveAdminProfile, hasApprovedProviderProfile, requireProvider, requireAuth, requireAdmin, requireStaff } = await import("./rbac");
 const { ForbiddenError, UnauthenticatedError } = await import("./errors");
 
 const USER_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
@@ -143,6 +143,23 @@ describe("requireStaff — active-staff gate", () => {
     staffFindUniqueMock.mockResolvedValue({ id: "staff-1", userId: USER_ID, status: "ACTIVE", roles: ["SUPPORT"] });
     const error = await requireStaff("FINANCE").catch((e) => e);
     expect(error).toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("hasApprovedProviderProfile", () => {
+  it("returns true only for a Provider row with status APPROVED", async () => {
+    providerFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    expect(await hasApprovedProviderProfile(USER_ID)).toBe(true);
+  });
+
+  it("returns false when the user has no Provider row", async () => {
+    providerFindUniqueMock.mockResolvedValue(null);
+    expect(await hasApprovedProviderProfile(USER_ID)).toBe(false);
+  });
+
+  it("returns false for a non-APPROVED provider status (e.g. APPLIED)", async () => {
+    providerFindUniqueMock.mockResolvedValue({ status: "APPLIED" });
+    expect(await hasApprovedProviderProfile(USER_ID)).toBe(false);
   });
 });
 

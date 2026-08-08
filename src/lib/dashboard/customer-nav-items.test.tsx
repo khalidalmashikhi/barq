@@ -61,6 +61,17 @@ describe("getCustomerNavItems — contextual options", () => {
     expect(items.some((item) => item.label === "navAdminPanel")).toBe(false);
   });
 
+  it("includes Provider workspace (→ /provider) only when showProviderWorkspace is true", () => {
+    const items = getCustomerNavItems(fakeT, "en", 0, { showProviderWorkspace: true });
+    const workspace = items.find((item) => item.label === "navProviderWorkspace");
+    expect(workspace?.href).toBe("/provider");
+  });
+
+  it("omits Provider workspace by default", () => {
+    const items = getCustomerNavItems(fakeT, "en", 0);
+    expect(items.some((item) => item.label === "navProviderWorkspace")).toBe(false);
+  });
+
   it("includes Admin Panel only when isAdmin is true", () => {
     const items = getCustomerNavItems(fakeT, "en", 0, { isAdmin: true });
     const adminPanel = items.find((item) => item.label === "navAdminPanel");

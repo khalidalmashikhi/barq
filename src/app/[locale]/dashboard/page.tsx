@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PackageOpen, Flame, Search } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { requireAuth, UnauthenticatedError, hasActiveAdminProfile } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, hasActiveAdminProfile, hasApprovedProviderProfile } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
@@ -112,10 +112,11 @@ export default async function DashboardPage() {
   // batched into one Promise.all to shave a round-trip off this page's
   // TTFB. isAdmin joins the same batch for the same reason — one more
   // independent, cheap query, not a reason to add a second round-trip.
-  const [data, unreadNotificationsCount, isAdmin] = await Promise.all([
+  const [data, unreadNotificationsCount, isAdmin, isApprovedProvider] = await Promise.all([
     getDashboardData(barqUserId),
     getUnreadCount(),
     hasActiveAdminProfile(barqUserId),
+    hasApprovedProviderProfile(barqUserId),
   ]);
   const t = await getServerTranslator("dashboard");
   const tServices = await getServerTranslator("services");
@@ -132,7 +133,11 @@ export default async function DashboardPage() {
   // passed in via `options`, per this phase's explicit "no RBAC logic
   // in the presentation layer" requirement.
   const customerNavItems = getCustomerNavItems(t, locale, unreadNotificationsCount, {
-    showBecomeProvider: true,
+    // An APPROVED provider lands on this customer dashboard after login and
+    // otherwise has no discoverable link into /provider — give them the
+    // workspace doorway instead of "Become Provider" (they already are one).
+    showProviderWorkspace: isApprovedProvider,
+    showBecomeProvider: !isApprovedProvider,
     isAdmin,
   });
 

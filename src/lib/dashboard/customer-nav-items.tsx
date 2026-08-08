@@ -1,4 +1,4 @@
-import { CalendarCheck, Bell, Heart, Settings, Compass, Star, Briefcase, ShieldCheck, CreditCard } from "lucide-react";
+import { CalendarCheck, Bell, Heart, Settings, Compass, Star, Briefcase, ShieldCheck, CreditCard, Store } from "lucide-react";
 import { getPathname } from "@/i18n/navigation";
 import type { AppNavItem } from "@/components/app-shell/app-shell";
 import type { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -16,6 +16,7 @@ type DashboardTranslator = Awaited<ReturnType<typeof getServerTranslator<"dashbo
 // re-derives authorization.
 export type CustomerNavOptions = {
   showBecomeProvider?: boolean;
+  showProviderWorkspace?: boolean;
   isAdmin?: boolean;
 };
 
@@ -70,6 +71,17 @@ export function getCustomerNavItems(
     { label: t("navSaved"), icon: <Heart size={18} strokeWidth={1.75} />, disabledHint: t("comingSoonLabel") },
     { label: t("navSettings"), icon: <Settings size={18} strokeWidth={1.75} />, disabledHint: t("comingSoonLabel") },
   ];
+
+  // An APPROVED provider lands here (the customer dashboard is everyone's
+  // post-login destination), so give them the one discoverable doorway into
+  // their /provider workspace. Mutually exclusive with "Become Provider".
+  if (options.showProviderWorkspace) {
+    items.push({
+      label: t("navProviderWorkspace"),
+      href: getPathname({ href: "/provider", locale }),
+      icon: <Store size={18} strokeWidth={1.75} />,
+    });
+  }
 
   if (options.showBecomeProvider) {
     items.push({

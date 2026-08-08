@@ -18,6 +18,7 @@ export {
   requireStaff,
   requireAdmin,
   hasActiveAdminProfile,
+  hasApprovedProviderProfile,
   resolveProviderStatus,
 } from "./rbac";
 export type { AuthContext } from "./rbac";

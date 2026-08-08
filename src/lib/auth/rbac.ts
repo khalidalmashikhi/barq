@@ -311,3 +311,21 @@ export async function hasActiveAdminProfile(barqUserId: string): Promise<boolean
   const admin = await prisma.admin.findUnique({ where: { userId: barqUserId } });
   return admin !== null && admin.status === "ACTIVE";
 }
+
+/**
+ * Non-throwing companion to requireApprovedProvider(), used ONLY to decide
+ * whether to show the "Provider workspace" nav link to a user who is already an
+ * APPROVED provider (the customer dashboard is every user's post-login landing,
+ * so without this an approved provider has no discoverable path into /provider).
+ * Exactly like hasActiveAdminProfile(): a false positive could at most reveal a
+ * nav link — every /provider/* route still enforces its own requireProvider()/
+ * requireApprovedProvider() gate independently. Returns false for no session,
+ * no Provider row, or any non-APPROVED status.
+ */
+export async function hasApprovedProviderProfile(barqUserId: string): Promise<boolean> {
+  const provider = await prisma.provider.findUnique({
+    where: { userId: barqUserId },
+    select: { status: true },
+  });
+  return provider !== null && provider.status === "APPROVED";
+}
