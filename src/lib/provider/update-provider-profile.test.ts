@@ -171,6 +171,37 @@ describe("updateProviderProfile", () => {
     );
   });
 
+  it("does NOT touch logoUrl when the field is absent (logo is owned by the upload endpoint)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "COMPANY" } });
+    updateMock.mockResolvedValue({});
+
+    // A profile save that omits logoUrl entirely (the new Settings form).
+    await updateProviderProfile(
+      buildFormData({
+        businessNameAr: "شركة",
+        businessNameEn: "Acme",
+        businessDescriptionAr: "",
+        businessDescriptionEn: "",
+        contactEmail: "",
+        city: "",
+      })
+    );
+
+    const data = (updateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    expect("logoUrl" in data).toBe(false);
+  });
+
+  it("still updates logoUrl when the field IS submitted (backward-compat)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "COMPANY" } });
+    updateMock.mockResolvedValue({});
+
+    await updateProviderProfile(buildFormData({ ...VALID_FIELDS, logoUrl: "https://example.com/logo.png" }));
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ logoUrl: "https://example.com/logo.png" }) })
+    );
+  });
+
   it("does not record an audit event when the providerType is unchanged", async () => {
     requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "COMPANY" } });
     updateMock.mockResolvedValue({});

@@ -28,6 +28,7 @@
     "verify-deployment": "tsx scripts/verify-deployment.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.2",
     "better-auth": "^1.1.0",
     "framer-motion": "^11.11.0",
     "lucide-react": "^0.460.0",

@@ -52,7 +52,6 @@ export async function updateProviderProfile(formData: FormData): Promise<UpdateP
   const descriptionEn = formData.get("businessDescriptionEn");
   const contactEmail = formData.get("contactEmail");
   const city = formData.get("city");
-  const logoUrl = formData.get("logoUrl");
 
   if (
     typeof nameAr !== "string" ||
@@ -60,8 +59,7 @@ export async function updateProviderProfile(formData: FormData): Promise<UpdateP
     typeof descriptionAr !== "string" ||
     typeof descriptionEn !== "string" ||
     typeof contactEmail !== "string" ||
-    typeof city !== "string" ||
-    typeof logoUrl !== "string"
+    typeof city !== "string"
   ) {
     return { ok: false, error: "INVALID_INPUT" };
   }
@@ -72,7 +70,6 @@ export async function updateProviderProfile(formData: FormData): Promise<UpdateP
   const trimmedDescriptionEn = descriptionEn.trim();
   const trimmedEmail = contactEmail.trim();
   const trimmedCity = city.trim();
-  const trimmedLogoUrl = logoUrl.trim();
 
   if (!trimmedNameAr || !trimmedNameEn) {
     return { ok: false, error: "INVALID_INPUT" };
@@ -80,8 +77,22 @@ export async function updateProviderProfile(formData: FormData): Promise<UpdateP
   if (trimmedEmail && !EMAIL_PATTERN.test(trimmedEmail)) {
     return { ok: false, error: "INVALID_INPUT" };
   }
-  if (trimmedLogoUrl && !URL_PATTERN.test(trimmedLogoUrl)) {
-    return { ok: false, error: "INVALID_INPUT" };
+
+  // logoUrl is now owned by the dedicated upload endpoint (Gap C —
+  // /api/provider/media/logo). This form no longer submits it, so we must
+  // NOT overwrite/clear it here. Only touch logoUrl if the field was
+  // actually submitted (backward-compat for any caller that still sends it).
+  let logoUrlPatch: { logoUrl: string | null } | undefined;
+  if (formData.has("logoUrl")) {
+    const logoUrl = formData.get("logoUrl");
+    if (typeof logoUrl !== "string") {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    const trimmedLogoUrl = logoUrl.trim();
+    if (trimmedLogoUrl && !URL_PATTERN.test(trimmedLogoUrl)) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    logoUrlPatch = { logoUrl: trimmedLogoUrl || null };
   }
 
   let provider;
@@ -113,7 +124,7 @@ export async function updateProviderProfile(formData: FormData): Promise<UpdateP
     businessDescription: newBusinessDescription ?? Prisma.DbNull,
     contactEmail: trimmedEmail || null,
     city: trimmedCity || null,
-    logoUrl: trimmedLogoUrl || null,
+    ...logoUrlPatch,
     providerType: nextType,
   };
 

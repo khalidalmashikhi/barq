@@ -121,6 +121,20 @@ enum ProviderType {
   COMPANY
 }
 
+// Media Foundation (Gap C) — discriminators for the reusable MediaAsset
+// table (see the model below).
+enum MediaOwnerType {
+  PROVIDER
+  SERVICE
+}
+
+enum MediaKind {
+  LOGO
+  COVER
+  PORTFOLIO
+  GALLERY
+}
+
 enum DriverStatus {
   REGISTERED
   VERIFIED
@@ -441,6 +455,7 @@ model Provider {
   reviews        Review[]        @relation("ReviewProvider")
   supportTickets SupportTicket[]
   categoryLinks  ProviderCategory[]
+  mediaAssets    MediaAsset[]
 
   @@index([status])
   @@index([approvedByAdminId])
@@ -647,11 +662,41 @@ model Service {
   availability Availability[]
   prices       Price[]
   bookings     Booking[]
+  mediaAssets  MediaAsset[]
 
   @@index([providerId])
   @@index([status])
   @@index([categoryId])
   @@map("services")
+}
+
+/// Media Foundation (Gap C) — one reusable table for every user-uploaded
+/// image (provider logo/cover/portfolio, service cover/gallery). No binary
+/// in Postgres: the bytes live in Supabase Storage; this row holds the
+/// object key, the resolved public URL (denormalized so read paths need no
+/// Supabase round-trip), and file metadata. Ownership is FK-backed — a real
+/// providerId/serviceId foreign key with ON DELETE CASCADE — with exactly
+/// one set per row (enforced in application code). A polymorphic
+/// (ownerType, ownerId) string pair was deliberately rejected in favour of
+/// true referential integrity, per the Gap C mandate.
+model MediaAsset {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  ownerType  MediaOwnerType
+  kind       MediaKind
+  objectKey  String         @unique
+  url        String
+  mimeType   String
+  sizeBytes  Int
+  providerId String?        @db.Uuid
+  provider   Provider?      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId  String?        @db.Uuid
+  service    Service?       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@index([providerId, kind])
+  @@index([serviceId, kind])
+  @@map("media_assets")
 }
 
 /// Specializes Service via a shared primary key (Class Table Inheritance).

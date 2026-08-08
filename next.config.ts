@@ -52,7 +52,11 @@ const nextConfig: NextConfig = {
                 "default-src 'self'",
                 "script-src 'self' 'unsafe-inline'",
                 "style-src 'self' 'unsafe-inline'",
-                "img-src 'self' data: blob:",
+                // https://*.supabase.co — provider/service media served from
+                // Supabase Storage (Media Foundation, Gap C). connect-src stays
+                // 'self': uploads go browser → our route handler → Supabase, so
+                // the browser never talks to the storage host directly.
+                "img-src 'self' data: blob: https://*.supabase.co",
                 "font-src 'self' data:",
                 "connect-src 'self'",
                 "object-src 'none'",

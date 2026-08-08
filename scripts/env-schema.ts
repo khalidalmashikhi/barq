@@ -65,6 +65,19 @@ export const envSchema = z
     // Phase 5.1 (Production Readiness) — authenticates Vercel Cron's
     // request to /api/cron/expire-stale-bookings (see vercel.json).
     CRON_SECRET: z.string().optional(),
+    // Media Foundation (Gap C) — Supabase Storage. ALL OPTIONAL by design:
+    // the media foundation degrades gracefully when unset (see
+    // src/lib/storage/storage.ts — isStorageConfigured() returns false and
+    // upload actions decline politely instead of crashing). Keeping these
+    // optional is deliberate and load-bearing: making them required would
+    // fail `validate-env` — and therefore the entire Vercel deploy — on any
+    // environment that hasn't yet provisioned the bucket + service-role key.
+    // To ACTIVATE media uploads on a deployment, set SUPABASE_URL +
+    // SUPABASE_SERVICE_ROLE_KEY (and optionally SUPABASE_STORAGE_BUCKET,
+    // default "media"). Supersedes the unused OBJECT_STORAGE_* placeholders.
+    SUPABASE_URL: z.string().url("must be a valid URL if set").optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+    SUPABASE_STORAGE_BUCKET: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     // OTP_PROVIDER=twilio requires its credentials in every environment

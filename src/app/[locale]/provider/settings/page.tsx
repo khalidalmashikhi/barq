@@ -5,6 +5,7 @@ import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderProfileForEdit } from "@/lib/provider/queries/get-provider-profile-for-edit";
 import { updateProviderProfile } from "@/lib/provider/update-provider-profile";
 import { isProviderProfileActionErrorCode, getProviderProfileErrorTranslationKey } from "@/lib/provider/provider-profile-errors";
+import { isProviderLogoErrorCode, getProviderLogoErrorTranslationKey } from "@/lib/provider/media/provider-logo-errors";
 import { getMyProviderCategorySelection } from "@/lib/provider/get-my-provider-category-selection";
 import { setProviderCategories } from "@/lib/provider/set-provider-categories";
 import { ProviderCategoryChecklist } from "@/components/categories/provider-category-checklist";
@@ -26,11 +27,18 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ error?: string; saved?: string; areasSaved?: string; areasError?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    saved?: string;
+    areasSaved?: string;
+    areasError?: string;
+    logoSaved?: string;
+    logoError?: string;
+  }>;
 };
 
 export default async function ProviderSettingsPage({ searchParams }: Props) {
-  const { error, saved, areasSaved, areasError } = await searchParams;
+  const { error, saved, areasSaved, areasError, logoSaved, logoError } = await searchParams;
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
 
@@ -50,6 +58,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
   }
 
   const errorMessage = error && isProviderProfileActionErrorCode(error) ? t(getProviderProfileErrorTranslationKey(error)) : null;
+  const logoErrorMessage = logoError && isProviderLogoErrorCode(logoError) ? t(getProviderLogoErrorTranslationKey(logoError)) : null;
 
   // Areas of activity (Gap G) — admin-managed taxonomy, editable any time.
   const { tree: categoryTree, selectedIds: selectedCategoryIds } = await getMyProviderCategorySelection();
@@ -160,20 +169,62 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
             </label>
           </div>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("logoUrlLabel")}</span>
-            <input
-              type="url"
-              name="logoUrl"
-              dir="ltr"
-              defaultValue={profile.logoUrl}
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
-
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("settingsSubmitButton")}
           </SubmitButton>
+        </form>
+      </Card>
+
+      {logoSaved === "1" && <Alert variant="success">{t("logoSavedLabel")}</Alert>}
+      {logoErrorMessage && <Alert variant="danger">{logoErrorMessage}</Alert>}
+
+      <Card hoverLift={false}>
+        {/* Native multipart POST to the upload route handler (Gap C) — no
+            client JS, progressively enhanced. See the route's own note on why
+            it is a route handler rather than a server action. */}
+        <form
+          action="/api/provider/media/logo"
+          method="post"
+          encType="multipart/form-data"
+          className="flex flex-col gap-4"
+        >
+          <input type="hidden" name="locale" value={locale} />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">{t("logoSectionTitle")}</h2>
+            <p className="mt-0.5 text-xs text-foreground/50">{t("logoSectionHint")}</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {profile.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; next/image remotePatterns intentionally not used here (mirrors the public profile page)
+              <img
+                src={profile.logoUrl}
+                alt=""
+                className="h-16 w-16 rounded-full border border-border object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-center text-[10px] leading-tight text-foreground/40">
+                {t("noLogoLabel")}
+              </div>
+            )}
+            <label className="flex flex-1 flex-col gap-1.5">
+              <span className="text-xs font-medium text-foreground/50">{t("logoFileLabel")}</span>
+              <input
+                type="file"
+                name="file"
+                accept="image/png,image/jpeg,image/webp"
+                required
+                className="text-sm text-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+              />
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            className="mt-1 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            {t("logoUploadButton")}
+          </button>
         </form>
       </Card>
 
