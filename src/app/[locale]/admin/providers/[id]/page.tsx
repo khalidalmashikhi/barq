@@ -128,6 +128,12 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             </>
           )}
           <div>
+            <dt className="text-xs text-foreground/40">{t("providerTypeLabel")}</dt>
+            <dd className="text-sm text-foreground">
+              {provider.providerType === "INDIVIDUAL" ? t("providerTypeIndividual") : t("providerTypeCompany")}
+            </dd>
+          </div>
+          <div>
             <dt className="text-xs text-foreground/40">{t("providerContactEmailLabel")}</dt>
             <dd className="text-sm text-foreground">{provider.contactEmail || "—"}</dd>
           </div>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import type { ProviderProfileActionErrorCode } from "./provider-profile-errors";
 
@@ -100,17 +101,44 @@ export async function updateProviderProfile(formData: FormData): Promise<UpdateP
   const newBusinessDescription =
     trimmedDescriptionAr || trimmedDescriptionEn ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn } : null;
 
+  // Gap D — providerType is editable (a pure presentation discriminator: it
+  // gates no services/bookings/categories/permissions, so switching is safe).
+  // An unknown/absent value leaves the current type unchanged.
+  const rawType = formData.get("providerType");
+  const nextType = rawType === "INDIVIDUAL" || rawType === "COMPANY" ? rawType : provider.providerType;
+  const typeChanged = nextType !== provider.providerType;
+
+  const data: Prisma.ProviderUpdateInput = {
+    businessName: { ar: trimmedNameAr, en: trimmedNameEn },
+    businessDescription: newBusinessDescription ?? Prisma.DbNull,
+    contactEmail: trimmedEmail || null,
+    city: trimmedCity || null,
+    logoUrl: trimmedLogoUrl || null,
+    providerType: nextType,
+  };
+
   try {
-    await prisma.provider.update({
-      where: { id: provider.id },
-      data: {
-        businessName: { ar: trimmedNameAr, en: trimmedNameEn },
-        businessDescription: newBusinessDescription ?? Prisma.DbNull,
-        contactEmail: trimmedEmail || null,
-        city: trimmedCity || null,
-        logoUrl: trimmedLogoUrl || null,
-      },
-    });
+    if (typeChanged) {
+      // Audit the type change atomically (BR-019); ordinary profile edits stay
+      // unaudited, mirroring update-service.ts's convention.
+      await prisma.$transaction(async (tx) => {
+        await tx.provider.update({ where: { id: provider.id }, data });
+        await recordAuditEvent(
+          {
+            actorType: "PROVIDER",
+            actorId: provider.id,
+            action: "provider.type_changed",
+            entityType: "Provider",
+            entityId: provider.id,
+            previousValue: { providerType: provider.providerType },
+            newValue: { providerType: nextType },
+          },
+          tx
+        );
+      });
+    } else {
+      await prisma.provider.update({ where: { id: provider.id }, data });
+    }
 
     return { ok: true };
   } catch (error) {

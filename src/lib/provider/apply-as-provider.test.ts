@@ -93,6 +93,7 @@ describe("applyAsProvider", () => {
         userId: "user-2",
         businessName: { ar: "شركة", en: "Acme" },
         businessDescription: { ar: "وصف", en: "Description" },
+        providerType: "COMPANY",
         status: "APPLIED",
       },
     });
@@ -111,9 +112,37 @@ describe("applyAsProvider", () => {
         userId: "user-3",
         businessName: { ar: "شركة", en: "Acme" },
         businessDescription: undefined,
+        providerType: "COMPANY",
         status: "APPLIED",
       },
     });
+  });
+
+  it("defaults providerType to COMPANY when no type is submitted (backward-compatible)", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-7" } });
+    findUniqueMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "provider-7" });
+
+    await applyAsProvider(buildFormData({ businessNameAr: "شركة", businessNameEn: "Acme" }));
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ providerType: "COMPANY" }) })
+    );
+  });
+
+  it("persists providerType INDIVIDUAL when chosen", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-8" } });
+    findUniqueMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "provider-8" });
+
+    const result = await applyAsProvider(
+      buildFormData({ businessNameAr: "ليلى", businessNameEn: "Layla", providerType: "INDIVIDUAL" })
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ providerType: "INDIVIDUAL" }) })
+    );
   });
 
   it("returns UNKNOWN_ERROR when an unexpected exception occurs", async () => {

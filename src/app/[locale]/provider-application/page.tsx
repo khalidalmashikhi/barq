@@ -105,9 +105,29 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
             }}
             className="flex flex-col gap-4"
           >
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-1 text-xs font-medium text-foreground/50">{t("providerTypeLabel")}</legend>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="flex flex-1 cursor-pointer items-start gap-2.5 rounded-xl border border-border p-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input type="radio" name="providerType" value="INDIVIDUAL" className="mt-0.5 h-4 w-4 text-primary" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">{t("providerTypeIndividual")}</span>
+                    <span className="text-xs text-foreground/50">{t("providerTypeIndividualHint")}</span>
+                  </span>
+                </label>
+                <label className="flex flex-1 cursor-pointer items-start gap-2.5 rounded-xl border border-border p-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input type="radio" name="providerType" value="COMPANY" defaultChecked className="mt-0.5 h-4 w-4 text-primary" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">{t("providerTypeCompany")}</span>
+                    <span className="text-xs text-foreground/50">{t("providerTypeCompanyHint")}</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("businessNameArLabel")}</span>
+                <span className="text-xs font-medium text-foreground/50">{t("publicNameArLabel")}</span>
                 <input
                   type="text"
                   name="businessNameAr"
@@ -117,7 +137,7 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("businessNameEnLabel")}</span>
+                <span className="text-xs font-medium text-foreground/50">{t("publicNameEnLabel")}</span>
                 <input
                   type="text"
                   name="businessNameEn"

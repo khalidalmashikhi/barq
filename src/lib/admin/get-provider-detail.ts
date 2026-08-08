@@ -16,6 +16,7 @@ export type ProviderDetail = {
   businessDescription: { ar: string; en: string } | null;
   slug: string | null;
   status: string;
+  providerType: string;
   visible: boolean;
   contactEmail: string | null;
   city: string | null;
@@ -46,6 +47,7 @@ export async function getProviderDetail(providerId: string): Promise<ProviderDet
     businessDescription: provider.businessDescription as { ar: string; en: string } | null,
     slug: provider.slug,
     status: provider.status,
+    providerType: provider.providerType,
     visible: provider.visible,
     contactEmail: provider.contactEmail,
     city: provider.city,

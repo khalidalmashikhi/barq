@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "عرض الخريطة قريباً",
   "verifiedProviderLabel": "مزود موثّق",
   "providerAreasHeading": "مجالات النشاط",
+  "providerTypeIndividual": "فرد",
+  "providerTypeCompany": "شركة",
   "experiencesCountLabel": "{count} تجربة لهذا المزود",
   "contactProviderLabel": "تواصل مع المزود (قريباً)",
   "viewProviderProfileLabel": "عرض الملف الشخصي لمزود الخدمة",

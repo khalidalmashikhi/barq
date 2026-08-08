@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Kartenansicht folgt in Kürze",
   "verifiedProviderLabel": "Verifizierter Anbieter",
   "providerAreasHeading": "Tätigkeitsbereiche",
+  "providerTypeIndividual": "Einzelperson",
+  "providerTypeCompany": "Unternehmen",
   "experiencesCountLabel": "{count} Erlebnisse dieses Anbieters",
   "contactProviderLabel": "Anbieter kontaktieren (in Kürze verfügbar)",
   "viewProviderProfileLabel": "Anbieterprofil ansehen",

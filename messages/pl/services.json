@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Widok mapy wkrótce dostępny",
   "verifiedProviderLabel": "Zweryfikowany dostawca",
   "providerAreasHeading": "Obszary działalności",
+  "providerTypeIndividual": "Osoba prywatna",
+  "providerTypeCompany": "Firma",
   "experiencesCountLabel": "{count} atrakcji tego dostawcy",
   "contactProviderLabel": "Skontaktuj się z dostawcą (wkrótce)",
   "viewProviderProfileLabel": "Zobacz profil dostawcy",

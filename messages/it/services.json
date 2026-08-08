@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Visualizzazione mappa in arrivo",
   "verifiedProviderLabel": "Fornitore verificato",
   "providerAreasHeading": "Aree di attività",
+  "providerTypeIndividual": "Individuale",
+  "providerTypeCompany": "Azienda",
   "experiencesCountLabel": "{count} esperienze offerte da questo fornitore",
   "contactProviderLabel": "Contatta il fornitore (in arrivo)",
   "viewProviderProfileLabel": "Visualizza il profilo del fornitore",

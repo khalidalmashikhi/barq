@@ -77,9 +77,21 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
           }}
           className="flex flex-col gap-4"
         >
+          <label className="flex flex-col gap-1.5 sm:w-64">
+            <span className="text-xs font-medium text-foreground/50">{t("providerTypeLabel")}</span>
+            <select
+              name="providerType"
+              defaultValue={profile.providerType}
+              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="INDIVIDUAL">{t("providerTypeIndividual")}</option>
+              <option value="COMPANY">{t("providerTypeCompany")}</option>
+            </select>
+          </label>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("businessNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/50">{t("publicNameArLabel")}</span>
               <input
                 type="text"
                 name="businessNameAr"
@@ -90,7 +102,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("businessNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/50">{t("publicNameEnLabel")}</span>
               <input
                 type="text"
                 name="businessNameEn"

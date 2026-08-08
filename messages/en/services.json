@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Map view coming soon",
   "verifiedProviderLabel": "Verified Provider",
   "providerAreasHeading": "Areas of activity",
+  "providerTypeIndividual": "Individual",
+  "providerTypeCompany": "Company",
   "experiencesCountLabel": "{count} experiences by this provider",
   "contactProviderLabel": "Contact Provider (coming soon)",
   "viewProviderProfileLabel": "View provider profile",

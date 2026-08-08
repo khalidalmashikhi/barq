@@ -108,6 +108,19 @@ enum ProviderStatus {
   DEACTIVATED
 }
 
+/// Whether a provider is an individual (driver/guide/photographer/freelancer/
+/// independent operator) or a company (Gap D). ONE Provider bounded context —
+/// this is a presentation/wording discriminator only; it never forks auth,
+/// dashboards, services, bookings, or the Driver/Guide/Asset specializations,
+/// which remain related to Provider regardless of type. Backward-compatible
+/// default COMPANY: every pre-existing Provider was created with a REQUIRED
+/// businessName under business semantics (apply-as-provider.ts / admin
+/// create-provider.ts), so COMPANY safely classifies all existing rows.
+enum ProviderType {
+  INDIVIDUAL
+  COMPANY
+}
+
 enum DriverStatus {
   REGISTERED
   VERIFIED
@@ -378,6 +391,12 @@ model Provider {
   businessName        Json
   businessDescription Json?
   status              ProviderStatus @default(APPLIED)
+  /// INDIVIDUAL vs COMPANY (Gap D). Default COMPANY is the backward-compatible
+  /// classification for every pre-existing row (all created with a required
+  /// businessName). `businessName` holds the public display name for BOTH types
+  /// — a person's professional/personal name for INDIVIDUAL — so no duplicate
+  /// name column is added; only the wording around it changes by type.
+  providerType        ProviderType   @default(COMPANY)
   /// Set when an Admin approves this provider (see approve-provider.ts) —
   /// the minimum audit trail needed for "Verified Provider" to mean "an
   /// admin looked at this," not "seeded that way."

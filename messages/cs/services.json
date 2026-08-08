@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Zobrazení mapy již brzy",
   "verifiedProviderLabel": "Ověřený poskytovatel",
   "providerAreasHeading": "Oblasti činnosti",
+  "providerTypeIndividual": "Jednotlivec",
+  "providerTypeCompany": "Firma",
   "experiencesCountLabel": "{count} zážitků od tohoto poskytovatele",
   "contactProviderLabel": "Kontaktovat poskytovatele (již brzy)",
   "viewProviderProfileLabel": "Zobrazit profil poskytovatele",

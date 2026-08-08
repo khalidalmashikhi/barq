@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Affichage de la carte bientôt disponible",
   "verifiedProviderLabel": "Prestataire vérifié",
   "providerAreasHeading": "Domaines d'activité",
+  "providerTypeIndividual": "Indépendant",
+  "providerTypeCompany": "Entreprise",
   "experiencesCountLabel": "{count} expériences proposées par ce prestataire",
   "contactProviderLabel": "Contacter le prestataire (bientôt disponible)",
   "viewProviderProfileLabel": "Voir le profil du prestataire",

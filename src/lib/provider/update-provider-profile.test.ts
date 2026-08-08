@@ -27,13 +27,21 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 const updateMock = vi.fn();
+const txUpdateMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     provider: {
       update: (...args: unknown[]) => updateMock(...args),
     },
+    $transaction: async (cb: (tx: unknown) => unknown) =>
+      cb({ provider: { update: (...args: unknown[]) => txUpdateMock(...args) } }),
   },
+}));
+
+const recordAuditEventMock = vi.fn();
+vi.mock("@/lib/audit/record-audit-event", () => ({
+  recordAuditEvent: (...args: unknown[]) => recordAuditEventMock(...args),
 }));
 
 const { updateProviderProfile } = await import("./update-provider-profile");
@@ -60,6 +68,8 @@ const VALID_FIELDS = {
 afterEach(() => {
   requireProviderMock.mockReset();
   updateMock.mockReset();
+  txUpdateMock.mockReset();
+  recordAuditEventMock.mockReset();
 });
 
 describe("updateProviderProfile", () => {
@@ -132,5 +142,45 @@ describe("updateProviderProfile", () => {
         data: expect.objectContaining({ contactEmail: null, city: null, logoUrl: null }),
       })
     );
+  });
+
+  it("persists a providerType change atomically and records a PROVIDER-attributed audit event", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "COMPANY" } });
+    txUpdateMock.mockResolvedValue({});
+
+    const result = await updateProviderProfile(buildFormData({ ...VALID_FIELDS, providerType: "INDIVIDUAL" }));
+
+    expect(result).toEqual({ ok: true });
+    // Ordinary (non-transactional) update path must NOT be used for a type change.
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(txUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "provider-1" },
+        data: expect.objectContaining({ providerType: "INDIVIDUAL" }),
+      })
+    );
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorType: "PROVIDER",
+        actorId: "provider-1",
+        action: "provider.type_changed",
+        previousValue: { providerType: "COMPANY" },
+        newValue: { providerType: "INDIVIDUAL" },
+      }),
+      expect.anything()
+    );
+  });
+
+  it("does not record an audit event when the providerType is unchanged", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "COMPANY" } });
+    updateMock.mockResolvedValue({});
+
+    const result = await updateProviderProfile(buildFormData({ ...VALID_FIELDS, providerType: "COMPANY" }));
+
+    expect(result).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ providerType: "COMPANY" }) })
+    );
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
   });
 });

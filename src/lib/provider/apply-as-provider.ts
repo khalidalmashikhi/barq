@@ -47,6 +47,9 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
         .map((value) => value.trim())
     ),
   ];
+  // Gap D — INDIVIDUAL vs COMPANY; any value other than the explicit INDIVIDUAL
+  // choice falls back to the safe COMPANY default.
+  const providerType = formData.get("providerType") === "INDIVIDUAL" ? "INDIVIDUAL" : "COMPANY";
 
   if (typeof businessNameAr !== "string" || typeof businessNameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -97,6 +100,7 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
             trimmedDescriptionAr || trimmedDescriptionEn
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
+          providerType,
           status: "APPLIED",
         },
       });

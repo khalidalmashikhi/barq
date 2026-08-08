@@ -29,6 +29,7 @@ export type ProviderProfile = {
   name: string;
   description: string;
   status: string;
+  providerType: string;
   city: string | null;
   logoUrl: string | null;
   publishedServicesCount: number;
@@ -43,6 +44,7 @@ type ProviderRow = {
   businessName: unknown;
   businessDescription: unknown;
   status: string;
+  providerType: string;
   city: string | null;
   logoUrl: string | null;
 };
@@ -76,6 +78,7 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
     name: extractLocalizedText(row.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     description: extractLocalizedText(row.businessDescription, locale),
     status: row.status,
+    providerType: row.providerType,
     city: row.city,
     logoUrl: row.logoUrl,
     publishedServicesCount,

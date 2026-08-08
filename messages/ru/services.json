@@ -43,6 +43,8 @@
   "meetingPointPlaceholderLabel": "Просмотр карты скоро появится",
   "verifiedProviderLabel": "Проверенный поставщик",
   "providerAreasHeading": "Области деятельности",
+  "providerTypeIndividual": "Частное лицо",
+  "providerTypeCompany": "Компания",
   "experiencesCountLabel": "{count} впечатлений от этого поставщика",
   "contactProviderLabel": "Связаться с поставщиком (скоро)",
   "viewProviderProfileLabel": "Посмотреть профиль поставщика",

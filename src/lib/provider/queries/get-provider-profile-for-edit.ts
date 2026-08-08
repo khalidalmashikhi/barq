@@ -21,6 +21,7 @@ export type ProviderProfileForEdit = {
   contactEmail: string;
   city: string;
   logoUrl: string;
+  providerType: string;
 };
 
 function readBilingual(value: unknown): { ar: string; en: string } {
@@ -48,5 +49,6 @@ export async function getProviderProfileForEdit(): Promise<ProviderProfileForEdi
     contactEmail: provider.contactEmail ?? "",
     city: provider.city ?? "",
     logoUrl: provider.logoUrl ?? "",
+    providerType: provider.providerType,
   };
 }

@@ -130,6 +130,9 @@ export default async function ProviderProfilePage({ params, searchParams }: Prop
                   <BadgeCheck size={13} strokeWidth={2} />
                   {t("verifiedProviderLabel")}
                 </Badge>
+                <span className="rounded-full bg-foreground/5 px-2.5 py-0.5 text-xs font-medium text-foreground/60">
+                  {provider.providerType === "INDIVIDUAL" ? t("providerTypeIndividual") : t("providerTypeCompany")}
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/50">
                 <span className="flex items-center gap-1.5">
