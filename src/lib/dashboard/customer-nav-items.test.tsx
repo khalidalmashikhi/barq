@@ -50,29 +50,48 @@ describe("getCustomerNavItems — Saved and Settings", () => {
   });
 });
 
-describe("getCustomerNavItems — contextual options", () => {
-  it("omits Become Provider and Admin Panel when no options are passed", () => {
+describe("getCustomerNavItems — provider doorway (contextual options)", () => {
+  it("shows no provider doorway and no Admin Panel when no options are passed", () => {
     const items = getCustomerNavItems(fakeT, "en", 0);
     expect(items.some((item) => item.label === "navBecomeProvider")).toBe(false);
+    expect(items.some((item) => item.label === "navApplicationStatus")).toBe(false);
+    expect(items.some((item) => item.label === "navProviderWorkspace")).toBe(false);
     expect(items.some((item) => item.label === "navAdminPanel")).toBe(false);
   });
 
-  it("includes Become Provider only when showBecomeProvider is true", () => {
-    const items = getCustomerNavItems(fakeT, "en", 0, { showBecomeProvider: true });
+  it("providerDoorway 'become' → 'Become a Provider' (→ /provider-application)", () => {
+    const items = getCustomerNavItems(fakeT, "en", 0, { providerDoorway: "become" });
     const becomeProvider = items.find((item) => item.label === "navBecomeProvider");
     expect(becomeProvider?.href).toBe("/provider-application");
-    expect(items.some((item) => item.label === "navAdminPanel")).toBe(false);
+    // exactly one provider doorway
+    expect(items.some((item) => item.label === "navApplicationStatus")).toBe(false);
+    expect(items.some((item) => item.label === "navProviderWorkspace")).toBe(false);
   });
 
-  it("includes Provider workspace (→ /provider) only when showProviderWorkspace is true", () => {
-    const items = getCustomerNavItems(fakeT, "en", 0, { showProviderWorkspace: true });
+  it("providerDoorway 'application' → 'Application status' (→ /provider-application)", () => {
+    const items = getCustomerNavItems(fakeT, "en", 0, { providerDoorway: "application" });
+    const applicationStatus = items.find((item) => item.label === "navApplicationStatus");
+    expect(applicationStatus?.href).toBe("/provider-application");
+    expect(items.some((item) => item.label === "navBecomeProvider")).toBe(false);
+    expect(items.some((item) => item.label === "navProviderWorkspace")).toBe(false);
+  });
+
+  it("providerDoorway 'workspace' → 'Provider workspace' (→ /provider)", () => {
+    const items = getCustomerNavItems(fakeT, "en", 0, { providerDoorway: "workspace" });
     const workspace = items.find((item) => item.label === "navProviderWorkspace");
     expect(workspace?.href).toBe("/provider");
+    expect(items.some((item) => item.label === "navBecomeProvider")).toBe(false);
+    expect(items.some((item) => item.label === "navApplicationStatus")).toBe(false);
   });
 
-  it("omits Provider workspace by default", () => {
-    const items = getCustomerNavItems(fakeT, "en", 0);
-    expect(items.some((item) => item.label === "navProviderWorkspace")).toBe(false);
+  it("keeps customer capabilities visible regardless of the provider doorway", () => {
+    for (const doorway of ["become", "application", "workspace"] as const) {
+      const items = getCustomerNavItems(fakeT, "en", 0, { providerDoorway: doorway });
+      // Core customer items are always present — the doorway never replaces them.
+      expect(items.some((item) => item.href === "/dashboard")).toBe(true);
+      expect(items.some((item) => item.href === "/bookings")).toBe(true);
+      expect(items.some((item) => item.href === "/reviews")).toBe(true);
+    }
   });
 
   it("includes Admin Panel only when isAdmin is true", () => {

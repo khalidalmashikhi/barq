@@ -14,14 +14,20 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({}));
 
 const requireAuthMock = vi.fn();
-const hasActiveAdminProfileMock = vi.fn();
-const hasApprovedProviderProfileMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
-  hasActiveAdminProfile: (...args: unknown[]) => hasActiveAdminProfileMock(...args),
-  hasApprovedProviderProfile: (...args: unknown[]) => hasApprovedProviderProfileMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
+}));
+
+// Customer → Provider Journey (A) — the provider-doorway/admin flags now come
+// from the shared resolver, mocked here so these tests drive the page's nav
+// composition directly (the resolver's own logic is covered by
+// resolve-customer-nav-options.test.ts).
+const resolveCustomerNavOptionsMock = vi.fn();
+
+vi.mock("@/lib/dashboard/resolve-customer-nav-options", () => ({
+  resolveCustomerNavOptions: (...args: unknown[]) => resolveCustomerNavOptionsMock(...args),
 }));
 
 const getDashboardDataMock = vi.fn();
@@ -57,8 +63,7 @@ type NavItem = { label: string; href?: string };
 
 afterEach(() => {
   requireAuthMock.mockReset();
-  hasActiveAdminProfileMock.mockReset();
-  hasApprovedProviderProfileMock.mockReset();
+  resolveCustomerNavOptionsMock.mockReset();
   getDashboardDataMock.mockReset();
   getUnreadCountMock.mockReset();
 });
@@ -77,11 +82,10 @@ const EMPTY_DASHBOARD_DATA = {
   recentBookings: [],
 };
 
-describe("DashboardPage — Admin Panel nav item", () => {
+describe("DashboardPage — nav composition from resolveCustomerNavOptions", () => {
   it("includes a real 'Admin Panel' nav item pointing at /admin for a user with an active Admin profile", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
-    hasActiveAdminProfileMock.mockResolvedValue(true);
-    hasApprovedProviderProfileMock.mockResolvedValue(false);
+    resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "become", isAdmin: true });
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
 
@@ -95,8 +99,7 @@ describe("DashboardPage — Admin Panel nav item", () => {
 
   it("never includes an Admin Panel nav item for a user with no Admin profile", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
-    hasActiveAdminProfileMock.mockResolvedValue(false);
-    hasApprovedProviderProfileMock.mockResolvedValue(false);
+    resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "become", isAdmin: false });
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
 
@@ -105,5 +108,20 @@ describe("DashboardPage — Admin Panel nav item", () => {
 
     expect(navItems.some((item) => item.href === "/admin")).toBe(false);
     expect(navItems.some((item) => item.label === "navAdminPanel")).toBe(false);
+  });
+
+  it("exposes the Provider workspace doorway (→ /provider) for an approved provider", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "workspace", isAdmin: false });
+    getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
+    getUnreadCountMock.mockResolvedValue(0);
+
+    const element = (await DashboardPage()) as ReactElement<{ navItems: NavItem[] }>;
+    const navItems = element.props.navItems;
+
+    const workspace = navItems.find((item) => item.href === "/provider");
+    expect(workspace?.label).toBe("navProviderWorkspace");
+    // Customer capabilities remain: the core customer items are still present.
+    expect(navItems.some((item) => item.href === "/bookings")).toBe(true);
   });
 });

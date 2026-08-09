@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/i18n/format-date";
 import { buildPublicUrl } from "@/lib/seo/build-public-url";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { BookingStepsIndicator } from "@/components/bookings/booking-steps-indicator";
 import { SuccessCheck } from "@/components/bookings/success-check";
@@ -74,13 +75,13 @@ export default async function BookingConfirmationPage({ params }: Props) {
 
   const t = await getServerTranslator("booking");
   const tDashboard = await getServerTranslator("dashboard");
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
 
   // Phase C.3 Group 3 — UX FIX: same missing-AppShell gap as
   // src/app/[locale]/bookings/page.tsx — see that file's comment.
   return (
     <AppShell
-      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount, navOptions)}
       roleLabel={tDashboard("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

@@ -8,6 +8,7 @@
   "navSettings": "Settings",
   "navBecomeProvider": "Become a Provider",
   "navProviderWorkspace": "Provider workspace",
+  "navApplicationStatus": "Application status",
   "settingsTitle": "Account settings",
   "settingsSubtitle": "Manage your profile and preferences.",
   "settingsNameLabel": "Display name",

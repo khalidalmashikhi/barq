@@ -38,6 +38,14 @@ vi.mock("@/lib/notifications/get-unread-count", () => ({
   getUnreadCount: async () => 0,
 }));
 
+// Customer → Provider Journey (A) — bookings/page.tsx now also resolves the
+// provider-doorway/admin nav flags via this shared resolver; mocked here (same
+// as getMyBookings/getUnreadCount) so this test stays scoped to the empty-state
+// link it verifies. Its own logic is covered by resolve-customer-nav-options.test.ts.
+vi.mock("@/lib/dashboard/resolve-customer-nav-options", () => ({
+  resolveCustomerNavOptions: async () => ({ providerDoorway: "become", isAdmin: false }),
+}));
+
 vi.mock("@/lib/i18n/get-server-translator", () => ({
   getServerTranslator: async () => (key: string) => key,
 }));

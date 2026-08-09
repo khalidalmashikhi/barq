@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { PackageOpen, Flame, Search } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { requireAuth, UnauthenticatedError, hasActiveAdminProfile, hasApprovedProviderProfile } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -107,39 +108,24 @@ export default async function DashboardPage() {
     throw error;
   }
 
-  // Phase 5.2 (Production Hardening) — these two were previously
-  // awaited sequentially despite being fully independent queries;
-  // batched into one Promise.all to shave a round-trip off this page's
-  // TTFB. isAdmin joins the same batch for the same reason — one more
-  // independent, cheap query, not a reason to add a second round-trip.
-  const [data, unreadNotificationsCount, isAdmin, isApprovedProvider] = await Promise.all([
+  // Phase 5.2 (Production Hardening) — these were previously awaited
+  // sequentially despite being fully independent queries; batched into one
+  // Promise.all to shave a round-trip off this page's TTFB.
+  //
+  // Customer → Provider Journey (A) — the provider-doorway/admin flags now
+  // come from the shared resolveCustomerNavOptions() resolver (same values
+  // this page computed inline before, now shared with every other customer
+  // page so the doorway is consistent shell-wide). It joins the same
+  // Promise.all — still one round-trip, no RBAC logic in the page itself.
+  const [data, unreadNotificationsCount, navOptions] = await Promise.all([
     getDashboardData(barqUserId),
     getUnreadCount(),
-    hasActiveAdminProfile(barqUserId),
-    hasApprovedProviderProfile(barqUserId),
+    resolveCustomerNavOptions(),
   ]);
   const t = await getServerTranslator("dashboard");
   const tServices = await getServerTranslator("services");
 
-  // Customer Experience Platform — CONSOLIDATED onto the shared
-  // getCustomerNavItems() helper (previously this page maintained its
-  // own separate inline array, duplicating the identical Overview/
-  // Bookings/Notifications/Saved/Settings items every other Customer
-  // page already built via that helper — a real, confirmed duplication
-  // this phase's own inspection flagged). `isAdmin` is still resolved
-  // here, exactly as before (hasActiveAdminProfile() in the Promise.all
-  // above) — the helper itself performs no RBAC check; it only renders
-  // based on the already-resolved `isAdmin`/`showBecomeProvider` flags
-  // passed in via `options`, per this phase's explicit "no RBAC logic
-  // in the presentation layer" requirement.
-  const customerNavItems = getCustomerNavItems(t, locale, unreadNotificationsCount, {
-    // An APPROVED provider lands on this customer dashboard after login and
-    // otherwise has no discoverable link into /provider — give them the
-    // workspace doorway instead of "Become Provider" (they already are one).
-    showProviderWorkspace: isApprovedProvider,
-    showBecomeProvider: !isApprovedProvider,
-    isAdmin,
-  });
+  const customerNavItems = getCustomerNavItems(t, locale, unreadNotificationsCount, navOptions);
 
   const customerTopBarSearch = (
     <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2 mx-8 md:flex">

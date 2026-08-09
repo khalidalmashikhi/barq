@@ -7,6 +7,7 @@ import { getMyPayments } from "@/lib/payments/get-my-payments";
 import { getPaymentStatusLabel, getPaymentStatusBadgeVariant } from "@/lib/payments/payment-status";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,7 +54,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 
   const t = await getServerTranslator("payments");
   const tDashboard = await getServerTranslator("dashboard");
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
 
   const hasActiveFilter = Boolean(params.status);
   const isOutOfRangePage = result.totalCount > 0 && result.items.length === 0;
@@ -61,7 +62,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <AppShell
-      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount, navOptions)}
       roleLabel={tDashboard("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

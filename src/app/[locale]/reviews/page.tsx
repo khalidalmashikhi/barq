@@ -7,6 +7,7 @@ import { UnauthenticatedError } from "@/lib/auth";
 import { getMyReviewsPageData } from "@/lib/booking/get-my-reviews";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
@@ -61,11 +62,11 @@ export default async function ReviewsPage({ searchParams }: Props) {
 
   const t = await getServerTranslator("booking");
   const tDashboard = await getServerTranslator("dashboard");
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
 
   return (
     <AppShell
-      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount, navOptions)}
       roleLabel={tDashboard("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

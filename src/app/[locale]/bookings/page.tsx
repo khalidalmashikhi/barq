@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/i18n/format-date";
 import { getPathname } from "@/i18n/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { CustomerBookingFilters } from "@/components/bookings/customer-booking-filters";
 import { BookingStatusProgress } from "@/components/bookings/booking-status-progress";
@@ -54,7 +55,7 @@ export default async function BookingsPage({
   const when = params.when === "upcoming" || params.when === "past" ? params.when : undefined;
 
   const result = await getMyBookings({ page, search: params.q, when });
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
 
   const isOutOfRangePage = result.totalCount > 0 && result.items.length === 0;
   const servicesPath = getPathname({ href: "/services", locale });
@@ -70,7 +71,7 @@ export default async function BookingsPage({
   // is left untouched.
   return (
     <AppShell
-      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount, navOptions)}
       roleLabel={tDashboard("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

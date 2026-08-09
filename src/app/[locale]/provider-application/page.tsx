@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "@/i18n/navigation";
+import { ArrowRight } from "lucide-react";
+import { redirect, Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
@@ -44,6 +45,25 @@ const STATUS_LABEL_KEYS = {
   DEACTIVATED: "applicationStatusDeactivated",
 } as const satisfies Record<ProviderStatus, string>;
 
+// Customer → Provider Journey (B) — per-status guidance so this page is the
+// single source of truth for "what does my application status mean and what
+// happens next", not just a bare label. UNDER_REVIEW has its own distinct
+// message because the enum already exists and may be rendered — no transition
+// INTO it is added in this batch. SUSPENDED/DEACTIVATED get accurate, neutral
+// guidance only (no invented reason — there is no reason field in the data).
+const STATUS_BODY_KEYS = {
+  APPLIED: "applicationStatusAppliedBody",
+  UNDER_REVIEW: "applicationStatusUnderReviewBody",
+  APPROVED: "applicationStatusApprovedBody",
+  SUSPENDED: "applicationStatusSuspendedBody",
+  DEACTIVATED: "applicationStatusDeactivatedBody",
+} as const satisfies Record<ProviderStatus, string>;
+
+// The states that are still "in the application journey" (not terminated) —
+// these reassure the applicant that their customer account is unaffected.
+const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = ["APPLIED", "UNDER_REVIEW", "APPROVED"];
+const TERMINATED_STATUSES: ProviderStatus[] = ["SUSPENDED", "DEACTIVATED"];
+
 type Props = { searchParams: Promise<{ error?: string }> };
 
 export default async function ProviderApplicationPage({ searchParams }: Props) {
@@ -84,11 +104,38 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
 
       {existingProvider ? (
         <Card hoverLift={false}>
-          <div className="flex flex-col gap-2 p-2">
-            <p className="text-sm font-medium text-foreground">{extractLocalizedText(existingProvider.businessName, locale)}</p>
-            <p className="text-sm text-foreground/60">
-              {t("applicationStatusLabel")}: {t(STATUS_LABEL_KEYS[existingProvider.status])}
-            </p>
+          <div className="flex flex-col gap-4 p-2">
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-medium text-foreground">{extractLocalizedText(existingProvider.businessName, locale)}</p>
+              <p className="text-sm text-foreground/60">
+                {t("applicationStatusLabel")}:{" "}
+                <span className="font-medium text-foreground/80">{t(STATUS_LABEL_KEYS[existingProvider.status])}</span>
+              </p>
+              <p className="text-sm text-foreground/60">{t(STATUS_BODY_KEYS[existingProvider.status])}</p>
+            </div>
+
+            {existingProvider.status === "APPROVED" && (
+              <Link
+                href="/provider"
+                className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {t("applicationOpenWorkspaceButton")}
+                <ArrowRight size={16} strokeWidth={1.75} className="rtl:-scale-x-100" />
+              </Link>
+            )}
+
+            {REMAIN_CUSTOMER_STATUSES.includes(existingProvider.status) && (
+              <p className="text-xs text-foreground/40">{t("applicationRemainCustomerNote")}</p>
+            )}
+
+            {TERMINATED_STATUSES.includes(existingProvider.status) && (
+              <Link
+                href="/help"
+                className="inline-flex w-fit items-center gap-1.5 rounded text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                {t("applicationContactSupportLink")}
+              </Link>
+            )}
           </div>
         </Card>
       ) : (

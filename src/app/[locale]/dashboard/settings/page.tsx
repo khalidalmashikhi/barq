@@ -6,6 +6,7 @@ import { getCustomerSettings } from "@/lib/customer/get-customer-settings";
 import { updateCustomerSettings } from "@/lib/customer/update-customer-settings";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -51,11 +52,11 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
   }
 
   const t = await getServerTranslator("dashboard");
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
 
   return (
     <AppShell
-      navItems={getCustomerNavItems(t, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(t, locale, unreadNotificationsCount, navOptions)}
       roleLabel={t("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

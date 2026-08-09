@@ -6,6 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { notifyProviderApplicationEvent } from "@/lib/provider/notify-provider-application";
 
 // Approve provider — Phase 4.1 ("Complete the Booking Lifecycle"),
 // requirement #6: "Build the minimum admin workflow required to make
@@ -88,6 +89,23 @@ export async function approveProvider(providerId: string): Promise<ApproveProvid
         tx
       );
     });
+
+    // Customer → Provider Journey (C) — notify the provider AFTER the approval
+    // transaction has committed, never inside it: a notification write must
+    // never be able to roll back an approval. Fire-and-forget with its own
+    // try/catch so a notification failure is logged but can NEVER fail the
+    // approval (which has already durably succeeded) — and, critically, so it
+    // never reaches this function's outer catch, which would otherwise turn a
+    // succeeded approval into a misleading UNKNOWN_ERROR result. This mirrors
+    // the post-commit notification pattern used across the booking lifecycle.
+    try {
+      await notifyProviderApplicationEvent({ userId: provider.userId, kind: "PROVIDER_APPROVED" });
+    } catch (notifyError) {
+      logger.error("approveProvider.notification_failed", {
+        providerId,
+        message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+      });
+    }
 
     return { ok: true };
   } catch (error) {

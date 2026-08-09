@@ -9,6 +9,7 @@ import { markNotificationRead } from "@/lib/notifications/mark-notification-read
 import { markAllNotificationsRead } from "@/lib/notifications/mark-all-notifications-read";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -97,11 +98,11 @@ export default async function NotificationsPage({
   const hasUnread = result.items.some((item) => !item.isRead);
   const notificationsPath = getPathname({ href: "/notifications", locale });
   const tDashboard = await getServerTranslator("dashboard");
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
 
   return (
     <AppShell
-      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount, navOptions)}
       roleLabel={tDashboard("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

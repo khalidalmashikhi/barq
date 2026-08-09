@@ -1,4 +1,4 @@
-import { CalendarCheck, Bell, Heart, Settings, Compass, Star, Briefcase, ShieldCheck, CreditCard, Store } from "lucide-react";
+import { CalendarCheck, Bell, Heart, Settings, Compass, Star, Briefcase, ClipboardList, ShieldCheck, CreditCard, Store } from "lucide-react";
 import { getPathname } from "@/i18n/navigation";
 import type { AppNavItem } from "@/components/app-shell/app-shell";
 import type { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -6,17 +6,25 @@ import type { Locale } from "@/i18n/locales";
 
 type DashboardTranslator = Awaited<ReturnType<typeof getServerTranslator<"dashboard">>>;
 
-// Customer Experience Platform — options for the two contextual items
-// that only ever appeared on the Dashboard page's own separate inline
-// nav array before this phase. This helper NEVER calls
-// hasActiveAdminProfile() or any other RBAC check itself — both flags
-// must be an already-resolved value the caller computed (the Dashboard
-// page already calls hasActiveAdminProfile() itself, exactly as
-// before); this helper only renders based on what it's told, never
-// re-derives authorization.
+// Customer → Provider Journey (A) — the single contextual "provider doorway"
+// item, plus the Admin Panel item. The doorway is a three-state value rather
+// than two booleans so that a still-pending applicant gets a distinct
+// "Application status" entry instead of being told to "Become a Provider"
+// again (which looped them back to their own status card):
+//   - "become"      → no provider profile yet         → /provider-application
+//   - "application" → pending/non-approved provider    → /provider-application
+//   - "workspace"   → APPROVED provider                → /provider
+// The three states are mutually exclusive, so a customer always sees exactly
+// one provider doorway — customer capabilities (Overview/Bookings/etc.) stay
+// visible in every case; this is a doorway, never a role/mode switch.
+export type ProviderDoorway = "become" | "application" | "workspace";
+
+// This helper NEVER calls hasActiveAdminProfile() or any other RBAC check
+// itself — both fields must be already-resolved values the caller computed
+// (see resolve-customer-nav-options.ts); this helper only renders based on
+// what it's told, never re-derives authorization.
 export type CustomerNavOptions = {
-  showBecomeProvider?: boolean;
-  showProviderWorkspace?: boolean;
+  providerDoorway?: ProviderDoorway;
   isAdmin?: boolean;
 };
 
@@ -72,18 +80,25 @@ export function getCustomerNavItems(
     { label: t("navSettings"), href: getPathname({ href: "/dashboard/settings", locale }), icon: <Settings size={18} strokeWidth={1.75} /> },
   ];
 
-  // An APPROVED provider lands here (the customer dashboard is everyone's
-  // post-login destination), so give them the one discoverable doorway into
-  // their /provider workspace. Mutually exclusive with "Become Provider".
-  if (options.showProviderWorkspace) {
+  // Exactly one provider doorway, consistent across the whole customer shell.
+  // An APPROVED provider gets the discoverable link into their /provider
+  // workspace; a pending applicant gets a distinct "Application status" entry
+  // (their /provider-application status card); everyone else gets "Become a
+  // Provider". All three point a customer at the right next step without ever
+  // removing their customer navigation.
+  if (options.providerDoorway === "workspace") {
     items.push({
       label: t("navProviderWorkspace"),
       href: getPathname({ href: "/provider", locale }),
       icon: <Store size={18} strokeWidth={1.75} />,
     });
-  }
-
-  if (options.showBecomeProvider) {
+  } else if (options.providerDoorway === "application") {
+    items.push({
+      label: t("navApplicationStatus"),
+      href: getPathname({ href: "/provider-application", locale }),
+      icon: <ClipboardList size={18} strokeWidth={1.75} />,
+    });
+  } else if (options.providerDoorway === "become") {
     items.push({
       label: t("navBecomeProvider"),
       href: getPathname({ href: "/provider-application", locale }),

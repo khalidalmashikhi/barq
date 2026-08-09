@@ -19,6 +19,7 @@ import { Alert } from "@/components/ui/alert";
 import { CheckCircle2, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
+import { resolveCustomerNavOptions } from "@/lib/dashboard/resolve-customer-nav-options";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getBookingTimeline } from "@/lib/booking/lifecycle/get-booking-timeline";
 import { BookingTimeline } from "@/components/bookings/booking-timeline";
@@ -111,14 +112,14 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         ? tErrors(getReviewErrorTranslationKey(error))
         : null
     : null;
-  const unreadNotificationsCount = await getUnreadCount();
+  const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
   const timelineEvents = await getBookingTimeline(booking.id);
 
   // Phase C.3 Group 3 — UX FIX: same missing-AppShell gap as
   // src/app/[locale]/bookings/page.tsx — see that file's comment.
   return (
     <AppShell
-      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount)}
+      navItems={getCustomerNavItems(tDashboard, locale, unreadNotificationsCount, navOptions)}
       roleLabel={tDashboard("roleLabel")}
       unreadNotificationsCount={unreadNotificationsCount}
     >

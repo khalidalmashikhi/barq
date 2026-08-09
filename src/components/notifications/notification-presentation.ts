@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell } from "lucide-react";
+import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell, BadgeCheck } from "lucide-react";
 import type { BadgeVariant } from "@/components/ui/badge";
 
 // Notification presentation consolidation — Provider Notifications &
@@ -36,6 +36,7 @@ export type NotificationCategoryKey =
   | "categoryCancelled"
   | "categoryExpired"
   | "categoryReview"
+  | "categoryApproved"
   | "categoryGeneral";
 
 export type NotificationPresentation = {
@@ -60,6 +61,8 @@ const PRESENTATION_BY_KIND: Record<string, NotificationPresentation> = {
   BOOKING_CANCELLED_BY_CUSTOMER: { Icon: XOctagon, badgeVariant: "warning", categoryKey: "categoryCancelled" },
   BOOKING_EXPIRED: { Icon: Clock, badgeVariant: "warning", categoryKey: "categoryExpired" },
   NEW_REVIEW_RECEIVED: { Icon: Star, badgeVariant: "success", categoryKey: "categoryReview" },
+  // Customer → Provider Journey (C) — provider application approved.
+  PROVIDER_APPROVED: { Icon: BadgeCheck, badgeVariant: "success", categoryKey: "categoryApproved" },
 };
 
 export function getNotificationPresentation(kind: string | undefined): NotificationPresentation {

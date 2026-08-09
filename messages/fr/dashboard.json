@@ -8,6 +8,7 @@
   "navSettings": "Paramètres",
   "navBecomeProvider": "Devenir prestataire",
   "navProviderWorkspace": "Espace prestataire",
+  "navApplicationStatus": "Statut de la demande",
   "settingsTitle": "Paramètres du compte",
   "settingsSubtitle": "Gérez votre profil et vos préférences.",
   "settingsNameLabel": "Nom affiché",

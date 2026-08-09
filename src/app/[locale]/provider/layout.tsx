@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
-import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard } from "lucide-react";
+import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound } from "lucide-react";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -95,6 +95,14 @@ export default async function ProviderLayout({ children }: { children: ReactNode
       badge: unreadNotificationsCount,
     },
     { label: t("navSettings"), href: getPathname({ href: "/provider/settings", locale }), icon: <Settings size={18} strokeWidth={1.75} /> },
+    // Customer → Provider Journey (return path) — the provider shell had no
+    // way back to the customer side (the two shells are separate AppShell
+    // trees). Every provider is also a customer (additive identity: the
+    // Customer row is never removed on approval), so this single link makes
+    // that dual identity navigable. NOT a mode switcher — just a link into
+    // the customer dashboard, using the same nav-item pattern as every other
+    // entry here.
+    { label: t("navBackToCustomer"), href: getPathname({ href: "/dashboard", locale }), icon: <UserRound size={18} strokeWidth={1.75} /> },
   ];
 
   return (
