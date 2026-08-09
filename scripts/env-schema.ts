@@ -78,6 +78,15 @@ export const envSchema = z
     SUPABASE_URL: z.string().url("must be a valid URL if set").optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
     SUPABASE_STORAGE_BUCKET: z.string().optional(),
+    // Provider Verification & Documents (Gate 2) — a SEPARATE, PRIVATE bucket
+    // for verification documents. Optional for the same graceful-degradation
+    // reason as the public media vars above: unset ->
+    // isDocumentStorageConfigured() returns false and document upload/view
+    // decline politely (fail-closed). There is deliberately NO default and NO
+    // fallback to SUPABASE_STORAGE_BUCKET — private documents must never land in
+    // the public media bucket. To ACTIVATE documents, provision a PRIVATE
+    // Supabase bucket and set this alongside SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
+    SUPABASE_DOCS_BUCKET: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     // OTP_PROVIDER=twilio requires its credentials in every environment

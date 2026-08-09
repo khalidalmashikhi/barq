@@ -26,6 +26,15 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // so a public bucket is correct; WRITE authority stays server-side via the
 // service-role key + our own ownership checks.
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media";
+// Provider Verification & Documents (Gate 2) — a SEPARATE, PRIVATE bucket for
+// provider verification documents. Deliberately has NO default: unlike the
+// public media bucket, documents must NEVER silently fall back to the public
+// bucket, so if this is unset the document storage is simply "not configured"
+// (isDocumentStorageConfigured() → false) and every document op declines
+// politely. Verification documents are private artifacts: they are read only
+// via short-lived signed URLs minted server-side after authorization, never a
+// public URL.
+const DOCS_BUCKET = process.env.SUPABASE_DOCS_BUCKET;
 
 export class StorageNotConfiguredError extends Error {
   constructor() {
@@ -84,4 +93,72 @@ export async function removeObject(objectKey: string): Promise<void> {
   if (error) {
     throw new StorageOperationError(error.message);
   }
+}
+
+// ============================================================================
+// Private document storage (Provider Verification & Documents, Gate 2)
+// ============================================================================
+// A distinct set of primitives for the PRIVATE documents bucket. They reuse the
+// same service-role client (which can access any bucket) but NEVER the public
+// `BUCKET`, and they never produce a public URL — reads go through
+// createSignedObjectUrl() only. The public-media functions above are untouched.
+
+// Fail-closed: document storage is configured only when the URL, the
+// service-role key, AND a dedicated private docs bucket are all set. There is
+// no default bucket — an unset SUPABASE_DOCS_BUCKET means "not configured",
+// never a fall back to the public media bucket.
+export function isDocumentStorageConfigured(): boolean {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && DOCS_BUCKET);
+}
+
+function getDocsBucket(): string {
+  if (!DOCS_BUCKET) {
+    throw new StorageNotConfiguredError();
+  }
+  return DOCS_BUCKET;
+}
+
+// Upload to the private docs bucket. upsert:false — document object keys are
+// immutable (a fresh uuid per upload/replace), so an existing key must never be
+// silently overwritten.
+export async function uploadPrivateObject(params: {
+  objectKey: string;
+  body: ArrayBuffer | Uint8Array;
+  contentType: string;
+}): Promise<void> {
+  const { error } = await getClient()
+    .storage.from(getDocsBucket())
+    .upload(params.objectKey, params.body, { contentType: params.contentType, upsert: false });
+  if (error) {
+    throw new StorageOperationError(error.message);
+  }
+}
+
+// Best-effort private-object removal (replaced/deleted document cleanup, where
+// the DB row is already the source of truth).
+export async function removePrivateObject(objectKey: string): Promise<void> {
+  const { error } = await getClient().storage.from(getDocsBucket()).remove([objectKey]);
+  if (error) {
+    throw new StorageOperationError(error.message);
+  }
+}
+
+// Mint a short-lived signed URL for a private document object. The URL is
+// returned to the caller (a server route) which redirects to it; it is never
+// persisted and the raw objectKey is never exposed to any client. When
+// `downloadFilename` is given, the signed URL forces a Content-Disposition
+// attachment with that (already-sanitized) filename — documents are downloaded,
+// never rendered inline (defense against any HTML/script-ish payload).
+export async function createSignedObjectUrl(
+  objectKey: string,
+  expiresInSeconds: number,
+  options?: { downloadFilename?: string }
+): Promise<string> {
+  const { data, error } = await getClient()
+    .storage.from(getDocsBucket())
+    .createSignedUrl(objectKey, expiresInSeconds, { download: options?.downloadFilename ?? true });
+  if (error || !data?.signedUrl) {
+    throw new StorageOperationError(error?.message ?? "Failed to create signed URL");
+  }
+  return data.signedUrl;
 }
