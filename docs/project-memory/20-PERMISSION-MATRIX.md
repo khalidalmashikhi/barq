@@ -51,7 +51,7 @@ See `docs/03-platform-capabilities/IDENTITY_AND_ACCESS.md` §3–§4 for the ful
 | PROVIDER | ✓ (own) | ✓ (own application) | T (own, limited) | — | — | — | — | — |
 | CUSTOMER | — | — | — | — | — | — | — | — |
 
-Today: `ADMIN`'s **A** (Approve) is real (`approveProvider()`); **R** (Reject) is target-only (BR-001 in `16-BUSINESS-RULES.md` — no reject action exists). `PROVIDER`'s own **C** is real (`applyAsProvider()`).
+Today: `ADMIN`'s **A** (Approve, `approveProvider()`) and **R** (Reject, `rejectProvider()`, mandatory reason) are both real. `PROVIDER`'s own **C** is real (`applyAsProvider()`), as is self-service resubmission (`resubmitProviderApplication()`, `REJECTED → APPLIED`).
 
 ## Services & Pricing
 

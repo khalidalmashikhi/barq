@@ -37,12 +37,19 @@
 - **DOMAIN_MODEL.md §3 equivalent:** "Provider Approved."
 
 ### ProviderRejected
-- **Trigger:** Target — no reject action exists today (only approve).
-- **Producer (target):** A future `rejectProvider()` action.
-- **Consumers (target):** Notification Engine, Audit Log.
-- **Business purpose:** Closes out an application that doesn't meet requirements.
-- **Status:** Target — not implemented. See `16-BUSINESS-RULES.md` BR-001's related note, `05-PROVIDER-EXPERIENCE.md`.
+- **Trigger:** `rejectProvider()` succeeds (admin action, from `APPLIED`/`UNDER_REVIEW`, mandatory reason).
+- **Producer:** `src/lib/admin/reject-provider.ts`.
+- **Consumers:** Audit Log (`provider.rejected`, reason in payload — retained after resubmission clears the Provider field); in-app Notification Center (`PROVIDER_REJECTED`, static 8-locale message directing to the application page — reason is NOT embedded).
+- **Business purpose:** Closes out an application that doesn't meet requirements, with a reason the applicant can act on.
+- **Status:** Real (state change + audit + notification-center row). Not dispatched as a named event beyond those. No external email/SMS.
 - **DOMAIN_MODEL.md §3 equivalent:** None ("Provider Suspended" exists there instead, a different lifecycle point).
+
+### ProviderResubmitted
+- **Trigger:** `resubmitProviderApplication()` succeeds (provider self-action, `REJECTED → APPLIED`, own identity only).
+- **Producer:** `src/lib/provider/resubmit-provider-application.ts`.
+- **Consumers:** Audit Log (`provider.resubmitted`, PROVIDER actor). No notification (the applicant took the action; the admin's signal is the pending queue).
+- **Business purpose:** Returns a corrected application to the review queue without creating a new Provider record.
+- **Status:** Real (state change + audit). Clears `Provider.rejectionReason`/`rejectedAt`/`rejectedByAdminId`; `visible` untouched.
 
 ## Marketplace
 

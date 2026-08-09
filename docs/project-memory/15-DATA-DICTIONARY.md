@@ -18,7 +18,7 @@ Entity-level detail for every major business entity in BARQ's domain, current an
 **Purpose:** A registered business or individual offering services on BARQ.
 **Description:** `businessName`/`businessDescription` (bilingual `Json`, `{ar, en}`), `status` (`ProviderStatus`: `APPLIED`/`UNDER_REVIEW`/`APPROVED`/`SUSPENDED`/`DEACTIVATED`), `approvedAt`/`approvedByAdminId`.
 **Relationships:** One-to-one with `User`; one-to-many with `Driver`, `Guide`, `Asset`/`Vehicle` (resources it owns), `Service`, `Commission`, `Booking`, `Review`, `SupportTicket`, `Contract`; one-to-one (optional) with `Wallet`.
-**Current implementation status:** Real. Onboarding is a 4-field form (business name/description, bilingual); approval is a single admin action (approve-only, no reject/suspend/deactivate implemented despite the enum supporting those states).
+**Current implementation status:** Real. Onboarding is a 4-field form (business name/description, bilingual). The lifecycle now supports approve (`approveProvider`), reject with a mandatory reason (`rejectProvider` → `REJECTED`, storing `rejectionReason`/`rejectedAt`/`rejectedByAdminId`), self-service resubmit (`resubmitProviderApplication`, `REJECTED → APPLIED`, clears those fields), plus suspend/reactivate/archive. `UNDER_REVIEW` exists but is never entered (no Start Review).
 **Planned extensions:** Individual vs. commercial type discriminator; commercial documents (see **Document** below); bank/payout information (see **Settlement** below); logo, website, Google Maps location, opening hours — see `05-PROVIDER-EXPERIENCE.md`.
 **Important business notes:** No individual-vs-commercial distinction exists today — see BR-011 in `16-BUSINESS-RULES.md`.
 

@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
 import { applyAsProvider } from "@/lib/provider/apply-as-provider";
+import { resubmitProviderApplication } from "@/lib/provider/resubmit-provider-application";
 import { isProviderApplicationErrorCode, getProviderApplicationErrorTranslationKey } from "@/lib/provider/provider-application-errors";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
@@ -41,6 +42,7 @@ const STATUS_LABEL_KEYS = {
   APPLIED: "applicationStatusApplied",
   UNDER_REVIEW: "applicationStatusUnderReview",
   APPROVED: "applicationStatusApproved",
+  REJECTED: "applicationStatusRejected",
   SUSPENDED: "applicationStatusSuspended",
   DEACTIVATED: "applicationStatusDeactivated",
 } as const satisfies Record<ProviderStatus, string>;
@@ -55,13 +57,16 @@ const STATUS_BODY_KEYS = {
   APPLIED: "applicationStatusAppliedBody",
   UNDER_REVIEW: "applicationStatusUnderReviewBody",
   APPROVED: "applicationStatusApprovedBody",
+  REJECTED: "applicationStatusRejectedBody",
   SUSPENDED: "applicationStatusSuspendedBody",
   DEACTIVATED: "applicationStatusDeactivatedBody",
 } as const satisfies Record<ProviderStatus, string>;
 
 // The states that are still "in the application journey" (not terminated) —
 // these reassure the applicant that their customer account is unaffected.
-const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = ["APPLIED", "UNDER_REVIEW", "APPROVED"];
+// REJECTED is included: a rejected applicant remains a full customer and can
+// correct + resubmit.
+const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = ["APPLIED", "UNDER_REVIEW", "APPROVED", "REJECTED"];
 const TERMINATED_STATUSES: ProviderStatus[] = ["SUSPENDED", "DEACTIVATED"];
 
 type Props = { searchParams: Promise<{ error?: string }> };
@@ -85,7 +90,7 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
 
   const existingProvider = await prisma.provider.findUnique({
     where: { userId: barqUserId },
-    select: { businessName: true, status: true },
+    select: { businessName: true, status: true, rejectionReason: true },
   });
 
   const errorMessage =
@@ -122,6 +127,43 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
                 {t("applicationOpenWorkspaceButton")}
                 <ArrowRight size={16} strokeWidth={1.75} className="rtl:-scale-x-100" />
               </Link>
+            )}
+
+            {existingProvider.status === "REJECTED" && (
+              <div className="flex flex-col gap-3">
+                {existingProvider.rejectionReason && (
+                  <div className="flex flex-col gap-1 rounded-xl border border-danger/30 bg-danger/5 p-3">
+                    <span className="text-xs font-medium text-danger">{t("applicationRejectionReasonLabel")}</span>
+                    <p className="whitespace-pre-wrap text-sm text-foreground/80">{existingProvider.rejectionReason}</p>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Resubmit returns REJECTED -> APPLIED; the existing APPLIED UX
+                      then renders naturally on reload. Corrections are made in the
+                      existing Provider Settings, not duplicated here. */}
+                  <form
+                    action={async () => {
+                      "use server";
+                      const result = await resubmitProviderApplication();
+                      if (!result.ok) {
+                        redirect({ href: `/provider-application?error=${result.error}`, locale });
+                        return;
+                      }
+                      redirect({ href: "/provider-application", locale });
+                    }}
+                  >
+                    <SubmitButton className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                      {t("applicationResubmitButton")}
+                    </SubmitButton>
+                  </form>
+                  <Link
+                    href="/provider/settings"
+                    className="inline-flex w-fit items-center gap-1.5 rounded text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  >
+                    {t("applicationFixProfileLink")}
+                  </Link>
+                </div>
+              </div>
             )}
 
             {REMAIN_CUSTOMER_STATUSES.includes(existingProvider.status) && (

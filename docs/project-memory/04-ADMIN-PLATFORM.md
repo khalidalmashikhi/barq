@@ -31,7 +31,7 @@ Real, state-changing admin CRUD exists across most of the marketplace: Providers
 | Review moderation workflow | Add real flag/remove/publish actions against `ReviewModerationState` (today: filterable in `/admin/reviews`, but nothing sets anything but the default PUBLISHED). |
 | Audit-log viewer | Read `AuditLog`/`BookingStatusEvent`/`BookingContractEvent` (already written, never read today) through an actual admin UI. |
 | Support ticket management | Operate the `SupportTicket` model (schema-only today) as a real "ساعدني" queue. See `06-TOURIST-EXPERIENCE.md` and `10-COMMUNICATION-POLICY.md`. |
-| Provider onboarding review | Reject/suspend/deactivate providers (today: approve-only; `ProviderStatus.SUSPENDED`/`DEACTIVATED` exist in the enum but nothing sets them). |
+| Provider onboarding review | Approve, reject (mandatory reason), suspend, reactivate, and deactivate/archive providers are all implemented; a rejected applicant can self-resubmit (`REJECTED → APPLIED`). Still target: review assignment/multi-reviewer, KYC/document verification, appeal workflow. |
 | Individual vs. commercial provider review | Review category-specific and entity-type-specific documents (commercial registration, municipal licence, tenancy agreement, bank info) — none of this data exists in the schema yet. |
 | Payments admin surface | **Read-only search/details/status done (2026-07-27).** Still deferred: any UI trigger for `capture-payment.ts`/`refund-payment.ts` — those remain backend-only, callable by no code path in the application. |
 

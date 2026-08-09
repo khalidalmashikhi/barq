@@ -23,6 +23,9 @@ export type ProviderDetail = {
   logoUrl: string | null;
   approvedAt: Date | null;
   approvedByAdminId: string | null;
+  rejectionReason: string | null;
+  rejectedAt: Date | null;
+  rejectedByAdminId: string | null;
   createdAt: Date;
   updatedAt: Date;
 } | null;
@@ -54,6 +57,9 @@ export async function getProviderDetail(providerId: string): Promise<ProviderDet
     logoUrl: provider.logoUrl,
     approvedAt: provider.approvedAt,
     approvedByAdminId: provider.approvedByAdminId,
+    rejectionReason: provider.rejectionReason,
+    rejectedAt: provider.rejectedAt,
+    rejectedByAdminId: provider.rejectedByAdminId,
     createdAt: provider.createdAt,
     updatedAt: provider.updatedAt,
   };

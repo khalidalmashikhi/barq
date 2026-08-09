@@ -104,6 +104,7 @@ enum ProviderStatus {
   APPLIED
   UNDER_REVIEW
   APPROVED
+  REJECTED
   SUSPENDED
   DEACTIVATED
 }
@@ -417,6 +418,17 @@ model Provider {
   approvedAt          DateTime?      @db.Timestamptz(6)
   approvedByAdminId   String?        @db.Uuid
   approvedByAdmin     Admin?         @relation("ProviderApprovedBy", fields: [approvedByAdminId], references: [id])
+  /// Set when an Admin rejects this provider application (Review/Reject/Resubmit
+  /// lifecycle) — deliberately mirrors approvedAt/approvedByAdminId above.
+  /// `rejectionReason` is the admin's mandatory free-text explanation the
+  /// applicant reads back on /provider-application. All three are CLEARED on
+  /// resubmit (REJECTED -> APPLIED); full history lives in the AuditLog
+  /// (`provider.rejected`), so these fields only ever hold the CURRENT
+  /// rejection. Nullable: only a currently-rejected provider has them set.
+  rejectedAt          DateTime?      @db.Timestamptz(6)
+  rejectedByAdminId   String?        @db.Uuid
+  rejectedByAdmin     Admin?         @relation("ProviderRejectedBy", fields: [rejectedByAdminId], references: [id])
+  rejectionReason     String?
   /// Phase 2 (Provider Foundation) additions below — deliberately kept
   /// separate from `status`: `status` is the approval/vetting workflow
   /// (unchanged, still enforced by requireApprovedProvider()/BR-001);
@@ -459,6 +471,7 @@ model Provider {
 
   @@index([status])
   @@index([approvedByAdminId])
+  @@index([rejectedByAdminId])
   @@index([visible])
   @@map("providers")
 }
@@ -1483,6 +1496,7 @@ model Admin {
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
   approvedProviders Provider[] @relation("ProviderApprovedBy")
+  rejectedProviders Provider[] @relation("ProviderRejectedBy")
 
   @@map("admins")
 }

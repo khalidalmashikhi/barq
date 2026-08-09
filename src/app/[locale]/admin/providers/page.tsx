@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const PROVIDER_STATUSES: ProviderStatus[] = ["APPLIED", "UNDER_REVIEW", "APPROVED", "SUSPENDED", "DEACTIVATED"];
+const PROVIDER_STATUSES: ProviderStatus[] = ["APPLIED", "UNDER_REVIEW", "APPROVED", "REJECTED", "SUSPENDED", "DEACTIVATED"];
 
 type SearchParams = { q?: string; status?: string; page?: string; error?: string };
 

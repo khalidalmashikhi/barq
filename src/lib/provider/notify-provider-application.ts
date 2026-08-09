@@ -27,8 +27,12 @@ import type { Locale } from "@/i18n/locales";
 // so storing all 8 lets this notification render natively in every locale,
 // rather than inheriting the ar/en-only limitation older rows carry.
 
-export type ProviderApplicationNotificationKind = "PROVIDER_APPROVED";
+export type ProviderApplicationNotificationKind = "PROVIDER_APPROVED" | "PROVIDER_REJECTED";
 
+// PROVIDER_REJECTED is a STATIC localized message only — it deliberately does
+// NOT embed the admin's free-text rejection reason (that is single-language and
+// unlocalizable). It directs the applicant to their application page, where the
+// current reason (Provider.rejectionReason) is displayed and Resubmit lives.
 const MESSAGES: Record<ProviderApplicationNotificationKind, Record<Locale, string>> = {
   PROVIDER_APPROVED: {
     ar: "تمت الموافقة على طلب انضمامك كمزوّد. يمكنك الآن فتح مساحة عمل المزوّد الخاصة بك.",
@@ -39,6 +43,16 @@ const MESSAGES: Record<ProviderApplicationNotificationKind, Record<Locale, strin
     fr: "Votre demande de prestataire a été approuvée. Vous pouvez maintenant ouvrir votre espace prestataire.",
     cs: "Vaše žádost o poskytovatele byla schválena. Nyní si můžete otevřít svůj prostor poskytovatele.",
     ru: "Ваша заявка на статус поставщика одобрена. Теперь вы можете открыть свой кабинет поставщика.",
+  },
+  PROVIDER_REJECTED: {
+    ar: "لم تتم الموافقة على طلب انضمامك كمزوّد. افتح طلبك لمعرفة السبب وإعادة التقديم.",
+    en: "Your provider application was not approved. Open your application to see the reason and resubmit.",
+    de: "Ihr Anbieter-Antrag wurde nicht genehmigt. Öffnen Sie Ihren Antrag, um den Grund zu sehen und ihn erneut einzureichen.",
+    it: "La tua richiesta come fornitore non è stata approvata. Apri la tua richiesta per vedere il motivo e inviarla di nuovo.",
+    pl: "Twój wniosek o zostanie dostawcą nie został zatwierdzony. Otwórz wniosek, aby zobaczyć powód i złożyć go ponownie.",
+    fr: "Votre demande de prestataire n'a pas été approuvée. Ouvrez votre demande pour voir le motif et la soumettre à nouveau.",
+    cs: "Vaše žádost o poskytovatele nebyla schválena. Otevřete žádost, kde uvidíte důvod a můžete ji znovu odeslat.",
+    ru: "Ваша заявка на статус поставщика не одобрена. Откройте заявку, чтобы увидеть причину и подать её повторно.",
   },
 };
 

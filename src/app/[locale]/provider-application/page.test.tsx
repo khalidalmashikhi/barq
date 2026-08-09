@@ -41,6 +41,11 @@ vi.mock("@/lib/provider/apply-as-provider", () => ({
   applyAsProvider: (...a: unknown[]) => applyAsProviderMock(...a),
 }));
 
+const resubmitMock = vi.fn();
+vi.mock("@/lib/provider/resubmit-provider-application", () => ({
+  resubmitProviderApplication: (...a: unknown[]) => resubmitMock(...a),
+}));
+
 const getSelectableCategoriesMock = vi.fn().mockResolvedValue([]);
 vi.mock("@/lib/categories/get-selectable-categories", () => ({
   getSelectableCategories: (...a: unknown[]) => getSelectableCategoriesMock(...a),
@@ -68,9 +73,9 @@ function walk(node: any, texts: string[], hrefs: string[]): void {
   }
 }
 
-async function render(status?: string) {
+async function render(status?: string, rejectionReason: string | null = null) {
   providerFindUniqueMock.mockResolvedValue(
-    status ? { businessName: { en: "Acme", ar: "أكمي" }, status } : null
+    status ? { businessName: { en: "Acme", ar: "أكمي" }, status, rejectionReason } : null
   );
   const el = await ProviderApplicationPage({ searchParams: Promise.resolve({}) });
   const texts: string[] = [];
@@ -84,6 +89,7 @@ afterEach(() => {
   providerFindUniqueMock.mockReset();
   redirectMock.mockReset();
   applyAsProviderMock.mockReset();
+  resubmitMock.mockReset();
   getSelectableCategoriesMock.mockClear();
 });
 
@@ -130,6 +136,31 @@ describe("ProviderApplicationPage — status UX", () => {
     expect(texts).toContain("applicationStatusDeactivatedBody");
     expect(texts).toContain("applicationContactSupportLink");
     expect(hrefs).toContain("/help");
+  });
+
+  it("REJECTED: shows the rejection reason, the Resubmit action, and a link to fix the profile (→ /provider/settings)", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    const { texts, hrefs } = await render("REJECTED", "Please add a valid business licence");
+    expect(texts).toContain("applicationStatusRejectedBody");
+    // the current reason is displayed verbatim
+    expect(texts).toContain("Please add a valid business licence");
+    expect(texts).toContain("applicationRejectionReasonLabel");
+    // resubmit + correction path (reuses existing Provider Settings, not a form here)
+    expect(texts).toContain("applicationResubmitButton");
+    expect(texts).toContain("applicationFixProfileLink");
+    expect(hrefs).toContain("/provider/settings");
+    // still reassured they remain a customer; not a workspace CTA
+    expect(texts).toContain("applicationRemainCustomerNote");
+    expect(hrefs).not.toContain("/provider");
+    // does not render the fresh-application form
+    expect(texts).not.toContain("applicationSubmitButton");
+  });
+
+  it("REJECTED with no stored reason: still renders Resubmit without a reason box", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    const { texts } = await render("REJECTED", null);
+    expect(texts).toContain("applicationResubmitButton");
+    expect(texts).not.toContain("applicationRejectionReasonLabel");
   });
 
   it("no provider yet: renders the application form (duplicate not yet possible)", async () => {

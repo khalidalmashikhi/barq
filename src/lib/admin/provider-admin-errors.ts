@@ -8,10 +8,18 @@ import "server-only";
 // covers the pre-existing self-service apply-as-provider.ts flow and has
 // a different, smaller code set.
 
+// REASON_REQUIRED / PROVIDER_NOT_PENDING added for the Review/Reject/Resubmit
+// lifecycle: rejectProvider() needs a mandatory-reason error and a
+// not-in-a-rejectable-state error. PROVIDER_NOT_PENDING is also the code
+// approveProvider() already returns (it previously had no rendered message on
+// the admin detail page); adding it here only makes that pre-existing code
+// display a message — it does not change approval behavior.
 export type ProviderAdminActionErrorCode =
   | "INVALID_INPUT"
+  | "REASON_REQUIRED"
   | "NO_ADMIN_PROFILE"
   | "PROVIDER_NOT_FOUND"
+  | "PROVIDER_NOT_PENDING"
   | "USER_NOT_FOUND"
   | "USER_ALREADY_HAS_PROVIDER_PROFILE"
   | "SLUG_TAKEN"
@@ -21,8 +29,10 @@ export type ProviderAdminActionErrorCode =
 
 const PROVIDER_ADMIN_ACTION_ERROR_CODES: readonly ProviderAdminActionErrorCode[] = [
   "INVALID_INPUT",
+  "REASON_REQUIRED",
   "NO_ADMIN_PROFILE",
   "PROVIDER_NOT_FOUND",
+  "PROVIDER_NOT_PENDING",
   "USER_NOT_FOUND",
   "USER_ALREADY_HAS_PROVIDER_PROFILE",
   "SLUG_TAKEN",
@@ -40,8 +50,10 @@ export function isProviderAdminActionErrorCode(value: unknown): value is Provide
 
 const PROVIDER_ADMIN_ERROR_TRANSLATION_KEYS = {
   INVALID_INPUT: "providerErrorInvalidInput",
+  REASON_REQUIRED: "providerErrorReasonRequired",
   NO_ADMIN_PROFILE: "providerErrorNoAdminProfile",
   PROVIDER_NOT_FOUND: "providerErrorNotFound",
+  PROVIDER_NOT_PENDING: "providerErrorNotPending",
   USER_NOT_FOUND: "providerErrorUserNotFound",
   USER_ALREADY_HAS_PROVIDER_PROFILE: "providerErrorUserAlreadyHasProfile",
   SLUG_TAKEN: "providerErrorSlugTaken",

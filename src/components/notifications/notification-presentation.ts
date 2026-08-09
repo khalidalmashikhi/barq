@@ -63,6 +63,8 @@ const PRESENTATION_BY_KIND: Record<string, NotificationPresentation> = {
   NEW_REVIEW_RECEIVED: { Icon: Star, badgeVariant: "success", categoryKey: "categoryReview" },
   // Customer → Provider Journey (C) — provider application approved.
   PROVIDER_APPROVED: { Icon: BadgeCheck, badgeVariant: "success", categoryKey: "categoryApproved" },
+  // Provider Review / Reject / Resubmit — application rejected (resubmittable).
+  PROVIDER_REJECTED: { Icon: XCircle, badgeVariant: "default", categoryKey: "categoryRejected" },
 };
 
 export function getNotificationPresentation(kind: string | undefined): NotificationPresentation {

@@ -49,7 +49,7 @@ vi.mock("./barq-user", () => ({
   resolveBarqUser: (...args: unknown[]) => resolveBarqUserMock(...args),
 }));
 
-const { hasActiveAdminProfile, hasApprovedProviderProfile, requireProvider, requireAuth, requireAdmin, requireStaff } = await import("./rbac");
+const { hasActiveAdminProfile, hasApprovedProviderProfile, requireProvider, requireApprovedProvider, requireAuth, requireAdmin, requireStaff } = await import("./rbac");
 const { ForbiddenError, UnauthenticatedError } = await import("./errors");
 
 const USER_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
@@ -120,6 +120,34 @@ describe("requireAdmin — active-admin gate", () => {
     adminFindUniqueMock.mockResolvedValue(null);
     const error = await requireAdmin().catch((e) => e);
     expect(error).toBeInstanceOf(ForbiddenError);
+  });
+});
+
+// Provider Review / Reject / Resubmit — a REJECTED provider must have the
+// SAME access as APPLIED: requireProvider() admits them (so they can reach
+// /provider, settings, media, and their own preview to correct + resubmit),
+// while requireApprovedProvider() still blocks them (service creation/
+// publishing/availability/booking management stay approved-only). No RBAC code
+// changed to add REJECTED — these prove the existing gates already behave so.
+describe("REJECTED provider — APPLIED-like access semantics", () => {
+  it("requireProvider() admits a REJECTED provider (not SUSPENDED/DEACTIVATED)", async () => {
+    mockAuthenticatedWithStatus("ACTIVE");
+    providerFindUniqueMock.mockResolvedValue({ id: "prov-1", userId: USER_ID, status: "REJECTED" });
+    const { provider } = await requireProvider();
+    expect(provider.status).toBe("REJECTED");
+  });
+
+  it("requireApprovedProvider() BLOCKS a REJECTED provider with PROVIDER_NOT_APPROVED", async () => {
+    mockAuthenticatedWithStatus("ACTIVE");
+    providerFindUniqueMock.mockResolvedValue({ id: "prov-1", userId: USER_ID, status: "REJECTED" });
+    const error = await requireApprovedProvider().catch((e) => e);
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect((error as InstanceType<typeof ForbiddenError>).code).toBe("PROVIDER_NOT_APPROVED");
+  });
+
+  it("hasApprovedProviderProfile() is false for REJECTED (customer-shell doorway → Application status, not workspace)", async () => {
+    providerFindUniqueMock.mockResolvedValue({ status: "REJECTED" });
+    expect(await hasApprovedProviderProfile(USER_ID)).toBe(false);
   });
 });
 

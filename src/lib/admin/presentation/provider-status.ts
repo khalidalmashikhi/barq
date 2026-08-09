@@ -12,6 +12,7 @@ const PROVIDER_STATUS_BADGE_VARIANT = {
   APPLIED: "default",
   UNDER_REVIEW: "info",
   APPROVED: "success",
+  REJECTED: "danger",
   SUSPENDED: "warning",
   DEACTIVATED: "danger",
 } as const satisfies Record<ProviderStatus, "default" | "success" | "warning" | "danger" | "info">;
@@ -20,6 +21,7 @@ const PROVIDER_STATUS_TRANSLATION_KEYS = {
   APPLIED: "statusApplied",
   UNDER_REVIEW: "statusUnderReview",
   APPROVED: "statusApproved",
+  REJECTED: "statusRejected",
   SUSPENDED: "statusSuspended",
   DEACTIVATED: "statusDeactivated",
 } as const satisfies Record<ProviderStatus, string>;

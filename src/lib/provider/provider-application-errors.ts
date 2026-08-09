@@ -6,11 +6,20 @@ import "server-only";
 // never displayed directly; getProviderApplicationErrorTranslationKey
 // maps each one to a translation key.
 
-export type ProviderApplicationErrorCode = "INVALID_INPUT" | "ALREADY_HAS_PROVIDER_PROFILE" | "UNKNOWN_ERROR";
+// NOT_REJECTED — resubmitProviderApplication() rejected the transition because
+// the caller's provider is not currently REJECTED (stale/concurrent action, or
+// the provider is not in a resubmittable state). Reuses this same self-service
+// error set the /provider-application page already renders.
+export type ProviderApplicationErrorCode =
+  | "INVALID_INPUT"
+  | "ALREADY_HAS_PROVIDER_PROFILE"
+  | "NOT_REJECTED"
+  | "UNKNOWN_ERROR";
 
 const PROVIDER_APPLICATION_ERROR_CODES: readonly ProviderApplicationErrorCode[] = [
   "INVALID_INPUT",
   "ALREADY_HAS_PROVIDER_PROFILE",
+  "NOT_REJECTED",
   "UNKNOWN_ERROR",
 ];
 
@@ -24,6 +33,7 @@ export function isProviderApplicationErrorCode(value: unknown): value is Provide
 const TRANSLATION_KEYS = {
   INVALID_INPUT: "applicationErrorInvalidInput",
   ALREADY_HAS_PROVIDER_PROFILE: "applicationErrorAlreadyApplied",
+  NOT_REJECTED: "applicationErrorNotRejected",
   UNKNOWN_ERROR: "applicationErrorUnknown",
 } as const satisfies Record<ProviderApplicationErrorCode, string>;
 

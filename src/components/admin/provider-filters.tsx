@@ -10,7 +10,7 @@ import { getPathname } from "@/i18n/navigation";
 // removable filter chips — this codebase's established search/filter
 // convention, not a new one.
 
-const PROVIDER_STATUSES = ["APPLIED", "UNDER_REVIEW", "APPROVED", "SUSPENDED", "DEACTIVATED"] as const;
+const PROVIDER_STATUSES = ["APPLIED", "UNDER_REVIEW", "APPROVED", "REJECTED", "SUSPENDED", "DEACTIVATED"] as const;
 
 type ProviderFiltersProps = {
   currentSearch?: string;

@@ -5,6 +5,7 @@ import { ArrowRight, Edit, Eye, Compass, ClipboardList } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderDetail } from "@/lib/admin/get-provider-detail";
 import { approveProvider } from "@/lib/admin/approve-provider";
+import { rejectProvider } from "@/lib/admin/reject-provider";
 import { archiveProvider } from "@/lib/admin/archive-provider";
 import { publishProvider, unpublishProvider } from "@/lib/admin/toggle-provider-visibility";
 import { getProviderStatusBadgeVariant, getProviderStatusTranslationKey } from "@/lib/admin/presentation/provider-status";
@@ -114,6 +115,18 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
       </div>
 
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
+
+      {provider.status === "REJECTED" && provider.rejectionReason && (
+        <Card hoverLift={false}>
+          <h2 className="text-sm font-semibold text-danger">{t("providerRejectionReasonLabel")}</h2>
+          {provider.rejectedAt && (
+            <p className="mt-1 text-xs text-foreground/40">
+              {formatDate(provider.rejectedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+          )}
+          <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/80">{provider.rejectionReason}</p>
+        </Card>
+      )}
 
       <Card hoverLift={false}>
         <h2 className="text-sm font-semibold text-foreground">{t("providerDetailsTitle")}</h2>
@@ -228,6 +241,42 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             </form>
           )}
         </div>
+
+        {/* Reject — only for a pending application (APPLIED/UNDER_REVIEW). A
+            mandatory reason (validated server-side too) transitions the provider
+            to REJECTED; the applicant can then correct and resubmit. Not shown
+            for REJECTED — the applicant must resubmit back to APPLIED before a
+            fresh review cycle. */}
+        {isPending && (
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const reason = formData.get("reason");
+              const result = await rejectProvider(id, typeof reason === "string" ? reason : "");
+              if (!result.ok) {
+                redirect({ href: `/admin/providers/${id}?error=${result.error}`, locale });
+                return;
+              }
+              redirect({ href: `/admin/providers/${id}`, locale });
+            }}
+            className="mt-4 flex flex-col gap-2 border-t border-border pt-4"
+          >
+            <label htmlFor="reject-reason" className="text-xs font-medium text-foreground/50">
+              {t("rejectReasonLabel")}
+            </label>
+            <textarea
+              id="reject-reason"
+              name="reason"
+              required
+              rows={3}
+              placeholder={t("rejectReasonPlaceholder")}
+              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+            />
+            <SubmitButton className="self-start rounded-full border border-danger/30 px-5 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+              {t("rejectButton")}
+            </SubmitButton>
+          </form>
+        )}
       </Card>
 
       <Card hoverLift={false}>
