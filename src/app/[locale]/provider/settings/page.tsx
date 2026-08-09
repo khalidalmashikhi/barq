@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { redirect } from "@/i18n/navigation";
+import { redirect, Link } from "@/i18n/navigation";
+import { Eye } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderProfileForEdit } from "@/lib/provider/queries/get-provider-profile-for-edit";
 import { updateProviderProfile } from "@/lib/provider/update-provider-profile";
@@ -83,9 +84,22 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t("settingsTitle")}</h1>
-        <p className="mt-1 text-sm text-foreground/60">{t("settingsSubtitle")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t("settingsTitle")}</h1>
+          <p className="mt-1 text-sm text-foreground/60">{t("settingsSubtitle")}</p>
+        </div>
+        {/* Preview the public storefront as customers will see it (works even
+            before approval / while hidden) — Unified Preview System. New tab. */}
+        <Link
+          href="/provider/preview"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+        >
+          <Eye size={14} strokeWidth={1.75} />
+          {t("previewProfileButton")}
+        </Link>
       </div>
 
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}

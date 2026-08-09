@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { ArrowRight, Edit, Compass, ClipboardList } from "lucide-react";
+import { ArrowRight, Edit, Eye, Compass, ClipboardList } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderDetail } from "@/lib/admin/get-provider-detail";
 import { approveProvider } from "@/lib/admin/approve-provider";
@@ -92,6 +92,17 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
           <Badge variant={provider.visible ? "success" : "default"}>
             {provider.visible ? t("providerVisibleLabel") : t("providerHiddenLabel")}
           </Badge>
+          {/* See the provider's customer-facing storefront before approving —
+              Unified Preview System. New tab. */}
+          <Link
+            href={`/admin/providers/${id}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+          >
+            <Eye size={14} strokeWidth={1.75} />
+            {t("previewProfileButton")}
+          </Link>
           <Link
             href={`/admin/providers/${id}/edit`}
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"

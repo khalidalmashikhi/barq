@@ -53,18 +53,13 @@ type ProviderRow = {
   logoUrl: string | null;
 };
 
-export async function getProviderProfile(idOrSlug: string): Promise<ProviderProfile | null> {
-  const provider = await prisma.provider.findFirst({
-    where: {
-      status: "APPROVED",
-      visible: true,
-      ...(isValidUuid(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug }),
-    },
-  });
-
-  if (!provider) return null;
-
-  const row = provider as ProviderRow;
+// Shared row -> ProviderProfile mapping, used by BOTH the gated public read
+// and the ungated preview read so their presentation shape is guaranteed
+// identical (Unified Preview System). Aggregates here (published-service count,
+// rating, category chips, media) do not depend on provider visibility, so they
+// are correct for a not-yet-public provider too. Presentation only — it applies
+// no visibility gate; the caller decides which provider row to pass.
+async function buildProviderProfile(row: ProviderRow): Promise<ProviderProfile> {
   const locale = await getLocale();
 
   const [publishedServicesCount, ratingAggregate, categories, media] = await Promise.all([
@@ -93,4 +88,34 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
     reviewCount: ratingAggregate._count.value,
     categories,
   };
+}
+
+export async function getProviderProfile(idOrSlug: string): Promise<ProviderProfile | null> {
+  const provider = await prisma.provider.findFirst({
+    where: {
+      status: "APPROVED",
+      visible: true,
+      ...(isValidUuid(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug }),
+    },
+  });
+
+  if (!provider) return null;
+  return buildProviderProfile(provider as ProviderRow);
+}
+
+// Unified Preview System — preview-capable read. IDENTICAL shape/mapping to
+// getProviderProfile, but by id and WITHOUT the APPROVED+visible gate, so an
+// authorized provider (self) or admin can preview a not-yet-public storefront
+// (APPLIED/UNDER_REVIEW, or APPROVED-but-visible=false). This does NOT weaken
+// getProviderProfile (its gate above is untouched) and no PUBLIC route calls
+// this: authorization (provider self-context / admin RBAC) is enforced by the
+// caller BEFORE this runs. Returns null only for a malformed id or a
+// nonexistent provider.
+export async function getProviderProfileForPreview(providerId: string): Promise<ProviderProfile | null> {
+  if (!isValidUuid(providerId)) return null;
+
+  const provider = await prisma.provider.findUnique({ where: { id: providerId } });
+  if (!provider) return null;
+
+  return buildProviderProfile(provider as ProviderRow);
 }
