@@ -27,7 +27,7 @@ import type { Locale } from "@/i18n/locales";
 // so storing all 8 lets this notification render natively in every locale,
 // rather than inheriting the ar/en-only limitation older rows carry.
 
-export type ProviderApplicationNotificationKind = "PROVIDER_APPROVED" | "PROVIDER_REJECTED";
+export type ProviderApplicationNotificationKind = "PROVIDER_APPROVED" | "PROVIDER_REJECTED" | "PROVIDER_DOCUMENT_REJECTED";
 
 // PROVIDER_REJECTED is a STATIC localized message only — it deliberately does
 // NOT embed the admin's free-text rejection reason (that is single-language and
@@ -53,6 +53,19 @@ const MESSAGES: Record<ProviderApplicationNotificationKind, Record<Locale, strin
     fr: "Votre demande de prestataire n'a pas été approuvée. Ouvrez votre demande pour voir le motif et la soumettre à nouveau.",
     cs: "Vaše žádost o poskytovatele nebyla schválena. Otevřete žádost, kde uvidíte důvod a můžete ji znovu odeslat.",
     ru: "Ваша заявка на статус поставщика не одобрена. Откройте заявку, чтобы увидеть причину и подать её повторно.",
+  },
+  // Document-level rejection (Gate 3) — static, no embedded free-text reason;
+  // the actual reason is shown on /provider/verification. This does NOT reject
+  // the whole provider application.
+  PROVIDER_DOCUMENT_REJECTED: {
+    ar: "لم تتم الموافقة على أحد مستندات التحقق الخاصة بك. افتح صفحة التحقق لمعرفة السبب واستبدال المستند.",
+    en: "One of your verification documents was not approved. Open your verification page to see why and replace it.",
+    de: "Eines Ihrer Verifizierungsdokumente wurde nicht genehmigt. Öffnen Sie Ihre Verifizierungsseite, um den Grund zu sehen und es zu ersetzen.",
+    it: "Uno dei tuoi documenti di verifica non è stato approvato. Apri la pagina di verifica per vedere il motivo e sostituirlo.",
+    pl: "Jeden z Twoich dokumentów weryfikacyjnych nie został zatwierdzony. Otwórz stronę weryfikacji, aby zobaczyć powód i go zastąpić.",
+    fr: "L'un de vos documents de vérification n'a pas été approuvé. Ouvrez votre page de vérification pour voir le motif et le remplacer.",
+    cs: "Jeden z vašich ověřovacích dokumentů nebyl schválen. Otevřete stránku ověření, kde uvidíte důvod a můžete jej nahradit.",
+    ru: "Один из ваших документов для проверки не одобрен. Откройте страницу проверки, чтобы узнать причину и заменить его.",
   },
 };
 

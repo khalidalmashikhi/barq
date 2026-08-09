@@ -41,6 +41,16 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// Provider Verification & Documents (Gate 3) — the server-side completeness gate
+// is a composed primitive with its own unit tests (assert-provider-approvable.test.ts).
+// Here we mock it so these tests exercise approveProvider's WIRING of it: an empty
+// blocker array means approvable (unchanged happy path); a non-empty array must
+// short-circuit before any transition/audit/notify.
+const assertApprovableMock = vi.fn();
+vi.mock("@/lib/provider/documents/assert-provider-approvable", () => ({
+  assertProviderApprovable: (...args: unknown[]) => assertApprovableMock(...args),
+}));
+
 const { approveProvider } = await import("./approve-provider");
 
 afterEach(() => {
@@ -49,6 +59,7 @@ afterEach(() => {
   updateMock.mockReset();
   auditCreateMock.mockReset();
   notificationCreateMock.mockReset();
+  assertApprovableMock.mockReset();
 });
 
 describe("approveProvider", () => {
@@ -75,6 +86,7 @@ describe("approveProvider", () => {
   it("updates the provider and records an audit event atomically, in the same transaction", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
+    assertApprovableMock.mockResolvedValue([]);
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
     notificationCreateMock.mockResolvedValue({});
@@ -101,6 +113,7 @@ describe("approveProvider", () => {
   it("creates a PROVIDER_APPROVED notification for the provider's user AFTER a successful approval", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
+    assertApprovableMock.mockResolvedValue([]);
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
     notificationCreateMock.mockResolvedValue({});
@@ -125,6 +138,7 @@ describe("approveProvider", () => {
   it("still succeeds (status + audit committed) even if the post-approval notification write throws", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "UNDER_REVIEW", userId: "user-9" });
+    assertApprovableMock.mockResolvedValue([]);
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
     notificationCreateMock.mockRejectedValue(new Error("notification store down"));
@@ -140,6 +154,32 @@ describe("approveProvider", () => {
     });
     expect(auditCreateMock).toHaveBeenCalledTimes(1);
     expect(notificationCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses approval with INCOMPLETE_DOCUMENTS (and the blockers) when required documents are not complete", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
+    const blockers = [{ type: "IDENTITY_PROOF", reason: "MISSING" }];
+    assertApprovableMock.mockResolvedValue(blockers);
+
+    const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
+
+    expect(result).toEqual({ ok: false, error: "INCOMPLETE_DOCUMENTS", blockers });
+  });
+
+  it("does NOT transition, audit, or notify when approval is blocked by incomplete documents", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: "provider-1", status: "UNDER_REVIEW", userId: "user-9" });
+    assertApprovableMock.mockResolvedValue([{ type: "COMMERCIAL_REGISTRATION", reason: "NOT_APPROVED" }]);
+
+    const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
+
+    expect(result.ok).toBe(false);
+    // The completeness gate short-circuits BEFORE the transaction and the
+    // post-commit notification — none of these side effects may fire.
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+    expect(notificationCreateMock).not.toHaveBeenCalled();
   });
 
   it("returns UNKNOWN_ERROR when an unexpected exception occurs", async () => {

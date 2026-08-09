@@ -1,31 +1,32 @@
 import { NextResponse } from "next/server";
 import { UnauthenticatedError } from "@/lib/auth";
 import { replaceProviderDocument } from "@/lib/provider/documents/replace-provider-document";
-import { providerDocumentErrorHttpStatus } from "@/lib/provider/documents/provider-document-errors";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 
-// Provider document REPLACE — Gate 2. Multipart route handler (new file up to
-// 4 MB). Thin wrapper over replaceProviderDocument(), which self-authorizes
-// (requireProvider + ownership), validates the new file, uploads a NEW immutable
-// object, and swaps the DB reference under the RC3 version-token + conditional
-// guard. The `versionToken` binds the replace to the object the client last saw
-// (opaque; never the raw objectKey). Identity comes only from the authenticated
-// context.
+// Provider document REPLACE — Gate 2 domain, Gate 3 progressive-form transport.
+// Multipart route handler (new file up to 4 MB). Delegates to
+// replaceProviderDocument() (self-authorizes + ownership; validates; uploads a
+// NEW immutable object; swaps under the RC3 version-token + conditional guard).
+// The opaque versionToken binds the replace to the object the client last saw;
+// objectKey is never involved. Redirects back to the verification page.
+
+const LOCALES = ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"] as const;
+const DEFAULT_LOCALE = "ar";
+function resolveLocale(v: FormDataEntryValue | null): string {
+  return typeof v === "string" && (LOCALES as readonly string[]).includes(v) ? v : DEFAULT_LOCALE;
+}
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   return withRequestTracing("provider.documents.replace", async () => {
+    const { id } = await ctx.params;
+    const formData = await request.formData();
+    const locale = resolveLocale(formData.get("locale"));
+    const dest = (q: string) => new URL(`/${locale}/provider/verification${q}`, request.url);
     try {
-      const { id } = await ctx.params;
-      const formData = await request.formData();
       const versionToken = formData.get("versionToken");
       const file = formData.get("file");
-
-      if (typeof versionToken !== "string") {
-        return NextResponse.json({ ok: false, error: "INVALID_INPUT" }, { status: 400 });
-      }
-      if (!(file instanceof File) || file.size === 0) {
-        return NextResponse.json({ ok: false, error: "EMPTY_FILE" }, { status: 400 });
-      }
+      if (typeof versionToken !== "string") return NextResponse.redirect(dest("?docError=INVALID_INPUT"), 303);
+      if (!(file instanceof File) || file.size === 0) return NextResponse.redirect(dest("?docError=EMPTY_FILE"), 303);
 
       const result = await replaceProviderDocument({
         documentId: id,
@@ -34,11 +35,10 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
         declaredMimeType: file.type,
         bytes: await file.arrayBuffer(),
       });
-
-      return NextResponse.json(result, { status: result.ok ? 200 : providerDocumentErrorHttpStatus(result.error) });
+      return NextResponse.redirect(dest(result.ok ? "?docNotice=replaced" : `?docError=${result.error}`), 303);
     } catch (error) {
       if (error instanceof UnauthenticatedError) {
-        return NextResponse.json({ ok: false, error: "UNAUTHENTICATED" }, { status: 401 });
+        return NextResponse.redirect(new URL(`/${locale}/login`, request.url), 303);
       }
       throw error;
     }

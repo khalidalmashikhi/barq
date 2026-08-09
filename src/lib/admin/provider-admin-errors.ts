@@ -25,6 +25,12 @@ export type ProviderAdminActionErrorCode =
   | "SLUG_TAKEN"
   | "PROVIDER_NOT_APPROVED"
   | "INVALID_STATUS_TRANSITION"
+  // INCOMPLETE_DOCUMENTS — the approval completeness gate (Gate 3): approveProvider()
+  // returns this when required verification documents are missing or not yet
+  // APPROVED. The admin UI shows the specific blockers proactively and disables
+  // Approve, so this code is the defense-in-depth message for the race where
+  // blockers appear between page render and click.
+  | "INCOMPLETE_DOCUMENTS"
   | "UNKNOWN_ERROR";
 
 const PROVIDER_ADMIN_ACTION_ERROR_CODES: readonly ProviderAdminActionErrorCode[] = [
@@ -38,6 +44,7 @@ const PROVIDER_ADMIN_ACTION_ERROR_CODES: readonly ProviderAdminActionErrorCode[]
   "SLUG_TAKEN",
   "PROVIDER_NOT_APPROVED",
   "INVALID_STATUS_TRANSITION",
+  "INCOMPLETE_DOCUMENTS",
   "UNKNOWN_ERROR",
 ];
 
@@ -59,6 +66,7 @@ const PROVIDER_ADMIN_ERROR_TRANSLATION_KEYS = {
   SLUG_TAKEN: "providerErrorSlugTaken",
   PROVIDER_NOT_APPROVED: "providerErrorNotApproved",
   INVALID_STATUS_TRANSITION: "providerErrorInvalidTransition",
+  INCOMPLETE_DOCUMENTS: "providerErrorIncompleteDocuments",
   UNKNOWN_ERROR: "providerErrorUnknown",
 } as const satisfies Record<ProviderAdminActionErrorCode, string>;
 

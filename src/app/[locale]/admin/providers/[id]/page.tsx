@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import type { ProviderType } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { ArrowRight, Edit, Eye, Compass, ClipboardList } from "lucide-react";
+import { ArrowRight, Edit, Eye, Compass, ClipboardList, FileCheck2, Check, X } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderDetail } from "@/lib/admin/get-provider-detail";
 import { approveProvider } from "@/lib/admin/approve-provider";
@@ -12,6 +13,20 @@ import { getProviderStatusBadgeVariant, getProviderStatusTranslationKey } from "
 import { isProviderAdminActionErrorCode, getProviderAdminErrorTranslationKey } from "@/lib/admin/provider-admin-errors";
 import { getAuditEventsForEntity, type AuditEventItem } from "@/lib/admin/get-audit-events-for-entity";
 import { AuditHistory } from "@/components/admin/audit-history";
+import { assertProviderApprovable, type RequiredDocumentBlocker } from "@/lib/provider/documents/assert-provider-approvable";
+import {
+  listProviderDocumentsForAdmin,
+  type AdminProviderDocumentListItem,
+} from "@/lib/provider/documents/list-provider-documents-for-admin";
+import {
+  PROVIDER_DOCUMENT_TYPE_LABEL_KEYS,
+  requiredDocumentTypesFor,
+  isValidProviderDocumentTypeKey,
+} from "@/lib/provider-document-types";
+import {
+  isProviderDocumentErrorCode,
+  getProviderDocumentErrorTranslationKey,
+} from "@/lib/provider/documents/provider-document-errors";
 import { isValidUuid } from "@/lib/uuid";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +35,28 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
+
+// Verification-document presentation maps (Gate 3). Same status→badge and
+// blocker-reason→message convention as the provider-facing verification page,
+// kept local to this admin surface (no shared React component; the checklist
+// logic itself is derived server-side by assertProviderApprovable /
+// listProviderDocumentsForAdmin, never re-computed in the client).
+const DOC_STATUS_BADGE = { PENDING: "info", APPROVED: "success", REJECTED: "danger" } as const;
+const DOC_STATUS_LABEL_KEY = {
+  PENDING: "documentStatusPending",
+  APPROVED: "documentStatusApproved",
+  REJECTED: "documentStatusRejected",
+} as const;
+const BLOCKER_REASON_LABEL_KEY = {
+  MISSING: "documentBlockerMissing",
+  NOT_APPROVED: "documentBlockerNotApproved",
+} as const;
+
+function formatDocumentBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 // Provider detail — Phase 2.2 (Provider Admin UI). Mirrors
 // admin/categories/[id]/page.tsx's shape: status/visibility control
@@ -34,12 +71,12 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; docError?: string; docNotice?: string }>;
 };
 
 export default async function ProviderDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, docError, docNotice } = await searchParams;
   const t = await getServerTranslator("admin");
   const locale = await getLocale();
 
@@ -67,6 +104,8 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
   }
 
   const errorMessage = error && isProviderAdminActionErrorCode(error) ? t(getProviderAdminErrorTranslationKey(error)) : null;
+  const docErrorMessage =
+    docError && isProviderDocumentErrorCode(docError) ? t(getProviderDocumentErrorTranslationKey(docError)) : null;
   const isPending = provider.status === "APPLIED" || provider.status === "UNDER_REVIEW";
 
   let auditEvents: AuditEventItem[] = [];
@@ -75,6 +114,31 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
   } catch {
     auditEvents = [];
   }
+
+  // Verification documents (Gate 3) — one admin-side read of this provider's
+  // documents plus the proactive approval blockers. Both are best-effort: if the
+  // storage-backed read or the blocker check fails, the rest of the admin page
+  // (status control, related links, audit) must still render. `documents` is the
+  // raw list; `blockers` drives the approval-gate panel and disables Approve.
+  let documents: AdminProviderDocumentListItem[] = [];
+  try {
+    documents = await listProviderDocumentsForAdmin(id);
+  } catch {
+    documents = [];
+  }
+  let blockers: RequiredDocumentBlocker[] = [];
+  try {
+    blockers = await assertProviderApprovable(id);
+  } catch {
+    blockers = [];
+  }
+  const hasBlockers = blockers.length > 0;
+  // getProviderDetail types providerType as a plain string; the DB value is
+  // always a valid ProviderType enum member. Cast narrowly here so the pure
+  // requirement helper (keyed by ProviderType) type-checks.
+  const requiredTypes = new Set<string>(
+    requiredDocumentTypesFor({ providerType: provider.providerType as ProviderType })
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -115,6 +179,8 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
       </div>
 
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
+      {docNotice && <Alert variant="success">{t("documentReviewSaved")}</Alert>}
+      {docErrorMessage && <Alert variant="danger">{docErrorMessage}</Alert>}
 
       {provider.status === "REJECTED" && provider.rejectionReason && (
         <Card hoverLift={false}>
@@ -188,8 +254,28 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
 
       <Card hoverLift={false}>
         <h2 className="text-sm font-semibold text-foreground">{t("providerActionsTitle")}</h2>
+
+        {/* Approval blocker panel (Gate 3) — shown proactively for a pending
+            application whose required verification documents are missing or not
+            yet APPROVED. The server-side gate in approveProvider() is the real
+            enforcement; this panel + the disabled Approve button below are the
+            visible reflection of it, so an admin knows WHY approval is blocked. */}
+        {isPending && hasBlockers && (
+          <Alert variant="warning" title={t("approvalBlockedTitle")} className="mt-3">
+            <ul className="mt-2 flex flex-col gap-1 text-sm">
+              {blockers.map((blocker) => (
+                <li key={blocker.type}>
+                  <span className="font-medium">{t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[blocker.type])}</span>
+                  {" — "}
+                  {t(BLOCKER_REASON_LABEL_KEY[blocker.reason])}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-3">
-          {isPending && (
+          {isPending && !hasBlockers && (
             <form
               action={async () => {
                 "use server";
@@ -205,6 +291,20 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
                 {t("approveButton")}
               </SubmitButton>
             </form>
+          )}
+
+          {/* Blockers present → Approve is unavailable (disabled, non-submitting).
+              The panel above states the reasons. */}
+          {isPending && hasBlockers && (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title={t("approveDisabledDocumentsHint")}
+              className="cursor-not-allowed rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground opacity-50"
+            >
+              {t("approveButton")}
+            </button>
           )}
 
           <form
@@ -276,6 +376,121 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
               {t("rejectButton")}
             </SubmitButton>
           </form>
+        )}
+      </Card>
+
+      {/* Verification Documents (Gate 3) — the admin review surface. Not a
+          separate subsystem: it reads via listProviderDocumentsForAdmin (Gate 2)
+          and each action posts to the Gate-2 admin review route. Admin acts on an
+          opaque versionToken (never the objectKey); a STALE_DOCUMENT result from a
+          concurrent change surfaces as documentErrorStaleDocument (reload). A
+          document rejection here does NOT reject the whole provider. */}
+      <Card hoverLift={false}>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <FileCheck2 size={16} strokeWidth={1.75} />
+          {t("verificationDocumentsTitle")}
+        </h2>
+
+        {documents.length === 0 ? (
+          <p className="mt-3 text-sm text-foreground/50">{t("noDocumentsUploaded")}</p>
+        ) : (
+          <div className="mt-3 flex flex-col gap-4">
+            {documents.map((doc) => {
+              const typeLabel = isValidProviderDocumentTypeKey(doc.type)
+                ? t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[doc.type])
+                : doc.type;
+              const isRequired = requiredTypes.has(doc.type);
+              return (
+                <div key={doc.id} className="rounded-xl border border-border p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">{typeLabel}</span>
+                    <Badge variant={isRequired ? "default" : "info"}>
+                      {isRequired ? t("documentRequiredLabel") : t("documentOptionalLabel")}
+                    </Badge>
+                    <Badge variant={DOC_STATUS_BADGE[doc.status]}>{t(DOC_STATUS_LABEL_KEY[doc.status])}</Badge>
+                  </div>
+
+                  <p className="mt-2 text-sm text-foreground/70">
+                    {doc.originalFilename}{" "}
+                    <span className="text-foreground/40">
+                      · {doc.mimeType} · {formatDocumentBytes(doc.sizeBytes)}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-foreground/40">
+                    {t("documentUploadedAtLabel")}:{" "}
+                    {formatDate(doc.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+                    {doc.reviewedAt && (
+                      <>
+                        {" · "}
+                        {t("documentReviewedAtLabel")}:{" "}
+                        {formatDate(doc.reviewedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+                      </>
+                    )}
+                  </p>
+
+                  {doc.status === "REJECTED" && doc.rejectionReason && (
+                    <div className="mt-2 rounded-xl border border-danger/30 bg-danger/5 p-3">
+                      <span className="text-xs font-medium text-danger">{t("documentRejectionReasonLabel")}</span>
+                      <p className="whitespace-pre-wrap text-sm text-foreground/80">{doc.rejectionReason}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap items-start gap-3">
+                    <a
+                      href={`/api/provider/documents/${doc.id}/view`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+                    >
+                      <Eye size={14} strokeWidth={1.75} />
+                      {t("documentViewButton")}
+                    </a>
+
+                    {doc.status !== "APPROVED" && (
+                      <form action={`/api/admin/provider-documents/${doc.id}/review`} method="post">
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="providerId" value={id} />
+                        <input type="hidden" name="versionToken" value={doc.versionToken} />
+                        <input type="hidden" name="decision" value="APPROVE" />
+                        <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                          <Check size={14} strokeWidth={1.75} />
+                          {t("documentApproveButton")}
+                        </SubmitButton>
+                      </form>
+                    )}
+                  </div>
+
+                  {doc.status !== "REJECTED" && (
+                    <form
+                      action={`/api/admin/provider-documents/${doc.id}/review`}
+                      method="post"
+                      className="mt-3 flex flex-col gap-2 border-t border-border pt-3"
+                    >
+                      <input type="hidden" name="locale" value={locale} />
+                      <input type="hidden" name="providerId" value={id} />
+                      <input type="hidden" name="versionToken" value={doc.versionToken} />
+                      <input type="hidden" name="decision" value="REJECT" />
+                      <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/50">
+                        {t("documentRejectReasonLabel")}
+                      </label>
+                      <textarea
+                        id={`reject-doc-${doc.id}`}
+                        name="reason"
+                        required
+                        rows={2}
+                        placeholder={t("documentRejectReasonPlaceholder")}
+                        className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+                      />
+                      <SubmitButton className="inline-flex items-center gap-1.5 self-start rounded-full border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+                        <X size={14} strokeWidth={1.75} />
+                        {t("documentRejectButton")}
+                      </SubmitButton>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </Card>
 

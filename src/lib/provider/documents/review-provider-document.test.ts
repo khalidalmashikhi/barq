@@ -16,9 +16,15 @@ vi.mock("@/lib/auth", () => ({
 const findUniqueMock = vi.fn();
 const updateManyMock = vi.fn();
 const auditCreateMock = vi.fn();
+// Gate 3 — the post-reject PROVIDER_DOCUMENT_REJECTED notification goes through
+// prisma.notification.create (via notifyProviderApplicationEvent, which imports
+// this same mocked prisma). Shared so both the review write and the notify
+// helper resolve against one mock.
+const notificationCreateMock = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     providerDocument: { findUnique: (...a: unknown[]) => findUniqueMock(...a) },
+    notification: { create: (...a: unknown[]) => notificationCreateMock(...a) },
     $transaction: async (cb: (tx: unknown) => unknown) =>
       cb({
         providerDocument: { updateMany: (...a: unknown[]) => updateManyMock(...a) },
@@ -33,13 +39,22 @@ const { documentVersionToken } = await import("./document-version-token");
 
 const KEY = "provider-documents/prov-1/commercial_registration/v1.pdf";
 const token = documentVersionToken(KEY);
-const pendingDoc = { id: "doc-1", providerId: "prov-1", objectKey: KEY, type: "COMMERCIAL_REGISTRATION", status: "PENDING" };
+// Gate 3: findUnique now includes provider.userId (the notification recipient).
+const pendingDoc = {
+  id: "doc-1",
+  providerId: "prov-1",
+  objectKey: KEY,
+  type: "COMMERCIAL_REGISTRATION",
+  status: "PENDING",
+  provider: { userId: "user-9" },
+};
 
 beforeEach(() => {
   requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
   findUniqueMock.mockResolvedValue({ ...pendingDoc });
   updateManyMock.mockResolvedValue({ count: 1 });
   auditCreateMock.mockResolvedValue({});
+  notificationCreateMock.mockResolvedValue({});
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -90,5 +105,45 @@ describe("reviewProviderDocument", () => {
   it("maps a non-admin caller to NO_ADMIN_PROFILE", async () => {
     requireAdminMock.mockRejectedValue(new ForbiddenError());
     expect(await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "APPROVE" })).toEqual({ ok: false, error: "NO_ADMIN_PROFILE" });
+  });
+
+  // ---- Gate 3: PROVIDER_DOCUMENT_REJECTED notification ----
+
+  it("creates a PROVIDER_DOCUMENT_REJECTED notification for the provider's user on a successful reject", async () => {
+    await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "REJECT", reason: "blurry scan" });
+
+    expect(notificationCreateMock).toHaveBeenCalledTimes(1);
+    const arg = notificationCreateMock.mock.calls[0]![0] as {
+      data: { userId: string; channel: string; content: Record<string, unknown> };
+    };
+    expect(arg.data.userId).toBe("user-9");
+    expect(arg.data.channel).toBe("EMAIL");
+    expect(arg.data.content.kind).toBe("PROVIDER_DOCUMENT_REJECTED");
+    // Static, fully-localized content (all 8 BARQ locales), and NOT tied to a booking.
+    for (const locale of ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"]) {
+      expect(typeof arg.data.content[locale]).toBe("string");
+    }
+    expect("causingBookingId" in arg.data).toBe(false);
+  });
+
+  it("never embeds the admin's free-text rejection reason in the notification content", async () => {
+    await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "REJECT", reason: "SENSITIVE-REASON-TOKEN" });
+
+    const arg = notificationCreateMock.mock.calls[0]![0] as { data: { content: Record<string, unknown> } };
+    expect(JSON.stringify(arg.data.content)).not.toContain("SENSITIVE-REASON-TOKEN");
+  });
+
+  it("does NOT create a notification on approve", async () => {
+    await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "APPROVE" });
+    expect(notificationCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("still succeeds (review committed) even if the notification write throws", async () => {
+    notificationCreateMock.mockRejectedValue(new Error("notification store down"));
+    const result = await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "REJECT", reason: "blurry scan" });
+    // The review must NOT roll back or report failure — the notification is
+    // fire-and-forget after the committed transaction.
+    expect(result).toEqual({ ok: true });
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
   });
 });

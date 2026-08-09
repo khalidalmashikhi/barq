@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
 import { applyAsProvider } from "@/lib/provider/apply-as-provider";
 import { resubmitProviderApplication } from "@/lib/provider/resubmit-provider-application";
+import { assertProviderApprovable } from "@/lib/provider/documents/assert-provider-approvable";
 import { isProviderApplicationErrorCode, getProviderApplicationErrorTranslationKey } from "@/lib/provider/provider-application-errors";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
@@ -90,8 +91,16 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
 
   const existingProvider = await prisma.provider.findUnique({
     where: { userId: barqUserId },
-    select: { businessName: true, status: true, rejectionReason: true },
+    select: { id: true, businessName: true, status: true, rejectionReason: true },
   });
+
+  // Verification & Documents (Gate 3) — surface a link to the verification page
+  // when required documents are still incomplete (reuses the same approval-gate
+  // primitive; this page never renders the document UI itself).
+  const hasDocumentBlockers =
+    existingProvider && ["APPLIED", "UNDER_REVIEW", "REJECTED"].includes(existingProvider.status)
+      ? (await assertProviderApprovable(existingProvider.id)).length > 0
+      : false;
 
   const errorMessage =
     error && isProviderApplicationErrorCode(error) ? t(getProviderApplicationErrorTranslationKey(error)) : null;
@@ -129,6 +138,16 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
               </Link>
             )}
 
+            {(existingProvider.status === "APPLIED" || existingProvider.status === "UNDER_REVIEW") && hasDocumentBlockers && (
+              <Link
+                href="/provider/verification"
+                className="inline-flex w-fit items-center gap-1.5 rounded text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                {t("applicationCompleteDocumentsLink")}
+                <ArrowRight size={15} strokeWidth={1.75} className="rtl:-scale-x-100" />
+              </Link>
+            )}
+
             {existingProvider.status === "REJECTED" && (
               <div className="flex flex-col gap-3">
                 {existingProvider.rejectionReason && (
@@ -161,6 +180,12 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
                     className="inline-flex w-fit items-center gap-1.5 rounded text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     {t("applicationFixProfileLink")}
+                  </Link>
+                  <Link
+                    href="/provider/verification"
+                    className="inline-flex w-fit items-center gap-1.5 rounded text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  >
+                    {t("applicationVerificationLink")}
                   </Link>
                 </div>
               </div>

@@ -7,6 +7,8 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { notifyProviderApplicationEvent } from "@/lib/provider/notify-provider-application";
+import { assertProviderApprovable } from "@/lib/provider/documents/assert-provider-approvable";
+import type { RequiredDocumentBlocker } from "@/lib/provider-document-types";
 
 // Approve provider — Phase 4.1 ("Complete the Booking Lifecycle"),
 // requirement #6: "Build the minimum admin workflow required to make
@@ -26,9 +28,14 @@ export type ApproveProviderErrorCode =
   | "NO_ADMIN_PROFILE"
   | "PROVIDER_NOT_FOUND"
   | "PROVIDER_NOT_PENDING"
+  // Provider Verification & Documents (Gate 3) — server-side completeness gate:
+  // required verification documents are missing or not APPROVED.
+  | "INCOMPLETE_DOCUMENTS"
   | "UNKNOWN_ERROR";
 
-export type ApproveProviderResult = { ok: true } | { ok: false; error: ApproveProviderErrorCode };
+export type ApproveProviderResult =
+  | { ok: true }
+  | { ok: false; error: ApproveProviderErrorCode; blockers?: RequiredDocumentBlocker[] };
 
 const APPROVABLE_PROVIDER_STATUSES = ["APPLIED", "UNDER_REVIEW"] as const;
 
@@ -62,6 +69,17 @@ export async function approveProvider(providerId: string): Promise<ApproveProvid
 
     if (!APPROVABLE_PROVIDER_STATUSES.includes(provider.status as (typeof APPROVABLE_PROVIDER_STATUSES)[number])) {
       return { ok: false, error: "PROVIDER_NOT_PENDING" };
+    }
+
+    // Provider Verification & Documents (Gate 3) — server-side completeness gate.
+    // A disabled Approve button is NOT sufficient; enforce here. If required
+    // documents are missing or not yet APPROVED, refuse WITHOUT transitioning,
+    // auditing, or notifying — the successful-approval path below is unchanged
+    // once there are no blockers. Existing APPROVED providers are unaffected
+    // (this runs only on an APPLIED/UNDER_REVIEW -> APPROVED transition).
+    const blockers = await assertProviderApprovable(providerId);
+    if (blockers.length > 0) {
+      return { ok: false, error: "INCOMPLETE_DOCUMENTS", blockers };
     }
 
     const approvedAt = new Date();

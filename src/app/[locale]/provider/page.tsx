@@ -23,6 +23,7 @@ import { getProviderOverview } from "@/lib/provider/queries/get-provider-overvie
 import { getProviderMetrics } from "@/lib/provider/queries/get-provider-metrics";
 import { getProviderReviewsSummary, isHighRatedMilestone } from "@/lib/provider/queries/get-provider-reviews-summary";
 import { getProviderServiceInsights } from "@/lib/provider/queries/get-provider-service-insights";
+import { getProviderVerificationData } from "@/lib/provider/documents/get-provider-verification-data";
 import { getNotifications } from "@/lib/notifications/get-notifications";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -98,6 +99,16 @@ export default async function ProviderOverviewPage() {
   const t = await getServerTranslator("provider");
   const bookingsPath = getPathname({ href: "/provider/bookings", locale });
   const pendingBookingsPath = `${bookingsPath}?status=PENDING_PROVIDER`;
+  const verificationPath = getPathname({ href: "/provider/verification", locale });
+
+  // Verification readiness (Gate 3) — advisory card only, derived from the same
+  // requirement primitives. Isolated so it can NEVER break the dashboard.
+  let verification: Awaited<ReturnType<typeof getProviderVerificationData>> | null = null;
+  try {
+    verification = await getProviderVerificationData();
+  } catch {
+    verification = null;
+  }
 
   const formatRate = (rate: number | null) => (rate === null ? "—" : `${Math.round(rate * 100)}%`);
   const averageRatingValue = reviewsSummary.averageRating !== null ? reviewsSummary.averageRating.toFixed(1) : "—";
@@ -126,6 +137,18 @@ export default async function ProviderOverviewPage() {
           {t("pendingConfirmationsAlert", { count: data.pendingConfirmationsCount })}{" "}
           <Link href={pendingBookingsPath} className="font-medium underline underline-offset-2">
             {t("reviewNowLabel")}
+          </Link>
+        </Alert>
+      )}
+
+      {verification && verification.requiredTotal > 0 && verification.requiredApproved < verification.requiredTotal && (
+        <Alert variant="info">
+          {t("verificationReadinessAlert", {
+            approved: verification.requiredApproved,
+            total: verification.requiredTotal,
+          })}{" "}
+          <Link href={verificationPath} className="font-medium underline underline-offset-2">
+            {t("verificationCtaLabel")}
           </Link>
         </Alert>
       )}

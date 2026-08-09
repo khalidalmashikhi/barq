@@ -74,10 +74,17 @@ export async function ProviderProfileView({
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">{provider.name}</h1>
-              <Badge variant="info" className="gap-1">
-                <BadgeCheck size={13} strokeWidth={2} />
-                {t("verifiedProviderLabel")}
-              </Badge>
+              {/* Verified badge = BARQ-APPROVED provider (not a legal/KYC claim).
+                  Gated on status so the two ungated preview routes (provider self-
+                  preview, admin preview) never show "Verified" for an APPLIED/
+                  UNDER_REVIEW/REJECTED provider. On the public storefront the
+                  data query already guarantees status === "APPROVED". */}
+              {provider.status === "APPROVED" && (
+                <Badge variant="info" className="gap-1">
+                  <BadgeCheck size={13} strokeWidth={2} />
+                  {t("verifiedProviderLabel")}
+                </Badge>
+              )}
               <span className="rounded-full bg-foreground/5 px-2.5 py-0.5 text-xs font-medium text-foreground/60">
                 {provider.providerType === "INDIVIDUAL" ? t("providerTypeIndividual") : t("providerTypeCompany")}
               </span>

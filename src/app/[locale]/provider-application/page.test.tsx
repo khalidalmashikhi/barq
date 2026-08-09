@@ -24,6 +24,15 @@ vi.mock("@/lib/db", () => ({
   prisma: { provider: { findUnique: (...a: unknown[]) => providerFindUniqueMock(...a) } },
 }));
 
+// Gate 3: the page surfaces a verification link when required documents are still
+// incomplete. That gate is a composed primitive with its own unit tests
+// (assert-provider-approvable.test.ts); here it is mocked so these page tests
+// control whether document blockers exist. Default: no blockers.
+const assertApprovableMock = vi.fn();
+vi.mock("@/lib/provider/documents/assert-provider-approvable", () => ({
+  assertProviderApprovable: (...a: unknown[]) => assertApprovableMock(...a),
+}));
+
 const redirectMock = vi.fn();
 vi.mock("@/i18n/navigation", () => ({
   redirect: (...a: unknown[]) => redirectMock(...a),
@@ -73,10 +82,11 @@ function walk(node: any, texts: string[], hrefs: string[]): void {
   }
 }
 
-async function render(status?: string, rejectionReason: string | null = null) {
+async function render(status?: string, rejectionReason: string | null = null, blockers: unknown[] = []) {
   providerFindUniqueMock.mockResolvedValue(
-    status ? { businessName: { en: "Acme", ar: "أكمي" }, status, rejectionReason } : null
+    status ? { id: "prov-1", businessName: { en: "Acme", ar: "أكمي" }, status, rejectionReason } : null
   );
+  assertApprovableMock.mockResolvedValue(blockers);
   const el = await ProviderApplicationPage({ searchParams: Promise.resolve({}) });
   const texts: string[] = [];
   const hrefs: string[] = [];
@@ -87,6 +97,7 @@ async function render(status?: string, rejectionReason: string | null = null) {
 afterEach(() => {
   requireAuthMock.mockReset();
   providerFindUniqueMock.mockReset();
+  assertApprovableMock.mockReset();
   redirectMock.mockReset();
   applyAsProviderMock.mockReset();
   resubmitMock.mockReset();
@@ -177,6 +188,30 @@ describe("ProviderApplicationPage — status UX", () => {
     // once a provider row exists, so a user can never file a second application.
     expect(texts).not.toContain("applicationSubmitButton");
     expect(getSelectableCategoriesMock).not.toHaveBeenCalled();
+  });
+
+  // ---- Gate 3: verification links ----
+
+  it("APPLIED with incomplete required documents: links to /provider/verification", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    const { texts, hrefs } = await render("APPLIED", null, [{ type: "IDENTITY_PROOF", reason: "MISSING" }]);
+    expect(texts).toContain("applicationCompleteDocumentsLink");
+    expect(hrefs).toContain("/provider/verification");
+  });
+
+  it("APPLIED with complete documents: does NOT show the verification link", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    const { texts, hrefs } = await render("APPLIED", null, []);
+    expect(texts).not.toContain("applicationCompleteDocumentsLink");
+    expect(hrefs).not.toContain("/provider/verification");
+  });
+
+  it("REJECTED: offers a verification link alongside the profile-fix link", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    const { texts, hrefs } = await render("REJECTED", "fix it", [{ type: "IDENTITY_PROOF", reason: "NOT_APPROVED" }]);
+    expect(texts).toContain("applicationVerificationLink");
+    expect(hrefs).toContain("/provider/verification");
+    expect(hrefs).toContain("/provider/settings");
   });
 
   it("unauthenticated: redirects to login", async () => {
