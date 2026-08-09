@@ -122,6 +122,17 @@ enum ProviderType {
   COMPANY
 }
 
+/// Per-document review lifecycle for provider verification documents (Provider
+/// Verification & Documents). A genuinely fixed 3-state lifecycle (like
+/// ProviderStatus/ServiceStatus), so a Prisma enum is correct here — unlike the
+/// GROWING document-TYPE set, which stays a registry-validated String on
+/// ProviderDocument.type (no enum, no migration to add a type).
+enum ProviderDocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // Media Foundation (Gap C) — discriminators for the reusable MediaAsset
 // table (see the model below).
 enum MediaOwnerType {
@@ -468,12 +479,54 @@ model Provider {
   supportTickets SupportTicket[]
   categoryLinks  ProviderCategory[]
   mediaAssets    MediaAsset[]
+  documents      ProviderDocument[]
 
   @@index([status])
   @@index([approvedByAdminId])
   @@index([rejectedByAdminId])
   @@index([visible])
   @@map("providers")
+}
+
+/// Provider verification document (Provider Verification & Documents). A
+/// PRIVATE artifact: the DB stores only the private-bucket `objectKey` — never a
+/// public/permanent/signed URL. The future read path mints a short-lived signed
+/// URL server-side AFTER authorizing the caller (owning provider or admin); the
+/// future upload path validates type/size/MIME and writes to a PRIVATE bucket.
+/// No public-url column exists, by design.
+model ProviderDocument {
+  id         String @id @default(uuid(7)) @db.Uuid
+  providerId String @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  /// Stable registry key (src/lib/provider-document-types) — a plain String,
+  /// NOT a Prisma enum and NOT a DB CHECK, so adding a document type never needs
+  /// a migration (same convention as Category.serviceTypeKey / FeatureFlag.key).
+  /// Validated by isValidProviderDocumentTypeKey() at the single domain write
+  /// path (the upload mutation, a later gate).
+  type             String
+  /// PRIVATE storage object key ONLY — never a public/permanent/signed URL.
+  objectKey        String                 @unique
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  status           ProviderDocumentStatus @default(PENDING)
+  /// Admin's reason when status is REJECTED — the provider replaces the document
+  /// and it returns to PENDING for re-review (a later gate).
+  rejectionReason   String?
+  reviewedAt        DateTime? @db.Timestamptz(6)
+  reviewedByAdminId String?   @db.Uuid
+  reviewedByAdmin   Admin?    @relation("ProviderDocumentReviewedBy", fields: [reviewedByAdminId], references: [id])
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
+
+  /// One CURRENT document per (provider, type) — replace is an upsert. This
+  /// composite unique also serves every `WHERE providerId = ?` lookup via its
+  /// leftmost prefix, so no separate providerId index is added (same reasoning
+  /// as MediaAsset's composite indexes).
+  @@unique([providerId, type])
+  @@index([status])
+  @@index([reviewedByAdminId])
+  @@map("provider_documents")
 }
 
 model Driver {
@@ -1497,6 +1550,7 @@ model Admin {
 
   approvedProviders Provider[] @relation("ProviderApprovedBy")
   rejectedProviders Provider[] @relation("ProviderRejectedBy")
+  reviewedDocuments ProviderDocument[] @relation("ProviderDocumentReviewedBy")
 
   @@map("admins")
 }

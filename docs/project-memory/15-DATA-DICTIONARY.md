@@ -195,14 +195,13 @@ Entity-level detail for every major business entity in BARQ's domain, current an
 **Planned extensions:** Needed by Provider logo/gallery, Service gallery, and Document (commercial registration, etc.) — likely a shared, generic model rather than one-off file fields per entity.
 **Important business notes:** Blocked on an Object Storage vendor decision (`TECH_STACK.md`), not just application code.
 
-## Document
+## ProviderDocument
 
-**Purpose:** A specific, typed provider-submitted document (commercial registration, municipal licence, tenancy agreement) for commercial-provider onboarding.
-**Description:** N/A — no model exists.
-**Relationships:** Would belong to `Provider`; likely built on top of **Attachment** for the actual file reference, with its own `documentType`/verification-status fields.
-**Current implementation status:** **Does not exist.** No such field or model anywhere — `apply-as-provider.ts`'s own code comment confirms "no license/document/KYC field exists anywhere in the schema."
-**Planned extensions:** Part of Provider Onboarding extension (Phase 2) — commercial registration, municipal licence, tenancy agreement, bank account information (or a separate Settlement-related model for the latter, see above).
-**Important business notes:** Depends on Attachment/Object Storage existing first.
+**Purpose:** A specific, typed provider-submitted verification document (identity evidence, commercial registration, tourism licence) for provider onboarding/verification.
+**Description:** `ProviderDocument` — `id`, `providerId`, `type` (registry String), `objectKey` (private storage key), `originalFilename`, `mimeType`, `sizeBytes`, `status` (`ProviderDocumentStatus`), `rejectionReason?`, `reviewedAt?`, `reviewedByAdminId?`, timestamps.
+**Relationships:** belongs to `Provider` (`onDelete: Cascade`); optional `reviewedByAdmin` → `Admin` (`onDelete: SetNull`, relation `ProviderDocumentReviewedBy`). Unique `(providerId, type)` (one current doc per type; replace = upsert) and unique `objectKey`.
+**Current implementation status:** **Schema + domain contract exist (Provider Verification & Documents, Gate 1).** The model, `ProviderDocumentStatus` enum, migration, the document-type **code registry** (`src/lib/provider-document-types` — `type` is a registry-validated String, NOT a Prisma enum/DB catalog, so new types need no migration), the code-controlled requirement resolver (`requiredDocumentTypesFor`, keyed by `ProviderType` only — never public `Category`), and the pure completeness primitive (`resolveRequiredDocumentBlockers`) are in place. **Upload/review/storage/UI are NOT built yet** (later gates), and the approval gate is **not** wired into `approveProvider` (existing APPROVED providers are grandfathered).
+**Storage note:** the DB stores only the **private** `objectKey` — never a public/permanent/signed URL. The read path (later gate) mints a short-lived signed URL server-side after authorizing the caller; the upload path validates type/size/MIME and writes to a **private** bucket. Bank/settlement data is deliberately out of scope (separate `ProviderPayoutAccount`, still target).
 
 ## AuditLog
 
