@@ -52,3 +52,8 @@ next-env.d.ts
 # Load-test session pool (docs/11-release/LOAD_TEST_PLAN.md) — live
 # staging session cookies, never committed.
 scripts/load-test/.session-pool.json
+
+# Supabase CLI link cache (local-only metadata written by `supabase link`).
+# Only the .temp cache is ignored; supabase/config.toml stays trackable so we
+# can legitimately version Supabase config/migrations later.
+supabase/.temp/

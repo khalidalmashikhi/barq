@@ -1,0 +1,16 @@
+project_id = "yvqzubmomcrimaseijlj"
+
+# Provider Verification & Documents (Gate 2/3) — PRIVATE bucket for provider
+# verification documents. Declared here only so `supabase seed buckets` can
+# create it on the linked remote project (barq-staging) via the Management API
+# (access token), WITHOUT ever handling the service-role secret. This file
+# intentionally declares ONLY the storage bucket — it does not push auth/api/db
+# config. Limits mirror BARQ's authoritative server validation
+# (src/lib/provider/documents/document-constants.ts): MAX_DOCUMENT_BYTES = 4 MiB
+# and the exact 4-type MIME allow-list (PDF/JPEG/PNG/WebP; SVG deliberately
+# excluded as an XSS vector). The BARQ server remains the authoritative gate;
+# these bucket limits are defense-in-depth only.
+[storage.buckets.provider-documents]
+public = false
+file_size_limit = "4MiB"
+allowed_mime_types = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
