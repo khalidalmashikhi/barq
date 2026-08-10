@@ -69,7 +69,7 @@ import type { CurrencyAmount } from "@/lib/provider/queries/get-provider-earning
 const RECENT_LIMIT = 5;
 const RECENTLY_CANCELLED_WINDOW_DAYS = 30;
 
-export type AdminOverviewRecentCustomer = { id: string; phoneNumber: string; createdAt: Date };
+export type AdminOverviewRecentCustomer = { id: string; phoneNumber: string | null; createdAt: Date };
 export type AdminOverviewRecentProvider = { id: string; businessName: string; createdAt: Date };
 export type AdminOverviewRecentReview = {
   id: string;

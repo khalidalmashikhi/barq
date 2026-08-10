@@ -47,7 +47,7 @@ export default async function AdminDetailPage({ params }: { params: Promise<{ id
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">
-        <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{admin.phoneNumber}</h1>
+        <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{admin.phoneNumber ?? "—"}</h1>
         <Badge variant={admin.status === "ACTIVE" ? "success" : "danger"}>
           {admin.status === "ACTIVE" ? t("um_status_ACTIVE") : t("um_status_DEACTIVATED")}
         </Badge>

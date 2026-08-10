@@ -24,7 +24,7 @@ import type { UserStatus } from "@prisma/client";
 export type CustomerListItem = {
   id: string;
   userId: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   phoneNumberVerified: boolean;
   status: string;
   createdAt: Date;
@@ -90,7 +90,7 @@ export async function getCustomers(filters: CustomerListFilters = {}): Promise<C
     id: string;
     userId: string;
     createdAt: Date;
-    user: { phoneNumber: string; phoneNumberVerified: boolean; status: string };
+    user: { phoneNumber: string | null; phoneNumberVerified: boolean; status: string };
     _count: { bookings: number; reviews: number };
   };
 

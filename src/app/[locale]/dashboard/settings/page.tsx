@@ -95,7 +95,7 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
             <input
               type="tel"
               dir="ltr"
-              value={settings.phoneNumber}
+              value={settings.phoneNumber ?? ""}
               readOnly
               disabled
               className="rounded-xl border border-border bg-background/50 px-3 py-2 text-sm text-foreground/60"

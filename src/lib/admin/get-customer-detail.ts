@@ -39,7 +39,7 @@ export type CustomerPaymentPreviewItem = {
 export type CustomerDetail = {
   id: string;
   userId: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   createdAt: Date;
   bookingCount: number;
   reviewCount: number;
@@ -125,7 +125,7 @@ export async function getCustomerDetail(customerId: string): Promise<CustomerDet
     id: string;
     userId: string;
     createdAt: Date;
-    user: { phoneNumber: string };
+    user: { phoneNumber: string | null };
     _count: { bookings: number; reviews: number };
   };
 

@@ -17,7 +17,7 @@ import { getLastLoginAt } from "./get-last-login";
 export type AdminDetail = {
   id: string;
   userId: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   status: string;
   createdAt: Date;
   lastLoginAt: Date | null;

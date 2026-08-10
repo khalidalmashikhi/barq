@@ -148,7 +148,7 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
               </div>
               <p className="text-sm text-foreground/80">{review.content}</p>
               <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/50">
-                <span dir="ltr">{review.customerPhoneNumber}</span>
+                <span dir="ltr">{review.customerPhoneNumber ?? "—"}</span>
                 <Link href={`/admin/providers/${review.providerId}`} className="hover:text-foreground hover:underline">
                   {review.providerName}
                 </Link>

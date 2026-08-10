@@ -13,7 +13,7 @@ import { requireAuth } from "@/lib/auth";
 
 export type CustomerSettings = {
   name: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   languagePreference: string;
 };
 

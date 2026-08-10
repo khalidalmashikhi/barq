@@ -117,7 +117,9 @@ export default async function AdminOverviewPage() {
   const recentCustomerItems: AdminQueueItem[] = overview.recentCustomers.map((customer) => ({
     id: customer.id,
     href: `/admin/customers/${customer.id}`,
-    primaryText: customer.phoneNumber,
+    // Social-first customers have no phone yet — show a neutral placeholder
+    // rather than blank (never a fabricated number).
+    primaryText: customer.phoneNumber ?? "—",
     secondaryText: formatDate(customer.createdAt, locale, { day: "numeric", month: "short", year: "numeric" }),
   }));
 
@@ -131,7 +133,7 @@ export default async function AdminOverviewPage() {
   const customersAwaitingReviewsItems: AdminQueueItem[] = customersAwaitingReviews.items.map((customer) => ({
     id: customer.id,
     href: `/admin/customers/${customer.id}`,
-    primaryText: customer.phoneNumber,
+    primaryText: customer.phoneNumber ?? "—",
   }));
 
   const latestBookingItems: AdminQueueItem[] = overview.latestBookings.map((booking) => ({

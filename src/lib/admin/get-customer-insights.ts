@@ -27,7 +27,7 @@ export type CustomerRankingItem = {
 
 export type CustomerAwaitingReviewItem = {
   id: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
 };
 
 const PREVIEW_LIMIT = 5;

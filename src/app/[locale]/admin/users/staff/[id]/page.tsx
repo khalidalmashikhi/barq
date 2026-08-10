@@ -47,7 +47,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">
-        <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{staff.phoneNumber}</h1>
+        <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{staff.phoneNumber ?? "—"}</h1>
         <Badge variant={staff.status === "ACTIVE" ? "success" : "danger"}>
           {staff.status === "ACTIVE" ? t("um_status_ACTIVE") : t("um_status_DEACTIVATED")}
         </Badge>

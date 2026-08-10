@@ -12,7 +12,7 @@ import type { StaffRole } from "@prisma/client";
 export type StaffDetail = {
   id: string;
   userId: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   roles: StaffRole[];
   status: string;
   createdAt: Date;

@@ -29,7 +29,7 @@ export type ReviewAdminListItem = {
   id: string;
   bookingId: string;
   customerId: string;
-  customerPhoneNumber: string;
+  customerPhoneNumber: string | null;
   providerId: string;
   providerName: string;
   serviceName: string;
@@ -113,7 +113,7 @@ export async function getReviews(filters: ReviewAdminListFilters = {}): Promise<
     moderationState: ReviewModerationState;
     createdAt: Date;
     rating: { value: number } | null;
-    customer: { user: { phoneNumber: string } };
+    customer: { user: { phoneNumber: string | null } };
     provider: { businessName: unknown };
     booking: { service: { name: unknown } };
   };

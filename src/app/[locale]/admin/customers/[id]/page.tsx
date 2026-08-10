@@ -73,7 +73,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       </Link>
 
       <div>
-        <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{customer.phoneNumber}</h1>
+        <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{customer.phoneNumber ?? "—"}</h1>
         <p className="mt-0.5 text-sm text-foreground/40">
           {t("customerRegisteredOnLabel")} {formatDate(customer.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
         </p>

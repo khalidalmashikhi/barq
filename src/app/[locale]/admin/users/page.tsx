@@ -516,7 +516,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             {customerItems!.map((c) => (
               <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <Link href={`/admin/customers/${c.id}`} className="min-w-0 flex-1">
-                  <p dir="ltr" className="truncate text-start font-medium text-foreground">{c.phoneNumber}</p>
+                  <p dir="ltr" className="truncate text-start font-medium text-foreground">{c.phoneNumber ?? "—"}</p>
                   <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">ID {c.userId} · {c.phoneNumberVerified ? t("um_phoneVerified") : t("um_phoneUnverified")}</p>
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
