@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "Unread Notifications",
   "recentBookingsTitle": "Recent Bookings",
   "noRecentBookingsLabel": "No bookings yet",
-  "awaitingReviewNudgeLabel": "You have {count} trip(s) awaiting your review"
+  "awaitingReviewNudgeLabel": "You have {count} trip(s) awaiting your review",
+  "connectedAccountsTitle": "Sign-in methods",
+  "connectedAccountsSubtitle": "Phone number is always available. You can also connect Google to this account.",
+  "googleLabel": "Google",
+  "connectedLabel": "Connected",
+  "connectGoogleButton": "Connect Google",
+  "connectGoogleLoading": "Connecting…",
+  "connectGoogleError": "Couldn't connect Google. Please try again."
 }

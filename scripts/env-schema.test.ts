@@ -34,6 +34,37 @@ describe("envSchema — non-production", () => {
   });
 });
 
+describe("envSchema — Google social login (Gate 3)", () => {
+  it("accepts neither Google credential set (Google simply unavailable)", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    expect(envSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it("accepts BOTH Google credentials set", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" });
+    expect(result.success).toBe(true);
+  });
+
+  it("REJECTS a partial config: client id without secret", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, GOOGLE_CLIENT_ID: "id" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path[0] === "GOOGLE_CLIENT_SECRET")).toBe(true);
+    }
+  });
+
+  it("REJECTS a partial config: secret without client id", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, GOOGLE_CLIENT_SECRET: "secret" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path[0] === "GOOGLE_CLIENT_ID")).toBe(true);
+    }
+  });
+});
+
 describe("envSchema — production", () => {
   it("fails when NEXT_PUBLIC_APP_URL is missing", () => {
     vi.stubEnv("NODE_ENV", "production");

@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "Notifications non lues",
   "recentBookingsTitle": "Réservations récentes",
   "noRecentBookingsLabel": "Aucune réservation pour le moment",
-  "awaitingReviewNudgeLabel": "Vous avez {count} voyage(s) en attente de votre avis"
+  "awaitingReviewNudgeLabel": "Vous avez {count} voyage(s) en attente de votre avis",
+  "connectedAccountsTitle": "Méthodes de connexion",
+  "connectedAccountsSubtitle": "Le numéro de téléphone est toujours disponible. Vous pouvez aussi connecter Google à ce compte.",
+  "googleLabel": "Google",
+  "connectedLabel": "Connecté",
+  "connectGoogleButton": "Connecter Google",
+  "connectGoogleLoading": "Connexion…",
+  "connectGoogleError": "Impossible de connecter Google. Réessayez."
 }

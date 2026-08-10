@@ -87,8 +87,29 @@ export const envSchema = z
     // the public media bucket. To ACTIVATE documents, provision a PRIVATE
     // Supabase bucket and set this alongside SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
     SUPABASE_DOCS_BUCKET: z.string().optional(),
+
+    // Google Social Login (Gate 3). ALL OPTIONAL by design: Google sign-in is
+    // available only when BOTH are set (fail-closed, see src/lib/auth/
+    // social-config.ts), so a deployment with neither simply has no Google
+    // button and boots normally — local/dev/build never require them. The
+    // .superRefine() below rejects a PARTIAL config (one set, the other missing)
+    // in every environment, so an intentionally-enabled-but-incomplete Google
+    // setup fails clearly instead of silently half-working. CLIENT_ID is not a
+    // secret; CLIENT_SECRET is server-only (never exposed to the browser).
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
   })
   .superRefine((env, ctx) => {
+    // Google credentials are all-or-nothing: a partial config (exactly one of
+    // the two set) is always a mistake — fail clearly rather than half-enable.
+    if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [env.GOOGLE_CLIENT_ID ? "GOOGLE_CLIENT_SECRET" : "GOOGLE_CLIENT_ID"],
+        message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together (or both left unset)",
+      });
+    }
+
     // OTP_PROVIDER=twilio requires its credentials in every environment
     // (not just production) — there is no meaningful "twilio selected
     // but no credentials" state, in dev or prod.

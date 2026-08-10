@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "Nepřečtená oznámení",
   "recentBookingsTitle": "Nedávné rezervace",
   "noRecentBookingsLabel": "Zatím žádné rezervace",
-  "awaitingReviewNudgeLabel": "Máte {count} výlet(ů) čekajících na vaši recenzi"
+  "awaitingReviewNudgeLabel": "Máte {count} výlet(ů) čekajících na vaši recenzi",
+  "connectedAccountsTitle": "Metody přihlášení",
+  "connectedAccountsSubtitle": "Telefonní číslo je vždy k dispozici. K tomuto účtu můžete také připojit Google.",
+  "googleLabel": "Google",
+  "connectedLabel": "Připojeno",
+  "connectGoogleButton": "Připojit Google",
+  "connectGoogleLoading": "Připojování…",
+  "connectGoogleError": "Google se nepodařilo připojit. Zkuste to znovu."
 }

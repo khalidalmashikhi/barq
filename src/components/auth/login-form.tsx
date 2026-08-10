@@ -6,6 +6,7 @@ import { useRouter } from "@/i18n/navigation";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { GoogleIcon } from "@/components/ui/google-icon";
 
 // Login form — Engineering Sprint 3 (Phone OTP UI), redesigned by the
 // Visual Identity Sprint.
@@ -43,7 +44,12 @@ const OTP_LENGTH = 6;
 
 type Step = "phone" | "otp";
 
-export function LoginForm() {
+// Google is an ADDITIONAL sign-in method — the phone+OTP flow below is
+// preserved exactly. `googleEnabled` comes from the server (only true when both
+// Google credentials are configured); the credentials themselves never reach
+// the client. `oauthError` is set when Better Auth redirected back here after a
+// failed Google attempt.
+export function LoginForm({ googleEnabled = false, oauthError = false }: { googleEnabled?: boolean; oauthError?: boolean }) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("auth");
@@ -51,11 +57,34 @@ export function LoginForm() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(oauthError ? t("oauthError") : null);
   const [otpSent, setOtpSent] = useState(false);
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const otp = otpDigits.join("");
+
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      // callbackURL / errorCallbackURL are FIXED internal, locale-prefixed paths
+      // (never user input) — no open-redirect surface. On success the browser is
+      // redirected to Google, so nothing after this runs.
+      const { error: socialError } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: `/${locale}/dashboard`,
+        errorCallbackURL: `/${locale}/login?error=oauth`,
+      });
+      if (socialError) {
+        setError(t("oauthError"));
+        setGoogleLoading(false);
+      }
+    } catch {
+      setError(t("oauthError"));
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleRequestOtp(event: React.FormEvent) {
     event.preventDefault();
@@ -152,6 +181,27 @@ export function LoginForm() {
     >
       <h1 className="text-2xl font-semibold text-foreground">{t("loginTitle")}</h1>
       <p className="mt-1.5 text-sm text-foreground/60">{t("loginSubtitle")}</p>
+
+      {googleEnabled && (
+        <div className="mt-8 flex flex-col gap-5">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+          >
+            <GoogleIcon size={18} />
+            {googleLoading ? t("loading") : t("continueWithGoogle")}
+          </button>
+
+          {/* Divider: Google is one option; phone + OTP remains fully available. */}
+          <div className="flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs uppercase tracking-wide text-foreground/40">{t("orDivider")}</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      )}
 
       {step === "phone" && (
         <form onSubmit={handleRequestOtp} className="mt-8 flex flex-col gap-5">

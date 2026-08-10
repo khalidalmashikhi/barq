@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { getSession } from "@/lib/auth";
+import { isGoogleConfigured } from "@/lib/auth/social-config";
 import { LoginForm } from "@/components/auth/login-form";
 import { Logo } from "@/components/ui/logo";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -48,13 +49,19 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const session = await getSession();
 
   if (session) {
     const locale = await getLocale();
     redirect({ href: "/dashboard", locale });
   }
+
+  // Better Auth redirects here with `?error=...` if a Google OAuth attempt fails
+  // (user cancelled, provider error, etc.) — we surface a single generic,
+  // localized message and never render the raw provider/Better Auth error.
+  const { error } = await searchParams;
+  const oauthError = Boolean(error);
 
   const t = await getServerTranslator("auth");
 
@@ -120,7 +127,7 @@ export default async function LoginPage() {
           <div className="mb-10 flex justify-center lg:hidden">
             <Logo variant="full" className="h-24" />
           </div>
-          <LoginForm />
+          <LoginForm googleEnabled={isGoogleConfigured()} oauthError={oauthError} />
         </div>
       </div>
     </main>

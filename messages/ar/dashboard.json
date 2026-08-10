@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "إشعارات غير مقروءة",
   "recentBookingsTitle": "الحجوزات الأخيرة",
   "noRecentBookingsLabel": "لا توجد حجوزات بعد",
-  "awaitingReviewNudgeLabel": "لديك {count} رحلة بانتظار تقييمك"
+  "awaitingReviewNudgeLabel": "لديك {count} رحلة بانتظار تقييمك",
+  "connectedAccountsTitle": "طرق تسجيل الدخول",
+  "connectedAccountsSubtitle": "رقم الهاتف متاح دائماً. يمكنك أيضاً ربط Google بهذا الحساب.",
+  "googleLabel": "Google",
+  "connectedLabel": "مُتصل",
+  "connectGoogleButton": "ربط Google",
+  "connectGoogleLoading": "جارٍ الربط…",
+  "connectGoogleError": "تعذّر ربط Google. يُرجى المحاولة مرة أخرى."
 }

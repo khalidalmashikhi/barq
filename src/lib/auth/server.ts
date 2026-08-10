@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { phoneNumber } from "better-auth/plugins";
 import { createAuthMiddleware, APIError } from "better-auth/api";
 import { prisma } from "@/lib/db";
+import { buildGoogleSocialProvider, BARQ_ACCOUNT_LINKING } from "./social-config";
 import { getOtpProvider } from "@/lib/otp/get-otp-provider";
 import { OtpDeliveryUnavailableError } from "@/lib/otp/providers/disabled-provider";
 import { getOtpConfig } from "@/lib/otp/otp-config";
@@ -130,6 +131,23 @@ export const auth = betterAuth({
   // whatever Better Auth's own default happens to be.
   emailAndPassword: {
     enabled: false,
+  },
+
+  // Social Login (Gate 3) — Google ONLY, and ONLY when both credentials are
+  // configured (fail-closed via buildGoogleSocialProvider). OTP/Twilio is
+  // completely unaffected; Google is an ADDITIONAL sign-in method. Apple is
+  // deliberately deferred to a later gate.
+  socialProviders: {
+    ...buildGoogleSocialProvider(),
+  },
+
+  // Explicit, safe account linking (see social-config.ts). trustedProviders is
+  // empty and allowDifferentEmails/updateUserInfoOnLink are false, so a matching
+  // email/name is NEVER treated as authority and BARQ's profile is never
+  // overwritten — authenticated linkSocial (Settings) is the intended path for
+  // an existing user, and Gate-2's verified-phone reconciliation stays separate.
+  account: {
+    accountLinking: BARQ_ACCOUNT_LINKING,
   },
 
   plugins: [

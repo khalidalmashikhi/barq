@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "Непрочитанные уведомления",
   "recentBookingsTitle": "Недавние бронирования",
   "noRecentBookingsLabel": "Пока нет бронирований",
-  "awaitingReviewNudgeLabel": "У вас {count} поездок(а), ожидающих вашего отзыва"
+  "awaitingReviewNudgeLabel": "У вас {count} поездок(а), ожидающих вашего отзыва",
+  "connectedAccountsTitle": "Способы входа",
+  "connectedAccountsSubtitle": "Номер телефона доступен всегда. Вы также можете подключить Google к этому аккаунту.",
+  "googleLabel": "Google",
+  "connectedLabel": "Подключено",
+  "connectGoogleButton": "Подключить Google",
+  "connectGoogleLoading": "Подключение…",
+  "connectGoogleError": "Не удалось подключить Google. Повторите попытку."
 }

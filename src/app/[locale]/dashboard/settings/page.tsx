@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { UnauthenticatedError } from "@/lib/auth";
+import { isGoogleConfigured } from "@/lib/auth/social-config";
+import { getLinkedProviderIds } from "@/lib/auth/connected-accounts";
+import { ConnectGoogleButton } from "@/components/auth/connect-google-button";
+import { GoogleIcon } from "@/components/ui/google-icon";
 import { getCustomerSettings } from "@/lib/customer/get-customer-settings";
 import { updateCustomerSettings } from "@/lib/customer/update-customer-settings";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
@@ -53,6 +57,12 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
 
   const t = await getServerTranslator("dashboard");
   const [unreadNotificationsCount, navOptions] = await Promise.all([getUnreadCount(), resolveCustomerNavOptions()]);
+
+  // Sign-in methods (Gate 3) — only shown when Google is configured on this
+  // deployment. `googleConnected` reflects the CURRENT account's linked
+  // providers (safe metadata only; no tokens).
+  const googleEnabled = isGoogleConfigured();
+  const googleConnected = googleEnabled && (await getLinkedProviderIds()).includes("google");
 
   return (
     <AppShell
@@ -123,6 +133,33 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
             {t("settingsSaveButton")}
           </SubmitButton>
         </form>
+
+        {/* Sign-in methods (Gate 3) — phone + OTP is always available; Google is
+            an optional additional method a signed-in user can connect to THIS
+            same account. Disconnect is intentionally not offered yet (MVP) — see
+            the Gate-3 report; showing "Connected" without a remove action can
+            never lock a user out. */}
+        {googleEnabled && (
+          <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">{t("connectedAccountsTitle")}</h2>
+              <p className="mt-1 text-xs text-foreground/50">{t("connectedAccountsSubtitle")}</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-2.5 text-sm font-medium text-foreground">
+                <GoogleIcon size={20} />
+                {t("googleLabel")}
+              </span>
+              {googleConnected ? (
+                <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+                  {t("connectedLabel")}
+                </span>
+              ) : (
+                <ConnectGoogleButton />
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </AppShell>
   );

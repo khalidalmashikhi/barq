@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "Nieprzeczytane powiadomienia",
   "recentBookingsTitle": "Ostatnie rezerwacje",
   "noRecentBookingsLabel": "Brak rezerwacji",
-  "awaitingReviewNudgeLabel": "Masz {count} wycieczkę/wycieczki oczekujące na Twoją opinię"
+  "awaitingReviewNudgeLabel": "Masz {count} wycieczkę/wycieczki oczekujące na Twoją opinię",
+  "connectedAccountsTitle": "Metody logowania",
+  "connectedAccountsSubtitle": "Numer telefonu jest zawsze dostępny. Możesz też połączyć Google z tym kontem.",
+  "googleLabel": "Google",
+  "connectedLabel": "Połączono",
+  "connectGoogleButton": "Połącz Google",
+  "connectGoogleLoading": "Łączenie…",
+  "connectGoogleError": "Nie udało się połączyć Google. Spróbuj ponownie."
 }

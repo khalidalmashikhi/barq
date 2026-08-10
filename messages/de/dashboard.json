@@ -80,5 +80,12 @@
   "kpiUnreadNotificationsLabel": "Ungelesene Benachrichtigungen",
   "recentBookingsTitle": "Letzte Buchungen",
   "noRecentBookingsLabel": "Noch keine Buchungen",
-  "awaitingReviewNudgeLabel": "Sie haben {count} Reise(n), die auf Ihre Bewertung warten"
+  "awaitingReviewNudgeLabel": "Sie haben {count} Reise(n), die auf Ihre Bewertung warten",
+  "connectedAccountsTitle": "Anmeldemethoden",
+  "connectedAccountsSubtitle": "Die Telefonnummer ist immer verfügbar. Sie können auch Google mit diesem Konto verknüpfen.",
+  "googleLabel": "Google",
+  "connectedLabel": "Verbunden",
+  "connectGoogleButton": "Google verbinden",
+  "connectGoogleLoading": "Wird verbunden …",
+  "connectGoogleError": "Google konnte nicht verbunden werden. Bitte versuchen Sie es erneut."
 }
