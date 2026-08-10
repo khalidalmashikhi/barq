@@ -14,3 +14,18 @@ project_id = "yvqzubmomcrimaseijlj"
 public = false
 file_size_limit = "4MiB"
 allowed_mime_types = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+
+# Public marketplace media (Media Foundation / Marketplace v1) — PUBLIC-READ
+# bucket for provider logo/cover/portfolio and service cover/gallery images.
+# `public = true` grants anonymous READ of these inherently-public marketplace
+# images only; it is NOT public upload — BARQ writes/deletes exclusively via the
+# server-side service-role key through its own ownership-checked route handlers
+# (no anon/authenticated storage INSERT/UPDATE/DELETE policy is created). Limits
+# mirror BARQ's authoritative server validation (src/lib/storage/media-constants.ts):
+# MAX_IMAGE_BYTES = 4 MiB and the 3 image types (SVG excluded as an XSS vector).
+# Completely separate from the private provider-documents bucket above — no
+# fallback between them in code.
+[storage.buckets.media]
+public = true
+file_size_limit = "4MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
