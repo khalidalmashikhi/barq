@@ -1,5 +1,11 @@
 {
   "nav": {
+    "home": "Główna",
+    "explore": "Odkrywaj",
+    "bookings": "Rezerwacje",
+    "notifications": "Alerty",
+    "account": "Konto",
+    "marketplaceNavLabel": "Nawigacja marketplace",
     "browse": "Przeglądaj atrakcje",
     "howItWorks": "Jak działa BARQ",
     "destinations": "Kierunki podróży",
@@ -9,10 +15,10 @@
     "closeMenu": "Zamknij menu"
   },
   "hero": {
-    "eyebrow": "Oman na nowo odkryty",
-    "title": "Odkryj najbardziej niezapomniane atrakcje Omanu",
-    "subtitle": "Rezerwuj sprawdzone wycieczki, przewodników i przygody w całym Omanie w kilka minut — zweryfikowani dostawcy, przejrzyste ceny, zero problemów.",
-    "searchPlaceholder": "Szukaj atrakcji, miast lub aktywności",
+    "eyebrow": "Turystyczny marketplace Omanu",
+    "title": "Co chcesz zarezerwować w Omanie?",
+    "subtitle": "Odkrywaj i rezerwuj usługi turystyczne od zaufanych osób i firm — samochody, przewodnicy, wycieczki, transfery, rejsy i więcej.",
+    "searchPlaceholder": "Szukaj aut, przewodników, wycieczek, atrakcji…",
     "searchButton": "Szukaj",
     "ctaPrimary": "Przeglądaj atrakcje",
     "ctaSecondary": "Jak to działa",
@@ -114,9 +120,9 @@
     "a4": "BARQ jest dostępny w języku arabskim, angielskim i kilku innych, z pełnym wsparciem w każdym oferowanym języku."
   },
   "cta": {
-    "title": "Gotowy, by odkrywać Oman?",
-    "subtitle": "Dołącz do BARQ już dziś i zarezerwuj swoją kolejną niezapomnianą atrakcję.",
-    "button": "Zacznij teraz"
+    "title": "Oferuj swoje usługi w BARQ",
+    "subtitle": "Jesteś lokalnym przewodnikiem, właścicielem samochodu lub firmą turystyczną? Wystaw swoje usługi i dotrzyj do podróżnych w całym Omanie.",
+    "button": "Zacznij oferować"
   },
   "footer": {
     "tagline": "Premium marketplace turystyczny Omanu.",

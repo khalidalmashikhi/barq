@@ -31,7 +31,7 @@ export async function Footer() {
   const t = await getServerTranslator("landing");
 
   return (
-    <footer className="border-t border-border bg-background px-6 py-12">
+    <footer className="border-t border-border bg-background px-6 py-12 pb-28 lg:pb-12">
       <div className="mx-auto flex max-w-6xl flex-col gap-10">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
           <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-start">

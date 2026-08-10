@@ -1,5 +1,11 @@
 {
   "nav": {
+    "home": "Domů",
+    "explore": "Objevovat",
+    "bookings": "Rezervace",
+    "notifications": "Oznámení",
+    "account": "Účet",
+    "marketplaceNavLabel": "Navigace tržiště",
     "browse": "Prozkoumat zážitky",
     "howItWorks": "Jak funguje BARQ",
     "destinations": "Destinace",
@@ -9,10 +15,10 @@
     "closeMenu": "Zavřít menu"
   },
   "hero": {
-    "eyebrow": "Omán znovu objevený",
-    "title": "Objevte ty nejnezapomenutelnější zážitky Ománu",
-    "subtitle": "Rezervujte si ověřené prohlídky, průvodce a dobrodružství po celém Ománu během pár minut — prověření poskytovatelé, transparentní ceny, žádné starosti.",
-    "searchPlaceholder": "Hledat zážitky, města nebo aktivity",
+    "eyebrow": "Turistické tržiště Ománu",
+    "title": "Co si chcete v Ománu rezervovat?",
+    "subtitle": "Objevujte a rezervujte turistické služby od ověřených místních lidí a firem — auta, průvodce, výlety, transfery, plavby a další.",
+    "searchPlaceholder": "Hledejte auta, průvodce, výlety, zážitky…",
     "searchButton": "Hledat",
     "ctaPrimary": "Prozkoumat zážitky",
     "ctaSecondary": "Jak to funguje",
@@ -114,9 +120,9 @@
     "a4": "BARQ je k dispozici v arabštině, angličtině a několika dalších jazycích s plnou podporou v každém nabízeném jazyce."
   },
   "cta": {
-    "title": "Připraveni objevovat Omán?",
-    "subtitle": "Připojte se k BARQ ještě dnes a rezervujte si svůj další nezapomenutelný zážitek.",
-    "button": "Začít"
+    "title": "Nabízejte své služby na BARQ",
+    "subtitle": "Jste místní průvodce, majitel auta nebo cestovní firma? Nabídněte své služby a oslovte cestovatele po celém Ománu.",
+    "button": "Začít nabízet"
   },
   "footer": {
     "tagline": "Prémiové turistické tržiště Ománu.",

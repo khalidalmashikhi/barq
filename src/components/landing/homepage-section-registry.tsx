@@ -27,20 +27,29 @@ import { FadeIn } from "@/components/ui/fade-in";
 // whenever no admin has opted into database-driven ordering (see
 // get-homepage-section-render-order.ts) — today's homepage, unchanged.
 
+// Marketplace-first order (Marketplace Foundation, Phase 1): lead with what a
+// visitor can BOOK — categories and real inventory come immediately after the
+// hero/search, then providers, then trust, a condensed "how it works",
+// destinations, the become-a-provider CTA, and the remaining informational/SEO
+// sections lower down. Same 13 sections as before (nothing removed); only the
+// order changed. This is the single source of default order — the public
+// homepage still resolves it through getHomepageSectionRenderOrder(), which
+// only overrides this when an admin enables the `homepage_dynamic_sections`
+// feature flag AND has seeded HomepageSection rows (otherwise this default wins).
 export const DEFAULT_HOMEPAGE_SECTION_KEYS = [
   "hero",
+  "categories",
+  "featured_experiences",
+  "providers",
   "trust_bar",
   "credibility_strip",
-  "featured_experiences",
-  "categories",
-  "destinations",
-  "providers",
   "how_it_works",
+  "destinations",
+  "cta",
   "why_choose",
   "stats",
   "testimonials",
   "faq",
-  "cta",
 ] as const;
 
 export const HOMEPAGE_SECTION_REGISTRY: Record<string, () => ReactElement> = {

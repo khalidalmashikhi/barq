@@ -5,6 +5,7 @@ import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { navLinks } from "./nav-links";
 import { MobileNav } from "./mobile-nav";
+import { BottomNav } from "./bottom-nav";
 import { LanguageSwitcher } from "./language-switcher";
 
 // Navbar — Phase F.1 (UI/UX Redesign Foundation). Server Component:
@@ -42,6 +43,7 @@ export async function Navbar() {
   const t = await getServerTranslator("landing");
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/">
@@ -83,5 +85,12 @@ export async function Navbar() {
         <MobileNav isAuthenticated={Boolean(session)} />
       </div>
     </header>
+
+      {/* Marketplace-first mobile navigation (Phase 1). Complements the top
+          marketing header (brand + language + hamburger for secondary/marketing
+          links) with a persistent bottom tab bar for the core app destinations —
+          the standard marketplace pattern, not a competing system. */}
+      <BottomNav isAuthenticated={Boolean(session)} />
+    </>
   );
 }
