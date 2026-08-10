@@ -4,6 +4,12 @@ import { validateImageUpload, MAX_IMAGE_BYTES } from "./media-constants";
 // Media Foundation (Gap C) — validation rules for uploaded images. Pure,
 // so exhaustively unit-testable with no mocks.
 
+describe("MAX_IMAGE_BYTES", () => {
+  it("is 4 MiB — aligned with the ~4.5 MB Vercel request-body ceiling", () => {
+    expect(MAX_IMAGE_BYTES).toBe(4 * 1024 * 1024);
+  });
+});
+
 describe("validateImageUpload", () => {
   it("accepts jpeg/png/webp and returns the canonical extension", () => {
     expect(validateImageUpload({ type: "image/jpeg", size: 1000 })).toEqual({

@@ -29,10 +29,15 @@ export const ALLOWED_IMAGE_MIME_TYPES = {
 
 export type AllowedImageMimeType = keyof typeof ALLOWED_IMAGE_MIME_TYPES;
 
-// 5 MB — comfortably covers a high-quality logo/cover photo while keeping
-// request bodies small enough to flow through a serverless function
-// without special body-size configuration.
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// 4 MiB — aligned with the platform request-body ceiling (Vercel serverless
+// functions cap the request body at ~4.5 MB, non-raisable). The previous 5 MB
+// cap exceeded that ceiling, so a 4.5–5 MB upload could be rejected by the
+// platform (opaque 413) BEFORE this validation ran, giving a confusing UX. At
+// 4 MiB an image that passes here also fits the request body (leaving margin for
+// multipart boundaries/headers). Matches the verification-document cap
+// (MAX_DOCUMENT_BYTES) for the same reason. `validateImageUpload` accepts
+// `size <= MAX_IMAGE_BYTES` and rejects `size > MAX_IMAGE_BYTES`.
+export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
 // Upper bound on a provider's portfolio/gallery images — a sane cap that
 // keeps gallery queries and the public grid bounded (Rule 8, performance).

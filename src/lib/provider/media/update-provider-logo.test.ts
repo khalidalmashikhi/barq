@@ -140,7 +140,7 @@ describe("updateProviderLogo", () => {
 
   it("rejects an oversized file before any upload", async () => {
     isStorageConfiguredMock.mockReturnValue(true);
-    const result = await updateProviderLogo(makeFile("image/png", 5 * 1024 * 1024 + 1), "prov-1");
+    const result = await updateProviderLogo(makeFile("image/png", 4 * 1024 * 1024 + 1), "prov-1");
     expect(result).toEqual({ ok: false, error: "TOO_LARGE" });
     expect(uploadObjectMock).not.toHaveBeenCalled();
   });
