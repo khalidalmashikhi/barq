@@ -346,7 +346,12 @@ enum AIAgentStatus {
 /// unresolved role-exclusivity question.
 model User {
   id                  String     @id @default(uuid(7)) @db.Uuid
-  phoneNumber         String     @unique
+  /// Social Login (Gate 1) — now NULLABLE. A Google/Apple-first BARQ user may
+  /// exist with no phone yet (verified phone is required later, at booking /
+  /// become-provider, not at social signup). Remains `@unique`: PostgreSQL
+  /// treats NULLs as distinct, so multiple phone-less users are allowed while
+  /// every non-null phone stays unique. Was `String @unique` (phone-only era).
+  phoneNumber         String?    @unique
   /// Optional display name — the one personal, self-editable identity field
   /// (Finish-Line: Customer Profile). Deliberately kept on the identity `User`
   /// (not duplicated onto Customer/Provider) so every role reuses one name.
@@ -1769,6 +1774,13 @@ model AuthUser {
   name                String?
   email               String?  @unique
   emailVerified       Boolean  @default(false)
+  /// Social Login (Gate 1) — Better Auth 1.6.23's default social profile
+  /// mapping sets `image: profile.picture` (verified in the installed package),
+  /// and its Prisma adapter writes declared user fields, so a Google sign-in
+  /// would attempt to write `image` here. Added as a nullable column purely to
+  /// satisfy Better Auth's own expected user schema; no BARQ product surface
+  /// reads it (same Anti-Corruption-Layer stance as email/name on this model).
+  image               String?
   phoneNumber         String?  @unique
   phoneNumberVerified Boolean  @default(false)
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
