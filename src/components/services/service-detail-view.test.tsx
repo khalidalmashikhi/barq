@@ -25,7 +25,10 @@ vi.mock("@/components/services/meeting-point-map", () => ({ MeetingPointMap: () 
 vi.mock("@/components/dashboard/experience-card", () => ({ ExperienceCard: () => null }));
 vi.mock("@/components/services/booking-trust-panel", () => ({ BookingTrustPanel: () => null }));
 vi.mock("@/components/services/safety-info", () => ({ SafetyInfo: () => null }));
-vi.mock("@/components/ui/share-button", () => ({ ShareButton: () => null }));
+function ShareButtonMock() {
+  return null;
+}
+vi.mock("@/components/ui/share-button", () => ({ ShareButton: ShareButtonMock }));
 vi.mock("@/components/ui/fade-in", () => ({ FadeIn: () => null }));
 vi.mock("@/components/ui/badge", () => ({ Badge: () => null }));
 
@@ -84,6 +87,14 @@ function findDisabledCta(tree: any): boolean {
   });
   return found;
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findShareButton(tree: any): boolean {
+  let found = false;
+  collect(tree, (n) => {
+    if (n.type === ShareButtonMock) found = true;
+  });
+  return found;
+}
 
 describe("ServiceDetailView booking CTA by mode", () => {
   it("public: renders an active Book link to /services/:id/book", async () => {
@@ -102,5 +113,22 @@ describe("ServiceDetailView booking CTA by mode", () => {
     const tree = (await ServiceDetailView({ ...commonProps, mode: "admin-preview" })) as ReactElement;
     expect(findBookLink(tree)).toBe(false);
     expect(findDisabledCta(tree)).toBe(true);
+  });
+});
+
+describe("ServiceDetailView ShareButton by mode", () => {
+  it("public: ShareButton is rendered (the URL is publicly openable)", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public" })) as ReactElement;
+    expect(findShareButton(tree)).toBe(true);
+  });
+
+  it("provider-preview: ShareButton is NOT rendered (would share a dead link)", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "provider-preview" })) as ReactElement;
+    expect(findShareButton(tree)).toBe(false);
+  });
+
+  it("admin-preview: ShareButton is NOT rendered", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "admin-preview" })) as ReactElement;
+    expect(findShareButton(tree)).toBe(false);
   });
 });

@@ -218,18 +218,25 @@ export async function ServiceDetailView({
                   <p className="mt-2 text-xs text-foreground/50">{t("previewBookingDisabledLabel")}</p>
                 </>
               )}
-              <div className="mt-3 flex justify-center">
-                <ShareButton
-                  url={serviceUrl}
-                  title={service.name}
-                  text={t("shareExperienceText", { serviceName: service.name })}
-                  label={t("shareLabel")}
-                  copiedLabel={t("shareCopiedLabel")}
-                  errorLabel={t("shareErrorLabel")}
-                  icon={<Share2 size={14} strokeWidth={1.75} />}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
-                />
-              </div>
+              {/* Share is a PUBLIC-only action: the target /services/[id] URL is
+                  not publicly openable while the service is unpublished, so
+                  offering "share" in a provider/admin preview would share a dead
+                  link. Matches ProviderProfileView, which already gates Share the
+                  same way. */}
+              {mode === "public" && (
+                <div className="mt-3 flex justify-center">
+                  <ShareButton
+                    url={serviceUrl}
+                    title={service.name}
+                    text={t("shareExperienceText", { serviceName: service.name })}
+                    label={t("shareLabel")}
+                    copiedLabel={t("shareCopiedLabel")}
+                    errorLabel={t("shareErrorLabel")}
+                    icon={<Share2 size={14} strokeWidth={1.75} />}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+                  />
+                </div>
+              )}
             </div>
 
             <BookingTrustPanel />
