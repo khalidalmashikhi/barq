@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PackageOpen, Flame, Search } from "lucide-react";
+import { PackageOpen, Flame } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth";
@@ -14,9 +14,6 @@ import { CategoryExplorer } from "@/components/dashboard/category-explorer";
 import { ExperienceCard } from "@/components/dashboard/experience-card";
 import { RecentBookingsTimeline } from "@/components/dashboard/recent-bookings";
 import { PopularDestinations } from "@/components/dashboard/popular-destinations";
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { FavoritesSection } from "@/components/dashboard/favorites-section";
-import { RecommendedSection } from "@/components/dashboard/recommended-section";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { DashboardFooter } from "@/components/dashboard/dashboard-footer";
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
@@ -127,23 +124,13 @@ export default async function DashboardPage() {
 
   const customerNavItems = getCustomerNavItems(t, locale, unreadNotificationsCount, navOptions);
 
-  const customerTopBarSearch = (
-    <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2 mx-8 md:flex">
-      <Search size={16} strokeWidth={1.75} className="text-foreground/40" />
-      <input
-        type="search"
-        placeholder={t("searchPlaceholder")}
-        className="w-full bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
-        disabled
-      />
-    </div>
-  );
-
+  // Search was a disabled placeholder (no search backend exists yet); removed
+  // rather than shown as a broken/non-functional control. Real customer
+  // destinations (Bookings, Reviews, Payments, Settings) remain in the nav.
   return (
     <AppShell
       navItems={customerNavItems}
       roleLabel={t("roleLabel")}
-      topBarCenterContent={customerTopBarSearch}
       unreadNotificationsCount={unreadNotificationsCount}
     >
       <DashboardHero />
@@ -210,10 +197,6 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <FavoritesSection />
-
-        <RecommendedSection />
-
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <RecentBookingsTimeline bookings={data.upcomingBookings} />
@@ -222,8 +205,6 @@ export default async function DashboardPage() {
         </div>
 
         <RecentBookingsList bookings={data.recentBookings} />
-
-        <ActivityFeed />
 
         <p className="text-center text-xs text-foreground/20">{t("accountIdLabel", { id: barqUserId })}</p>
       </div>
