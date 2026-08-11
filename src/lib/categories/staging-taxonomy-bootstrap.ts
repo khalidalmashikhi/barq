@@ -78,6 +78,67 @@ export function assertStagingEnvironment(appEnv: string | undefined): void {
 }
 
 // ---------------------------------------------------------------------------
+// Database-target fail-safe. APP_ENV never selects the database — DATABASE_URL
+// does — so a second guard verifies the ACTUAL connection target before any
+// query. This is what prevents `APP_ENV=staging` from silently hitting a local
+// or wrong database.
+// ---------------------------------------------------------------------------
+
+// The BARQ staging Supabase project ref — a PUBLIC identifier already committed
+// in supabase/config.toml, not a secret. Binding the guard to it means a future
+// operator cannot run against localhost or any other Supabase project.
+export const BARQ_STAGING_PROJECT_REF = "yvqzubmomcrimaseijlj";
+
+export class StagingDatabaseTargetError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StagingDatabaseTargetError";
+  }
+}
+
+// Verify the DATABASE_URL points at the real BARQ staging Supabase pooler,
+// BEFORE any database access. Deliberately host-PREFIX agnostic: it validates
+// only the ".pooler.supabase.com" suffix and the `postgres.<ref>` username, so
+// it accepts the correct target regardless of the regional pooler prefix
+// (aws-0 / aws-1 / any region) — the exact host comes from Vercel's working
+// DATABASE_URL and is never hard-coded here.
+//
+// SECURITY: every thrown message is a FIXED string — no part of the URL (host,
+// username, password, or query string) is ever interpolated, so credentials
+// cannot leak through an error.
+export function assertStagingDatabaseTarget(databaseUrl: string | undefined): void {
+  if (!databaseUrl || databaseUrl.trim() === "") {
+    throw new StagingDatabaseTargetError("DATABASE_URL is not set — refusing to run (no target).");
+  }
+
+  let url: URL;
+  try {
+    url = new URL(databaseUrl);
+  } catch {
+    throw new StagingDatabaseTargetError("DATABASE_URL is malformed — refusing to run.");
+  }
+
+  if (!/^postgres(ql)?:$/.test(url.protocol)) {
+    throw new StagingDatabaseTargetError("DATABASE_URL host rejected: not a PostgreSQL URL.");
+  }
+
+  const host = url.hostname.toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "") {
+    throw new StagingDatabaseTargetError("DATABASE_URL host rejected: localhost refused.");
+  }
+  if (!host.endsWith(".pooler.supabase.com")) {
+    throw new StagingDatabaseTargetError("DATABASE_URL host rejected: not a Supabase pooler host.");
+  }
+
+  // Supabase pooler identity is carried in the username as `postgres.<ref>`.
+  const username = decodeURIComponent(url.username || "");
+  const ref = username.includes(".") ? username.split(".").pop() ?? "" : "";
+  if (ref !== BARQ_STAGING_PROJECT_REF) {
+    throw new StagingDatabaseTargetError("DATABASE_URL project ref mismatch: not the BARQ staging project.");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Minimal structural Prisma surface this bootstrap needs. The real PrismaClient
 // satisfies it; a test supplies a mock. Kept narrow on purpose.
 // ---------------------------------------------------------------------------

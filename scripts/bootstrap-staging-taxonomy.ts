@@ -1,7 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import {
   assertStagingEnvironment,
+  assertStagingDatabaseTarget,
   StagingGuardError,
+  StagingDatabaseTargetError,
   runStagingTaxonomyBootstrap,
   type TaxonomyBootstrapPrisma,
 } from "../src/lib/categories/staging-taxonomy-bootstrap";
@@ -25,7 +27,10 @@ import {
 // or via package.json:
 //   APP_ENV=staging npm run bootstrap-staging-taxonomy -- --apply
 
-const prisma = new PrismaClient();
+// Constructed only AFTER both guards pass (see main), so a rejected target
+// never even instantiates a client. Kept module-scoped so `finally` can
+// disconnect it.
+let prisma: PrismaClient | undefined;
 
 function labelFor(action: string, applied: boolean): string {
   if (applied) return action;
@@ -38,11 +43,14 @@ async function main() {
   const apply = process.argv.includes("--apply");
   const mode = apply ? "APPLY" : "DRY-RUN (no changes)";
 
-  // 1. Staging-only guard — before any DB access.
+  // 1. Guards — BOTH before any DB access, before the client is even built:
+  //    (a) APP_ENV must be staging; (b) DATABASE_URL must point at the real
+  //    BARQ staging Supabase pooler (not localhost / not another project).
   try {
     assertStagingEnvironment(process.env.APP_ENV);
+    assertStagingDatabaseTarget(process.env.DATABASE_URL);
   } catch (error) {
-    if (error instanceof StagingGuardError) {
+    if (error instanceof StagingGuardError || error instanceof StagingDatabaseTargetError) {
       console.error(error.message);
       process.exitCode = 1;
       return;
@@ -52,6 +60,9 @@ async function main() {
 
   console.log("=== BARQ v1 staging taxonomy bootstrap (ADR-0016) ===");
   console.log(`mode: ${mode}`);
+
+  // Only now — after both guards pass — instantiate the client.
+  prisma = new PrismaClient();
 
   // The real PrismaClient structurally satisfies the narrow bootstrap surface;
   // the cast is only to bridge Prisma's broad generic delegate types to the
@@ -103,5 +114,6 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    // May be undefined if a guard rejected before the client was built.
+    if (prisma) await prisma.$disconnect();
   });

@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   assertStagingEnvironment,
+  assertStagingDatabaseTarget,
   StagingGuardError,
+  StagingDatabaseTargetError,
+  BARQ_STAGING_PROJECT_REF,
   runStagingTaxonomyBootstrap,
   validateTaxonomySpec,
   APPROVED_ROOTS,
@@ -101,6 +104,79 @@ describe("assertStagingEnvironment", () => {
     expect(() => assertStagingEnvironment(undefined)).toThrow(StagingGuardError);
     expect(() => assertStagingEnvironment("local")).toThrow(StagingGuardError);
     expect(() => assertStagingEnvironment("development")).toThrow(StagingGuardError);
+  });
+});
+
+describe("assertStagingDatabaseTarget", () => {
+  const ref = BARQ_STAGING_PROJECT_REF;
+  const goodTxPooler = `postgresql://postgres.${ref}:pw@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1`;
+
+  it("1. rejects a missing/empty URL", () => {
+    expect(() => assertStagingDatabaseTarget(undefined)).toThrow(StagingDatabaseTargetError);
+    expect(() => assertStagingDatabaseTarget("")).toThrow(StagingDatabaseTargetError);
+    expect(() => assertStagingDatabaseTarget("   ")).toThrow(StagingDatabaseTargetError);
+  });
+
+  it("2. rejects a malformed URL", () => {
+    expect(() => assertStagingDatabaseTarget("not a url")).toThrow(StagingDatabaseTargetError);
+    expect(() => assertStagingDatabaseTarget("::::")).toThrow(StagingDatabaseTargetError);
+  });
+
+  it("3. rejects localhost", () => {
+    expect(() => assertStagingDatabaseTarget("postgresql://postgres:pw@localhost:5432/postgres")).toThrow(
+      StagingDatabaseTargetError
+    );
+  });
+
+  it("4. rejects 127.0.0.1", () => {
+    expect(() => assertStagingDatabaseTarget("postgresql://postgres:pw@127.0.0.1:5432/postgres")).toThrow(
+      StagingDatabaseTargetError
+    );
+  });
+
+  it("5. rejects a normal external Postgres host", () => {
+    expect(() => assertStagingDatabaseTarget("postgresql://user:pw@db.example.com:5432/app")).toThrow(
+      StagingDatabaseTargetError
+    );
+  });
+
+  it("6. rejects a Supabase pooler for a DIFFERENT project", () => {
+    expect(() =>
+      assertStagingDatabaseTarget("postgresql://postgres.someotherprojectref:pw@aws-1-ap-south-1.pooler.supabase.com:6543/postgres")
+    ).toThrow(StagingDatabaseTargetError);
+  });
+
+  it("7. accepts the correct BARQ staging transaction-pooler URL", () => {
+    expect(() => assertStagingDatabaseTarget(goodTxPooler)).not.toThrow();
+  });
+
+  it("8. accepts the correct staging URL regardless of aws-0/aws-1/region prefix", () => {
+    for (const host of [
+      `aws-0-ap-south-1.pooler.supabase.com`,
+      `aws-1-ap-south-1.pooler.supabase.com`,
+      `aws-9-eu-west-2.pooler.supabase.com`,
+    ]) {
+      expect(() =>
+        assertStagingDatabaseTarget(`postgresql://postgres.${ref}:pw@${host}:5432/postgres`)
+      ).not.toThrow();
+    }
+  });
+
+  it("9. never includes password or query-string contents in a thrown error", () => {
+    const secret = "SuperSecretPw123";
+    const query = "pgbouncerSENTINEL=true";
+    // Wrong-project URL that still carries a password + query string.
+    const url = `postgresql://postgres.otherref:${secret}@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?${query}`;
+    try {
+      assertStagingDatabaseTarget(url);
+      throw new Error("expected assertStagingDatabaseTarget to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(StagingDatabaseTargetError);
+      const message = (error as Error).message;
+      expect(message).not.toContain(secret);
+      expect(message).not.toContain("SENTINEL");
+      expect(message).not.toContain("otherref");
+    }
   });
 });
 
