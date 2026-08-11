@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GoogleIcon } from "@/components/ui/google-icon";
+import { getResendButtonState, resendErrorKey } from "./resend-state";
 
 // Login form — Engineering Sprint 3 (Phone OTP UI), redesigned by the
 // Visual Identity Sprint.
@@ -42,6 +43,12 @@ import { GoogleIcon } from "@/components/ui/google-icon";
 
 const OTP_LENGTH = 6;
 
+// Mirrors the server's OTP_RESEND_COOLDOWN_SECONDS default (src/lib/otp/
+// otp-config.ts). This is a client-side UX countdown only — the server-side
+// cooldown + daily cap remain the real enforcement; if the server rejects a
+// too-early/over-limit resend, we surface its localized message.
+const RESEND_COOLDOWN_SECONDS = 30;
+
 type Step = "phone" | "otp";
 
 // Google is an ADDITIONAL sign-in method — the phone+OTP flow below is
@@ -60,9 +67,19 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(oauthError ? t("oauthError") : null);
   const [otpSent, setOtpSent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendNotice, setResendNotice] = useState(false);
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const otp = otpDigits.join("");
+
+  // Tick the resend cooldown down to 0 (client-side UX only).
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   async function handleGoogleSignIn() {
     setGoogleLoading(true);
@@ -107,11 +124,39 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
       }
 
       setOtpSent(true);
+      setResendNotice(false);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
       setStep("otp");
     } catch {
       setError(t("genericError"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    if (resendCooldown > 0 || resending || loading) return;
+    setResending(true);
+    setError(null);
+    setResendNotice(false);
+
+    try {
+      const { error: requestError } = await authClient.phoneNumber.sendOtp({ phoneNumber });
+
+      if (requestError) {
+        // The same server-side cooldown/daily-cap that protects the initial
+        // send also protects resend — surface its specific reason when known.
+        const code = (requestError as { code?: string }).code;
+        setError(t(resendErrorKey(code)));
+        return;
+      }
+
+      setResendNotice(true);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch {
+      setError(t("genericError"));
+    } finally {
+      setResending(false);
     }
   }
 
@@ -144,6 +189,8 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
     setStep("phone");
     setOtpDigits(Array(OTP_LENGTH).fill(""));
     setOtpSent(false);
+    setResendNotice(false);
+    setResendCooldown(0);
     setError(null);
   }
 
@@ -243,6 +290,12 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
             </p>
           )}
 
+          {resendNotice && (
+            <p role="status" className="rounded-xl bg-success/10 px-4 py-2.5 text-sm text-success">
+              {t("otpResentSuccess")}
+            </p>
+          )}
+
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-foreground/80">{t("otpLabel")}</label>
             <div className="flex flex-row-reverse justify-center gap-2" dir="ltr">
@@ -279,13 +332,37 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
             {loading ? t("loading") : t("verifyOtpButton")}
           </Button>
 
-          <button
-            type="button"
-            onClick={handleChangePhoneNumber}
-            className="text-sm text-foreground/60 underline-offset-2 hover:underline"
-          >
-            {t("changePhoneButton")}
-          </button>
+          <div className="flex flex-col items-center gap-2">
+            {(() => {
+              const resendState = getResendButtonState({
+                cooldownSeconds: resendCooldown,
+                resending,
+                verifying: loading,
+              });
+              return (
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendState.disabled}
+                  aria-disabled={resendState.disabled}
+                  className="text-sm font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-foreground/40 disabled:no-underline"
+                >
+                  {resendState.label === "loading"
+                    ? t("loading")
+                    : resendState.label === "cooldown"
+                      ? t("resendCooldownLabel", { seconds: resendCooldown })
+                      : t("resendOtpButton")}
+                </button>
+              );
+            })()}
+            <button
+              type="button"
+              onClick={handleChangePhoneNumber}
+              className="text-sm text-foreground/60 underline-offset-2 hover:underline"
+            >
+              {t("changePhoneButton")}
+            </button>
+          </div>
         </form>
       )}
     </Card>
