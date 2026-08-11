@@ -100,7 +100,22 @@ export default async function ProviderServicesPage({
       <ProviderServiceFilters currentSearch={params.q} currentStatus={params.status} currentSort={params.sort} />
 
       {result.totalCount === 0 && !hasActiveFilter ? (
-        <EmptyState icon={PackageOpen} message={t("noServicesLabel")} description={t("noServicesDescription")} />
+        <EmptyState
+          icon={PackageOpen}
+          message={t("noServicesLabel")}
+          description={t("noServicesDescription")}
+          gap="gap-3"
+          padding="py-16"
+          action={
+            <Link
+              href="/provider/services/new"
+              className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <Plus size={16} strokeWidth={2} />
+              {t("createExperienceButton")}
+            </Link>
+          }
+        />
       ) : isOutOfRangePage ? (
         <EmptyState icon={PackageOpen} message={t("servicesNoResultsOnPageLabel")} />
       ) : result.items.length === 0 ? (

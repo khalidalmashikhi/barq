@@ -23,7 +23,7 @@ import { getProviderOverview } from "@/lib/provider/queries/get-provider-overvie
 import { getProviderMetrics } from "@/lib/provider/queries/get-provider-metrics";
 import { getProviderReviewsSummary, isHighRatedMilestone } from "@/lib/provider/queries/get-provider-reviews-summary";
 import { getProviderServiceInsights } from "@/lib/provider/queries/get-provider-service-insights";
-import { getProviderVerificationData } from "@/lib/provider/documents/get-provider-verification-data";
+import { getProviderActivation } from "@/lib/provider/queries/get-provider-activation";
 import { getNotifications } from "@/lib/notifications/get-notifications";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -37,6 +37,7 @@ import { BookingStatusBreakdown } from "@/components/provider/booking-status-bre
 import { RecentReviews } from "@/components/provider/recent-reviews";
 import { ServiceInsights } from "@/components/provider/service-insights";
 import { NotificationsPanel } from "@/components/provider/notifications-panel";
+import { ProviderActivationChecklist } from "@/components/provider/activation-checklist";
 import { Alert } from "@/components/ui/alert";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
@@ -99,15 +100,17 @@ export default async function ProviderOverviewPage() {
   const t = await getServerTranslator("provider");
   const bookingsPath = getPathname({ href: "/provider/bookings", locale });
   const pendingBookingsPath = `${bookingsPath}?status=PENDING_PROVIDER`;
-  const verificationPath = getPathname({ href: "/provider/verification", locale });
 
-  // Verification readiness (Gate 3) — advisory card only, derived from the same
-  // requirement primitives. Isolated so it can NEVER break the dashboard.
-  let verification: Awaited<ReturnType<typeof getProviderVerificationData>> | null = null;
+  // Provider activation (first-run) — best-effort; NEVER breaks the dashboard.
+  // Rendered only while approved-but-not-marketplace-ready (below), so an
+  // established provider naturally keeps an analytics-first dashboard. Supersedes
+  // the former standalone verification-readiness alert (verification is now the
+  // first step of this checklist).
+  let activation: Awaited<ReturnType<typeof getProviderActivation>> | null = null;
   try {
-    verification = await getProviderVerificationData();
+    activation = await getProviderActivation();
   } catch {
-    verification = null;
+    activation = null;
   }
 
   const formatRate = (rate: number | null) => (rate === null ? "—" : `${Math.round(rate * 100)}%`);
@@ -141,16 +144,8 @@ export default async function ProviderOverviewPage() {
         </Alert>
       )}
 
-      {verification && verification.requiredTotal > 0 && verification.requiredApproved < verification.requiredTotal && (
-        <Alert variant="info">
-          {t("verificationReadinessAlert", {
-            approved: verification.requiredApproved,
-            total: verification.requiredTotal,
-          })}{" "}
-          <Link href={verificationPath} className="font-medium underline underline-offset-2">
-            {t("verificationCtaLabel")}
-          </Link>
-        </Alert>
+      {activation && activation.providerApproved && !activation.marketplaceReady && (
+        <ProviderActivationChecklist activation={activation} />
       )}
 
       <CapacityAlerts items={data.capacityAlerts} availabilityHref="/provider/availability" />
