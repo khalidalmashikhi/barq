@@ -18,17 +18,20 @@ const CARD_CLASSNAME =
 type CategoryDiscoveryCardProps = {
   slug: string;
   label: string;
+  /** Optional short customer-oriented description shown under the label. */
+  description?: string;
   Icon?: LucideIcon;
   interactive?: boolean;
 };
 
-export function CategoryDiscoveryCard({ slug, label, Icon = Compass, interactive = true }: CategoryDiscoveryCardProps) {
+export function CategoryDiscoveryCard({ slug, label, description, Icon = Compass, interactive = true }: CategoryDiscoveryCardProps) {
   const inner = (
     <>
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
         <Icon size={22} strokeWidth={1.75} />
       </span>
-      <span className="text-sm font-medium text-foreground/80">{label}</span>
+      <span className="text-sm font-semibold text-foreground/90">{label}</span>
+      {description ? <span className="text-xs leading-relaxed text-foreground/50">{description}</span> : null}
     </>
   );
 

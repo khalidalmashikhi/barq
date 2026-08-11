@@ -44,6 +44,14 @@
     "emptyDescription": "Наши поставщики готовятся опубликовать свои первые впечатления. Загляните позже."
   },
   "categories": {
+    "carsLabel": "Car Rentals",
+    "carsDesc": "Rent a car and explore at your own pace.",
+    "toursLabel": "Tours & Experiences",
+    "toursDesc": "Guided tours and things to do across Oman.",
+    "marineLabel": "Marine Trips",
+    "marineDesc": "Boat trips, dolphin watching and diving.",
+    "transfersLabel": "Transfers",
+    "transfersDesc": "Airport pickups and point-to-point transport.",
     "title": "Выбрать по категории",
     "subtitle": "Найдите то приключение, которое отзывается именно вам",
     "desertSafari": "Сафари по пустыне",

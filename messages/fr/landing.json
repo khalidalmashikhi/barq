@@ -44,6 +44,14 @@
     "emptyDescription": "Nos prestataires préparent la publication de leurs premières expériences. Revenez bientôt."
   },
   "categories": {
+    "carsLabel": "Car Rentals",
+    "carsDesc": "Rent a car and explore at your own pace.",
+    "toursLabel": "Tours & Experiences",
+    "toursDesc": "Guided tours and things to do across Oman.",
+    "marineLabel": "Marine Trips",
+    "marineDesc": "Boat trips, dolphin watching and diving.",
+    "transfersLabel": "Transfers",
+    "transfersDesc": "Airport pickups and point-to-point transport.",
     "title": "Explorer par catégorie",
     "subtitle": "Trouvez le type d'aventure qui vous correspond",
     "desertSafari": "Safaris dans le désert",

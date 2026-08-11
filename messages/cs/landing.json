@@ -44,6 +44,14 @@
     "emptyDescription": "Naši poskytovatelé se chystají zveřejnit své první zážitky. Zkuste to znovu brzy."
   },
   "categories": {
+    "carsLabel": "Car Rentals",
+    "carsDesc": "Rent a car and explore at your own pace.",
+    "toursLabel": "Tours & Experiences",
+    "toursDesc": "Guided tours and things to do across Oman.",
+    "marineLabel": "Marine Trips",
+    "marineDesc": "Boat trips, dolphin watching and diving.",
+    "transfersLabel": "Transfers",
+    "transfersDesc": "Airport pickups and point-to-point transport.",
     "title": "Prozkoumat podle kategorie",
     "subtitle": "Najděte typ dobrodružství, který vám sedí",
     "desertSafari": "Pouštní safari",
