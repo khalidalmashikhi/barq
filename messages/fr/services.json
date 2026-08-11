@@ -1,4 +1,5 @@
 {
+  "viewDetailsLabel": "View details",
   "phase0Placeholder": "[fr/services] Phase 0 infrastructure placeholder (French) — not yet translated",
   "title": "Explorer BARQ",
   "availableCount": "{count} expériences disponibles",
