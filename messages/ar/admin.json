@@ -1,4 +1,6 @@
 {
+  "suspendProviderButton": "تعليق المزوّد",
+  "reactivateProviderButton": "إعادة تفعيل المزوّد",
   "roleLabel": "المشرف",
   "navProviders": "مزودو الخدمة",
   "providersTitle": "مزودو الخدمة",

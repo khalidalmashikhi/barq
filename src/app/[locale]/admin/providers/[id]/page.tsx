@@ -8,6 +8,8 @@ import { getProviderDetail } from "@/lib/admin/get-provider-detail";
 import { approveProvider } from "@/lib/admin/approve-provider";
 import { rejectProvider } from "@/lib/admin/reject-provider";
 import { archiveProvider } from "@/lib/admin/archive-provider";
+import { suspendProvider } from "@/lib/admin/suspend-provider";
+import { reactivateProvider } from "@/lib/admin/reactivate-provider";
 import { publishProvider, unpublishProvider } from "@/lib/admin/toggle-provider-visibility";
 import { getProviderStatusBadgeVariant, getProviderStatusTranslationKey } from "@/lib/admin/presentation/provider-status";
 import { isProviderAdminActionErrorCode, getProviderAdminErrorTranslationKey } from "@/lib/admin/provider-admin-errors";
@@ -337,6 +339,46 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             >
               <SubmitButton className="rounded-full border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
                 {t("archiveProviderButton")}
+              </SubmitButton>
+            </form>
+          )}
+
+          {/* Suspend / reactivate — the SAME tested, transition-guarded server
+              actions used under /admin/users, surfaced here so an admin need not
+              leave the provider detail page. Each renders only for the status it
+              is valid from (APPROVED → suspend, SUSPENDED → reactivate). */}
+          {provider.status === "APPROVED" && (
+            <form
+              action={async () => {
+                "use server";
+                const result = await suspendProvider(id);
+                if (!result.ok) {
+                  redirect({ href: `/admin/providers/${id}?error=${result.error}`, locale });
+                  return;
+                }
+                redirect({ href: `/admin/providers/${id}`, locale });
+              }}
+            >
+              <SubmitButton className="rounded-full border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+                {t("suspendProviderButton")}
+              </SubmitButton>
+            </form>
+          )}
+
+          {provider.status === "SUSPENDED" && (
+            <form
+              action={async () => {
+                "use server";
+                const result = await reactivateProvider(id);
+                if (!result.ok) {
+                  redirect({ href: `/admin/providers/${id}?error=${result.error}`, locale });
+                  return;
+                }
+                redirect({ href: `/admin/providers/${id}`, locale });
+              }}
+            >
+              <SubmitButton className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                {t("reactivateProviderButton")}
               </SubmitButton>
             </form>
           )}

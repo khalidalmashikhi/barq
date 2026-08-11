@@ -1,4 +1,6 @@
 {
+  "suspendProviderButton": "Suspend provider",
+  "reactivateProviderButton": "Reactivate provider",
   "roleLabel": "Администратор",
   "navProviders": "Поставщики",
   "providersTitle": "Поставщики",
