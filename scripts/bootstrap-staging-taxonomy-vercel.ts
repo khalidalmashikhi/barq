@@ -5,6 +5,8 @@ import {
   runVercelWrapper,
   VercelWrapperError,
   BOOTSTRAP_TEMP_ENV_FILE,
+  buildVercelPullArgs,
+  vercelCliUnavailableError,
 } from "../src/lib/staging-ops/vercel-taxonomy-wrapper";
 
 // BARQ v1 staging taxonomy bootstrap — VERCEL WRAPPER (ADR-0016 hardening).
@@ -24,30 +26,29 @@ const tempPath = path.resolve(process.cwd(), BOOTSTRAP_TEMP_ENV_FILE);
 const projectJsonPath = path.resolve(process.cwd(), ".vercel", "project.json");
 const isWindows = process.platform === "win32";
 
-// Prefer a globally-installed `vercel`; otherwise use `npx vercel` — never add
-// Vercel as a project dependency.
-function resolveVercelInvocation(): { command: string; prefix: string[] } {
+// Detect a globally-installed, resolvable `vercel`. We do NOT fall back to
+// `npx vercel` — it fails with a cryptic "npm error Invalid Version:" on npm 11.
+function hasGlobalVercel(): boolean {
   try {
     const probe = spawnSync("vercel", ["--version"], { stdio: "ignore", shell: isWindows });
-    if (probe.status === 0) return { command: "vercel", prefix: [] };
+    return probe.status === 0;
   } catch {
-    // fall through to npx
+    return false;
   }
-  return { command: isWindows ? "npx.cmd" : "npx", prefix: ["--yes", "vercel"] };
 }
 
 async function realVercelPull(target: string): Promise<void> {
-  const { command, prefix } = resolveVercelInvocation();
-  const args = [...prefix, "env", "pull", target, "--environment=production", "--yes"];
+  if (!hasGlobalVercel()) throw vercelCliUnavailableError();
+
+  // Pass a BARE filename + cwd so a repo path with a space (e.g.
+  // "D:\my backup\Barq") never splits the CLI argument under a shell.
+  const fileName = path.basename(target);
+  const cwd = path.dirname(target);
+  const args = buildVercelPullArgs(fileName);
+
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { stdio: "inherit", shell: isWindows });
-    child.on("error", () =>
-      reject(
-        new VercelWrapperError(
-          "Vercel CLI unavailable. Install it (`npm i -g vercel`) and log in (`vercel login`). Not falling back to .env."
-        )
-      )
-    );
+    const child = spawn("vercel", args, { stdio: "inherit", shell: isWindows, cwd });
+    child.on("error", () => reject(vercelCliUnavailableError()));
     child.on("close", (code) => {
       if (code === 0) resolve();
       else

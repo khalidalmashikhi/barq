@@ -66,15 +66,50 @@ export function parseVercelEnvFile(contents: string): Partial<RequiredEnv> {
   return out;
 }
 
-// Fail closed if either required var is absent — NEVER fall back to .env.
+// The literal placeholder `vercel env pull` writes for variables marked
+// "Sensitive" in Vercel — such vars are write-only and cannot be pulled back.
+export const VERCEL_SENSITIVE_PLACEHOLDER = "[SENSITIVE]";
+
+// Fail closed if either required var is absent OR a Sensitive placeholder —
+// NEVER fall back to .env, and never hand a placeholder to Prisma.
 export function selectRequiredEnv(parsed: Partial<RequiredEnv>): RequiredEnv {
-  if (!parsed.DATABASE_URL || parsed.DATABASE_URL.trim() === "") {
-    throw new VercelWrapperError("Pulled Vercel env is missing DATABASE_URL — refusing (no fallback to .env).");
+  for (const key of ["DATABASE_URL", "DIRECT_URL"] as const) {
+    const value = parsed[key];
+    if (!value || value.trim() === "") {
+      throw new VercelWrapperError(`Pulled Vercel env is missing ${key} — refusing (no fallback to .env).`);
+    }
+    if (value.trim() === VERCEL_SENSITIVE_PLACEHOLDER) {
+      throw new VercelWrapperError(
+        `${key} came back as Vercel's "${VERCEL_SENSITIVE_PLACEHOLDER}" placeholder — it is marked Sensitive in ` +
+          "Vercel and cannot be pulled. In Vercel (barq4/barq-staging → Settings → Environment Variables → " +
+          "Production), un-mark DATABASE_URL and DIRECT_URL as Sensitive (re-save each value), then re-run. " +
+          "Not connecting with a placeholder, and not falling back to .env."
+      );
+    }
   }
-  if (!parsed.DIRECT_URL || parsed.DIRECT_URL.trim() === "") {
-    throw new VercelWrapperError("Pulled Vercel env is missing DIRECT_URL — refusing (no fallback to .env).");
+  return { DATABASE_URL: parsed.DATABASE_URL!, DIRECT_URL: parsed.DIRECT_URL! };
+}
+
+// Build the `vercel env pull` argument list. The temp file is passed as a BARE
+// filename (the caller sets cwd to the repo root) so a repository path that
+// contains a space — e.g. "D:\my backup\Barq" — can never split the CLI
+// argument when spawned through a shell. Pull scope is the barq-staging
+// project's Production environment, where the working staging DATABASE_URL lives.
+export function buildVercelPullArgs(tempFileName: string): string[] {
+  if (tempFileName === "" || tempFileName.includes("/") || tempFileName.includes("\\")) {
+    throw new VercelWrapperError("Internal error: vercel pull expects a bare temp filename, not a path.");
   }
-  return { DATABASE_URL: parsed.DATABASE_URL, DIRECT_URL: parsed.DIRECT_URL };
+  return ["env", "pull", tempFileName, "--environment=production", "--yes"];
+}
+
+// Clear, actionable error when the Vercel CLI is not installed/resolvable. We
+// deliberately do NOT fall back to `npx vercel` (it fails with a cryptic
+// "npm error Invalid Version:" on npm 11) nor to .env.
+export function vercelCliUnavailableError(): VercelWrapperError {
+  return new VercelWrapperError(
+    "Vercel CLI not found on PATH. Install it once with `npm i -g vercel` (your existing Vercel login is cached), " +
+      "then re-run. Not using `npx vercel` and not falling back to .env."
+  );
 }
 
 export function wantsApply(argv: readonly string[]): boolean {

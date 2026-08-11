@@ -6,6 +6,8 @@ import {
   wantsApply,
   buildBootstrapArgs,
   buildChildEnv,
+  buildVercelPullArgs,
+  vercelCliUnavailableError,
   runVercelWrapper,
   VercelWrapperError,
   STAGING_PROJECT_NAME,
@@ -92,6 +94,38 @@ describe("selectRequiredEnv", () => {
 
   it("fails closed when DIRECT_URL is missing", () => {
     expect(() => selectRequiredEnv({ DATABASE_URL: "a" })).toThrow(VercelWrapperError);
+  });
+
+  it("fails closed (with a Sensitive-specific message) when a value is the [SENSITIVE] placeholder", () => {
+    expect(() => selectRequiredEnv({ DATABASE_URL: "[SENSITIVE]", DIRECT_URL: "[SENSITIVE]" })).toThrow(/Sensitive/);
+    expect(() => selectRequiredEnv({ DATABASE_URL: "postgresql://ok", DIRECT_URL: "[SENSITIVE]" })).toThrow(/Sensitive/);
+  });
+});
+
+describe("buildVercelPullArgs", () => {
+  it("pulls the production scope using a BARE filename (no path)", () => {
+    expect(buildVercelPullArgs(".env.barq-staging.bootstrap.local")).toEqual([
+      "env",
+      "pull",
+      ".env.barq-staging.bootstrap.local",
+      "--environment=production",
+      "--yes",
+    ]);
+  });
+
+  it("rejects a path (with separators) or empty name — the space-in-path guard", () => {
+    expect(() => buildVercelPullArgs("D:\\my backup\\Barq\\.env.x.local")).toThrow(VercelWrapperError);
+    expect(() => buildVercelPullArgs("dir/name.local")).toThrow(VercelWrapperError);
+    expect(() => buildVercelPullArgs("")).toThrow(VercelWrapperError);
+  });
+});
+
+describe("vercelCliUnavailableError", () => {
+  it("is a VercelWrapperError instructing a global install, never npx or .env", () => {
+    const err = vercelCliUnavailableError();
+    expect(err).toBeInstanceOf(VercelWrapperError);
+    expect(err.message).toContain("npm i -g vercel");
+    expect(err.message).toContain("not falling back to .env");
   });
 });
 
