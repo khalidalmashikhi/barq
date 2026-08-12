@@ -10,7 +10,6 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { CategoryField } from "@/components/categories/category-field";
-import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 
 // Create Service (admin-initiated) — Phase 2.4 (Service Admin UI).
 // Mirrors admin/providers/new/page.tsx's form shape. Distinct from the
@@ -34,8 +33,9 @@ export default async function NewServicePage({ searchParams }: Props) {
 
   const errorMessage = error && isServiceAdminActionErrorCode(error) ? t(getServiceAdminErrorTranslationKey(error)) : null;
 
-  // A new service is always DEFAULT_SERVICE_TYPE_KEY; category set scoped to it.
-  const categoryTree = await getSelectableCategories(DEFAULT_SERVICE_TYPE_KEY);
+  // BR-028: offer the UNIFIED assignable category set across every vertical — the
+  // chosen category DRIVES the service type server-side (no serviceType picker).
+  const categoryTree = await getSelectableCategories();
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">

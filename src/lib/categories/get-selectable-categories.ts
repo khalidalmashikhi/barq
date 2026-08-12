@@ -6,11 +6,13 @@ import { selectableCategoryWhere, isCategoryEffectivelySelectable } from "./sele
 import type { CategoryTree } from "./category-tree";
 
 // Selectable-category read for the Service category picker (Task B, WRITE path).
-// Returns the tree of categories a service of `serviceType` may be filed under —
-// effectively-PUBLIC (self + every ancestor) and matching the service's
-// vertical. Both the coarse `where` and the effective-visibility predicate come
-// from the one shared rule module, so the picker and the server-side assignment
-// validator can never diverge.
+// Returns the tree of assignable categories — effectively-PUBLIC (self + every
+// ancestor) and a governed vertical. `serviceType` is OPTIONAL (BR-028 UI
+// completion): omit it to offer the UNIFIED set across every vertical (the
+// category then drives the derived serviceType server-side); pass one to scope
+// to a single vertical (legacy callers). Both the coarse `where` and the
+// effective-visibility predicate come from the one shared rule module, so the
+// picker and the server-side assignment validator can never diverge.
 //
 // AUTH: intentionally unguarded here — it exposes only PUBLIC categories (the
 // same set the public Marketplace will browse) and is always called from an
@@ -20,7 +22,7 @@ import type { CategoryTree } from "./category-tree";
 // parent, so the parent's status is the whole ancestor chain. If depth is ever
 // raised, this must load the full ancestor path before applying the predicate.
 
-export async function getSelectableCategories(serviceType: string): Promise<CategoryTree> {
+export async function getSelectableCategories(serviceType?: string): Promise<CategoryTree> {
   const locale = await getLocale();
 
   const rows = await prisma.category.findMany({

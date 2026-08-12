@@ -8,6 +8,11 @@ describe("selectableCategoryWhere", () => {
   it("filters to own-PUBLIC status and the given serviceType", () => {
     expect(selectableCategoryWhere("EXPERIENCE")).toEqual({ visibilityStatus: "PUBLIC", serviceTypeKey: "EXPERIENCE" });
   });
+
+  it("filters to own-PUBLIC only (no vertical) when serviceType is omitted — the unified set (BR-028)", () => {
+    expect(selectableCategoryWhere()).toEqual({ visibilityStatus: "PUBLIC" });
+    expect(selectableCategoryWhere()).not.toHaveProperty("serviceTypeKey");
+  });
 });
 
 describe("isCategoryEffectivelySelectable", () => {
@@ -48,5 +53,35 @@ describe("isCategoryEffectivelySelectable", () => {
 
   it("rejects a serviceType mismatch", () => {
     expect(isCategoryEffectivelySelectable({ visibilityStatus: "PUBLIC", serviceTypeKey: "TRANSPORT" }, "EXPERIENCE")).toBe(false);
+  });
+
+  describe("unified set (serviceType omitted — BR-028)", () => {
+    it("accepts any GOVERNED vertical (RENTAL/TRANSPORT/EXPERIENCE) that is effectively PUBLIC", () => {
+      for (const key of ["RENTAL", "TRANSPORT", "EXPERIENCE"]) {
+        expect(isCategoryEffectivelySelectable({ visibilityStatus: "PUBLIC", serviceTypeKey: key })).toBe(true);
+      }
+    });
+
+    it("accepts a PUBLIC RENTAL child under a PUBLIC parent", () => {
+      expect(
+        isCategoryEffectivelySelectable(
+          { visibilityStatus: "PUBLIC", serviceTypeKey: "RENTAL", ancestorStatuses: ["PUBLIC"] }
+        )
+      ).toBe(true);
+    });
+
+    it("still rejects a non-governed serviceTypeKey (no leak of unrecognized verticals)", () => {
+      expect(isCategoryEffectivelySelectable({ visibilityStatus: "PUBLIC", serviceTypeKey: "BOGUS" })).toBe(false);
+    });
+
+    it("still rejects a non-PUBLIC own status", () => {
+      expect(isCategoryEffectivelySelectable({ visibilityStatus: "HIDDEN", serviceTypeKey: "RENTAL" })).toBe(false);
+    });
+
+    it("still rejects a PUBLIC child under a HIDDEN/ARCHIVED parent (effective visibility)", () => {
+      expect(
+        isCategoryEffectivelySelectable({ visibilityStatus: "PUBLIC", serviceTypeKey: "TRANSPORT", ancestorStatuses: ["ARCHIVED"] })
+      ).toBe(false);
+    });
   });
 });

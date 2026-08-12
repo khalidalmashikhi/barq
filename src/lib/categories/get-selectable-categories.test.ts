@@ -45,6 +45,20 @@ describe("getSelectableCategories", () => {
     );
   });
 
+  it("with no serviceType, queries the UNIFIED set (own-PUBLIC only) and includes every vertical (BR-028)", async () => {
+    findManyMock.mockResolvedValue([
+      row({ id: "cars", en: "Car Rentals", serviceTypeKey: "RENTAL" }),
+      row({ id: "transfers", en: "Transfers", serviceTypeKey: "TRANSPORT" }),
+      row({ id: "tours", en: "Tours", serviceTypeKey: "EXPERIENCE" }),
+    ]);
+
+    const tree = await getSelectableCategories();
+
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({ where: selectableCategoryWhere() }));
+    // Cars (RENTAL) and Transfers (TRANSPORT) now appear alongside EXPERIENCE.
+    expect(tree.nodes.map((n) => n.id).sort()).toEqual(["cars", "tours", "transfers"]);
+  });
+
   it("builds a tree of effectively-selectable categories, resolving labels", async () => {
     findManyMock.mockResolvedValue([
       row({ id: "root", en: "Root" }),

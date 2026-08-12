@@ -64,8 +64,10 @@ export default async function EditServicePage({ params, searchParams }: Props) {
 
   const errorMessage = error && isServiceAdminActionErrorCode(error) ? t(getServiceAdminErrorTranslationKey(error)) : null;
 
-  // Selectable set scoped to THIS service's own serviceType (never a literal).
-  const categoryTree = await getSelectableCategories(service.serviceType);
+  // BR-028: offer the UNIFIED assignable set across every vertical — changing the
+  // category re-derives serviceType server-side. Existing safe edit semantics are
+  // preserved: the current categoryId is still passed as the field's defaultValue.
+  const categoryTree = await getSelectableCategories();
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">

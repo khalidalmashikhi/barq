@@ -64,8 +64,11 @@ export default async function EditServicePage({ params, searchParams }: Props) {
   const errorMessage = error && isServiceActionErrorCode(error) ? t(getServiceErrorTranslationKey(error)) : null;
   const mediaErrorMessage = mediaError && isProviderMediaErrorCode(mediaError) ? t(getProviderMediaErrorTranslationKey(mediaError)) : null;
 
-  // Selectable set is scoped to THIS service's own serviceType (never a literal).
-  const categoryTree = await getSelectableCategories(service.serviceType);
+  // BR-028: offer the UNIFIED assignable set across every vertical — changing the
+  // category re-derives serviceType server-side. Existing safe edit semantics are
+  // preserved: the current categoryId is still passed as the field's defaultValue,
+  // and effective-visibility rules are unchanged.
+  const categoryTree = await getSelectableCategories();
 
   // Service media (Gap C) — one bounded query for cover + gallery.
   const media = await getServiceMedia(id);

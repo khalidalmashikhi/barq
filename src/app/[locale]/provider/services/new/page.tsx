@@ -10,7 +10,6 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { CategoryField } from "@/components/categories/category-field";
-import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 
 // Create Experience — Phase 4.2 (Provider Experience), Priority 1.
 // Collects both ar/en name (Service.name is bilingual-required, see
@@ -33,9 +32,10 @@ export default async function NewServicePage({ searchParams }: Props) {
 
   const errorMessage = error && isServiceActionErrorCode(error) ? t(getServiceErrorTranslationKey(error)) : null;
 
-  // A new service is always DEFAULT_SERVICE_TYPE_KEY (no serviceType picker); the
-  // category set is scoped to that vertical.
-  const categoryTree = await getSelectableCategories(DEFAULT_SERVICE_TYPE_KEY);
+  // BR-028: offer the UNIFIED assignable category set across every vertical — the
+  // chosen category DRIVES the service type server-side (there is no serviceType
+  // picker; the provider only picks a category).
+  const categoryTree = await getSelectableCategories();
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
