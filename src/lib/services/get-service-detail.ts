@@ -28,6 +28,13 @@ export type ServiceDetail = {
   /// "verified" flag.
   providerStatus: string;
   price: string | null;
+  // Discovery/display metadata (Core Service Enrichment, Gate 3). Both are raw
+  // governed CODES (or null for legacy/unset rows), never localized — a consumer
+  // maps them to display labels via i18n. pricingUnit describes the basis of
+  // `price` for presentation ONLY; it does not affect totals or booking behaviour,
+  // and it is read from the SAME ACTIVE Price row as `price` (never mixed).
+  regionCode: string | null;
+  pricingUnit: string | null;
   // Service media (Media Foundation, Gap C) — cover + ordered gallery URLs,
   // fetched via a bounded relational include on this same query (no N+1).
   coverUrl: string | null;
@@ -48,8 +55,9 @@ type ServiceDetailRow = {
   name: unknown;
   description: unknown;
   providerId: string;
+  regionCode?: string | null;
   provider: { businessName: unknown; businessDescription: unknown; status: string };
-  prices: Array<{ amount: unknown; currency: string }>;
+  prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
   mediaAssets?: Array<{ url: string; kind?: string }>;
   createdAt: Date;
 };
@@ -93,6 +101,11 @@ function mapServiceDetailRow(row: ServiceDetailRow, locale: Locale): ServiceDeta
     providerDescription: extractLocalizedText(row.provider.businessDescription, locale),
     providerStatus: row.provider.status,
     price: row.prices[0] ? `${row.prices[0].amount} ${row.prices[0].currency}` : null,
+    // regionCode is a Service scalar; pricingUnit rides the SAME ACTIVE price row
+    // as `price` above (prices[0]) so amount/currency/unit never come from
+    // different rows. Both null-tolerant for legacy/unset data.
+    regionCode: row.regionCode ?? null,
+    pricingUnit: row.prices[0] ? (row.prices[0].pricingUnit ?? null) : null,
     coverUrl,
     gallery,
     createdAt: row.createdAt,

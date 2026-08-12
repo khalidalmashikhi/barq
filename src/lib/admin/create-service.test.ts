@@ -170,4 +170,43 @@ describe("createService", () => {
     expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
     expect(serviceCreateMock).not.toHaveBeenCalled();
   });
+
+  // Core Service Enrichment, Gate 3 — regionCode on the Service. (This admin path
+  // provisions no Price, so there is no pricingUnit to accept here.)
+  describe("region (Gate 3)", () => {
+    it("persists a valid regionCode on the Service", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      providerFindUniqueMock.mockResolvedValue({ id: PROVIDER_ID });
+      serviceCreateMock.mockResolvedValue({ id: "service-1" });
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await createService(buildFormData(baseFields({ regionCode: "AL_WUSTA" })));
+
+      expect(result).toEqual({ ok: true, serviceId: "service-1" });
+      expect(serviceCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ regionCode: "AL_WUSTA" }) })
+      );
+    });
+
+    it("omits regionCode when empty (unset)", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      providerFindUniqueMock.mockResolvedValue({ id: PROVIDER_ID });
+      serviceCreateMock.mockResolvedValue({ id: "service-1" });
+      auditCreateMock.mockResolvedValue({});
+
+      await createService(buildFormData(baseFields({ regionCode: "" })));
+
+      expect(serviceCreateMock.mock.calls[0]![0].data).not.toHaveProperty("regionCode");
+    });
+
+    it("rejects an invalid regionCode with INVALID_INPUT and creates nothing", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      providerFindUniqueMock.mockResolvedValue({ id: PROVIDER_ID });
+
+      const result = await createService(buildFormData(baseFields({ regionCode: "Muscat" })));
+
+      expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(serviceCreateMock).not.toHaveBeenCalled();
+    });
+  });
 });

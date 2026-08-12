@@ -7,6 +7,8 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
+import { parseRegionCode } from "@/lib/regions";
+import { parsePricingUnit } from "@/lib/pricing-units";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Create Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -39,6 +41,8 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   const descriptionEn = formData.get("descriptionEn");
   const priceAmount = formData.get("priceAmount");
   const rawCategoryId = formData.get("categoryId");
+  const rawRegionCode = formData.get("regionCode");
+  const rawPricingUnit = formData.get("pricingUnit");
 
   if (typeof nameAr !== "string" || typeof nameEn !== "string" || typeof priceAmount !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -58,6 +62,22 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   // Category is optional at create (drafts may stay uncategorized; it is required
   // only at publish).
   const categoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
+
+  // Optional discovery/display metadata (Gate 3). Both are validated against
+  // their application registries BEFORE any write; empty/absent → null (unset),
+  // a governed code → persisted, an invalid non-empty value → INVALID_INPUT (the
+  // Gate-4 UI uses dropdowns, so an invalid value here is a malformed/spoofed
+  // request, handled by the existing catch-all input error). regionCode lives on
+  // the Service; pricingUnit is display metadata on the created Price and does
+  // NOT affect totals or booking behaviour.
+  const regionCode = parseRegionCode(rawRegionCode);
+  if (regionCode === undefined) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+  const pricingUnit = parsePricingUnit(rawPricingUnit);
+  if (pricingUnit === undefined) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
 
   let provider;
   try {
@@ -98,6 +118,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
           ...(categoryId ? { categoryId } : {}),
+          ...(regionCode ? { regionCode } : {}),
         },
       });
 
@@ -106,6 +127,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
           serviceId: service.id,
           amount: trimmedAmount,
           currency: "OMR",
+          ...(pricingUnit ? { pricingUnit } : {}),
         },
       });
 

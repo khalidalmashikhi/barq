@@ -23,10 +23,15 @@ export type ServiceDetail = {
   providerName: string;
   serviceType: string;
   categoryId: string | null;
+  // Discovery region (Gate 3) — raw governed CODE or null; not localized. Feeds the
+  // admin edit form's future region field; no presentation applied here.
+  regionCode: string | null;
   name: { ar: string; en: string };
   description: { ar: string; en: string } | null;
   status: string;
-  activePrice: { amount: string; currency: string } | null;
+  // pricingUnit rides the SAME ACTIVE price row as amount/currency; display
+  // metadata only (never affects totals/booking); null-tolerant for legacy rows.
+  activePrice: { amount: string; currency: string; pricingUnit: string | null } | null;
   createdAt: Date;
   updatedAt: Date;
 } | null;
@@ -58,10 +63,13 @@ export async function getServiceDetail(serviceId: string): Promise<ServiceDetail
     providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     serviceType: service.serviceType,
     categoryId: service.categoryId,
+    regionCode: service.regionCode ?? null,
     name: service.name as { ar: string; en: string },
     description: service.description as { ar: string; en: string } | null,
     status: service.status,
-    activePrice: service.prices[0] ? { amount: String(service.prices[0].amount), currency: service.prices[0].currency } : null,
+    activePrice: service.prices[0]
+      ? { amount: String(service.prices[0].amount), currency: service.prices[0].currency, pricingUnit: service.prices[0].pricingUnit ?? null }
+      : null,
     createdAt: service.createdAt,
     updatedAt: service.updatedAt,
   };

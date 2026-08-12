@@ -7,6 +7,8 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
+import { parseRegionCode } from "@/lib/regions";
+import { parsePricingUnit } from "@/lib/pricing-units";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Edit Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -30,6 +32,8 @@ export async function updateService(serviceId: string, formData: FormData): Prom
   const descriptionAr = formData.get("descriptionAr");
   const descriptionEn = formData.get("descriptionEn");
   const rawCategoryId = formData.get("categoryId");
+  const rawRegionCode = formData.get("regionCode");
+  const rawPricingUnit = formData.get("pricingUnit");
 
   if (typeof nameAr !== "string" || typeof nameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -49,6 +53,33 @@ export async function updateService(serviceId: string, formData: FormData): Prom
   // published service is never silently un-categorized through the edit form.
   // Explicit un-assignment is out of Task B scope.
   const submittedCategoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
+
+  // regionCode and pricingUnit are OPTIONAL, freely-nullable metadata (Gate 3), so
+  // — unlike categoryId, which is required at publish and therefore uses "empty =
+  // leave unchanged" — they safely support an explicit CLEAR: an ABSENT form field
+  // (formData.get → null) leaves the current value unchanged; a PRESENT-but-empty
+  // field clears it to NULL; a present governed code sets it. A present, non-empty,
+  // non-governed value is rejected up-front (parse* → undefined) before any write —
+  // the Gate-4 UI uses dropdowns, so that path is only a malformed/spoofed request.
+  // Both are validated here, before the transaction, so nothing is mutated on a bad
+  // value. pricingUnit is display metadata only and never affects totals/booking.
+  let regionCodeChange: { regionCode: string | null } | undefined;
+  if (rawRegionCode !== null) {
+    const parsedRegion = parseRegionCode(rawRegionCode);
+    if (parsedRegion === undefined) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    regionCodeChange = { regionCode: parsedRegion };
+  }
+
+  let pricingUnitChange: { pricingUnit: string | null } | undefined;
+  if (rawPricingUnit !== null) {
+    const parsedUnit = parsePricingUnit(rawPricingUnit);
+    if (parsedUnit === undefined) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    pricingUnitChange = { pricingUnit: parsedUnit };
+  }
 
   let provider;
   try {
@@ -97,8 +128,24 @@ export async function updateService(serviceId: string, formData: FormData): Prom
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
           ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType } : {}),
+          ...(regionCodeChange ?? {}),
         },
       });
+
+      // pricingUnit is metadata ON the Price, not the Service. Set it on the
+      // current ACTIVE price(s) — a metadata-only update that never touches
+      // amount/currency and never inserts a new Price row, so the append-only
+      // price-versioning model is preserved and no duplicate ACTIVE price is
+      // created. The reader selects amount + currency + pricingUnit from the same
+      // ACTIVE row, so they stay consistent. If the service has no ACTIVE price
+      // (e.g. an admin-provisioned draft), updateMany matches nothing — a safe
+      // no-op, since a unit with no price has nowhere to live yet.
+      if (pricingUnitChange) {
+        await tx.price.updateMany({
+          where: { serviceId, status: "ACTIVE" },
+          data: pricingUnitChange,
+        });
+      }
 
       if (categoryChanged) {
         await recordAuditEvent(

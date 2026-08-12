@@ -23,6 +23,7 @@ vi.mock("@/lib/auth", () => ({
 
 const serviceFindUniqueMock = vi.fn();
 const serviceUpdateMock = vi.fn();
+const priceUpdateManyMock = vi.fn();
 const auditCreateMock = vi.fn();
 const resolveAssignableCategoryMock = vi.fn();
 
@@ -38,6 +39,7 @@ vi.mock("@/lib/db", () => ({
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => serviceUpdateMock(...args) },
+        price: { updateMany: (...args: unknown[]) => priceUpdateManyMock(...args) },
         auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
       }),
   },
@@ -59,6 +61,7 @@ afterEach(() => {
   requireAdminMock.mockReset();
   serviceFindUniqueMock.mockReset();
   serviceUpdateMock.mockReset();
+  priceUpdateManyMock.mockReset();
   auditCreateMock.mockReset();
   resolveAssignableCategoryMock.mockReset();
 });
@@ -164,5 +167,54 @@ describe("updateService", () => {
 
     expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
     expect(serviceUpdateMock).not.toHaveBeenCalled();
+  });
+
+  // Core Service Enrichment, Gate 3 — regionCode (Service) + pricingUnit (ACTIVE Price).
+  describe("region + pricing unit (Gate 3)", () => {
+    it("sets a valid regionCode on the Service and pricingUnit on the ACTIVE price (metadata, no new row)", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      serviceFindUniqueMock.mockResolvedValue({ id: SERVICE_ID, name: { ar: "قديم", en: "Old" }, status: "DRAFT", categoryId: "c", serviceType: "EXPERIENCE" });
+      serviceUpdateMock.mockResolvedValue({});
+      priceUpdateManyMock.mockResolvedValue({ count: 1 });
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await updateService(
+        SERVICE_ID,
+        buildFormData({ nameAr: "جديد", nameEn: "New", regionCode: "DHOFAR", pricingUnit: "PER_HOUR" })
+      );
+
+      expect(result).toEqual({ ok: true });
+      expect(serviceUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ regionCode: "DHOFAR" }) })
+      );
+      expect(priceUpdateManyMock).toHaveBeenCalledWith({
+        where: { serviceId: SERVICE_ID, status: "ACTIVE" },
+        data: { pricingUnit: "PER_HOUR" },
+      });
+    });
+
+    it("leaves regionCode/pricingUnit untouched (no price write) when their fields are absent", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      serviceFindUniqueMock.mockResolvedValue({ id: SERVICE_ID, name: { ar: "قديم", en: "Old" }, status: "DRAFT", categoryId: "c", serviceType: "EXPERIENCE" });
+      serviceUpdateMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جديد", nameEn: "New" }));
+
+      expect(result).toEqual({ ok: true });
+      expect(serviceUpdateMock.mock.calls[0]![0].data).not.toHaveProperty("regionCode");
+      expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid pricingUnit with INVALID_INPUT and mutates nothing", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      serviceFindUniqueMock.mockResolvedValue({ id: SERVICE_ID, name: { ar: "قديم", en: "Old" }, status: "DRAFT", categoryId: "c", serviceType: "EXPERIENCE" });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جديد", nameEn: "New", pricingUnit: "PER_NIGHT" }));
+
+      expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(serviceUpdateMock).not.toHaveBeenCalled();
+      expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
   });
 });

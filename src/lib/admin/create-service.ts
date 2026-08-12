@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
+import { parseRegionCode } from "@/lib/regions";
 import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
 
 // Create Service (admin-initiated) — Phase 2.3 (Service Foundation).
@@ -39,6 +40,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   const descriptionAr = formData.get("descriptionAr");
   const descriptionEn = formData.get("descriptionEn");
   const rawCategoryId = formData.get("categoryId");
+  const rawRegionCode = formData.get("regionCode");
 
   if (typeof providerId !== "string" || typeof nameAr !== "string" || typeof nameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -60,6 +62,16 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
 
   // Category optional at create, required at publish.
   const categoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
+
+  // Optional discovery region (Gate 3), validated against the registry before any
+  // write; empty/absent → null, invalid non-empty → INVALID_INPUT. Note: the
+  // admin create path deliberately provisions NO Price (see this file's header),
+  // so there is no pricingUnit to accept here — it attaches to a Price, added in a
+  // later pricing flow. regionCode lives on the Service, so it applies directly.
+  const regionCode = parseRegionCode(rawRegionCode);
+  if (regionCode === undefined) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
 
   let admin;
   try {
@@ -104,6 +116,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
           ...(categoryId ? { categoryId } : {}),
+          ...(regionCode ? { regionCode } : {}),
         },
       });
 

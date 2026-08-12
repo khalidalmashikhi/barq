@@ -286,3 +286,43 @@ describe("getServices — search (case-insensitive, multi-field, multi-word)", (
     expect(new Set(idsPassed).size).toBe(idsPassed.length);
   });
 });
+
+describe("getServices — region + pricing unit exposure (Gate 3)", () => {
+  function serviceRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "service-1",
+      name: { en: "Tour", ar: "جولة" },
+      providerId: "provider-1",
+      provider: { businessName: { en: "Co", ar: "شركة" } },
+      prices: [{ amount: "10", currency: "OMR", pricingUnit: "PER_PERSON" }],
+      mediaAssets: [],
+      regionCode: "DHOFAR",
+      createdAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  it("maps regionCode (Service scalar) and pricingUnit (from the same active price row) onto each list item", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([serviceRow()]);
+
+    const result = await getServices({});
+
+    expect(result.items[0]!.regionCode).toBe("DHOFAR");
+    expect(result.items[0]!.pricingUnit).toBe("PER_PERSON");
+    expect(result.items[0]!.price).toBe("10 OMR");
+  });
+
+  it("is null-safe for legacy rows: regionCode absent and a price without pricingUnit", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([serviceRow({ regionCode: null, prices: [{ amount: "10", currency: "OMR" }] })]);
+
+    const result = await getServices({});
+
+    expect(result.items[0]!.regionCode).toBeNull();
+    expect(result.items[0]!.pricingUnit).toBeNull();
+    expect(result.items[0]!.price).toBe("10 OMR");
+  });
+});

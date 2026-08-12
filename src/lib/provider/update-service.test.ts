@@ -29,6 +29,7 @@ vi.mock("@/lib/auth", () => ({
 
 const findUniqueMock = vi.fn();
 const updateMock = vi.fn();
+const priceUpdateManyMock = vi.fn();
 const auditCreateMock = vi.fn();
 const resolveAssignableCategoryMock = vi.fn();
 
@@ -41,6 +42,7 @@ vi.mock("@/lib/db", () => ({
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
+        price: { updateMany: (...args: unknown[]) => priceUpdateManyMock(...args) },
         auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
       }),
   },
@@ -67,6 +69,7 @@ afterEach(() => {
   requireApprovedProviderMock.mockReset();
   findUniqueMock.mockReset();
   updateMock.mockReset();
+  priceUpdateManyMock.mockReset();
   auditCreateMock.mockReset();
   resolveAssignableCategoryMock.mockReset();
 });
@@ -182,5 +185,76 @@ describe("updateService", () => {
     expect(auditCreateMock).not.toHaveBeenCalled();
     expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("categoryId");
     expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("serviceType");
+  });
+
+  // Core Service Enrichment, Gate 3 — regionCode (Service) + pricingUnit (ACTIVE Price).
+  describe("region + pricing unit (Gate 3)", () => {
+    it("sets a valid regionCode on the Service, and pricingUnit on the ACTIVE price only (metadata, no new row)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+      updateMock.mockResolvedValue({});
+      priceUpdateManyMock.mockResolvedValue({ count: 1 });
+
+      const result = await updateService(
+        SERVICE_ID,
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", regionCode: "MUSCAT", pricingUnit: "PER_TRIP" })
+      );
+
+      expect(result).toEqual({ ok: true });
+      expect(updateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ regionCode: "MUSCAT" }) })
+      );
+      // pricingUnit is written via updateMany on the ACTIVE price — never a new
+      // Price row, never touching amount/currency.
+      expect(priceUpdateManyMock).toHaveBeenCalledWith({
+        where: { serviceId: SERVICE_ID, status: "ACTIVE" },
+        data: { pricingUnit: "PER_TRIP" },
+      });
+    });
+
+    it("clears regionCode to NULL on an explicit empty value (optional field supports clear)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+      updateMock.mockResolvedValue({});
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour", regionCode: "" }));
+
+      expect(result).toEqual({ ok: true });
+      expect(updateMock.mock.calls[0]![0].data.regionCode).toBeNull();
+    });
+
+    it("leaves regionCode AND pricingUnit untouched when their fields are absent (no clobber, no price write)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+      updateMock.mockResolvedValue({});
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour" }));
+
+      expect(result).toEqual({ ok: true });
+      expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("regionCode");
+      expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid regionCode with INVALID_INPUT and mutates nothing", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour", regionCode: "Muscat" }));
+
+      expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(updateMock).not.toHaveBeenCalled();
+      expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid pricingUnit with INVALID_INPUT and mutates nothing", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour", pricingUnit: "PER_NIGHT" }));
+
+      expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(updateMock).not.toHaveBeenCalled();
+      expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
   });
 });

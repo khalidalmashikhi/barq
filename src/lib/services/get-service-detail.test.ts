@@ -63,4 +63,52 @@ describe("getServiceById", () => {
     expect(result).toBeNull();
     expect(findFirstMock).not.toHaveBeenCalled();
   });
+
+  // Core Service Enrichment, Gate 3 — the detail read model exposes regionCode
+  // (Service scalar) and pricingUnit (from the SAME ACTIVE price row as amount).
+  describe("region + pricing unit exposure (Gate 3)", () => {
+    function row(overrides: Record<string, unknown> = {}) {
+      return {
+        id: SERVICE_ID,
+        name: { en: "Tour", ar: "جولة" },
+        description: null,
+        providerId: "provider-1",
+        provider: { businessName: { en: "Co", ar: "شركة" }, businessDescription: null, status: "APPROVED" },
+        prices: [{ amount: "10", currency: "OMR", pricingUnit: "PER_PERSON" }],
+        mediaAssets: [],
+        regionCode: "DHOFAR",
+        createdAt: new Date(),
+        ...overrides,
+      };
+    }
+
+    it("returns regionCode and pricingUnit from the same active price row", async () => {
+      findFirstMock.mockResolvedValue(row());
+
+      const result = await getServiceById(SERVICE_ID);
+
+      expect(result?.regionCode).toBe("DHOFAR");
+      expect(result?.pricingUnit).toBe("PER_PERSON");
+      expect(result?.price).toBe("10 OMR");
+    });
+
+    it("is null-safe for legacy rows: regionCode absent and price without a pricingUnit", async () => {
+      findFirstMock.mockResolvedValue(row({ regionCode: null, prices: [{ amount: "10", currency: "OMR" }] }));
+
+      const result = await getServiceById(SERVICE_ID);
+
+      expect(result?.regionCode).toBeNull();
+      expect(result?.pricingUnit).toBeNull();
+      expect(result?.price).toBe("10 OMR");
+    });
+
+    it("keeps pricingUnit null when there is no active price at all", async () => {
+      findFirstMock.mockResolvedValue(row({ prices: [] }));
+
+      const result = await getServiceById(SERVICE_ID);
+
+      expect(result?.pricingUnit).toBeNull();
+      expect(result?.price).toBeNull();
+    });
+  });
 });

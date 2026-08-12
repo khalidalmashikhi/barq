@@ -7,6 +7,8 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
+import { parseRegionCode } from "@/lib/regions";
+import { parsePricingUnit } from "@/lib/pricing-units";
 import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
 
 // Update Service (admin-initiated) — Phase 2.3 (Service Foundation).
@@ -30,6 +32,8 @@ export async function updateService(serviceId: string, formData: FormData): Prom
   const descriptionAr = formData.get("descriptionAr");
   const descriptionEn = formData.get("descriptionEn");
   const rawCategoryId = formData.get("categoryId");
+  const rawRegionCode = formData.get("regionCode");
+  const rawPricingUnit = formData.get("pricingUnit");
 
   if (typeof nameAr !== "string" || typeof nameEn !== "string") {
     return { ok: false, error: "INVALID_INPUT" };
@@ -48,6 +52,31 @@ export async function updateService(serviceId: string, formData: FormData): Prom
   // Empty categoryId means "leave unchanged" (non-destructive); explicit
   // un-assignment is out of Task B scope.
   const submittedCategoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
+
+  // regionCode + pricingUnit are OPTIONAL/nullable metadata (Gate 3), mirroring the
+  // provider update path exactly: an ABSENT form field leaves the value unchanged;
+  // a PRESENT-but-empty field clears it to NULL; a governed code sets it; an
+  // invalid non-empty value is rejected (INVALID_INPUT) before any write. This
+  // differs from categoryId's "empty = leave unchanged" precisely because those
+  // fields are freely nullable while a category is required at publish. pricingUnit
+  // is display metadata only and never affects totals/booking.
+  let regionCodeChange: { regionCode: string | null } | undefined;
+  if (rawRegionCode !== null) {
+    const parsedRegion = parseRegionCode(rawRegionCode);
+    if (parsedRegion === undefined) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    regionCodeChange = { regionCode: parsedRegion };
+  }
+
+  let pricingUnitChange: { pricingUnit: string | null } | undefined;
+  if (rawPricingUnit !== null) {
+    const parsedUnit = parsePricingUnit(rawPricingUnit);
+    if (parsedUnit === undefined) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    pricingUnitChange = { pricingUnit: parsedUnit };
+  }
 
   let admin;
   try {
@@ -94,8 +123,20 @@ export async function updateService(serviceId: string, formData: FormData): Prom
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
           ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType } : {}),
+          ...(regionCodeChange ?? {}),
         },
       });
+
+      // pricingUnit is metadata on the Price, set on the current ACTIVE price(s) —
+      // a metadata-only update that never touches amount/currency and never inserts
+      // a new Price row (append-only versioning preserved, no duplicate ACTIVE
+      // price). No-op if the service has no ACTIVE price. Mirrors the provider path.
+      if (pricingUnitChange) {
+        await tx.price.updateMany({
+          where: { serviceId, status: "ACTIVE" },
+          data: pricingUnitChange,
+        });
+      }
 
       await recordAuditEvent(
         {

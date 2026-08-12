@@ -29,6 +29,12 @@ export type ProviderServiceForEdit = {
   status: string;
   serviceType: string;
   categoryId: string | null;
+  // Discovery/display metadata (Gate 3) — raw governed CODES or null, never
+  // localized; the edit form pre-fills its region/pricing-unit fields from these.
+  // pricingUnit comes from the current ACTIVE price and is display metadata only
+  // (never affects totals/booking). Both null-tolerant for legacy/unset rows.
+  regionCode: string | null;
+  pricingUnit: string | null;
 };
 
 function readBilingual(value: unknown): { ar: string; en: string } {
@@ -49,6 +55,9 @@ export async function getProviderServiceForEdit(serviceId: string): Promise<Prov
 
   const service = await prisma.service.findFirst({
     where: { id: serviceId, providerId: provider.id },
+    // Same ACTIVE-price selection as the other service readers, so the edit form's
+    // pricingUnit comes from the exact row that carries the displayed amount.
+    include: { prices: { where: { status: "ACTIVE" }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 } },
   });
 
   if (!service) return null;
@@ -65,5 +74,7 @@ export async function getProviderServiceForEdit(serviceId: string): Promise<Prov
     status: service.status,
     serviceType: service.serviceType,
     categoryId: service.categoryId,
+    regionCode: service.regionCode ?? null,
+    pricingUnit: service.prices[0]?.pricingUnit ?? null,
   };
 }

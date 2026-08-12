@@ -24,8 +24,9 @@ type ServiceRow = {
   id: string;
   name: unknown;
   providerId: string;
+  regionCode?: string | null;
   provider: { businessName: unknown };
-  prices: Array<{ amount: unknown; currency: string }>;
+  prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
   mediaAssets: Array<{ url: string }>;
   createdAt: Date;
 };
@@ -66,6 +67,10 @@ export async function getProviderPublishedServicesForPreview(
     providerName:
       extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
+    // Same Gate-3 exposure as the public getServices() reader (identical shape):
+    // regionCode is a Service scalar; pricingUnit rides the same ACTIVE price row.
+    regionCode: service.regionCode ?? null,
+    pricingUnit: service.prices[0] ? (service.prices[0].pricingUnit ?? null) : null,
     coverUrl: service.mediaAssets[0]?.url ?? null,
     createdAt: service.createdAt,
   }));

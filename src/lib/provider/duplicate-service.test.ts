@@ -160,4 +160,53 @@ describe("duplicateService", () => {
     expect(result).toEqual({ ok: true, serviceId: "service-2" });
     expect(priceCreateMock).not.toHaveBeenCalled();
   });
+
+  // Core Service Enrichment, Gate 3 — the clone copies regionCode + pricingUnit.
+  describe("region + pricing unit (Gate 3)", () => {
+    it("copies the source's regionCode and the price's pricingUnit onto the clone", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({
+        id: SERVICE_ID,
+        providerId: "provider-1",
+        serviceType: "RENTAL",
+        categoryId: "cars-cat",
+        regionCode: "MUSANDAM",
+        name: { ar: "سيارة", en: "Car" },
+        description: null,
+        prices: [{ amount: "45.00", currency: "OMR", pricingUnit: "PER_DAY" }],
+      });
+      serviceCreateMock.mockResolvedValue({ id: "service-2" });
+      priceCreateMock.mockResolvedValue({});
+
+      const result = await duplicateService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: true, serviceId: "service-2" });
+      expect(serviceCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ regionCode: "MUSANDAM" }) })
+      );
+      expect(priceCreateMock).toHaveBeenCalledWith({
+        data: { serviceId: "service-2", amount: "45.00", currency: "OMR", pricingUnit: "PER_DAY" },
+      });
+    });
+
+    it("omits regionCode/pricingUnit on the clone when the source has none (null stays unset)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({
+        id: SERVICE_ID,
+        providerId: "provider-1",
+        serviceType: "EXPERIENCE",
+        regionCode: null,
+        name: { ar: "جولة", en: "Tour" },
+        description: null,
+        prices: [{ amount: "10.00", currency: "OMR", pricingUnit: null }],
+      });
+      serviceCreateMock.mockResolvedValue({ id: "service-2" });
+      priceCreateMock.mockResolvedValue({});
+
+      await duplicateService(SERVICE_ID);
+
+      expect(serviceCreateMock.mock.calls[0]![0].data).not.toHaveProperty("regionCode");
+      expect(priceCreateMock.mock.calls[0]![0].data).not.toHaveProperty("pricingUnit");
+    });
+  });
 });

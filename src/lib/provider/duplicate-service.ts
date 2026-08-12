@@ -55,6 +55,8 @@ export async function duplicateService(serviceId: string): Promise<DuplicateServ
           // re-derivation is needed.
           serviceType: source.serviceType,
           ...(source.categoryId ? { categoryId: source.categoryId } : {}),
+          // Copy the source's discovery region (Gate 3) faithfully; null stays null.
+          ...(source.regionCode ? { regionCode: source.regionCode } : {}),
           name: source.name as object,
           description: source.description === null ? undefined : (source.description as object),
         },
@@ -67,6 +69,10 @@ export async function duplicateService(serviceId: string): Promise<DuplicateServ
             serviceId: created.id,
             amount: sourcePrice.amount,
             currency: sourcePrice.currency,
+            // Carry the display pricing unit (Gate 3) alongside amount/currency so
+            // the clone reads identically; null stays null. Metadata only — no
+            // effect on totals or booking.
+            ...(sourcePrice.pricingUnit ? { pricingUnit: sourcePrice.pricingUnit } : {}),
           },
         });
       }

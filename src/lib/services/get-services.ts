@@ -109,6 +109,13 @@ export type ServiceListItem = {
   providerId: string;
   providerName: string;
   price: string | null;
+  // Discovery/display metadata (Core Service Enrichment, Gate 3). Raw governed
+  // CODES (or null for legacy/unset rows), never localized. pricingUnit is read
+  // from the SAME ACTIVE Price row as `price` and is display metadata only — it
+  // does not affect totals or booking. Exposed here for a future Gate-4 Explore
+  // filter / card label; no presentation is applied at this layer.
+  regionCode: string | null;
+  pricingUnit: string | null;
   // Service cover image (Media Foundation, Gap C) — the ONE cover per card,
   // fetched via a bounded relational include (batched by Prisma, never N+1).
   coverUrl: string | null;
@@ -311,8 +318,9 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
     id: string;
     name: unknown;
     providerId: string;
+    regionCode?: string | null;
     provider: { businessName: unknown };
-    prices: Array<{ amount: unknown; currency: string }>;
+    prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
     mediaAssets: Array<{ url: string }>;
     createdAt: Date;
   };
@@ -323,6 +331,10 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
     providerId: service.providerId,
     providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
+    // regionCode is a Service scalar; pricingUnit rides the SAME ACTIVE price row
+    // as `price` (prices[0]). Both null-tolerant for legacy/unset data.
+    regionCode: service.regionCode ?? null,
+    pricingUnit: service.prices[0] ? (service.prices[0].pricingUnit ?? null) : null,
     coverUrl: service.mediaAssets[0]?.url ?? null,
     createdAt: service.createdAt,
   }));
