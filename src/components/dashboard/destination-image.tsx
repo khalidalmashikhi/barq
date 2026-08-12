@@ -45,7 +45,14 @@ type DestinationImageProps = {
 export function DestinationImage({ src, alt, className, tone = "navy" }: DestinationImageProps) {
   const [failed, setFailed] = useState(false);
 
-  if (failed) {
+  // BUG-5 fix: when there is no real photo (empty src — see destination-images.ts),
+  // render the on-brand BrandPattern fallback DIRECTLY. Previously the manifest
+  // pointed at not-yet-existing files, so <Image> fired a request that 404'd
+  // before the onError fallback took over — visible only as broken image requests
+  // in the network log. Guarding on empty src removes those requests entirely
+  // while keeping the identical fallback. A real path renders normally, with the
+  // onError fallback still protecting against a genuinely broken file.
+  if (failed || !src) {
     return (
       <div className={`relative flex items-center justify-center overflow-hidden bg-accent/10 text-primary/25 ${className ?? ""}`}>
         <BrandPattern tone={tone} className="absolute inset-0" />

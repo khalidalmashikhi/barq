@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GoogleIcon } from "@/components/ui/google-icon";
 import { getResendButtonState, resendErrorKey } from "./resend-state";
+import {
+  OTP_LENGTH,
+  emptyOtp,
+  setOtpDigit,
+  nextIndexAfterEntry,
+  prevIndexOnBackspace,
+  parseOtpPaste,
+} from "./otp-input";
 
 // Login form — Engineering Sprint 3 (Phone OTP UI), redesigned by the
 // Visual Identity Sprint.
@@ -41,7 +49,8 @@ import { getResendButtonState, resendErrorKey } from "./resend-state";
 // whichever locale this form is currently rendered under, rather than
 // navigating to a now-dead unprefixed path.
 
-const OTP_LENGTH = 6;
+// OTP_LENGTH and the digit-box value logic now live in ./otp-input.ts (pure,
+// unit-tested). The component keeps ownership of React state, refs, and focus.
 
 // Mirrors the server's OTP_RESEND_COOLDOWN_SECONDS default (src/lib/otp/
 // otp-config.ts). This is a client-side UX countdown only — the server-side
@@ -62,7 +71,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
   const t = useTranslations("auth");
   const [step, setStep] = useState<Step>("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const [otpDigits, setOtpDigits] = useState<string[]>(emptyOtp());
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(oauthError ? t("oauthError") : null);
@@ -151,8 +160,14 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
         return;
       }
 
+      // BUG-2 fix: a resend issues a NEW code, so any digits the user already
+      // typed are now stale. Clear the boxes and return focus to the first one so
+      // they enter the new code from a clean state (previously the old digits
+      // remained, and — with the boxes full — the newly typed code was ignored).
       setResendNotice(true);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setOtpDigits(emptyOtp());
+      otpInputRefs.current[0]?.focus();
     } catch {
       setError(t("genericError"));
     } finally {
@@ -172,7 +187,12 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
       });
 
       if (verifyError) {
-        setError(t("genericError"));
+        // BUG-3 fix: a verify failure at this step is (essentially always) an
+        // incorrect or expired code — the phone is already validated. Surface a
+        // specific, actionable message instead of the generic "something went
+        // wrong". This is a CLIENT MESSAGE ONLY: the verify call, its arguments,
+        // OTP semantics, expiry, and rate limits are unchanged.
+        setError(t("invalidOtpError"));
         return;
       }
 
@@ -187,7 +207,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
 
   function handleChangePhoneNumber() {
     setStep("phone");
-    setOtpDigits(Array(OTP_LENGTH).fill(""));
+    setOtpDigits(emptyOtp());
     setOtpSent(false);
     setResendNotice(false);
     setResendCooldown(0);
@@ -195,30 +215,29 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
   }
 
   function handleOtpDigitChange(index: number, value: string) {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    const next = [...otpDigits];
-    next[index] = digit;
+    const next = setOtpDigit(otpDigits, index, value);
     setOtpDigits(next);
 
-    if (digit && index < OTP_LENGTH - 1) {
-      otpInputRefs.current[index + 1]?.focus();
+    const focusIndex = nextIndexAfterEntry(index, next[index]!, OTP_LENGTH);
+    if (focusIndex !== null) {
+      otpInputRefs.current[focusIndex]?.focus();
     }
   }
 
   function handleOtpKeyDown(index: number, event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Backspace" && !otpDigits[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
+    if (event.key !== "Backspace") return;
+    const focusIndex = prevIndexOnBackspace(otpDigits, index);
+    if (focusIndex !== null) {
+      otpInputRefs.current[focusIndex]?.focus();
     }
   }
 
   function handleOtpPaste(event: React.ClipboardEvent<HTMLInputElement>) {
-    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
-    if (!pasted) return;
+    const parsed = parseOtpPaste(event.clipboardData.getData("text"), OTP_LENGTH);
+    if (!parsed) return;
     event.preventDefault();
-    const next = Array(OTP_LENGTH).fill("");
-    for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-    setOtpDigits(next);
-    otpInputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+    setOtpDigits(parsed.digits);
+    otpInputRefs.current[parsed.focusIndex]?.focus();
   }
 
   return (
@@ -298,7 +317,14 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-foreground/80">{t("otpLabel")}</label>
-            <div className="flex flex-row-reverse justify-center gap-2" dir="ltr">
+            {/* BUG-1 fix: the OTP boxes must read left-to-right — box index 0 is the
+                first digit typed. `dir="ltr"` keeps the code LTR even on an Arabic
+                (RTL) page; the previous `flex-row-reverse` visually reversed the
+                DOM-ordered boxes on EVERY locale, so a code typed in reading order
+                appeared reversed (the submitted value was always correct — it is
+                the reading-order join). Plain `flex` + `dir="ltr"` renders index 0
+                leftmost in both English and Arabic. */}
+            <div className="flex justify-center gap-2" dir="ltr">
               {otpDigits.map((digit: string, index: number) => (
                 <input
                   key={index}
