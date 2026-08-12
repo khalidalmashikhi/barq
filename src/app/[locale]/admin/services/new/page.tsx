@@ -10,6 +10,7 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { CategoryField } from "@/components/categories/category-field";
+import { RegionField } from "@/components/regions/region-field";
 
 // Create Service (admin-initiated) — Phase 2.4 (Service Admin UI).
 // Mirrors admin/providers/new/page.tsx's form shape. Distinct from the
@@ -127,6 +128,11 @@ export default async function NewServicePage({ searchParams }: Props) {
             />
             <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
           </div>
+
+          {/* Governorate (Gate 4). No pricing-unit field here: this admin-create
+              path deliberately provisions no Price (Gate 3), so there is no Price
+              row for a unit to attach to — it becomes editable once a price exists. */}
+          <RegionField defaultValue={null} />
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("createServiceSubmitButton")}

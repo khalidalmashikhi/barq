@@ -19,5 +19,30 @@
   "openMenuAriaLabel": "Открыть меню",
   "closeMenuAriaLabel": "Закрыть меню",
   "skipToContentLabel": "Перейти к содержимому",
-  "offlineNotice": "Вы не в сети — некоторые функции могут не работать."
+  "offlineNotice": "Вы не в сети — некоторые функции могут не работать.",
+  "governorate": {
+    "fieldLabel": "Мухафаза",
+    "placeholder": "Выберите мухафазу",
+    "MUSCAT": "Маскат",
+    "DHOFAR": "Дофар",
+    "MUSANDAM": "Мусандам",
+    "AL_BURAIMI": "Эль-Бурайми",
+    "AD_DAKHILIYAH": "Эд-Дахилия",
+    "AL_BATINAH_NORTH": "Северная Эль-Батина",
+    "AL_BATINAH_SOUTH": "Южная Эль-Батина",
+    "ASH_SHARQIYAH_NORTH": "Северная Эш-Шаркия",
+    "ASH_SHARQIYAH_SOUTH": "Южная Эш-Шаркия",
+    "ADH_DHAHIRAH": "Аз-Захира",
+    "AL_WUSTA": "Аль-Уста"
+  },
+  "pricingUnit": {
+    "fieldLabel": "Единица цены",
+    "placeholder": "Выберите единицу",
+    "PER_PERSON": "за человека",
+    "PER_BOOKING": "за бронирование",
+    "PER_DAY": "за день",
+    "PER_HOUR": "за час",
+    "PER_TRIP": "за поездку"
+  },
+  "priceWithUnit": "{price} / {unit}"
 }

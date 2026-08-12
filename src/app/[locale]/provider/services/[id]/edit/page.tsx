@@ -13,6 +13,8 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { CategoryField } from "@/components/categories/category-field";
+import { RegionField } from "@/components/regions/region-field";
+import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 import { getServiceMedia } from "@/lib/service/media/get-service-media";
 import { isProviderMediaErrorCode, getProviderMediaErrorTranslationKey } from "@/lib/provider/media/provider-media-errors";
 
@@ -170,6 +172,15 @@ export default async function EditServicePage({ params, searchParams }: Props) {
               labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
             />
             <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
+          </div>
+
+          {/* Discovery/display metadata (Gate 4), prefilled from the current
+              values. Governorate on its own row; the pricing unit updates the
+              current active price's unit (display metadata only — the amount and
+              booking behaviour are untouched). Empty = clear. */}
+          <RegionField defaultValue={service.regionCode} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <PricingUnitField defaultValue={service.pricingUnit} />
           </div>
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">

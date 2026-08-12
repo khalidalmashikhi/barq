@@ -3,19 +3,20 @@ import { Search, X, SlidersHorizontal } from "lucide-react";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getPathname } from "@/i18n/navigation";
+import { REGION_CODES, REGION_LABEL_KEYS, isValidRegionCode } from "@/lib/regions";
 
 // Service filters — Engineering Sprint (Services Marketplace); Phase
 // F.2 (Search Experience) visual + UX pass.
 //
-// NO governorate control here, deliberately — building a disabled/fake
-// control for a field that doesn't exist would be worse than omitting
-// it; see get-services.ts's own note on why. A plain GET form (no
-// client JS) so search/filter state lives entirely in the URL — real
-// server-side filtering, shareable/bookmarkable URLs, no client-side
-// state duplication. Phase F.2 does not change this architecture — it
-// adds visible field labels and a real "active filters" chip row (each
-// chip is a plain link removing exactly that param, reusing the same
-// URL-is-the-state-machine model, not a new client-side filter store).
+// GOVERNORATE CONTROL (Core Service Enrichment, Gate 4): a real governorate
+// <select> now exists, backed by the stable Service.regionCode column (the
+// earlier "no governorate control" note applied when no such field existed). It
+// submits the governed CODE and displays the localized name, exactly like the
+// provider/sort selects. A plain GET form (no client JS) so search/filter state
+// lives entirely in the URL — real server-side filtering, shareable/bookmarkable
+// URLs, no client-side state duplication. Each active filter also renders a chip
+// (a plain link removing exactly that param), reusing the same
+// URL-is-the-state-machine model, not a new client-side filter store.
 //
 // CATEGORY — UX remediation (category navigation fix): `category`
 // (the stable slug from a homepage/dashboard category card) is
@@ -36,6 +37,8 @@ type ServiceFiltersProps = {
   currentSort?: string;
   currentCategory?: string;
   currentCategoryLabel?: string;
+  // The active governorate CODE (already validated by the page). Undefined = none.
+  currentRegion?: string;
 };
 
 type ActiveFilterChip = {
@@ -53,10 +56,17 @@ export async function ServiceFilters({
   currentSort,
   currentCategory,
   currentCategoryLabel,
+  currentRegion,
 }: ServiceFiltersProps) {
   const t = await getServerTranslator("services");
+  const tCommon = await getServerTranslator("common");
   const locale = await getLocale();
   const basePath = getPathname({ href: "/services", locale });
+
+  // Localized governorate label for the active-filter chip. Guarded so an
+  // unexpected value never renders a raw code (defence-in-depth; the page already
+  // validates, but presentation stays safe on its own).
+  const regionLabel = currentRegion && isValidRegionCode(currentRegion) ? tCommon(REGION_LABEL_KEYS[currentRegion]) : undefined;
 
   const providerName = currentProviderId ? providers.find((p) => p.id === currentProviderId)?.name : undefined;
 
@@ -69,6 +79,7 @@ export async function ServiceFilters({
       providerId: currentProviderId,
       sort: currentSort,
       category: currentCategory,
+      region: currentRegion,
     };
     for (const [key, value] of Object.entries(current)) {
       if (value && !keys.includes(key)) params.set(key, value);
@@ -97,12 +108,17 @@ export async function ServiceFilters({
   if (currentProviderId && providerName) {
     chips.push({ key: "providerId", label: providerName, href: hrefWithout("providerId") });
   }
+  if (regionLabel) {
+    chips.push({ key: "region", label: regionLabel, href: hrefWithout("region") });
+  }
   if (currentSort && currentSort !== "newest") {
     const sortLabel = currentSort === "price_asc" ? t("sortPriceAsc") : currentSort === "price_desc" ? t("sortPriceDesc") : currentSort;
     chips.push({ key: "sort", label: sortLabel, href: hrefWithout("sort") });
   }
 
-  const hasSecondaryFilters = Boolean(currentMinPrice || currentMaxPrice || currentProviderId || (currentSort && currentSort !== "newest"));
+  const hasSecondaryFilters = Boolean(
+    currentMinPrice || currentMaxPrice || currentProviderId || regionLabel || (currentSort && currentSort !== "newest")
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -142,6 +158,23 @@ export async function ServiceFilters({
           </summary>
 
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Governorate — the primary discovery filter (Gate 4). Native select,
+                stable CODE submitted, localized label shown. */}
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-foreground/50">{tCommon("governorate.fieldLabel")}</span>
+              <select
+                name="region"
+                defaultValue={currentRegion && isValidRegionCode(currentRegion) ? currentRegion : ""}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">{tCommon("governorate.placeholder")}</option>
+                {REGION_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {tCommon(REGION_LABEL_KEYS[code])}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-foreground/50">{t("minPriceLabel")}</span>
               <input

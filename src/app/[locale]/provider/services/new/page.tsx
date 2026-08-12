@@ -10,6 +10,8 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { CategoryField } from "@/components/categories/category-field";
+import { RegionField } from "@/components/regions/region-field";
+import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 
 // Create Experience — Phase 4.2 (Provider Experience), Priority 1.
 // Collects both ar/en name (Service.name is bilingual-required, see
@@ -118,17 +120,26 @@ export default async function NewServicePage({ searchParams }: Props) {
             <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
           </div>
 
-          <label className="flex flex-col gap-1.5 sm:w-48">
-            <span className="text-xs font-medium text-foreground/50">{t("priceAmountLabel")}</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              name="priceAmount"
-              required
-              placeholder="0.00"
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
+          {/* Governorate — optional discovery metadata (Gate 4). Its own row so it
+              never crowds the category picker or the price on phones. */}
+          <RegionField defaultValue={null} />
+
+          {/* Price + its display unit, paired. On phones they stack (grid-cols-1);
+              from sm they sit side by side. The unit is DISPLAY METADATA ONLY. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-foreground/50">{t("priceAmountLabel")}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                name="priceAmount"
+                required
+                placeholder="0.00"
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <PricingUnitField defaultValue={null} />
+          </div>
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("createSubmitButton")}

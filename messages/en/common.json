@@ -19,5 +19,30 @@
   "backToHomeButton": "Back to Home",
   "errorTitle": "Something went wrong",
   "errorDescription": "An unexpected error occurred. Please try again, or return to the home page.",
-  "tryAgainButton": "Try Again"
+  "tryAgainButton": "Try Again",
+  "governorate": {
+    "fieldLabel": "Governorate",
+    "placeholder": "Select governorate",
+    "MUSCAT": "Muscat",
+    "DHOFAR": "Dhofar",
+    "MUSANDAM": "Musandam",
+    "AL_BURAIMI": "Al Buraimi",
+    "AD_DAKHILIYAH": "Ad Dakhiliyah",
+    "AL_BATINAH_NORTH": "North Al Batinah",
+    "AL_BATINAH_SOUTH": "South Al Batinah",
+    "ASH_SHARQIYAH_NORTH": "North Ash Sharqiyah",
+    "ASH_SHARQIYAH_SOUTH": "South Ash Sharqiyah",
+    "ADH_DHAHIRAH": "Adh Dhahirah",
+    "AL_WUSTA": "Al Wusta"
+  },
+  "pricingUnit": {
+    "fieldLabel": "Pricing unit",
+    "placeholder": "Select unit",
+    "PER_PERSON": "per person",
+    "PER_BOOKING": "per booking",
+    "PER_DAY": "per day",
+    "PER_HOUR": "per hour",
+    "PER_TRIP": "per trip"
+  },
+  "priceWithUnit": "{price} / {unit}"
 }

@@ -136,6 +136,13 @@ export type ServiceListFilters = {
   /// read). When both `categoryId` and `categoryKeyword` are set they both
   /// narrow (AND) — the caller sets only one.
   categoryId?: string;
+  /// Governorate discovery filter (Core Service Enrichment, Gate 4) — a direct
+  /// match on `Service.regionCode`, a stable governorate CODE (never localized,
+  /// never free-text). Optional; composes with `categoryId` and every other
+  /// filter via AND (they are independent keys on the same `where`). The caller
+  /// validates the code against the src/lib/regions registry before passing it,
+  /// so an unknown/invalid value never reaches this query.
+  regionCode?: string;
   /// Best-effort category filter — see this file's own "CATEGORY"
   /// comment above. Callers pass an already-resolved display label
   /// (e.g. "Diving"/"الغوص"), not a raw category slug.
@@ -256,6 +263,10 @@ export async function getServices(filters: ServiceListFilters): Promise<ServiceL
     // bridge above. Additive: absent by default, so every existing caller is
     // unaffected.
     ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+    // Governorate discovery filter (Gate 4) — a direct match on the stable
+    // Service.regionCode. Independent key => composes with categoryId (and every
+    // other filter) via AND. Absent by default; the caller validated the code.
+    ...(filters.regionCode ? { regionCode: filters.regionCode } : {}),
     ...(searchMatchedIds !== null ? { id: { in: searchMatchedIds } } : {}),
     ...(matchConditions.length > 0 ? { AND: matchConditions } : {}),
   };

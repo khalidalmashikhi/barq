@@ -19,5 +19,30 @@
   "openMenuAriaLabel": "Otevřít nabídku",
   "closeMenuAriaLabel": "Zavřít nabídku",
   "skipToContentLabel": "Přejít na obsah",
-  "offlineNotice": "Jste offline — některé funkce nemusí fungovat."
+  "offlineNotice": "Jste offline — některé funkce nemusí fungovat.",
+  "governorate": {
+    "fieldLabel": "Guvernorát",
+    "placeholder": "Vyberte guvernorát",
+    "MUSCAT": "Maskat",
+    "DHOFAR": "Dhofár",
+    "MUSANDAM": "Musandam",
+    "AL_BURAIMI": "Al-Buraimí",
+    "AD_DAKHILIYAH": "Ad-Dáchilíja",
+    "AL_BATINAH_NORTH": "Al-Batina sever",
+    "AL_BATINAH_SOUTH": "Al-Batina jih",
+    "ASH_SHARQIYAH_NORTH": "Aš-Šarkíja sever",
+    "ASH_SHARQIYAH_SOUTH": "Aš-Šarkíja jih",
+    "ADH_DHAHIRAH": "Az-Záhira",
+    "AL_WUSTA": "Al-Wusta"
+  },
+  "pricingUnit": {
+    "fieldLabel": "Cenová jednotka",
+    "placeholder": "Vyberte jednotku",
+    "PER_PERSON": "za osobu",
+    "PER_BOOKING": "za rezervaci",
+    "PER_DAY": "za den",
+    "PER_HOUR": "za hodinu",
+    "PER_TRIP": "za výlet"
+  },
+  "priceWithUnit": "{price} / {unit}"
 }

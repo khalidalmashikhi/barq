@@ -19,5 +19,30 @@
   "backToHomeButton": "العودة إلى الرئيسية",
   "errorTitle": "حدث خطأ ما",
   "errorDescription": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى، أو العودة إلى الصفحة الرئيسية.",
-  "tryAgainButton": "حاول مرة أخرى"
+  "tryAgainButton": "حاول مرة أخرى",
+  "governorate": {
+    "fieldLabel": "المحافظة",
+    "placeholder": "اختر المحافظة",
+    "MUSCAT": "مسقط",
+    "DHOFAR": "ظفار",
+    "MUSANDAM": "مسندم",
+    "AL_BURAIMI": "البريمي",
+    "AD_DAKHILIYAH": "الداخلية",
+    "AL_BATINAH_NORTH": "شمال الباطنة",
+    "AL_BATINAH_SOUTH": "جنوب الباطنة",
+    "ASH_SHARQIYAH_NORTH": "شمال الشرقية",
+    "ASH_SHARQIYAH_SOUTH": "جنوب الشرقية",
+    "ADH_DHAHIRAH": "الظاهرة",
+    "AL_WUSTA": "الوسطى"
+  },
+  "pricingUnit": {
+    "fieldLabel": "وحدة التسعير",
+    "placeholder": "اختر الوحدة",
+    "PER_PERSON": "للشخص",
+    "PER_BOOKING": "للحجز",
+    "PER_DAY": "لليوم",
+    "PER_HOUR": "للساعة",
+    "PER_TRIP": "للرحلة"
+  },
+  "priceWithUnit": "{price} / {unit}"
 }

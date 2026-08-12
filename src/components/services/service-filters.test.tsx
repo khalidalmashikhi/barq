@@ -95,6 +95,14 @@ function collectInputs(element: unknown): AnyElement[] {
   return collectByPredicate(element, (el) => el.type === "input");
 }
 
+function collectOptions(element: unknown): AnyElement[] {
+  return collectByPredicate(element, (el) => el.type === "option");
+}
+
+function findRegionSelect(element: unknown): AnyElement | undefined {
+  return collectByPredicate(element, (el) => el.type === "select" && el.props.name === "region")[0];
+}
+
 describe("ServiceFilters — category filter", () => {
   it("renders a category chip labeled via chipCategoryLabel when currentCategory/currentCategoryLabel are set", async () => {
     const element = await ServiceFilters({
@@ -149,5 +157,55 @@ describe("ServiceFilters — category filter", () => {
     }
 
     expect(hasNestedLink(element)).toBe(false);
+  });
+});
+
+// Core Service Enrichment, Gate 4 — the governorate discovery filter. A native
+// GET-form <select name="region"> submitting stable codes, plus a removable chip.
+describe("ServiceFilters — governorate filter", () => {
+  it("renders a region <select> with all 11 governorate codes as option values plus a placeholder", async () => {
+    const element = await ServiceFilters({ providers: [] });
+    const select = findRegionSelect(element);
+    expect(select).toBeDefined();
+
+    // Options that belong to the region select: placeholder ("") + 11 codes.
+    const regionOptionValues = collectOptions(select).map((o) => o.props.value);
+    expect(regionOptionValues).toEqual([
+      "",
+      "MUSCAT",
+      "DHOFAR",
+      "MUSANDAM",
+      "AL_BURAIMI",
+      "AD_DAKHILIYAH",
+      "AL_BATINAH_NORTH",
+      "AL_BATINAH_SOUTH",
+      "ASH_SHARQIYAH_NORTH",
+      "ASH_SHARQIYAH_SOUTH",
+      "ADH_DHAHIRAH",
+      "AL_WUSTA",
+    ]);
+  });
+
+  it("preselects the active governorate code in the select", async () => {
+    const element = await ServiceFilters({ providers: [], currentRegion: "DHOFAR" });
+    expect(findRegionSelect(element)?.props.defaultValue).toBe("DHOFAR");
+  });
+
+  it("stays unselected when no region is active", async () => {
+    const element = await ServiceFilters({ providers: [] });
+    expect(findRegionSelect(element)?.props.defaultValue).toBe("");
+  });
+
+  it("renders a removable region chip (localized label) when a valid governorate is active", async () => {
+    const element = await ServiceFilters({ providers: [], currentRegion: "DHOFAR" });
+    const chipTexts = collectLinks(element).map((link) => JSON.stringify(link.props.children));
+    // The mocked translator echoes the label key.
+    expect(chipTexts.some((text) => text.includes("governorate.DHOFAR"))).toBe(true);
+  });
+
+  it("shows no region chip for an invalid/unknown region value (fails safe)", async () => {
+    const element = await ServiceFilters({ providers: [], currentRegion: "NOT_A_REGION" });
+    const chipTexts = collectLinks(element).map((link) => JSON.stringify(link.props.children));
+    expect(chipTexts.some((text) => text.includes("NOT_A_REGION"))).toBe(false);
   });
 });

@@ -19,5 +19,30 @@
   "openMenuAriaLabel": "Ouvrir le menu",
   "closeMenuAriaLabel": "Fermer le menu",
   "skipToContentLabel": "Passer au contenu",
-  "offlineNotice": "Vous êtes hors ligne — certaines fonctionnalités peuvent ne pas fonctionner."
+  "offlineNotice": "Vous êtes hors ligne — certaines fonctionnalités peuvent ne pas fonctionner.",
+  "governorate": {
+    "fieldLabel": "Gouvernorat",
+    "placeholder": "Sélectionner le gouvernorat",
+    "MUSCAT": "Mascate",
+    "DHOFAR": "Dhofar",
+    "MUSANDAM": "Musandam",
+    "AL_BURAIMI": "Al-Buraymi",
+    "AD_DAKHILIYAH": "Ad-Dakhiliyah",
+    "AL_BATINAH_NORTH": "Al-Batina Nord",
+    "AL_BATINAH_SOUTH": "Al-Batina Sud",
+    "ASH_SHARQIYAH_NORTH": "Ash-Sharqiyah Nord",
+    "ASH_SHARQIYAH_SOUTH": "Ash-Sharqiyah Sud",
+    "ADH_DHAHIRAH": "Az-Zahira",
+    "AL_WUSTA": "Al-Wusta"
+  },
+  "pricingUnit": {
+    "fieldLabel": "Unité de tarification",
+    "placeholder": "Sélectionner l'unité",
+    "PER_PERSON": "par personne",
+    "PER_BOOKING": "par réservation",
+    "PER_DAY": "par jour",
+    "PER_HOUR": "par heure",
+    "PER_TRIP": "par trajet"
+  },
+  "priceWithUnit": "{price} / {unit}"
 }

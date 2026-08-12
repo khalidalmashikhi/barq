@@ -326,3 +326,60 @@ describe("getServices — region + pricing unit exposure (Gate 3)", () => {
     expect(result.items[0]!.price).toBe("10 OMR");
   });
 });
+
+describe("getServices — governorate (region) filter (Gate 4)", () => {
+  const PROVIDER_GATE_LOCAL = { status: "APPROVED", visible: true };
+
+  it("does not filter by region when none is given (existing behaviour unchanged)", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({});
+
+    const where = (countMock.mock.calls[0]![0] as { where: Record<string, unknown> }).where;
+    expect(where).not.toHaveProperty("regionCode");
+  });
+
+  it("filters by the stable regionCode when a governorate is selected", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ regionCode: "DHOFAR" });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: { status: "PUBLISHED", provider: PROVIDER_GATE_LOCAL, regionCode: "DHOFAR" },
+    });
+  });
+
+  it("composes category AND region as independent AND filters (Cars in Dhofar)", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryId: "cars-cat", regionCode: "DHOFAR" });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: { status: "PUBLISHED", provider: PROVIDER_GATE_LOCAL, categoryId: "cars-cat", regionCode: "DHOFAR" },
+    });
+  });
+
+  it("keeps the provider-visibility gate and search intersection alongside a region filter", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    queryRawMock.mockResolvedValue([{ id: "service-1" }]);
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ search: "sunset", regionCode: "MUSCAT" });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: {
+        status: "PUBLISHED",
+        provider: PROVIDER_GATE_LOCAL,
+        id: { in: ["service-1"] },
+        regionCode: "MUSCAT",
+      },
+    });
+  });
+});

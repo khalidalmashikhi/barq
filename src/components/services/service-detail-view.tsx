@@ -16,6 +16,8 @@ import { FadeIn } from "@/components/ui/fade-in";
 import { Badge } from "@/components/ui/badge";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { formatDate } from "@/lib/i18n/format-date";
+import { regionLabelKey } from "@/lib/regions";
+import { pricingUnitLabelKey } from "@/lib/pricing-units";
 import type { PreviewMode } from "@/lib/preview/preview-mode";
 
 // ServiceDetailView — Unified Preview System.
@@ -54,7 +56,18 @@ export async function ServiceDetailView({
 }: ServiceDetailViewProps) {
   const t = await getServerTranslator("services");
   const tBooking = await getServerTranslator("booking");
+  const tCommon = await getServerTranslator("common");
   const locale = await getLocale();
+
+  // Discovery/display metadata (Gate 4). Both fail safe: an unknown/absent code
+  // yields no label, so the governorate tile is omitted and the price shows with
+  // no unit rather than ever leaking a raw code. pricingUnit is display-only.
+  const regionKey = regionLabelKey(service.regionCode);
+  const unitKey = pricingUnitLabelKey(service.pricingUnit);
+  const priceDisplay =
+    service.price && unitKey
+      ? tCommon("priceWithUnit", { price: service.price, unit: tCommon(unitKey) })
+      : service.price;
 
   return (
     <>
@@ -99,6 +112,19 @@ export async function ServiceDetailView({
           </FadeIn>
 
           <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
+            {/* Governorate (Gate 4) — shown only when the service has one; an
+                optional discovery facet is omitted, never rendered as "—". */}
+            {regionKey && (
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
+                  <MapPin size={18} strokeWidth={1.75} />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-xs text-foreground/50">{tCommon("governorate.fieldLabel")}</span>
+                  <span className="text-sm font-medium text-foreground">{tCommon(regionKey)}</span>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
                 <Clock size={18} strokeWidth={1.75} />
@@ -193,7 +219,9 @@ export async function ServiceDetailView({
           <div className="flex flex-col gap-3 lg:sticky lg:top-24">
             <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-premium-lg">
               <p className="text-xs text-foreground/50">{tBooking("priceLabel")}</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-primary">{service.price ?? t("priceUnavailableLabel")}</p>
+              {/* Price with its display unit appended when present (Gate 4). Unit is
+                  display metadata only — no total is computed from it. */}
+              <p className="mt-1 text-3xl font-bold tracking-tight text-primary">{priceDisplay ?? t("priceUnavailableLabel")}</p>
               {slots.length > 0 && (
                 <p className="mt-2 text-xs text-foreground/50">{t("slotsAvailableLabel", { count: slots.length })}</p>
               )}

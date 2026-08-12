@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { PackageOpen } from "lucide-react";
 import { getServices, getProvidersForFilter } from "@/lib/services/get-services";
 import { getPublicCategoryBySlug } from "@/lib/categories/get-public-category-by-slug";
+import { isValidRegionCode, regionLabelKey } from "@/lib/regions";
+import { pricingUnitLabelKey } from "@/lib/pricing-units";
 import { ServiceFilters } from "@/components/services/service-filters";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +24,7 @@ type SearchParams = {
   sort?: string;
   page?: string;
   category?: string;
+  region?: string;
 };
 
 // UX REMEDIATION (category navigation fix) — resolveCategoryLabel()
@@ -125,6 +128,13 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   const legacyCategoryLabel = publicCategory ? undefined : await resolveCategoryLabel(params.category);
   const categoryLabel = publicCategory?.label ?? legacyCategoryLabel;
 
+  // Governorate discovery filter (Gate 4): only a valid governed CODE narrows the
+  // query. An unknown/hand-edited ?region= silently resolves to undefined and is
+  // ignored — the same graceful behaviour an unknown providerId/category gets.
+  const regionCode = params.region && isValidRegionCode(params.region) ? params.region : undefined;
+
+  const tCommon = await getServerTranslator("common");
+
   const [providers, result] = await Promise.all([
     getProvidersForFilter(),
     getServices({
@@ -136,6 +146,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
       page: params.page ? Number(params.page) : 1,
       categoryId: publicCategory?.id,
       categoryKeyword: legacyCategoryLabel,
+      // Composes (AND) with categoryId/keyword and every other filter.
+      regionCode,
     }),
   ]);
 
@@ -159,6 +171,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
           currentSort={params.sort}
           currentCategory={params.category}
           currentCategoryLabel={categoryLabel}
+          currentRegion={regionCode}
         />
 
         {result.items.length === 0 ? (
@@ -168,7 +181,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
             gap="gap-3"
             padding="py-16"
             message={
-              params.q || params.providerId || params.minPrice || params.maxPrice || categoryLabel
+              params.q || params.providerId || params.minPrice || params.maxPrice || categoryLabel || regionCode
                 ? t("noResultsMatchLabel")
                 : t("noPublishedServicesLabel")
             }
@@ -176,17 +189,30 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
           />
         ) : (
           <FadeIn className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {result.items.map((service) => (
-              <ExperienceCard
-                key={service.id}
-                serviceId={service.id}
-                title={service.name}
-                providerName={service.providerName}
-                price={service.price}
-                coverImageUrl={service.coverUrl}
-                imageAspect="premium"
-              />
-            ))}
+            {result.items.map((service) => {
+              // Resolve governorate + pricing-unit for display, server-side, so the
+              // client card keeps receiving ready strings (never raw codes). Both
+              // fail safe: an unknown/absent code yields no label (region omitted;
+              // price shown without a unit).
+              const regionKey = regionLabelKey(service.regionCode);
+              const unitKey = pricingUnitLabelKey(service.pricingUnit);
+              const priceDisplay =
+                service.price && unitKey
+                  ? tCommon("priceWithUnit", { price: service.price, unit: tCommon(unitKey) })
+                  : service.price;
+              return (
+                <ExperienceCard
+                  key={service.id}
+                  serviceId={service.id}
+                  title={service.name}
+                  providerName={service.providerName}
+                  price={priceDisplay}
+                  location={regionKey ? tCommon(regionKey) : undefined}
+                  coverImageUrl={service.coverUrl}
+                  imageAspect="premium"
+                />
+              );
+            })}
           </FadeIn>
         )}
 
