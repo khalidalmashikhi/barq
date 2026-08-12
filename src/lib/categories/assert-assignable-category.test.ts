@@ -24,19 +24,27 @@ describe("assertAssignableCategory", () => {
     expect(await assertAssignableCategory(ID, "EXPERIENCE")).toBe(false);
   });
 
-  it("passes the shared eligibility where-clause (id + PUBLIC + serviceType) to findFirst", async () => {
+  it("resolves the category by id + own-PUBLIC status (the vertical is matched in code, not the query)", async () => {
     findFirstMock.mockResolvedValue(null);
     await assertAssignableCategory(ID, "EXPERIENCE");
     expect(findFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: ID, visibilityStatus: "PUBLIC", serviceTypeKey: "EXPERIENCE" }),
+        where: expect.objectContaining({ id: ID, visibilityStatus: "PUBLIC" }),
       })
     );
+    // serviceType is NO LONGER filtered in SQL — it is derived from the resolved
+    // category and compared in code (so the same lookup can also DERIVE it).
+    expect(findFirstMock.mock.calls[0]![0].where).not.toHaveProperty("serviceTypeKey");
   });
 
   it("accepts a PUBLIC root of the matching serviceType", async () => {
     findFirstMock.mockResolvedValue({ visibilityStatus: "PUBLIC", serviceTypeKey: "EXPERIENCE", parent: null });
     expect(await assertAssignableCategory(ID, "EXPERIENCE")).toBe(true);
+  });
+
+  it("rejects a serviceType mismatch (category is RENTAL, asserted against EXPERIENCE)", async () => {
+    findFirstMock.mockResolvedValue({ visibilityStatus: "PUBLIC", serviceTypeKey: "RENTAL", parent: null });
+    expect(await assertAssignableCategory(ID, "EXPERIENCE")).toBe(false);
   });
 
   it("accepts a PUBLIC child under a PUBLIC parent", async () => {

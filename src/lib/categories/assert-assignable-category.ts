@@ -1,39 +1,16 @@
 import "server-only";
-import { prisma } from "@/lib/db";
-import { isValidUuid } from "@/lib/uuid";
-import { selectableCategoryWhere, isCategoryEffectivelySelectable } from "./selectable-category-rule";
+import { resolveAssignableCategory } from "./resolve-assignable-category";
 
-// Server-side re-validation for a client-submitted categoryId (Task B). The
-// picker only OFFERS selectable categories, but the submitted id is untrusted
-// input, so every create/update action re-checks it here before assignment —
-// consuming the SAME shared rule the picker uses (coarse `where` + effective
-// predicate), so a value the picker would never show is also rejected here.
+// Server-side re-validation for a client-submitted categoryId against a KNOWN
+// target serviceType. Thin wrapper over the authoritative resolveAssignable
+// Category() (one lookup, one rule): a category is assignable to a service of
+// `serviceType` iff it resolves (exists, effectively PUBLIC, governed vertical)
+// AND its own serviceTypeKey equals that serviceType.
 //
-// Returns true only when the category exists, is effectively PUBLIC (self +
-// ancestors), and matches the service's serviceType. Used only when a non-empty
-// categoryId is submitted; assignment itself is optional (drafts may be
-// uncategorized — the requirement is enforced at publish time).
-
+// Kept for callers that already know the target serviceType. New create/update
+// paths that DERIVE serviceType from the category (BR-028) call
+// resolveAssignableCategory() directly instead of asserting against a literal.
 export async function assertAssignableCategory(categoryId: string, serviceType: string): Promise<boolean> {
-  if (!isValidUuid(categoryId)) return false;
-
-  const category = await prisma.category.findFirst({
-    where: { id: categoryId, ...selectableCategoryWhere(serviceType) },
-    select: {
-      visibilityStatus: true,
-      serviceTypeKey: true,
-      parent: { select: { visibilityStatus: true } },
-    },
-  });
-
-  if (!category) return false;
-
-  return isCategoryEffectivelySelectable(
-    {
-      visibilityStatus: category.visibilityStatus,
-      serviceTypeKey: category.serviceTypeKey,
-      ancestorStatuses: category.parent ? [category.parent.visibilityStatus] : [],
-    },
-    serviceType
-  );
+  const resolved = await resolveAssignableCategory(categoryId);
+  return resolved !== null && resolved.serviceTypeKey === serviceType;
 }

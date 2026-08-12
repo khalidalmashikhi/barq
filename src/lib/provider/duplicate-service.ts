@@ -49,7 +49,12 @@ export async function duplicateService(serviceId: string): Promise<DuplicateServ
       const created = await tx.service.create({
         data: {
           providerId: provider.id,
+          // Faithful clone: copy BOTH serviceType and categoryId from the source
+          // so the duplicate preserves the source's consistent serviceType ↔
+          // category pair (BR-028). The source is already consistent, so no
+          // re-derivation is needed.
           serviceType: source.serviceType,
+          ...(source.categoryId ? { categoryId: source.categoryId } : {}),
           name: source.name as object,
           description: source.description === null ? undefined : (source.description as object),
         },

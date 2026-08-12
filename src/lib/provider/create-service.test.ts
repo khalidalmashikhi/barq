@@ -30,7 +30,7 @@ vi.mock("@/lib/auth", () => ({
 const serviceCreateMock = vi.fn();
 const priceCreateMock = vi.fn();
 const auditCreateMock = vi.fn();
-const assertAssignableCategoryMock = vi.fn();
+const resolveAssignableCategoryMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -43,8 +43,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/categories/assert-assignable-category", () => ({
-  assertAssignableCategory: (...args: unknown[]) => assertAssignableCategoryMock(...args),
+vi.mock("@/lib/categories/resolve-assignable-category", () => ({
+  resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
 }));
 
 const { createService } = await import("./create-service");
@@ -63,7 +63,7 @@ afterEach(() => {
   serviceCreateMock.mockReset();
   priceCreateMock.mockReset();
   auditCreateMock.mockReset();
-  assertAssignableCategoryMock.mockReset();
+  resolveAssignableCategoryMock.mockReset();
 });
 
 describe("createService", () => {
@@ -113,9 +113,9 @@ describe("createService", () => {
     });
   });
 
-  it("assigns a valid category (validated against DEFAULT_SERVICE_TYPE_KEY) and audits the assignment", async () => {
+  it("assigns a valid EXPERIENCE category and DERIVES serviceType=EXPERIENCE (BR-028)", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
-    assertAssignableCategoryMock.mockResolvedValue(true);
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
     serviceCreateMock.mockResolvedValue({ id: "service-1" });
     priceCreateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
@@ -125,9 +125,9 @@ describe("createService", () => {
     );
 
     expect(result).toEqual({ ok: true, serviceId: "service-1" });
-    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("cat-1", "EXPERIENCE");
+    expect(resolveAssignableCategoryMock).toHaveBeenCalledWith("cat-1");
     expect(serviceCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-1" }) })
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-1", serviceType: "EXPERIENCE" }) })
     );
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -139,9 +139,54 @@ describe("createService", () => {
     });
   });
 
-  it("rejects an invalid category with INVALID_CATEGORY and creates nothing", async () => {
+  it("derives serviceType=RENTAL for a Cars/RENTAL category (BR-028)", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
-    assertAssignableCategoryMock.mockResolvedValue(false);
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "RENTAL" });
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    await createService(buildFormData({ nameAr: "سيارة", nameEn: "Car", priceAmount: "45", categoryId: "cars-cat" }));
+
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ serviceType: "RENTAL" }) })
+    );
+  });
+
+  it("derives serviceType=TRANSPORT for a Transfers/TRANSPORT category (BR-028)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "TRANSPORT" });
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    await createService(buildFormData({ nameAr: "نقل", nameEn: "Transfer", priceAmount: "8", categoryId: "transfers-cat" }));
+
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ serviceType: "TRANSPORT" }) })
+    );
+  });
+
+  it("never trusts a client-supplied serviceType — it is always derived from the category", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "TRANSPORT" });
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    // A spoofed serviceType in the form must be ignored — the category wins.
+    await createService(
+      buildFormData({ nameAr: "نقل", nameEn: "Transfer", priceAmount: "8", categoryId: "transfers-cat", serviceType: "EXPERIENCE" })
+    );
+
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ serviceType: "TRANSPORT" }) })
+    );
+  });
+
+  it("rejects an unassignable category with INVALID_CATEGORY and creates nothing (mismatch cannot persist)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    resolveAssignableCategoryMock.mockResolvedValue(null);
 
     const result = await createService(
       buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: "bad" })

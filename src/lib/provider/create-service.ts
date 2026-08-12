@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
+import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
@@ -56,10 +56,8 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   const trimmedDescriptionEn = typeof descriptionEn === "string" ? descriptionEn.trim() : "";
 
   // Category is optional at create (drafts may stay uncategorized; it is required
-  // only at publish). serviceType is the code-owned default for a new service —
-  // never a fresh literal — and the vertical the chosen category must match.
+  // only at publish).
   const categoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
-  const serviceType = DEFAULT_SERVICE_TYPE_KEY;
 
   let provider;
   try {
@@ -75,8 +73,17 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     throw error;
   }
 
-  if (categoryId && !(await assertAssignableCategory(categoryId, serviceType))) {
-    return { ok: false, error: "INVALID_CATEGORY" };
+  // serviceType is DERIVED from the selected category (BR-028) — never a client
+  // value and never a hardcoded literal. An uncategorized draft defaults to
+  // EXPERIENCE until a category is assigned; a category then makes
+  // Service.serviceType === Category.serviceTypeKey (server-authoritative).
+  let serviceType: string = DEFAULT_SERVICE_TYPE_KEY;
+  if (categoryId) {
+    const resolved = await resolveAssignableCategory(categoryId);
+    if (!resolved) {
+      return { ok: false, error: "INVALID_CATEGORY" };
+    }
+    serviceType = resolved.serviceTypeKey;
   }
 
   try {

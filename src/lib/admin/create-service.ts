@@ -6,7 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
+import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
 
@@ -58,10 +58,8 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   const trimmedDescriptionAr = typeof descriptionAr === "string" ? descriptionAr.trim() : "";
   const trimmedDescriptionEn = typeof descriptionEn === "string" ? descriptionEn.trim() : "";
 
-  // Category optional at create, required at publish. serviceType is the
-  // code-owned default for a new service and the vertical the category must match.
+  // Category optional at create, required at publish.
   const categoryId = typeof rawCategoryId === "string" && rawCategoryId.trim() ? rawCategoryId.trim() : null;
-  const serviceType = DEFAULT_SERVICE_TYPE_KEY;
 
   let admin;
   try {
@@ -83,8 +81,16 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
       return { ok: false, error: "PROVIDER_NOT_FOUND" };
     }
 
-    if (categoryId && !(await assertAssignableCategory(categoryId, serviceType))) {
-      return { ok: false, error: "INVALID_CATEGORY" };
+    // serviceType is DERIVED from the category (BR-028) — the admin path enforces
+    // the SAME invariant as self-service; uncategorized draft defaults to
+    // EXPERIENCE until a category is assigned.
+    let serviceType: string = DEFAULT_SERVICE_TYPE_KEY;
+    if (categoryId) {
+      const resolved = await resolveAssignableCategory(categoryId);
+      if (!resolved) {
+        return { ok: false, error: "INVALID_CATEGORY" };
+      }
+      serviceType = resolved.serviceTypeKey;
     }
 
     const serviceId = await prisma.$transaction(async (tx) => {

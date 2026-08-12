@@ -6,7 +6,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
+import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Edit Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -71,13 +71,20 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       return { ok: false, error: "SERVICE_NOT_FOUND" };
     }
 
-    // Category only changes when a different, valid category is submitted;
-    // validated against THIS service's serviceType, never a literal.
+    // Category only changes when a different, valid category is submitted. An
+    // empty categoryId means "leave unchanged" (non-destructive — the service is
+    // never silently un-categorized), so serviceType is never orphaned. When the
+    // category DOES change, serviceType is RE-DERIVED from the new category
+    // (BR-028) so the pair stays consistent (Service.serviceType ===
+    // Category.serviceTypeKey) — never trusting the existing serviceType.
     const categoryChanged = submittedCategoryId !== null && submittedCategoryId !== service.categoryId;
-    if (submittedCategoryId !== null && categoryChanged) {
-      if (!(await assertAssignableCategory(submittedCategoryId, service.serviceType))) {
+    let derivedServiceType: string | undefined;
+    if (categoryChanged) {
+      const resolved = await resolveAssignableCategory(submittedCategoryId as string);
+      if (!resolved) {
         return { ok: false, error: "INVALID_CATEGORY" };
       }
+      derivedServiceType = resolved.serviceTypeKey;
     }
 
     await prisma.$transaction(async (tx) => {
@@ -89,7 +96,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
             trimmedDescriptionAr || trimmedDescriptionEn
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
-          ...(categoryChanged ? { categoryId: submittedCategoryId } : {}),
+          ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType } : {}),
         },
       });
 

@@ -24,10 +24,10 @@ vi.mock("@/lib/auth", () => ({
 const serviceFindUniqueMock = vi.fn();
 const serviceUpdateMock = vi.fn();
 const auditCreateMock = vi.fn();
-const assertAssignableCategoryMock = vi.fn();
+const resolveAssignableCategoryMock = vi.fn();
 
-vi.mock("@/lib/categories/assert-assignable-category", () => ({
-  assertAssignableCategory: (...args: unknown[]) => assertAssignableCategoryMock(...args),
+vi.mock("@/lib/categories/resolve-assignable-category", () => ({
+  resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -60,7 +60,7 @@ afterEach(() => {
   serviceFindUniqueMock.mockReset();
   serviceUpdateMock.mockReset();
   auditCreateMock.mockReset();
-  assertAssignableCategoryMock.mockReset();
+  resolveAssignableCategoryMock.mockReset();
 });
 
 describe("updateService", () => {
@@ -132,33 +132,33 @@ describe("updateService", () => {
     });
   });
 
-  it("assigns a valid, different category (validated against the service's serviceType) and audits the change", async () => {
+  it("changing category RE-DERIVES serviceType (BR-028) and audits the change — admin path can't produce an inconsistent pair", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     serviceFindUniqueMock.mockResolvedValue({ id: SERVICE_ID, name: { ar: "قديم", en: "Old" }, status: "DRAFT", categoryId: null, serviceType: "EXPERIENCE" });
-    assertAssignableCategoryMock.mockResolvedValue(true);
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "RENTAL" });
     serviceUpdateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
 
-    const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جديد", nameEn: "New", categoryId: "cat-1" }));
+    const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "سيارة", nameEn: "Car", categoryId: "cars-cat" }));
 
     expect(result).toEqual({ ok: true });
-    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("cat-1", "EXPERIENCE");
+    expect(resolveAssignableCategoryMock).toHaveBeenCalledWith("cars-cat");
     expect(serviceUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-1" }) })
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cars-cat", serviceType: "RENTAL" }) })
     );
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: "service.category_changed",
         previousValue: { categoryId: null },
-        newValue: { categoryId: "cat-1" },
+        newValue: { categoryId: "cars-cat" },
       }),
     });
   });
 
-  it("rejects an invalid category with INVALID_CATEGORY and mutates nothing", async () => {
+  it("rejects an unassignable category with INVALID_CATEGORY and mutates nothing", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     serviceFindUniqueMock.mockResolvedValue({ id: SERVICE_ID, name: { ar: "قديم", en: "Old" }, status: "DRAFT", categoryId: null, serviceType: "EXPERIENCE" });
-    assertAssignableCategoryMock.mockResolvedValue(false);
+    resolveAssignableCategoryMock.mockResolvedValue(null);
 
     const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جديد", nameEn: "New", categoryId: "bad" }));
 

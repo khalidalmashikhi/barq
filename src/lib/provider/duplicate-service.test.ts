@@ -121,6 +121,28 @@ describe("duplicateService", () => {
     });
   });
 
+  it("preserves the source's serviceType AND categoryId pair on the clone (BR-028 invariant)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({
+      id: SERVICE_ID,
+      providerId: "provider-1",
+      serviceType: "RENTAL",
+      categoryId: "cars-cat",
+      name: { ar: "سيارة", en: "Car" },
+      description: null,
+      prices: [{ amount: "45.00", currency: "OMR" }],
+    });
+    serviceCreateMock.mockResolvedValue({ id: "service-2" });
+    priceCreateMock.mockResolvedValue({});
+
+    const result = await duplicateService(SERVICE_ID);
+
+    expect(result).toEqual({ ok: true, serviceId: "service-2" });
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ serviceType: "RENTAL", categoryId: "cars-cat" }) })
+    );
+  });
+
   it("clones a service with no active price without creating a Price row", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     findUniqueMock.mockResolvedValue({

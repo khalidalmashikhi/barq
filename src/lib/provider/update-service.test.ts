@@ -30,7 +30,7 @@ vi.mock("@/lib/auth", () => ({
 const findUniqueMock = vi.fn();
 const updateMock = vi.fn();
 const auditCreateMock = vi.fn();
-const assertAssignableCategoryMock = vi.fn();
+const resolveAssignableCategoryMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -46,8 +46,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/categories/assert-assignable-category", () => ({
-  assertAssignableCategory: (...args: unknown[]) => assertAssignableCategoryMock(...args),
+vi.mock("@/lib/categories/resolve-assignable-category", () => ({
+  resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
 }));
 
 const { updateService } = await import("./update-service");
@@ -68,7 +68,7 @@ afterEach(() => {
   findUniqueMock.mockReset();
   updateMock.mockReset();
   auditCreateMock.mockReset();
-  assertAssignableCategoryMock.mockReset();
+  resolveAssignableCategoryMock.mockReset();
 });
 
 describe("updateService", () => {
@@ -127,36 +127,38 @@ describe("updateService", () => {
     });
   });
 
-  it("assigns a valid, different category (validated against the service's serviceType) and audits the change", async () => {
+  it("changing category to a different vertical RE-DERIVES serviceType (BR-028) and audits the change", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    // The service was EXPERIENCE; moving it to a RENTAL category re-derives RENTAL.
     findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: null, serviceType: "EXPERIENCE" });
-    assertAssignableCategoryMock.mockResolvedValue(true);
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "RENTAL" });
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
 
     const result = await updateService(
       SERVICE_ID,
-      buildFormData({ nameAr: "جولة", nameEn: "Tour", categoryId: "cat-123" })
+      buildFormData({ nameAr: "سيارة", nameEn: "Car", categoryId: "cars-cat" })
     );
 
     expect(result).toEqual({ ok: true });
-    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("cat-123", "EXPERIENCE");
+    expect(resolveAssignableCategoryMock).toHaveBeenCalledWith("cars-cat");
+    // BOTH categoryId and the re-derived serviceType update together.
     expect(updateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-123" }) })
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: "cars-cat", serviceType: "RENTAL" }) })
     );
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: "service.category_changed",
         previousValue: { categoryId: null },
-        newValue: { categoryId: "cat-123" },
+        newValue: { categoryId: "cars-cat" },
       }),
     });
   });
 
-  it("rejects an invalid category with INVALID_CATEGORY and mutates nothing", async () => {
+  it("rejects an unassignable category with INVALID_CATEGORY and mutates nothing", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: null, serviceType: "EXPERIENCE" });
-    assertAssignableCategoryMock.mockResolvedValue(false);
+    resolveAssignableCategoryMock.mockResolvedValue(null);
 
     const result = await updateService(
       SERVICE_ID,
@@ -168,7 +170,7 @@ describe("updateService", () => {
     expect(auditCreateMock).not.toHaveBeenCalled();
   });
 
-  it("leaves the category untouched (no validation, no audit) when categoryId is omitted", async () => {
+  it("leaves category AND serviceType untouched (no resolve, no audit) when categoryId is omitted", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "existing-cat", serviceType: "EXPERIENCE" });
     updateMock.mockResolvedValue({});
@@ -176,8 +178,9 @@ describe("updateService", () => {
     const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour" }));
 
     expect(result).toEqual({ ok: true });
-    expect(assertAssignableCategoryMock).not.toHaveBeenCalled();
+    expect(resolveAssignableCategoryMock).not.toHaveBeenCalled();
     expect(auditCreateMock).not.toHaveBeenCalled();
     expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("categoryId");
+    expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("serviceType");
   });
 });

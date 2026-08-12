@@ -6,7 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
+import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import type { ServiceAdminActionErrorCode } from "./service-admin-errors";
 
 // Update Service (admin-initiated) — Phase 2.3 (Service Foundation).
@@ -70,13 +70,18 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       return { ok: false, error: "SERVICE_NOT_FOUND" };
     }
 
-    // Category only changes when a different, valid category is submitted;
-    // validated against THIS service's serviceType.
+    // Category only changes when a different, valid category is submitted (empty
+    // = leave unchanged, non-destructive). When it changes, serviceType is
+    // RE-DERIVED from the new category (BR-028) so the pair stays consistent —
+    // the admin path can never produce an inconsistent serviceType ↔ category.
     const categoryChanged = submittedCategoryId !== null && submittedCategoryId !== service.categoryId;
-    if (submittedCategoryId !== null && categoryChanged) {
-      if (!(await assertAssignableCategory(submittedCategoryId, service.serviceType))) {
+    let derivedServiceType: string | undefined;
+    if (categoryChanged) {
+      const resolved = await resolveAssignableCategory(submittedCategoryId as string);
+      if (!resolved) {
         return { ok: false, error: "INVALID_CATEGORY" };
       }
+      derivedServiceType = resolved.serviceTypeKey;
     }
 
     await prisma.$transaction(async (tx) => {
@@ -88,7 +93,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
             trimmedDescriptionAr || trimmedDescriptionEn
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
-          ...(categoryChanged ? { categoryId: submittedCategoryId } : {}),
+          ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType } : {}),
         },
       });
 
