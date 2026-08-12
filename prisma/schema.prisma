@@ -726,6 +726,15 @@ model Service {
   /// Services must fail loudly, never null out or cascade real Services.
   categoryId  String?       @db.Uuid
   category    Category?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  /// Discovery region — the broad Oman governorate where this service operates
+  /// (Core Service enrichment, Gate 2). Named `regionCode` because the stored
+  /// value is a stable governorate CODE (e.g. DHOFAR, MUSCAT), NOT free-text and
+  /// NOT a localized name — the same String + code-registry + DB CHECK convention
+  /// as serviceTypeKey (a Prisma enum is deliberately not used; the src/lib/regions
+  /// registry + its sync test land in Gate 3). Nullable and additive: existing
+  /// services stay valid (regionCode = NULL) and fully public until a provider
+  /// sets it; nothing reads it yet (Gate 3/4 wire it).
+  regionCode  String?
   createdAt   DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
 
@@ -738,6 +747,7 @@ model Service {
   @@index([providerId])
   @@index([status])
   @@index([categoryId])
+  @@index([regionCode])
   @@map("services")
 }
 
@@ -1271,6 +1281,19 @@ model Price {
   service   Service     @relation(fields: [serviceId], references: [id])
   amount    Decimal     @db.Decimal(12, 2)
   currency  String
+  /// Commercial/display basis of `amount` (Core Service enrichment, Gate 2) — a
+  /// stable CODE such as PER_PERSON or PER_DAY. DISPLAY METADATA ONLY in this
+  /// milestone: it does NOT calculate booking totals, multiply by seats/days,
+  /// affect payment/refunds/capture, or alter price snapshots — those remain a
+  /// protected, future checkout concern. String, no Prisma enum. DELIBERATELY NO
+  /// DB CHECK constraint (unlike regionCode/serviceTypeKey): the pricing-unit
+  /// vocabulary is commercially extensible (PER_NIGHT, PER_VEHICLE, PER_ITEM,
+  /// PER_PACKAGE, … as specialization lands), so a CHECK would force a migration
+  /// for every legitimate addition and defeat the point of a code column. The
+  /// Gate-3 application registry (src/lib/pricing-units) is the authoritative
+  /// allow-list. Nullable/additive: existing prices keep flat-amount semantics
+  /// (pricingUnit = NULL). Not indexed (not a customer filter).
+  pricingUnit String?
   status    PriceStatus @default(ACTIVE)
   createdAt DateTime    @default(now()) @db.Timestamptz(6)
 
