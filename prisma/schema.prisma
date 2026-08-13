@@ -133,6 +133,18 @@ enum ProviderDocumentStatus {
   REJECTED
 }
 
+/// Which provider type(s) a verification requirement applies to (ADR-0017 —
+/// configurable provider verification requirements). A genuinely fixed set
+/// (INDIVIDUAL / COMPANY plus the BOTH convenience), so a Prisma enum is correct
+/// here — unlike the GROWING requirement KEY set, which stays an admin-managed
+/// row keyed by a stable String (ProviderVerificationRequirement.key), never an
+/// enum (so introducing a new requirement never needs a migration).
+enum VerificationRequirementAudience {
+  INDIVIDUAL
+  COMPANY
+  BOTH
+}
+
 // Media Foundation (Gap C) — discriminators for the reusable MediaAsset
 // table (see the model below).
 enum MediaOwnerType {
@@ -532,6 +544,51 @@ model ProviderDocument {
   @@index([status])
   @@index([reviewedByAdminId])
   @@map("provider_documents")
+}
+
+/// Admin-configurable provider verification requirement (ADR-0017 — Level 2 of
+/// Provider Verification). The SET of verification requirements/document types,
+/// and which are required per provider type, is now DATA an admin manages from
+/// the Admin Panel — no code deploy to introduce a new requirement — replacing
+/// the former hard-coded map in src/lib/provider-document-types/requirements.ts.
+///
+/// KEY SAFETY: `key` is the STABLE code a `ProviderDocument.type` references — a
+/// SOFT reference by string, deliberately NOT a relational FK (see
+/// ProviderDocument.type's note). It is immutable after creation (enforced at the
+/// admin write path, same convention as FeatureFlag.key / HomepageSection.key):
+/// renaming it would orphan historical documents. Bilingual `name`/`description`
+/// may change freely — they are presentation only and never affect the validity
+/// of an already-uploaded document.
+///
+/// ENFORCEMENT STAYS CODE (BR-029 / 11-SECURITY-POLICY.md): this table decides
+/// WHICH documents are required; assertProviderApprovable() (code) still decides
+/// WHETHER approval is allowed and always runs — an admin can never bypass it by
+/// editing config. A config/DB read failure fails CLOSED to the code-default
+/// required set (src/lib/provider-document-types/policy.ts), never "require
+/// nothing". Purely additive: existing `provider_documents` rows are untouched and
+/// remain valid (their `type` String keeps referencing a requirement `key`).
+model ProviderVerificationRequirement {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// Stable code that `ProviderDocument.type` references — immutable after
+  /// creation (same reasoning as FeatureFlag.key), e.g. "IDENTITY_PROOF".
+  key         String   @unique
+  /// Bilingual provider-facing label — { "ar": "...", "en": "..." } (ADR-0005).
+  name        Json
+  /// Bilingual instructions/description — { "ar": "...", "en": "..." }. Nullable;
+  /// presentation only, never behavior.
+  description Json?
+  appliesTo   VerificationRequirementAudience
+  /// Required (an approval blocker per BR-029) vs optional. A NEW requirement
+  /// defaults to OPTIONAL — an admin must explicitly make one required, so simply
+  /// creating a requirement can never retroactively block existing providers.
+  required    Boolean  @default(false)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([active])
+  @@map("provider_verification_requirements")
 }
 
 model Driver {
