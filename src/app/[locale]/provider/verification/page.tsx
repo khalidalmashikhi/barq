@@ -6,7 +6,8 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { UnauthenticatedError } from "@/lib/auth";
 import { redirect } from "@/i18n/navigation";
 import { getProviderVerificationData } from "@/lib/provider/documents/get-provider-verification-data";
-import { PROVIDER_DOCUMENT_TYPE_LABEL_KEYS } from "@/lib/provider-document-types";
+import { PROVIDER_DOCUMENT_TYPE_LABEL_KEYS, isValidProviderDocumentTypeKey } from "@/lib/provider-document-types";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import {
   isProviderDocumentErrorCode,
   getProviderDocumentErrorTranslationKey,
@@ -100,7 +101,12 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
 
       <div className="flex flex-col gap-4">
         {data.items.map((item) => {
-          const label = t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[item.type]);
+          // ADR-0017: render the admin-configured bilingual name; fall back to the
+          // code registry i18n label (or the raw key) if the DB name is empty.
+          const label =
+            extractLocalizedText(item.name, locale) ||
+            (isValidProviderDocumentTypeKey(item.type) ? t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[item.type]) : item.type);
+          const description = extractLocalizedText(item.description, locale);
           const doc = item.document;
           return (
             <Card key={item.type} hoverLift={false}>
@@ -112,6 +118,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                   </Badge>
                   {doc && <Badge variant={STATUS_BADGE[doc.status]}>{t(STATUS_LABEL_KEY[doc.status])}</Badge>}
                 </div>
+                {description && <p className="text-xs text-foreground/50">{description}</p>}
                 {item.required && <p className="text-xs text-foreground/40">{t("documentRequiredHint")}</p>}
 
                 {doc ? (

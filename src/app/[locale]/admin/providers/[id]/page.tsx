@@ -267,7 +267,14 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             <ul className="mt-2 flex flex-col gap-1 text-sm">
               {blockers.map((blocker) => (
                 <li key={blocker.type}>
-                  <span className="font-medium">{t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[blocker.type])}</span>
+                  {/* blocker.type is a policy key (ADR-0017) — may be an admin-created
+                      key outside the code registry, so guard the label like the
+                      document list below: registry label if known, else the key. */}
+                  <span className="font-medium">
+                    {isValidProviderDocumentTypeKey(blocker.type)
+                      ? t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[blocker.type])
+                      : blocker.type}
+                  </span>
                   {" — "}
                   {t(BLOCKER_REASON_LABEL_KEY[blocker.reason])}
                 </li>

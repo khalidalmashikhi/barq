@@ -16,9 +16,11 @@ vi.mock("@/lib/auth", () => ({
 const findUniqueMock = vi.fn();
 const createMock = vi.fn();
 const auditCreateMock = vi.fn();
+const requirementFindManyMock = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     providerDocument: { findUnique: (...a: unknown[]) => findUniqueMock(...a) },
+    providerVerificationRequirement: { findMany: (...a: unknown[]) => requirementFindManyMock(...a) },
     $transaction: async (cb: (tx: unknown) => unknown) =>
       cb({
         providerDocument: { create: (...a: unknown[]) => createMock(...a) },
@@ -59,6 +61,8 @@ beforeEach(() => {
   removeMock.mockResolvedValue(undefined);
   createMock.mockResolvedValue({ id: "doc-1" });
   auditCreateMock.mockResolvedValue({});
+  // Default: an empty (unseeded) policy — registry keys still upload (fail-safe).
+  requirementFindManyMock.mockResolvedValue([]);
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -78,10 +82,34 @@ describe("uploadProviderDocument", () => {
     expect(auditCreateMock.mock.calls[0]![0]).toMatchObject({ data: { action: "provider.document_uploaded", actorType: "PROVIDER" } });
   });
 
-  it("rejects an unknown registry type before any upload", async () => {
+  it("rejects an arbitrary/unknown type before any upload", async () => {
     const result = await uploadProviderDocument({ ...baseInput(), type: "PASSPORT" });
     expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts an ACTIVE configured custom key (ADR-0017)", async () => {
+    requirementFindManyMock.mockResolvedValue([{ key: "VAT_CERTIFICATE", active: true }]);
+    const result = await uploadProviderDocument({ ...baseInput(), type: "VAT_CERTIFICATE" });
+    expect(result).toEqual({ ok: true, documentId: "doc-1" });
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const createArg = createMock.mock.calls[0]![0] as { data: { type: string } };
+    expect(createArg.data.type).toBe("VAT_CERTIFICATE"); // stored as the stable key, unmutated
+  });
+
+  it("rejects an INACTIVE configured custom key before any upload", async () => {
+    requirementFindManyMock.mockResolvedValue([{ key: "VAT_CERTIFICATE", active: false }]);
+    const result = await uploadProviderDocument({ ...baseInput(), type: "VAT_CERTIFICATE" });
+    expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("still accepts a historical registry key even when the policy does not list it (compatibility)", async () => {
+    // Policy only lists a custom key; IDENTITY_PROOF is a registry key → still valid.
+    requirementFindManyMock.mockResolvedValue([{ key: "VAT_CERTIFICATE", active: true }]);
+    const result = await uploadProviderDocument({ ...baseInput(), type: "IDENTITY_PROOF" });
+    expect(result).toEqual({ ok: true, documentId: "doc-1" });
+    expect(uploadMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects an unsupported MIME before any upload", async () => {

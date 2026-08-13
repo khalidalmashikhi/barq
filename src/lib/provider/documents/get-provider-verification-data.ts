@@ -3,22 +3,30 @@ import type { ProviderType, ProviderDocumentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
 import { isDocumentStorageConfigured } from "@/lib/storage/storage";
-import {
-  PROVIDER_DOCUMENT_TYPE_KEYS,
-  requiredDocumentTypesFor,
-  type ProviderDocumentTypeKey,
-} from "@/lib/provider-document-types";
+import { resolveVerificationChecklist } from "@/lib/provider-document-types";
+import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
 import { documentVersionToken } from "./document-version-token";
 
 // Single provider-side read backing the /provider/verification page AND the
 // dashboard readiness card — so the required/optional checklist is derived once,
-// server-side, from the same requirement primitives (no duplicate logic in
-// React). Own documents only (requireProvider). Never exposes objectKey — each
-// uploaded document carries the opaque versionToken for replace/delete binding.
+// server-side, from the same fail-closed policy resolver the approval gate uses
+// (no duplicate logic in React). Own documents only (requireProvider). Never
+// exposes objectKey — each uploaded document carries the opaque versionToken for
+// replace/delete binding.
+//
+// ADR-0017: the checklist rows come from the admin-configured policy
+// (getActiveVerificationRequirements) via resolveVerificationChecklist, which
+// falls back to the code defaults when the policy is unreadable/unseeded — so the
+// provider always sees at least the default checklist, never an empty one on a DB
+// hiccup. `type` is a plain string (an admin-created key need not be in the code
+// registry); `name`/`description` are raw bilingual JSON maps rendered at the
+// edge via extractLocalizedText.
 
 export type VerificationChecklistItem = {
-  type: ProviderDocumentTypeKey;
+  type: string;
   required: boolean;
+  name: unknown; // bilingual {ar,en} locale map — render via extractLocalizedText
+  description: unknown; // bilingual locale map or null
   document: {
     id: string;
     status: ProviderDocumentStatus;
@@ -33,7 +41,7 @@ export type ProviderVerificationData = {
   providerType: ProviderType;
   providerStatus: string;
   storageAvailable: boolean;
-  items: VerificationChecklistItem[]; // required types first, then optional
+  items: VerificationChecklistItem[]; // ordered by policy sortOrder (required first by default)
   requiredTotal: number;
   requiredApproved: number;
 };
@@ -44,15 +52,18 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
   const rows = await prisma.providerDocument.findMany({ where: { providerId: provider.id } });
   const byType = new Map(rows.map((r) => [r.type, r]));
 
-  const required = requiredDocumentTypesFor({ providerType: provider.providerType });
-  const requiredSet = new Set<string>(required);
-  const optional = PROVIDER_DOCUMENT_TYPE_KEYS.filter((k) => !requiredSet.has(k));
+  // Fail-closed configured checklist (required + optional) applicable to this
+  // provider type. null (DB error) / [] (unseeded) → code defaults.
+  const policyRows = await getActiveVerificationRequirements();
+  const checklist = resolveVerificationChecklist(policyRows, { providerType: provider.providerType });
 
-  const items: VerificationChecklistItem[] = [...required, ...optional].map((type) => {
-    const r = byType.get(type);
+  const items: VerificationChecklistItem[] = checklist.map((req) => {
+    const r = byType.get(req.key);
     return {
-      type,
-      required: requiredSet.has(type),
+      type: req.key,
+      required: req.required,
+      name: req.name,
+      description: req.description,
       document: r
         ? {
             id: r.id,
@@ -66,14 +77,15 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
     };
   });
 
-  const requiredApproved = required.filter((t) => byType.get(t)?.status === "APPROVED").length;
+  const requiredItems = checklist.filter((req) => req.required);
+  const requiredApproved = requiredItems.filter((req) => byType.get(req.key)?.status === "APPROVED").length;
 
   return {
     providerType: provider.providerType,
     providerStatus: provider.status,
     storageAvailable: isDocumentStorageConfigured(),
     items,
-    requiredTotal: required.length,
+    requiredTotal: requiredItems.length,
     requiredApproved,
   };
 }

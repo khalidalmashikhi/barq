@@ -4,3 +4,5 @@
 // ProviderType required set + pure completeness primitive).
 export * from "./registry";
 export * from "./requirements";
+export * from "./default-requirements";
+export * from "./policy";

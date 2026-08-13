@@ -6,21 +6,23 @@ import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { isValidProviderDocumentTypeKey } from "@/lib/provider-document-types";
+import { isUploadableDocumentType } from "@/lib/provider-document-types";
 import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject } from "@/lib/storage/storage";
 import { validateDocumentUpload } from "./document-constants";
 import { buildDocumentObjectKey, sanitizeOriginalFilename } from "./document-object-key";
+import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
 import type { UploadProviderDocumentResult, ProviderDocumentErrorCode } from "./provider-document-errors";
 
 // Upload a NEW provider verification document (Option 1: bytes already received
 // server-side by the route). Create-only: one current document per (provider,
 // type) — replacing an existing one is replaceProviderDocument().
 //
-// ORDER (RC1 + failure isolation): validate the registry type, then validate
-// size + declared MIME + magic bytes BEFORE any storage write; only then upload
-// to the private bucket; only then create the DB row + audit atomically. If the
-// DB write fails (including a unique-constraint race), the just-uploaded object
-// is best-effort removed so no orphan is left.
+// ORDER (RC1 + failure isolation): validate the upload type (registry key OR an
+// active configured requirement, ADR-0017), then validate size + declared MIME +
+// magic bytes BEFORE any storage write; only then upload to the private bucket;
+// only then create the DB row + audit atomically. If the DB write fails
+// (including a unique-constraint race), the just-uploaded object is best-effort
+// removed so no orphan is left.
 
 export type UploadProviderDocumentInput = {
   type: string;
@@ -39,7 +41,11 @@ export async function uploadProviderDocument(input: UploadProviderDocumentInput)
     throw error;
   }
 
-  if (!isValidProviderDocumentTypeKey(input.type)) {
+  // ADR-0017: accept a registry key (compatibility + fail-safe) OR an active
+  // configured requirement key; reject arbitrary strings. Never stores a key that
+  // is neither, so ProviderDocument.type stays a governed stable code.
+  const uploadPolicy = await getActiveVerificationRequirements();
+  if (!isUploadableDocumentType(input.type, uploadPolicy)) {
     return { ok: false, error: "INVALID_INPUT" };
   }
 

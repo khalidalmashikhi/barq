@@ -46,19 +46,25 @@ export function requiredDocumentTypesFor(provider: ProviderRequirementContext): 
 export type ProviderDocumentSnapshot = { type: string; status: ProviderDocumentStatus };
 
 export type RequiredDocumentBlocker = {
-  type: ProviderDocumentTypeKey;
+  // A plain `string`, not `ProviderDocumentTypeKey`: under ADR-0017 the required
+  // set is admin-configured data, so a blocker may reference an admin-created key
+  // that is not in the code registry. Historical/registry keys remain valid; the
+  // UI applies a guarded label fallback (registry label if known, else the key).
+  type: string;
   reason: "MISSING" | "NOT_APPROVED";
 };
 
 /**
- * Pure completeness primitive for the future assertProviderApprovable() gate.
- * Given the required type keys and a snapshot of the provider's documents,
- * returns the ORDERED blockers (empty array = every required document exists and
- * is APPROVED), mirroring assertServicePublishable()'s ordered-blocker shape.
- * Optional documents (types not in `requiredTypes`) never block. No I/O.
+ * Pure completeness primitive for the assertProviderApprovable() gate. Given the
+ * required type keys (from the fail-closed policy resolver) and a snapshot of the
+ * provider's documents, returns the ORDERED blockers (empty array = every
+ * required document exists and is APPROVED), mirroring assertServicePublishable()'s
+ * ordered-blocker shape. Optional documents (types not in `requiredTypes`) never
+ * block. `requiredTypes` is `readonly string[]` because ADR-0017 keys are
+ * admin-configured data, not only the code registry keys. No I/O.
  */
 export function resolveRequiredDocumentBlockers(
-  requiredTypes: readonly ProviderDocumentTypeKey[],
+  requiredTypes: readonly string[],
   documents: readonly ProviderDocumentSnapshot[]
 ): RequiredDocumentBlocker[] {
   const blockers: RequiredDocumentBlocker[] = [];

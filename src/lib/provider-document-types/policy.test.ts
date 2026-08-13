@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { resolveRequiredKeysFromPolicy, type VerificationRequirementPolicyRow } from "./policy";
+import {
+  resolveRequiredKeysFromPolicy,
+  resolveVerificationChecklist,
+  isUploadableDocumentType,
+  type VerificationRequirementPolicyRow,
+  type VerificationRequirementChecklistRow,
+} from "./policy";
 
 // ADR-0017 fail-closed contract. The critical safety property: a configuration or
 // database FAILURE must never silently reduce the required document set to
@@ -77,5 +83,109 @@ describe("resolveRequiredKeysFromPolicy — authoritative admin policy", () => {
     ];
     expect(resolveRequiredKeysFromPolicy(policy, COMPANY)).toEqual([]);
     expect(resolveRequiredKeysFromPolicy(policy, INDIVIDUAL)).toEqual([]);
+  });
+});
+
+function checklistRow(
+  o: Partial<VerificationRequirementChecklistRow> & { key: string }
+): VerificationRequirementChecklistRow {
+  return {
+    name: { ar: `${o.key}-ar`, en: `${o.key}-en` },
+    description: null,
+    appliesTo: "BOTH",
+    required: false,
+    active: true,
+    sortOrder: 0,
+    ...o,
+  };
+}
+
+describe("resolveVerificationChecklist — fail-closed fallback", () => {
+  it("falls back to the default checklist on NULL (DB failure) — never empty", () => {
+    const individual = resolveVerificationChecklist(null, INDIVIDUAL);
+    expect(individual.map((r) => r.key)).toEqual(["IDENTITY_PROOF", "TOURISM_LICENCE"]);
+    expect(individual.find((r) => r.key === "IDENTITY_PROOF")!.required).toBe(true);
+    expect(individual.find((r) => r.key === "TOURISM_LICENCE")!.required).toBe(false);
+
+    const company = resolveVerificationChecklist(null, COMPANY);
+    expect(company.map((r) => r.key)).toEqual(["COMMERCIAL_REGISTRATION", "TOURISM_LICENCE"]);
+  });
+
+  it("falls back to the default checklist on an EMPTY table (unseeded)", () => {
+    expect(resolveVerificationChecklist([], COMPANY).map((r) => r.key)).toEqual([
+      "COMMERCIAL_REGISTRATION",
+      "TOURISM_LICENCE",
+    ]);
+  });
+
+  it("returns the default bilingual name/description in the fallback", () => {
+    const item = resolveVerificationChecklist(null, INDIVIDUAL).find((r) => r.key === "IDENTITY_PROOF")!;
+    expect(item.name).toEqual({ ar: "إثبات الهوية", en: "Identity Proof" });
+    expect(item.description).toMatchObject({ ar: expect.any(String), en: expect.any(String) });
+  });
+});
+
+describe("resolveVerificationChecklist — authoritative policy", () => {
+  it("reflects the configured rows, audience-filtered and ordered by sortOrder", () => {
+    const policy = [
+      checklistRow({ key: "TOURISM_LICENCE", appliesTo: "BOTH", required: false, sortOrder: 2 }),
+      checklistRow({ key: "COMMERCIAL_REGISTRATION", appliesTo: "COMPANY", required: true, sortOrder: 1 }),
+      checklistRow({ key: "IDENTITY_PROOF", appliesTo: "INDIVIDUAL", required: true, sortOrder: 0 }),
+    ];
+    // COMPANY sees only its own + BOTH, ordered by sortOrder.
+    expect(resolveVerificationChecklist(policy, COMPANY).map((r) => r.key)).toEqual([
+      "COMMERCIAL_REGISTRATION",
+      "TOURISM_LICENCE",
+    ]);
+  });
+
+  it("excludes inactive rows from the checklist", () => {
+    const policy = [
+      checklistRow({ key: "COMMERCIAL_REGISTRATION", appliesTo: "COMPANY", required: true, active: false }),
+      checklistRow({ key: "TOURISM_LICENCE", appliesTo: "BOTH", required: false, active: true }),
+    ];
+    expect(resolveVerificationChecklist(policy, COMPANY).map((r) => r.key)).toEqual(["TOURISM_LICENCE"]);
+  });
+
+  it("passes the configured name/description through untouched (for extractLocalizedText)", () => {
+    const policy = [
+      checklistRow({
+        key: "VAT_CERTIFICATE",
+        appliesTo: "COMPANY",
+        required: true,
+        name: { ar: "ضريبة", en: "VAT" },
+        description: { ar: "وصف", en: "desc" },
+      }),
+    ];
+    const item = resolveVerificationChecklist(policy, COMPANY)[0]!;
+    expect(item.name).toEqual({ ar: "ضريبة", en: "VAT" });
+    expect(item.description).toEqual({ ar: "وصف", en: "desc" });
+  });
+});
+
+describe("isUploadableDocumentType", () => {
+  it("accepts every code registry key (compatibility + historical), regardless of policy", () => {
+    for (const key of ["IDENTITY_PROOF", "COMMERCIAL_REGISTRATION", "TOURISM_LICENCE"]) {
+      expect(isUploadableDocumentType(key, [])).toBe(true);
+      expect(isUploadableDocumentType(key, null)).toBe(true);
+    }
+  });
+
+  it("rejects an arbitrary/unknown key", () => {
+    expect(isUploadableDocumentType("PASSPORT", [])).toBe(false);
+    expect(isUploadableDocumentType("../etc/passwd", [])).toBe(false);
+  });
+
+  it("accepts an ACTIVE configured custom key", () => {
+    expect(isUploadableDocumentType("VAT_CERTIFICATE", [{ key: "VAT_CERTIFICATE", active: true }])).toBe(true);
+  });
+
+  it("rejects an INACTIVE configured custom key", () => {
+    expect(isUploadableDocumentType("VAT_CERTIFICATE", [{ key: "VAT_CERTIFICATE", active: false }])).toBe(false);
+  });
+
+  it("fail-safe: on a null policy (DB error) only registry keys are accepted, arbitrary rejected", () => {
+    expect(isUploadableDocumentType("VAT_CERTIFICATE", null)).toBe(false);
+    expect(isUploadableDocumentType("IDENTITY_PROOF", null)).toBe(true);
   });
 });
