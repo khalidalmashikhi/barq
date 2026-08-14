@@ -3,6 +3,9 @@ import type { ServiceDetail, ActivePriceOption } from "@/lib/services/get-servic
 import type { ProviderProfile } from "@/lib/services/get-provider-profile";
 import type { PublicRootCategory } from "@/lib/categories/get-public-root-categories";
 import type { AvailableSlot } from "@/lib/booking/get-available-slots";
+import type { MyBookingListItem } from "@/lib/booking/get-my-bookings";
+import type { BookingDetail } from "@/lib/booking/get-booking-detail";
+import type { NotificationListItem } from "@/lib/notifications/get-notifications";
 import { parseMoneyString, toMoneyDTO, type MoneyDTO } from "./money";
 
 // API v1 public DTOs — Gate 1 (Public API Foundation).
@@ -189,5 +192,141 @@ export function toAvailabilitySlotDTO(slot: AvailableSlot): AvailabilitySlotDTO 
     startTime: slot.startTime.toISOString(),
     endTime: slot.endTime.toISOString(),
     remainingSeats: slot.remainingSeats,
+  };
+}
+
+// ===========================================================================
+// Gate 2 — Authenticated customer DTOs
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Authenticated identity (/me)
+// ---------------------------------------------------------------------------
+
+// Provider state for /me — lets iOS decide the provider entry point (become /
+// application-status / workspace) from ProviderStatus, without exposing any
+// internal provider data. `status` is the raw ProviderStatus (APPLIED /
+// UNDER_REVIEW / APPROVED / REJECTED / SUSPENDED / DEACTIVATED) or null when the
+// user has no Provider record. `workspaceAvailable` is APPROVED-only.
+export interface MeProviderDTO {
+  exists: boolean;
+  status: string | null;
+  type: string | null;
+  workspaceAvailable: boolean;
+}
+
+export interface MeDTO {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  phoneVerified: boolean;
+  locale: string;
+  provider: MeProviderDTO;
+}
+
+// Minimal identity view. A User is the single account identity; Provider is an
+// optional, additive capability on the same account (never a mutually exclusive
+// role) — so provider is always present as an object with `exists`.
+export function toMeDTO(
+  user: { id: string; name: string | null; phoneNumber: string | null; phoneNumberVerified: boolean },
+  provider: MeProviderDTO,
+  locale: string
+): MeDTO {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phoneNumber,
+    phoneVerified: user.phoneNumberVerified,
+    locale,
+    provider,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Booking summary (customer's own list)
+// ---------------------------------------------------------------------------
+
+export interface BookingSummaryDTO {
+  id: string;
+  status: string;
+  serviceName: string;
+  // Snapshotted price captured at booking time (domain truth). This is the
+  // stored Price snapshot, NOT a computed order total — labeled honestly so a
+  // client never treats it as a seats-multiplied total.
+  priceSnapshot: MoneyDTO | null;
+  scheduledStartTime: string | null; // ISO-8601 slot start, when the booking references a slot
+  createdAt: string; // ISO-8601
+}
+
+export function toBookingSummaryDTO(item: MyBookingListItem): BookingSummaryDTO {
+  return {
+    id: item.id,
+    status: item.status,
+    serviceName: item.serviceName,
+    priceSnapshot: parseMoneyString(item.priceSnapshot),
+    scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
+    createdAt: item.createdAt.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Booking detail (customer's own)
+// ---------------------------------------------------------------------------
+
+export interface BookingDetailDTO {
+  id: string;
+  status: string;
+  serviceId: string;
+  serviceName: string;
+  providerId: string;
+  providerName: string;
+  seats: number;
+  priceSnapshot: MoneyDTO | null; // stored snapshot (unit price at booking time), not a computed total
+  scheduledStartTime: string | null; // ISO-8601
+  confirmedAt: string | null; // ISO-8601
+  createdAt: string; // ISO-8601
+  hasReview: boolean;
+  paymentId: string | null;
+}
+
+export function toBookingDetailDTO(detail: BookingDetail): BookingDetailDTO {
+  return {
+    id: detail.id,
+    status: detail.status,
+    serviceId: detail.serviceId,
+    serviceName: detail.serviceName,
+    providerId: detail.providerId,
+    providerName: detail.providerName,
+    seats: detail.seats,
+    priceSnapshot: parseMoneyString(detail.priceSnapshot),
+    scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
+    confirmedAt: detail.confirmedAt ? detail.confirmedAt.toISOString() : null,
+    createdAt: detail.createdAt.toISOString(),
+    hasReview: detail.hasReview,
+    paymentId: detail.paymentId,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Notification
+// ---------------------------------------------------------------------------
+
+export interface NotificationDTO {
+  id: string;
+  message: string; // localized display text extracted from the notification content (never the raw JSON payload)
+  kind: string | null; // stable notification kind, when present
+  isRead: boolean;
+  causingBookingId: string | null; // safe deep-link target, when present
+  createdAt: string; // ISO-8601
+}
+
+export function toNotificationDTO(item: NotificationListItem): NotificationDTO {
+  return {
+    id: item.id,
+    message: item.message,
+    kind: item.kind ?? null,
+    isRead: item.isRead,
+    causingBookingId: item.causingBookingId,
+    createdAt: item.createdAt.toISOString(),
   };
 }

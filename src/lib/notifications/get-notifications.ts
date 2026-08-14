@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import type { Locale } from "@/i18n/locales";
 
 // Notification list query — Phase D.1 (Notifications & Messaging
 // Implementation).
@@ -65,9 +66,15 @@ function extractNotificationKind(content: unknown): string | undefined {
   return typeof kind === "string" ? kind : undefined;
 }
 
-export async function getNotifications(params: GetNotificationsParams = {}): Promise<GetNotificationsResult> {
+// `localeOverride` (additive, optional): the authenticated /api/v1 adapter passes
+// an explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getNotifications(
+  params: GetNotificationsParams = {},
+  localeOverride?: Locale
+): Promise<GetNotificationsResult> {
   const { barqUser } = await requireAuth();
-  const locale = await getLocale();
+  const locale = localeOverride ?? (await getLocale());
 
   const page = Math.max(1, params.page ?? 1);
   const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;

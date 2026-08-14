@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import type { Locale } from "@/i18n/locales";
 
 // Booking detail query — Engineering Sprint (Availability Engine).
 //
@@ -38,7 +39,13 @@ export type BookingDetail = {
   paymentId: string | null;
 };
 
-export async function getBookingDetail(bookingId: string): Promise<BookingDetail | null> {
+// `localeOverride` (additive, optional): the authenticated /api/v1 adapter passes
+// an explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getBookingDetail(
+  bookingId: string,
+  localeOverride?: Locale
+): Promise<BookingDetail | null> {
   if (!isValidUuid(bookingId)) return null;
 
   const { barqUser } = await requireAuth();
@@ -74,7 +81,7 @@ export async function getBookingDetail(bookingId: string): Promise<BookingDetail
   };
 
   const row = booking as BookingRow;
-  const locale = await getLocale();
+  const locale = localeOverride ?? (await getLocale());
 
   return {
     id: row.id,

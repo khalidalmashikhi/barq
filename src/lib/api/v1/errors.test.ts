@@ -52,7 +52,7 @@ describe("apiError (HTTP)", () => {
 
   it("maps each code to its canonical status", () => {
     expect(apiError("INVALID_INPUT").status).toBe(400);
-    expect(apiError("UNAUTHENTICATED").status).toBe(401);
+    expect(apiError("UNAUTHORIZED").status).toBe(401);
     expect(apiError("FORBIDDEN").status).toBe(403);
     expect(apiError("INTERNAL_ERROR").status).toBe(500);
   });

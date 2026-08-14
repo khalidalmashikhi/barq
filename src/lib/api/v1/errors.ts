@@ -16,14 +16,14 @@ import { defaultLocale, type Locale } from "@/i18n/locales";
 
 export type ApiErrorCode =
   | "INVALID_INPUT"
-  | "UNAUTHENTICATED"
+  | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "INTERNAL_ERROR";
 
 const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   INVALID_INPUT: 400,
-  UNAUTHENTICATED: 401,
+  UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   INTERNAL_ERROR: 500,
@@ -34,7 +34,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
 // echoes back input, ids, or internal detail.
 const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, string>>> = {
   INVALID_INPUT: { en: "Invalid request data.", ar: "بيانات الطلب غير صالحة." },
-  UNAUTHENTICATED: { en: "Authentication is required.", ar: "يلزم تسجيل الدخول." },
+  UNAUTHORIZED: { en: "Authentication is required.", ar: "يلزم تسجيل الدخول." },
   FORBIDDEN: { en: "You do not have permission to perform this action.", ar: "ليست لديك صلاحية لتنفيذ هذا الإجراء." },
   NOT_FOUND: { en: "The requested resource was not found.", ar: "المورد المطلوب غير موجود." },
   INTERNAL_ERROR: { en: "Something went wrong, please try again.", ar: "حدث خطأ ما، الرجاء المحاولة مرة أخرى." },
