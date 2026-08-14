@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { publicCategoryWhere } from "./public-category-rule";
+import type { Locale } from "@/i18n/locales";
 
 // Public homepage taxonomy read (Gap A). Returns the admin-managed, PUBLIC ROOT
 // categories for the homepage discovery grid, ordered by sortOrder (admin
@@ -17,8 +18,11 @@ export type PublicRootCategory = { id: string; slug: string; label: string };
 
 const HOMEPAGE_CATEGORY_LIMIT = 12;
 
-export async function getPublicRootCategories(): Promise<PublicRootCategory[]> {
-  const locale = await getLocale();
+// `localeOverride` (additive, optional): the `/api/v1` HTTP adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getPublicRootCategories(localeOverride?: Locale): Promise<PublicRootCategory[]> {
+  const locale = localeOverride ?? (await getLocale());
 
   const rows = await prisma.category.findMany({
     where: { ...publicCategoryWhere(), parentId: null },

@@ -112,7 +112,10 @@ function mapServiceDetailRow(row: ServiceDetailRow, locale: Locale): ServiceDeta
   };
 }
 
-export async function getServiceById(id: string): Promise<ServiceDetail | null> {
+// `localeOverride` (additive, optional): the `/api/v1` HTTP adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getServiceById(id: string, localeOverride?: Locale): Promise<ServiceDetail | null> {
   if (!isValidUuid(id)) return null;
 
   const service = await prisma.service.findFirst({
@@ -137,7 +140,7 @@ export async function getServiceById(id: string): Promise<ServiceDetail | null> 
   });
 
   if (!service) return null;
-  return mapServiceDetailRow(service as ServiceDetailRow, await getLocale());
+  return mapServiceDetailRow(service as ServiceDetailRow, localeOverride ?? (await getLocale()));
 }
 
 // Unified Preview System — preview-capable read. IDENTICAL shape/mapping to

@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { getProviderCategoryChips, type ProviderCategoryChip } from "@/lib/provider/get-provider-categories";
 import { getProviderMedia } from "@/lib/provider/media/get-provider-media";
+import type { Locale } from "@/i18n/locales";
 
 // Public provider profile (storefront) query — Marketplace Completion.
 //
@@ -59,8 +60,8 @@ type ProviderRow = {
 // rating, category chips, media) do not depend on provider visibility, so they
 // are correct for a not-yet-public provider too. Presentation only — it applies
 // no visibility gate; the caller decides which provider row to pass.
-async function buildProviderProfile(row: ProviderRow): Promise<ProviderProfile> {
-  const locale = await getLocale();
+async function buildProviderProfile(row: ProviderRow, localeOverride?: Locale): Promise<ProviderProfile> {
+  const locale = localeOverride ?? (await getLocale());
 
   const [publishedServicesCount, ratingAggregate, categories, media] = await Promise.all([
     prisma.service.count({ where: { providerId: row.id, status: "PUBLISHED" } }),
@@ -90,7 +91,11 @@ async function buildProviderProfile(row: ProviderRow): Promise<ProviderProfile> 
   };
 }
 
-export async function getProviderProfile(idOrSlug: string): Promise<ProviderProfile | null> {
+// `localeOverride` (additive, optional): the `/api/v1` HTTP adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()). getProviderProfileForPreview is intentionally
+// left unchanged (web/admin preview only).
+export async function getProviderProfile(idOrSlug: string, localeOverride?: Locale): Promise<ProviderProfile | null> {
   const provider = await prisma.provider.findFirst({
     where: {
       status: "APPROVED",
@@ -100,7 +105,7 @@ export async function getProviderProfile(idOrSlug: string): Promise<ProviderProf
   });
 
   if (!provider) return null;
-  return buildProviderProfile(provider as ProviderRow);
+  return buildProviderProfile(provider as ProviderRow, localeOverride);
 }
 
 // Unified Preview System — preview-capable read. IDENTICAL shape/mapping to

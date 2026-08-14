@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import type { Locale } from "@/i18n/locales";
 
 // Services listing query — Engineering Sprint (Services Marketplace).
 //
@@ -228,8 +229,15 @@ async function findMatchingServiceIds(rawSearch: string): Promise<string[] | nul
   return rows.map((row) => row.id);
 }
 
-export async function getServices(filters: ServiceListFilters): Promise<ServiceListResult> {
-  const locale = await getLocale();
+// `localeOverride` (additive, optional): the `/api/v1` HTTP adapter passes an
+// explicitly resolved locale (query/Accept-Language), since next-intl's
+// getLocale() has no `[locale]` request scope in an API route. Existing Web
+// callers pass nothing and behave EXACTLY as before (getLocale()).
+export async function getServices(
+  filters: ServiceListFilters,
+  localeOverride?: Locale
+): Promise<ServiceListResult> {
+  const locale = localeOverride ?? (await getLocale());
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
 
