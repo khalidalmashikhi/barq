@@ -18,14 +18,35 @@ export type ApiErrorCode =
   | "INVALID_INPUT"
   | "UNAUTHORIZED"
   | "FORBIDDEN"
+  // Gate 3 (Booking Mutations) — booking-domain rejection codes. These carry the
+  // EXISTING BookingActionErrorCode meanings onto the wire unchanged (mapped in
+  // src/lib/api/v1/booking-errors.ts); ar/en messages mirror messages/*/errors.json.
+  | "NO_CUSTOMER_PROFILE"
   | "NOT_FOUND"
+  | "SLOT_FULL"
+  | "CONCURRENT_MODIFICATION"
+  | "SERVICE_UNAVAILABLE"
+  | "PRICE_UNAVAILABLE"
+  | "SLOT_UNAVAILABLE"
+  | "DUPLICATE_BOOKING"
+  | "BOOKING_NOT_CANCELLABLE"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   INVALID_INPUT: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
+  NO_CUSTOMER_PROFILE: 403,
   NOT_FOUND: 404,
+  SLOT_FULL: 409,
+  CONCURRENT_MODIFICATION: 409,
+  SERVICE_UNAVAILABLE: 422,
+  PRICE_UNAVAILABLE: 422,
+  SLOT_UNAVAILABLE: 422,
+  DUPLICATE_BOOKING: 422,
+  BOOKING_NOT_CANCELLABLE: 422,
+  RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
 
@@ -36,7 +57,25 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   INVALID_INPUT: { en: "Invalid request data.", ar: "بيانات الطلب غير صالحة." },
   UNAUTHORIZED: { en: "Authentication is required.", ar: "يلزم تسجيل الدخول." },
   FORBIDDEN: { en: "You do not have permission to perform this action.", ar: "ليست لديك صلاحية لتنفيذ هذا الإجراء." },
+  NO_CUSTOMER_PROFILE: {
+    en: "You need to complete your customer profile before finishing this booking. Contact support if this message persists.",
+    ar: "يلزم إكمال الملف الشخصي كعميل قبل إتمام الحجز. تواصل مع الدعم إذا استمرت هذه الرسالة.",
+  },
   NOT_FOUND: { en: "The requested resource was not found.", ar: "المورد المطلوب غير موجود." },
+  SLOT_FULL: { en: "Sorry, the remaining capacity for this slot was just taken.", ar: "للأسف، اكتملت السعة المتاحة لهذا الموعد للتو." },
+  CONCURRENT_MODIFICATION: {
+    en: "This booking was just modified. Please try again.",
+    ar: "تم تعديل هذا الحجز للتو. الرجاء المحاولة مرة أخرى.",
+  },
+  SERVICE_UNAVAILABLE: { en: "This experience is not currently available for booking.", ar: "هذه التجربة غير متاحة للحجز حالياً." },
+  PRICE_UNAVAILABLE: { en: "The selected price option is not available for this experience.", ar: "الخيار السعري المحدد غير متاح لهذه التجربة." },
+  SLOT_UNAVAILABLE: { en: "The selected time slot is no longer available.", ar: "الموعد المحدد لم يعد متاحاً." },
+  DUPLICATE_BOOKING: { en: "You already have a booking for this time slot.", ar: "لديك بالفعل حجز لهذا الموعد." },
+  BOOKING_NOT_CANCELLABLE: { en: "This booking cannot be cancelled in its current status.", ar: "لا يمكن إلغاء هذا الحجز في حالته الحالية." },
+  RATE_LIMITED: {
+    en: "You're making requests too quickly. Please wait a moment and try again.",
+    ar: "أنت ترسل الطلبات بسرعة كبيرة. الرجاء الانتظار قليلاً ثم المحاولة مرة أخرى.",
+  },
   INTERNAL_ERROR: { en: "Something went wrong, please try again.", ar: "حدث خطأ ما، الرجاء المحاولة مرة أخرى." },
 };
 

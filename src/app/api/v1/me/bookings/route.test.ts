@@ -20,6 +20,10 @@ const getMyBookingsMock = vi.fn();
 vi.mock("@/lib/booking/get-my-bookings", () => ({
   getMyBookings: (...a: unknown[]) => getMyBookingsMock(...a),
 }));
+// route.ts also imports these for POST; stub them so this GET-focused test never
+// loads the real Prisma-touching modules (POST is covered in route.post.test.ts).
+vi.mock("@/lib/booking/create-booking", () => ({ createBooking: vi.fn() }));
+vi.mock("@/lib/booking/get-booking-detail", () => ({ getBookingDetail: vi.fn() }));
 
 const { GET } = await import("./route");
 

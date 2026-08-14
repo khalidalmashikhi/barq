@@ -1,0 +1,47 @@
+import type { NextResponse } from "next/server";
+import type { BookingActionErrorCode } from "@/lib/booking/booking-action-errors";
+import type { Locale } from "@/i18n/locales";
+import { apiError, type ApiErrorCode } from "./errors";
+
+// Gate 3 (Booking Mutations) — maps the EXISTING authoritative
+// BookingActionErrorCode (returned by createBooking()/cancelBooking()) onto the
+// API v1 error envelope. This ONLY translates a stable code to HTTP + wire shape;
+// it never changes a domain meaning and never surfaces a raw exception string.
+//
+// The customer-reachable codes from createBooking()/cancelBooking() map 1:1 to a
+// dedicated API code + status (400/403/404/409/422/429). Provider-only codes
+// (NO_PROVIDER_PROFILE, BOOKING_NOT_PENDING/STARTABLE/COMPLETABLE) cannot occur
+// on these customer endpoints; if one ever did it would be a genuinely
+// unexpected internal condition, so it maps to INTERNAL_ERROR (500) rather than
+// being misreported as a normal rejection. UNKNOWN_ERROR (the domain's own
+// "unexpected, already logged server-side" catch-all) also maps to 500.
+
+const CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
+  INVALID_INPUT: "INVALID_INPUT",
+  NO_CUSTOMER_PROFILE: "NO_CUSTOMER_PROFILE",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+  PRICE_UNAVAILABLE: "PRICE_UNAVAILABLE",
+  SLOT_UNAVAILABLE: "SLOT_UNAVAILABLE",
+  SLOT_FULL: "SLOT_FULL",
+  DUPLICATE_BOOKING: "DUPLICATE_BOOKING",
+  BOOKING_NOT_FOUND: "NOT_FOUND",
+  BOOKING_NOT_CANCELLABLE: "BOOKING_NOT_CANCELLABLE",
+  RATE_LIMITED: "RATE_LIMITED",
+  // Not reachable from the customer create/cancel endpoints — treated as
+  // unexpected internal conditions rather than normal rejections.
+  NO_PROVIDER_PROFILE: "INTERNAL_ERROR",
+  BOOKING_NOT_PENDING: "INTERNAL_ERROR",
+  BOOKING_NOT_STARTABLE: "INTERNAL_ERROR",
+  BOOKING_NOT_COMPLETABLE: "INTERNAL_ERROR",
+  UNKNOWN_ERROR: "INTERNAL_ERROR",
+};
+
+/** Resolve the API v1 error code for a domain BookingActionErrorCode. */
+export function toApiBookingErrorCode(code: BookingActionErrorCode): ApiErrorCode {
+  return CODE_MAP[code] ?? "INTERNAL_ERROR";
+}
+
+/** Build the API v1 error response for a domain BookingActionErrorCode. */
+export function bookingErrorResponse(code: BookingActionErrorCode, locale: Locale): NextResponse {
+  return apiError(toApiBookingErrorCode(code), { locale });
+}

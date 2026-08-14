@@ -5,6 +5,7 @@ import type { PublicRootCategory } from "@/lib/categories/get-public-root-catego
 import type { AvailableSlot } from "@/lib/booking/get-available-slots";
 import type { MyBookingListItem } from "@/lib/booking/get-my-bookings";
 import type { BookingDetail } from "@/lib/booking/get-booking-detail";
+import type { BookingTimelineEntry } from "@/lib/booking/lifecycle/get-booking-timeline";
 import type { NotificationListItem } from "@/lib/notifications/get-notifications";
 import { parseMoneyString, toMoneyDTO, type MoneyDTO } from "./money";
 
@@ -328,5 +329,33 @@ export function toNotificationDTO(item: NotificationListItem): NotificationDTO {
     isRead: item.isRead,
     causingBookingId: item.causingBookingId,
     createdAt: item.createdAt.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Booking timeline event (Gate 3)
+// ---------------------------------------------------------------------------
+
+// Maps the existing BookingTimelineEntry, which is ALREADY actorId-free by
+// design (get-booking-timeline.ts deliberately excludes the raw actorId /
+// internal User id). Exposes only status transition + actorType + optional
+// reason + timestamp.
+export interface BookingTimelineEventDTO {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  actorType: string;
+  reason: string | null;
+  occurredAt: string; // ISO-8601
+}
+
+export function toBookingTimelineEventDTO(entry: BookingTimelineEntry): BookingTimelineEventDTO {
+  return {
+    id: entry.id,
+    fromStatus: entry.fromStatus,
+    toStatus: entry.toStatus,
+    actorType: entry.actorType,
+    reason: entry.reason,
+    occurredAt: entry.occurredAt.toISOString(),
   };
 }
