@@ -33,6 +33,17 @@ export type ApiErrorCode =
   | "SLOT_UNAVAILABLE"
   | "DUPLICATE_BOOKING"
   | "BOOKING_NOT_CANCELLABLE"
+  // Gate PC (Provider Mutation API) — provider-side mutation rejection codes.
+  // These carry the EXISTING provider domain error meanings (ServiceActionErrorCode,
+  // AvailabilityActionErrorCode, provider-context BookingActionErrorCode) onto the
+  // wire unchanged (mapped in src/lib/api/v1/provider-mutation-errors.ts). No new
+  // domain behavior — only HTTP + wire shape for outcomes the domain already returns.
+  | "BOOKING_NOT_ACTIONABLE"
+  | "INVALID_STATUS_TRANSITION"
+  | "SERVICE_NOT_PUBLISHABLE"
+  | "INVALID_CATEGORY"
+  | "CAPACITY_BELOW_BOOKED"
+  | "SLOT_HAS_BOOKINGS"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -51,6 +62,13 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   SLOT_UNAVAILABLE: 422,
   DUPLICATE_BOOKING: 422,
   BOOKING_NOT_CANCELLABLE: 422,
+  // Gate PC — provider mutation conflicts (409) / unprocessable (422).
+  BOOKING_NOT_ACTIONABLE: 409,
+  INVALID_STATUS_TRANSITION: 409,
+  SERVICE_NOT_PUBLISHABLE: 422,
+  INVALID_CATEGORY: 422,
+  CAPACITY_BELOW_BOOKED: 409,
+  SLOT_HAS_BOOKINGS: 409,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -85,6 +103,30 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   SLOT_UNAVAILABLE: { en: "The selected time slot is no longer available.", ar: "الموعد المحدد لم يعد متاحاً." },
   DUPLICATE_BOOKING: { en: "You already have a booking for this time slot.", ar: "لديك بالفعل حجز لهذا الموعد." },
   BOOKING_NOT_CANCELLABLE: { en: "This booking cannot be cancelled in its current status.", ar: "لا يمكن إلغاء هذا الحجز في حالته الحالية." },
+  BOOKING_NOT_ACTIONABLE: {
+    en: "This booking can't take that action in its current status.",
+    ar: "لا يمكن تنفيذ هذا الإجراء على الحجز في حالته الحالية.",
+  },
+  INVALID_STATUS_TRANSITION: {
+    en: "This item can't change to that status from its current one.",
+    ar: "لا يمكن تغيير الحالة إلى الحالة المطلوبة من الحالة الحالية.",
+  },
+  SERVICE_NOT_PUBLISHABLE: {
+    en: "This experience can't be published yet. Resolve the listed requirements first.",
+    ar: "لا يمكن نشر هذه التجربة بعد. الرجاء استيفاء المتطلبات المذكورة أولاً.",
+  },
+  INVALID_CATEGORY: {
+    en: "The selected category can't be assigned to this experience.",
+    ar: "لا يمكن تعيين الفئة المحددة لهذه التجربة.",
+  },
+  CAPACITY_BELOW_BOOKED: {
+    en: "Capacity can't be set below the number of seats already booked.",
+    ar: "لا يمكن تعيين السعة أقل من عدد المقاعد المحجوزة بالفعل.",
+  },
+  SLOT_HAS_BOOKINGS: {
+    en: "This time slot has active bookings and can't be modified or removed.",
+    ar: "يحتوي هذا الموعد على حجوزات نشطة ولا يمكن تعديله أو حذفه.",
+  },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",
     ar: "أنت ترسل الطلبات بسرعة كبيرة. الرجاء الانتظار قليلاً ثم المحاولة مرة أخرى.",
