@@ -10,6 +10,16 @@ import { getOtpConfig } from "@/lib/otp/otp-config";
 import { checkResendCooldown } from "@/lib/otp/check-resend-cooldown";
 import { checkDailySendLimit } from "@/lib/otp/check-daily-send-limit";
 import { normalizeOmanPhone } from "@/lib/otp/normalize-oman-phone";
+import { resolveClientIp, hmacRateLimitKey } from "@/lib/rate-limit/client-ip";
+import { consumeRateLimit, sweepExpiredRateLimits } from "@/lib/rate-limit/durable-rate-limiter";
+import {
+  getOtpSendIpRateLimit,
+  getOtpSendPhoneRateLimit,
+  getOtpVerifyIpRateLimit,
+  otpSendIpKey,
+  otpSendPhoneKey,
+  otpVerifyIpKey,
+} from "@/lib/otp/otp-rate-limit-config";
 import {
   logOtpRequested,
   logResendRejected,
@@ -65,6 +75,11 @@ import {
 // shapes coincidentally overlap enough not to throw. Watch specifically
 // for which table actually receives the write during testing, not just
 // whether the request succeeds.
+
+// Generic 429 body for the durable limiters (P1) — deliberately exposes NO
+// counter value, key, IP, phone, or store detail. Reuses the existing
+// TOO_MANY_REQUESTS code so web/iOS clients need no contract change.
+const TOO_MANY_REQUESTS_MESSAGE = "Too many requests. Please try again later.";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -265,6 +280,17 @@ export const auth = betterAuth({
       }
       const phone = normalized.e164;
 
+      // Durable, cross-instance rate-limit identities (P1) — BOTH the trusted
+      // client IP and the canonical +968 phone are HMAC'd with the existing
+      // BETTER_AUTH_SECRET, so neither is ever stored (in auth_rate_limits) or
+      // logged in the raw. Both durable limiters live in Postgres, so they hold
+      // across serverless instances and cold starts (unlike the in-memory limiter
+      // used for booking/review).
+      const rateLimitSecret = process.env.BETTER_AUTH_SECRET ?? "";
+      const ctxAny = ctx as { headers?: Headers; request?: { headers?: Headers } };
+      const ipKey = hmacRateLimitKey(resolveClientIp(ctxAny.headers ?? ctxAny.request?.headers), rateLimitSecret);
+      const phoneKey = hmacRateLimitKey(phone, rateLimitSecret);
+
       if (isSendOtp) {
         logOtpRequested(phone);
 
@@ -291,6 +317,41 @@ export const auth = betterAuth({
           throw ctx.error("TOO_MANY_REQUESTS", {
             message: "You've reached the maximum number of verification codes for today. Please try again tomorrow.",
           });
+        }
+
+        // Durable per-IP send cap (P1) — the cross-phone control the per-phone
+        // caps above could not provide — plus an additional durable per-phone send
+        // cap. Both are checked AFTER the cheaper cooldown/daily-cap reads (so a
+        // request they already rejected never consumes limiter budget) and BEFORE
+        // any code is generated or Twilio is called (this hook runs before the
+        // endpoint). Fail-closed on any store error (see durable-rate-limiter.ts).
+        const sendIp = getOtpSendIpRateLimit();
+        const ipSend = await consumeRateLimit(otpSendIpKey(ipKey), sendIp.limit, sendIp.windowSeconds);
+        if (!ipSend.allowed) {
+          throw ctx.error("TOO_MANY_REQUESTS", { message: TOO_MANY_REQUESTS_MESSAGE });
+        }
+
+        const sendPhone = getOtpSendPhoneRateLimit();
+        const phoneSend = await consumeRateLimit(otpSendPhoneKey(phoneKey), sendPhone.limit, sendPhone.windowSeconds);
+        if (!phoneSend.allowed) {
+          throw ctx.error("TOO_MANY_REQUESTS", { message: TOO_MANY_REQUESTS_MESSAGE });
+        }
+
+        // Best-effort bounded cleanup so the table can't grow unbounded without a
+        // cron — probabilistic + fire-and-forget (never blocks or fails the send).
+        if (Math.random() < 0.05) void sweepExpiredRateLimits();
+      }
+
+      if (isVerify) {
+        // Durable per-IP verify cap (P1) — brute-force protection across ALL
+        // phones from one source, checked before Better Auth verifies the code.
+        // Deliberately NO per-phone verify cap: that would let an attacker lock a
+        // victim's number out. Per-code brute force is already capped by Better
+        // Auth (allowedAttempts). Fail-closed on any store error.
+        const verifyIp = getOtpVerifyIpRateLimit();
+        const ipVerify = await consumeRateLimit(otpVerifyIpKey(ipKey), verifyIp.limit, verifyIp.windowSeconds);
+        if (!ipVerify.allowed) {
+          throw ctx.error("TOO_MANY_REQUESTS", { message: TOO_MANY_REQUESTS_MESSAGE });
         }
       }
 

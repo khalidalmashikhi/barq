@@ -1917,3 +1917,23 @@ model AuditLog {
   @@index([actorType, actorId])
   @@map("audit_logs")
 }
+
+/// Durable, distributed fixed-window rate-limit buckets for the authentication /
+/// OTP surface — P1 (security hardening). One row per namespaced limiter key —
+/// always an HMAC digest (of the client IP, or of the canonical +968 phone), never
+/// the value itself. It stores ONLY a counter + window bounds — NEVER a raw IP,
+/// raw phone, OTP code, session, token, or any PII. Serverless-safe: the counter lives in Postgres (not process
+/// memory) and is incremented atomically in a single UPSERT
+/// (src/lib/rate-limit/durable-rate-limiter.ts). Rows lazily reset when their
+/// window expires and are swept opportunistically, so the table stays bounded.
+/// This is a dedicated BARQ table — Better Auth's own tables are never reused for
+/// this. No FK: keys are opaque strings, not entity references.
+model AuthRateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt   DateTime @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("auth_rate_limits")
+}
