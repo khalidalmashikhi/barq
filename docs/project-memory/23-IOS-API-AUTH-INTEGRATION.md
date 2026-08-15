@@ -35,6 +35,22 @@ Better Auth's origin check is **cookie-gated and skipped for the cookieless logi
 
 Send `?locale=<ar|en|de|it|pl|fr|cs|ru>` (or rely on `Accept-Language`; default `ar`). Same resolver as the public API.
 
+## Phone-entry UX contract (Web ⇄ iOS parity — for the later native SwiftUI gate)
+
+The Web login now uses a **global-ready phone entry** (country picker), while authentication stays **Oman-only**. The native iOS client should match this product behavior (native SwiftUI UI, not shared code). This is a UX contract only — **DO NOT edit the separate `barq-ios` repo from the Platform repo.**
+
+**Collapsed field:** `[ 🇴🇲  +968  ▾ ] [ national number ]` — the calling code + number render **LTR** in every locale; the user never retypes `+968`.
+
+**Country picker (tap the country segment):**
+- Searchable, local/offline (no API per keystroke). Search matches: English name, Arabic name (diacritic-tolerant — `عمان` finds `عُمان`), ISO alpha-2 (`OM`), and calling code with/without `+` (`+968`, `968`).
+- Each row: flag, localized name, secondary name, `ISO · +code`.
+- **Oman is enabled; every other country shows a "coming soon" chip and is not selectable for auth.** No IP/geo detection.
+- Mobile: bottom-sheet; RTL for Arabic, LTR for English; accessible tap targets, focus-on-open, dismiss on close.
+
+**Authentication rule (identical to Web / server):** only Oman (`+968`) is supported. The client composes the national number into the canonical **`+968XXXXXXXX`** (the same P0-1 contract) and calls `POST /api/auth/phone-number/send-otp`. An unsupported country must **never** call send-otp — show "Phone authentication is not available in this country yet." The **server (P0-1 canonicalization + P1 durable rate limiting) remains authoritative** regardless of client UI; country selection is UI input, never a security authority.
+
+**Enabling more countries later is a paired change** (Platform gate): UI `authSupported` + server-side canonicalization/OTP policy together — never one without the other. The Platform source of truth is `src/lib/countries/registry.ts` + `src/components/auth/phone-entry.ts`.
+
 ## Not in scope here
 
 No bearer/JWT is added (cookie replay is sufficient for the MVP). No booking mutations, no push notifications, no Swift code — those are later, separately-approved gates.

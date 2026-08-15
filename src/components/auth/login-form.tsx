@@ -16,6 +16,9 @@ import {
   prevIndexOnBackspace,
   parseOtpPaste,
 } from "./otp-input";
+import { PhoneNumberInput } from "./phone-number-input";
+import { resolveAuthPhone, canRequestOtp } from "./phone-entry";
+import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 
 // Login form — Engineering Sprint 3 (Phone OTP UI), redesigned by the
 // Visual Identity Sprint.
@@ -48,6 +51,16 @@ import {
 // group, and the locale-aware router.push("/dashboard") auto-prepends
 // whichever locale this form is currently rendered under, rather than
 // navigating to a now-dead unprefixed path.
+//
+// GLOBAL PHONE PICKER (Global Phone Entry gate): the single free-text phone input
+// is replaced by PhoneNumberInput (a country selector + national field). BARQ
+// authentication remains OMAN-ONLY — resolveAuthPhone() (which reuses the P0-1
+// canonicalizer) turns the selection into the exact same canonical +968XXXXXXXX
+// identity, and an unsupported country or invalid number NEVER reaches send-otp
+// (the server's P0-1 + P1 remain the authority regardless). The sendOtp/verify
+// call SHAPES ({ phoneNumber, code }) are unchanged — only the phone value's source
+// changed, and `submittedPhone` (the resolved E.164) is reused for send/resend/
+// verify so all three hit one identity.
 
 // OTP_LENGTH and the digit-box value logic now live in ./otp-input.ts (pure,
 // unit-tested). The component keeps ownership of React state, refs, and focus.
@@ -70,7 +83,13 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
   const locale = useLocale();
   const t = useTranslations("auth");
   const [step, setStep] = useState<Step>("phone");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  // Global-ready phone entry (Oman-only auth): the selected country + the national
+  // number the user types. `submittedPhone` is the canonical E.164 actually sent to
+  // the server (resolved via P0-1), reused by resend + verify so all three operate
+  // on the exact same identity.
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [nationalNumber, setNationalNumber] = useState("");
+  const [submittedPhone, setSubmittedPhone] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(emptyOtp());
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -117,9 +136,20 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
     setLoading(true);
     setError(null);
 
+    // Resolve (selected country + national input) into the canonical identity
+    // BEFORE any send. An unsupported country or invalid number NEVER reaches
+    // send-otp (the server's P0-1 also rejects non-Oman). For Oman this reuses the
+    // P0-1 canonicalizer, so the value sent is the exact same +968XXXXXXXX contract.
+    const resolved = resolveAuthPhone(country, nationalNumber);
+    if (!resolved.ok) {
+      setError(resolved.reason === "COUNTRY_UNSUPPORTED" ? t("phoneAuthNotAvailable") : t("invalidPhoneNumber"));
+      setLoading(false);
+      return;
+    }
+
     try {
       const { error: requestError } = await authClient.phoneNumber.sendOtp({
-        phoneNumber,
+        phoneNumber: resolved.e164,
       });
 
       if (requestError) {
@@ -139,6 +169,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
         return;
       }
 
+      setSubmittedPhone(resolved.e164);
       setOtpSent(true);
       setResendNotice(false);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
@@ -157,7 +188,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
     setResendNotice(false);
 
     try {
-      const { error: requestError } = await authClient.phoneNumber.sendOtp({ phoneNumber });
+      const { error: requestError } = await authClient.phoneNumber.sendOtp({ phoneNumber: submittedPhone });
 
       if (requestError) {
         // The same server-side cooldown/daily-cap that protects the initial
@@ -189,7 +220,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
 
     try {
       const { error: verifyError } = await authClient.phoneNumber.verify({
-        phoneNumber,
+        phoneNumber: submittedPhone,
         code: otp,
       });
 
@@ -218,6 +249,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
     setOtpSent(false);
     setResendNotice(false);
     setResendCooldown(0);
+    setSubmittedPhone("");
     setError(null);
   }
 
@@ -282,17 +314,13 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
             <label htmlFor="phoneNumber" className="text-sm font-medium text-foreground/80">
               {t("phoneLabel")}
             </label>
-            <input
-              id="phoneNumber"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              required
-              value={phoneNumber}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPhoneNumber(event.target.value)}
-              placeholder={t("phonePlaceholder")}
-              className="rounded-xl border border-border bg-background/60 px-4 py-3 text-start text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              dir="ltr"
+            <PhoneNumberInput
+              country={country}
+              nationalNumber={nationalNumber}
+              onCountryChange={setCountry}
+              onNationalNumberChange={setNationalNumber}
+              disabled={loading}
+              inputId="phoneNumber"
             />
           </div>
 
@@ -302,7 +330,7 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
             </p>
           )}
 
-          <Button type="submit" disabled={loading || !phoneNumber} className="w-full">
+          <Button type="submit" disabled={loading || !canRequestOtp(country, nationalNumber)} className="w-full">
             {loading ? t("loading") : t("requestOtpButton")}
           </Button>
         </form>
