@@ -7,6 +7,15 @@ import type { MyBookingListItem } from "@/lib/booking/get-my-bookings";
 import type { BookingDetail } from "@/lib/booking/get-booking-detail";
 import type { BookingTimelineEntry } from "@/lib/booking/lifecycle/get-booking-timeline";
 import type { NotificationListItem } from "@/lib/notifications/get-notifications";
+import type { ProviderProfileForEdit } from "@/lib/provider/queries/get-provider-profile-for-edit";
+import type { ProviderServiceListItem } from "@/lib/provider/queries/get-provider-services";
+import type { ProviderServiceDetail } from "@/lib/provider/queries/get-provider-service-detail";
+import type { ProviderAvailabilityListItem } from "@/lib/provider/queries/get-provider-availability";
+import type { ProviderBookingListItem } from "@/lib/provider/queries/get-provider-bookings";
+import type { ProviderBookingDetail } from "@/lib/provider/queries/get-provider-booking-detail";
+import type { ProviderVerificationData } from "@/lib/provider/documents/get-provider-verification-data";
+import type { Locale } from "@/i18n/locales";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { parseMoneyString, toMoneyDTO, type MoneyDTO } from "./money";
 
 // API v1 public DTOs — Gate 1 (Public API Foundation).
@@ -357,5 +366,244 @@ export function toBookingTimelineEventDTO(entry: BookingTimelineEntry): BookingT
     actorType: entry.actorType,
     reason: entry.reason,
     occurredAt: entry.occurredAt.toISOString(),
+  };
+}
+
+// ===========================================================================
+// Gate PB — Provider read DTOs (allow-list; money as string; ISO dates; never
+// exposes userId/authUserId, approvedByAdminId/rejectedByAdminId, ProviderDocument
+// objectKey/versionToken, storage internals, or customer PII)
+// ===========================================================================
+
+// Provider workspace state (/me/provider) — works for a user with no provider
+// (exists:false), so it never 403s. verified/workspaceAvailable derive from
+// status === "APPROVED".
+export interface ProviderWorkspaceStateDTO {
+  exists: boolean;
+  id: string | null;
+  status: string | null;
+  type: string | null;
+  visible: boolean | null;
+  workspaceAvailable: boolean;
+  verified: boolean;
+}
+
+export function toProviderWorkspaceStateDTO(
+  provider: { id: string; status: string; providerType: string; visible: boolean } | null
+): ProviderWorkspaceStateDTO {
+  if (!provider) {
+    return { exists: false, id: null, status: null, type: null, visible: null, workspaceAvailable: false, verified: false };
+  }
+  const approved = provider.status === "APPROVED";
+  return {
+    exists: true,
+    id: provider.id,
+    status: provider.status,
+    type: provider.providerType,
+    visible: provider.visible,
+    workspaceAvailable: approved,
+    verified: approved,
+  };
+}
+
+// Provider self-profile (/me/provider/profile). contactEmail is the provider's
+// OWN business email — safe in this SELF view (BR-002 forbids exposing it to
+// TOURISTS, not to the provider) and never in the public ProviderPublicDTO.
+export interface ProviderProfileDTO {
+  id: string;
+  businessName: { ar: string; en: string };
+  businessDescription: { ar: string; en: string };
+  providerType: string;
+  city: string | null;
+  contactEmail: string | null;
+  logoUrl: string | null;
+}
+
+export function toProviderProfileDTO(p: ProviderProfileForEdit): ProviderProfileDTO {
+  return {
+    id: p.id,
+    businessName: { ar: p.businessNameAr, en: p.businessNameEn },
+    businessDescription: { ar: p.businessDescriptionAr, en: p.businessDescriptionEn },
+    providerType: p.providerType,
+    city: p.city || null,
+    contactEmail: p.contactEmail || null,
+    logoUrl: p.logoUrl || null,
+  };
+}
+
+// Provider services (own catalog — all statuses).
+export interface ProviderServiceListItemDTO {
+  id: string;
+  name: string;
+  status: string;
+  price: MoneyDTO | null;
+  hasNoUpcomingAvailability: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toProviderServiceListItemDTO(item: ProviderServiceListItem): ProviderServiceListItemDTO {
+  return {
+    id: item.id,
+    name: item.name,
+    status: item.status,
+    price: parseMoneyString(item.price),
+    hasNoUpcomingAvailability: item.hasNoUpcomingAvailability,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  };
+}
+
+export interface ProviderServiceDetailDTO {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  price: MoneyDTO | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toProviderServiceDetailDTO(detail: ProviderServiceDetail): ProviderServiceDetailDTO {
+  return {
+    id: detail.id,
+    name: detail.name,
+    description: detail.description,
+    status: detail.status,
+    price: detail.priceAmount && detail.priceCurrency ? toMoneyDTO(detail.priceAmount, detail.priceCurrency) : null,
+    createdAt: detail.createdAt.toISOString(),
+    updatedAt: detail.updatedAt.toISOString(),
+  };
+}
+
+// Provider availability (own slots). Exposes capacity + remainingSeats; the raw
+// bookedCount concurrency counter is intentionally omitted (derivable as
+// capacity - remainingSeats).
+export interface ProviderAvailabilitySlotDTO {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  startTime: string;
+  endTime: string;
+  state: string;
+  capacity: number;
+  remainingSeats: number;
+}
+
+export function toProviderAvailabilitySlotDTO(slot: ProviderAvailabilityListItem): ProviderAvailabilitySlotDTO {
+  return {
+    id: slot.id,
+    serviceId: slot.serviceId,
+    serviceName: slot.serviceName,
+    startTime: slot.startTime.toISOString(),
+    endTime: slot.endTime.toISOString(),
+    state: slot.state,
+    capacity: slot.capacity,
+    remainingSeats: slot.remainingSeats,
+  };
+}
+
+// Provider incoming bookings. NO customer PII (none exists in the schema/reader).
+export interface ProviderBookingListItemDTO {
+  id: string;
+  serviceName: string;
+  status: string;
+  seats: number;
+  priceSnapshot: MoneyDTO | null;
+  scheduledStartTime: string | null;
+  availabilityId: string | null;
+  createdAt: string;
+}
+
+export function toProviderBookingListItemDTO(item: ProviderBookingListItem): ProviderBookingListItemDTO {
+  return {
+    id: item.id,
+    serviceName: item.serviceName,
+    status: item.status,
+    seats: item.seats,
+    priceSnapshot: parseMoneyString(item.priceSnapshot),
+    scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
+    availabilityId: item.availabilityId,
+    createdAt: item.createdAt.toISOString(),
+  };
+}
+
+export interface ProviderBookingDetailDTO {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  status: string;
+  seats: number;
+  priceSnapshot: MoneyDTO | null;
+  scheduledStartTime: string | null;
+  createdAt: string;
+}
+
+export function toProviderBookingDetailDTO(detail: ProviderBookingDetail): ProviderBookingDetailDTO {
+  return {
+    id: detail.id,
+    serviceId: detail.serviceId,
+    serviceName: detail.serviceName,
+    status: detail.status,
+    seats: detail.seats,
+    priceSnapshot: parseMoneyString(detail.priceSnapshot),
+    scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
+    createdAt: detail.createdAt.toISOString(),
+  };
+}
+
+// Provider verification status. Requirement name/description localized to the
+// request locale. The per-document shape exposes only status/filename/size/
+// rejectionReason — NEVER objectKey, signed URL, versionToken (a mutation
+// concern, PC), or the admin reviewer id.
+export interface ProviderVerificationRequirementDTO {
+  type: string;
+  required: boolean;
+  name: string;
+  description: string | null;
+  document: {
+    id: string;
+    status: string;
+    originalFilename: string;
+    sizeBytes: number;
+    rejectionReason: string | null;
+  } | null;
+}
+
+export interface ProviderVerificationDTO {
+  providerStatus: string;
+  providerType: string;
+  storageAvailable: boolean;
+  workspaceAvailable: boolean;
+  requiredTotal: number;
+  requiredApproved: number;
+  canProgress: boolean;
+  items: ProviderVerificationRequirementDTO[];
+}
+
+export function toProviderVerificationDTO(data: ProviderVerificationData, locale: Locale): ProviderVerificationDTO {
+  return {
+    providerStatus: data.providerStatus,
+    providerType: data.providerType,
+    storageAvailable: data.storageAvailable,
+    workspaceAvailable: data.providerStatus === "APPROVED",
+    requiredTotal: data.requiredTotal,
+    requiredApproved: data.requiredApproved,
+    canProgress: data.requiredTotal === data.requiredApproved,
+    items: data.items.map((it) => ({
+      type: it.type,
+      required: it.required,
+      name: extractLocalizedText(it.name, locale),
+      description: it.description ? extractLocalizedText(it.description, locale) || null : null,
+      document: it.document
+        ? {
+            id: it.document.id,
+            status: it.document.status,
+            originalFilename: it.document.originalFilename,
+            sizeBytes: it.document.sizeBytes,
+            rejectionReason: it.document.rejectionReason,
+          }
+        : null,
+    })),
   };
 }

@@ -4,6 +4,7 @@ import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { ServiceStatus } from "@prisma/client";
+import type { Locale } from "@/i18n/locales";
 
 // Provider Services query — Provider Dashboard Phase 1b.
 //
@@ -76,9 +77,15 @@ export type ProviderServiceListResult = {
 
 const DEFAULT_PAGE_SIZE = 12;
 
-export async function getProviderServices(filters: ProviderServiceListFilters): Promise<ProviderServiceListResult> {
+// `localeOverride` (additive, optional): the /api/v1 provider adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getProviderServices(
+  filters: ProviderServiceListFilters,
+  localeOverride?: Locale
+): Promise<ProviderServiceListResult> {
   const { provider } = await requireProvider();
-  const locale = await getLocale();
+  const locale = localeOverride ?? (await getLocale());
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;

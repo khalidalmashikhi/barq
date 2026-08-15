@@ -4,6 +4,7 @@ import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
+import type { Locale } from "@/i18n/locales";
 
 // Provider Service Detail query — Provider Dashboard Phase 2 (Service
 // Detail Workspace, read-only foundation).
@@ -46,7 +47,13 @@ export type ProviderServiceDetail = {
   updatedAt: Date;
 };
 
-export async function getProviderServiceDetail(serviceId: string): Promise<ProviderServiceDetail | null> {
+// `localeOverride` (additive, optional): the /api/v1 provider adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getProviderServiceDetail(
+  serviceId: string,
+  localeOverride?: Locale
+): Promise<ProviderServiceDetail | null> {
   if (!isValidUuid(serviceId)) return null;
 
   const { provider } = await requireProvider();
@@ -64,7 +71,7 @@ export async function getProviderServiceDetail(serviceId: string): Promise<Provi
 
   if (!service) return null;
 
-  const locale = await getLocale();
+  const locale = localeOverride ?? (await getLocale());
 
   type ServiceRow = {
     id: string;

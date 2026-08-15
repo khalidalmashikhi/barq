@@ -18,6 +18,9 @@ export type ApiErrorCode =
   | "INVALID_INPUT"
   | "UNAUTHORIZED"
   | "FORBIDDEN"
+  // Gate PB (Provider Read API) — provider-authentication rejection codes.
+  | "NO_PROVIDER_PROFILE"
+  | "PROVIDER_NOT_APPROVED"
   // Gate 3 (Booking Mutations) — booking-domain rejection codes. These carry the
   // EXISTING BookingActionErrorCode meanings onto the wire unchanged (mapped in
   // src/lib/api/v1/booking-errors.ts); ar/en messages mirror messages/*/errors.json.
@@ -37,6 +40,8 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   INVALID_INPUT: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
+  NO_PROVIDER_PROFILE: 403,
+  PROVIDER_NOT_APPROVED: 403,
   NO_CUSTOMER_PROFILE: 403,
   NOT_FOUND: 404,
   SLOT_FULL: 409,
@@ -57,6 +62,14 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   INVALID_INPUT: { en: "Invalid request data.", ar: "بيانات الطلب غير صالحة." },
   UNAUTHORIZED: { en: "Authentication is required.", ar: "يلزم تسجيل الدخول." },
   FORBIDDEN: { en: "You do not have permission to perform this action.", ar: "ليست لديك صلاحية لتنفيذ هذا الإجراء." },
+  NO_PROVIDER_PROFILE: {
+    en: "This account does not have a provider profile.",
+    ar: "لا يملك هذا الحساب ملف مزود خدمة.",
+  },
+  PROVIDER_NOT_APPROVED: {
+    en: "Your provider account is not approved yet.",
+    ar: "لم تتم الموافقة على حساب مزود الخدمة الخاص بك بعد.",
+  },
   NO_CUSTOMER_PROFILE: {
     en: "You need to complete your customer profile before finishing this booking. Contact support if this message persists.",
     ar: "يلزم إكمال الملف الشخصي كعميل قبل إتمام الحجز. تواصل مع الدعم إذا استمرت هذه الرسالة.",

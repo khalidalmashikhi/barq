@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import type { BookingStatus } from "@prisma/client";
+import type { Locale } from "@/i18n/locales";
 
 // Provider Bookings query — Provider Dashboard Phase 1c (Bookings
 // Workspace Foundation, read-only).
@@ -78,9 +79,15 @@ export type ProviderBookingListResult = {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-export async function getProviderBookings(filters: ProviderBookingListFilters): Promise<ProviderBookingListResult> {
+// `localeOverride` (additive, optional): the /api/v1 provider adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getProviderBookings(
+  filters: ProviderBookingListFilters,
+  localeOverride?: Locale
+): Promise<ProviderBookingListResult> {
   const { provider } = await requireProvider();
-  const locale = await getLocale();
+  const locale = localeOverride ?? (await getLocale());
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;

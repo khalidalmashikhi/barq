@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import type { BookingStatus } from "@prisma/client";
+import type { Locale } from "@/i18n/locales";
 
 // Provider Booking Detail query — Provider Operations Foundation.
 //
@@ -32,7 +33,13 @@ export type ProviderBookingDetail = {
   createdAt: Date;
 };
 
-export async function getProviderBookingDetail(bookingId: string): Promise<ProviderBookingDetail | null> {
+// `localeOverride` (additive, optional): the /api/v1 provider adapter passes an
+// explicitly resolved locale; existing Web callers pass nothing and behave
+// EXACTLY as before (getLocale()).
+export async function getProviderBookingDetail(
+  bookingId: string,
+  localeOverride?: Locale
+): Promise<ProviderBookingDetail | null> {
   if (!isValidUuid(bookingId)) return null;
 
   const { provider } = await requireProvider();
@@ -44,7 +51,7 @@ export async function getProviderBookingDetail(bookingId: string): Promise<Provi
 
   if (!booking) return null;
 
-  const locale = await getLocale();
+  const locale = localeOverride ?? (await getLocale());
 
   type BookingRow = {
     id: string;
