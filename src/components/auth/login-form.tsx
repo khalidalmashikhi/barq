@@ -123,12 +123,19 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
       });
 
       if (requestError) {
-        // OTP_PROVIDER=disabled (staging) fails closed with a stable,
-        // machine-readable code (src/lib/auth/server.ts). Show a clear,
-        // specific localized message for that case; fall back to the generic
-        // error for anything else.
+        // Both failure modes surface a stable, machine-readable code from the
+        // server (src/lib/auth/server.ts): INVALID_PHONE_NUMBER when the entered
+        // number isn't a valid Oman mobile (P0-1 canonicalization), and
+        // OTP_DELIVERY_UNAVAILABLE when OTP_PROVIDER=disabled. Show a specific
+        // localized message for each; fall back to the generic error otherwise.
         const code = (requestError as { code?: string }).code;
-        setError(code === "OTP_DELIVERY_UNAVAILABLE" ? t("otpUnavailable") : t("genericError"));
+        setError(
+          code === "INVALID_PHONE_NUMBER"
+            ? t("invalidPhoneNumber")
+            : code === "OTP_DELIVERY_UNAVAILABLE"
+              ? t("otpUnavailable")
+              : t("genericError")
+        );
         return;
       }
 

@@ -9,6 +9,7 @@ import { OtpDeliveryUnavailableError } from "@/lib/otp/providers/disabled-provid
 import { getOtpConfig } from "@/lib/otp/otp-config";
 import { checkResendCooldown } from "@/lib/otp/check-resend-cooldown";
 import { checkDailySendLimit } from "@/lib/otp/check-daily-send-limit";
+import { normalizeOmanPhone } from "@/lib/otp/normalize-oman-phone";
 import {
   logOtpRequested,
   logResendRejected,
@@ -223,47 +224,84 @@ export const auth = betterAuth({
     }),
   ],
 
-  // Root-level before/after hooks — Phase D.4. Better Auth's phoneNumber
-  // plugin has no resend-cooldown check at all (confirmed by reading
-  // its route source), so `hooks.before` adds one, scoped to
-  // /phone-number/send-otp only, by querying the plugin's own
-  // Verification table (no new Prisma model). `hooks.after` adds audit
-  // logging for verify outcomes, scoped to /phone-number/verify, by
-  // inspecting the endpoint's thrown/returned APIError — confirmed via
-  // reading dist/api/dispatch.mjs that after-hooks run even when the
-  // endpoint throws, with the error available at `ctx.context.returned`.
+  // Root-level before/after hooks — Phase D.4, extended by the P0-1
+  // security gate (Oman phone canonicalization). `hooks.before` now runs
+  // on BOTH /phone-number/send-otp and /phone-number/verify and, as its
+  // FIRST action, canonicalizes the client-supplied phone number to one
+  // authoritative +968 E.164 form (normalizeOmanPhone). It then REWRITES
+  // ctx.body.phoneNumber to that canonical value via the returned
+  // `{ context: { body } }` — confirmed against the installed Better Auth
+  // that dispatch.mjs deep-merges a before-hook's `context.body` into the
+  // endpoint context (defuReplaceArrays) before the handler and the
+  // after-hook run. As a result the resend cooldown, the daily send cap,
+  // the plugin's Verification.identifier, Twilio delivery, the verify
+  // lookup, and the resulting User identity ALL key on the same canonical
+  // number: equivalent textual forms can neither multiply the per-number
+  // rate limits nor fragment identity, and non-Oman / malformed input is
+  // rejected BEFORE any code is generated or any SMS is sent.
+  // (The resend-cooldown check itself is still the piece Better Auth's
+  // plugin lacks; `hooks.after` logs verify outcomes — after-hooks run
+  // even when the endpoint throws, error at `ctx.context.returned`.)
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path !== "/phone-number/send-otp") return;
+      const isSendOtp = ctx.path === "/phone-number/send-otp";
+      const isVerify = ctx.path === "/phone-number/verify";
+      if (!isSendOtp && !isVerify) return;
 
       const phoneNumberParam = (ctx.body as { phoneNumber?: string } | undefined)?.phoneNumber;
-      if (!phoneNumberParam) return;
+      // Missing param: let Better Auth's own validation produce its standard error.
+      if (typeof phoneNumberParam !== "string" || phoneNumberParam.trim() === "") return;
 
-      logOtpRequested(phoneNumberParam);
-
-      const { resendCooldownSeconds, maxSendsPerDay } = getOtpConfig();
-      const cooldown = await checkResendCooldown(phoneNumberParam, resendCooldownSeconds);
-
-      if (!cooldown.allowed) {
-        logResendRejected(phoneNumberParam, cooldown.retryAfterSeconds);
-        throw ctx.error("TOO_MANY_REQUESTS", {
-          message: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another code.`,
+      // Authoritative canonicalization (single source of truth). Reject non-Oman /
+      // malformed numbers here — before the cooldown/cap lookups, before any code
+      // is generated, and before Twilio is ever called. Never expose normalization
+      // internals; the client maps the stable code to a localized message.
+      const normalized = normalizeOmanPhone(phoneNumberParam);
+      if (!normalized.ok) {
+        throw new APIError("BAD_REQUEST", {
+          code: "INVALID_PHONE_NUMBER",
+          message: "Enter a valid Oman mobile number.",
         });
       }
+      const phone = normalized.e164;
 
-      // Phase 5.1 (Production Readiness) — the cooldown above only
-      // paces individual resends; it does nothing to cap total daily
-      // volume, the real SMS-cost abuse vector once a real delivery
-      // provider is live (billed per message sent). Checked second,
-      // after the cheaper cooldown check has already passed.
-      const dailyLimit = await checkDailySendLimit(phoneNumberParam, maxSendsPerDay);
+      if (isSendOtp) {
+        logOtpRequested(phone);
 
-      if (!dailyLimit.allowed) {
-        logDailyLimitRejected(phoneNumberParam, dailyLimit.sentInWindow);
-        throw ctx.error("TOO_MANY_REQUESTS", {
-          message: "You've reached the maximum number of verification codes for today. Please try again tomorrow.",
-        });
+        const { resendCooldownSeconds, maxSendsPerDay } = getOtpConfig();
+        const cooldown = await checkResendCooldown(phone, resendCooldownSeconds);
+
+        if (!cooldown.allowed) {
+          logResendRejected(phone, cooldown.retryAfterSeconds);
+          throw ctx.error("TOO_MANY_REQUESTS", {
+            message: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another code.`,
+          });
+        }
+
+        // Phase 5.1 (Production Readiness) — the cooldown above only
+        // paces individual resends; it does nothing to cap total daily
+        // volume, the real SMS-cost abuse vector once a real delivery
+        // provider is live (billed per message sent). Checked second,
+        // after the cheaper cooldown check has already passed. Keyed on
+        // the canonical number so formatting variants share one counter.
+        const dailyLimit = await checkDailySendLimit(phone, maxSendsPerDay);
+
+        if (!dailyLimit.allowed) {
+          logDailyLimitRejected(phone, dailyLimit.sentInWindow);
+          throw ctx.error("TOO_MANY_REQUESTS", {
+            message: "You've reached the maximum number of verification codes for today. Please try again tomorrow.",
+          });
+        }
       }
+
+      // Rewrite the body so the Better Auth endpoint (send stores / verify looks up
+      // the Verification by identifier) and the after-hook all operate on the
+      // canonical number. This is the one place the canonical value is injected.
+      return {
+        context: {
+          body: { ...(ctx.body as Record<string, unknown>), phoneNumber: phone },
+        },
+      };
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== "/phone-number/verify") return;
