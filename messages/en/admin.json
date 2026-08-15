@@ -603,5 +603,6 @@
   "documentErrorNotDeletable": "This document can no longer be deleted.",
   "documentErrorReasonRequired": "A reason is required to reject a document.",
   "documentErrorStaleDocument": "This document changed since the page was loaded. Reload the page and try again.",
-  "documentErrorUnknown": "Something went wrong. Please try again."
+  "documentErrorUnknown": "Something went wrong. Please try again.",
+  "documentErrorUploadFailed": "The document could not be uploaded right now. Please try again."
 }

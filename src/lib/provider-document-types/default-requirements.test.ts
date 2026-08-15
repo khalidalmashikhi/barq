@@ -34,6 +34,17 @@ describe("DEFAULT_VERIFICATION_REQUIREMENTS — exact default policy", () => {
     }
   });
 
+  it("the INDIVIDUAL identity requirement asks for a Civil/National ID and no longer mentions passport (Gate 0)", () => {
+    const identity = DEFAULT_VERIFICATION_REQUIREMENTS.find((d) => d.key === "IDENTITY_PROOF");
+    expect(identity).toBeDefined();
+    const en = identity!.description.en.toLowerCase();
+    const ar = identity!.description.ar;
+    expect(en).not.toContain("passport");
+    expect(ar).not.toContain("جواز"); // no "passport" in Arabic either
+    expect(en).toContain("civil"); // now Civil / National ID
+    expect(ar).toContain("المدنية");
+  });
+
   it("has unique keys and unique sortOrders", () => {
     const keys = DEFAULT_VERIFICATION_REQUIREMENTS.map((d) => d.key);
     const sorts = DEFAULT_VERIFICATION_REQUIREMENTS.map((d) => d.sortOrder);

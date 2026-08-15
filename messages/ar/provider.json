@@ -344,6 +344,10 @@
   "documentErrorReasonRequired": "يلزم إدخال سبب لرفض المستند.",
   "documentErrorStaleDocument": "تغيّر هذا المستند منذ تحميل الصفحة. أعد تحميل الصفحة وحاول مرة أخرى.",
   "documentErrorUnknown": "حدث خطأ ما. يُرجى المحاولة مرة أخرى.",
+  "documentErrorUploadFailed": "تعذر رفع الملف حاليًا. حاول مرة أخرى.",
+  "documentUploadingLabel": "جارٍ رفع المستند…",
+  "documentUploadCancelButton": "إلغاء",
+  "documentUploadRetryButton": "إعادة المحاولة",
   "applicationCompleteDocumentsLink": "أكمل مستندات التحقق الخاصة بك",
   "applicationVerificationLink": "التحقق والمستندات"
 }

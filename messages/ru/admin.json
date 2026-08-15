@@ -603,5 +603,6 @@
   "documentErrorNotDeletable": "Этот документ больше нельзя удалить.",
   "documentErrorReasonRequired": "Для отклонения документа необходимо указать причину.",
   "documentErrorStaleDocument": "Документ изменился после загрузки страницы. Обновите страницу и повторите попытку.",
-  "documentErrorUnknown": "Что-то пошло не так. Повторите попытку."
+  "documentErrorUnknown": "Что-то пошло не так. Повторите попытку.",
+  "documentErrorUploadFailed": "Не удалось загрузить документ. Повторите попытку."
 }

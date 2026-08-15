@@ -86,7 +86,10 @@ export async function uploadProviderDocument(input: UploadProviderDocumentInput)
       providerId: provider.id,
       message: error instanceof Error ? error.message : String(error),
     });
-    return { ok: false, error: "UNKNOWN_ERROR" };
+    // Gate 0: distinct from the generic UNKNOWN_ERROR so the provider sees an
+    // actionable "could not upload right now" message and the failure class is
+    // legible (the storage write threw — e.g. a missing/misconfigured bucket).
+    return { ok: false, error: "UPLOAD_FAILED" };
   }
 
   try {

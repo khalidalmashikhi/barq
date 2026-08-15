@@ -344,6 +344,10 @@
   "documentErrorReasonRequired": "Un motif est requis pour rejeter un document.",
   "documentErrorStaleDocument": "Ce document a changé depuis le chargement de la page. Rechargez la page et réessayez.",
   "documentErrorUnknown": "Une erreur s'est produite. Veuillez réessayer.",
+  "documentErrorUploadFailed": "Le document n'a pas pu être téléchargé pour le moment. Veuillez réessayer.",
+  "documentUploadingLabel": "Téléchargement du document…",
+  "documentUploadCancelButton": "Annuler",
+  "documentUploadRetryButton": "Réessayer",
   "applicationCompleteDocumentsLink": "Complétez vos documents de vérification",
   "applicationVerificationLink": "Vérification et documents"
 }

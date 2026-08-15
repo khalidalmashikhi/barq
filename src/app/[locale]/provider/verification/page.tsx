@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowRight, FileCheck2, Upload, RefreshCw, Trash2, Eye, AlertTriangle } from "lucide-react";
+import { ArrowRight, FileCheck2, AlertTriangle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -15,7 +15,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { VerificationDocumentControl } from "@/components/provider/verification/verification-document-control";
+import { formatFileSize } from "@/lib/provider/documents/upload-ui";
 
 // Provider Verification & Documents (Gate 3) — the provider-facing DOCUMENT
 // surface. Lives under /provider/* so requireProvider() (via the layout) gates
@@ -28,14 +29,6 @@ import { SubmitButton } from "@/components/ui/submit-button";
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
-
-const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 const STATUS_BADGE = { PENDING: "info", APPROVED: "success", REJECTED: "danger" } as const;
 const STATUS_LABEL_KEY = {
@@ -124,7 +117,10 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                 {doc ? (
                   <div className="flex flex-col gap-2">
                     <p className="text-sm text-foreground/70">
-                      {doc.originalFilename} <span className="text-foreground/40">· {formatBytes(doc.sizeBytes)}</span>
+                      {doc.originalFilename}{" "}
+                      <span className="text-foreground/40" dir="ltr">
+                        · {formatFileSize(doc.sizeBytes)}
+                      </span>
                     </p>
                     {doc.status === "REJECTED" && doc.rejectionReason && (
                       <div className="rounded-xl border border-danger/30 bg-danger/5 p-3">
@@ -132,74 +128,28 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                         <p className="whitespace-pre-wrap text-sm text-foreground/80">{doc.rejectionReason}</p>
                       </div>
                     )}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <a
-                        href={`/api/provider/documents/${doc.id}/view`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
-                      >
-                        <Eye size={14} strokeWidth={1.75} />
-                        {t("documentViewButton")}
-                      </a>
-
-                      {data.storageAvailable && (
-                        <form
-                          action={`/api/provider/documents/${doc.id}/replace`}
-                          method="post"
-                          encType="multipart/form-data"
-                          className="flex items-center gap-2"
-                        >
-                          <input type="hidden" name="locale" value={locale} />
-                          <input type="hidden" name="versionToken" value={doc.versionToken} />
-                          <input
-                            type="file"
-                            name="file"
-                            required
-                            accept={ACCEPT}
-                            className="max-w-[180px] text-xs text-foreground/60 file:mr-2 file:rounded-full file:border-0 file:bg-accent/20 file:px-3 file:py-1.5 file:text-xs file:font-medium"
-                          />
-                          <SubmitButton className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground/70 transition-colors hover:bg-accent/20 disabled:opacity-50">
-                            <RefreshCw size={13} strokeWidth={1.75} />
-                            {t("documentReplaceButton")}
-                          </SubmitButton>
-                        </form>
-                      )}
-
-                      {doc.status !== "APPROVED" && (
-                        <form action={`/api/provider/documents/${doc.id}/delete`} method="post">
-                          <input type="hidden" name="locale" value={locale} />
-                          <input type="hidden" name="versionToken" value={doc.versionToken} />
-                          <SubmitButton className="inline-flex items-center gap-1.5 rounded-full border border-danger/30 px-3 py-2 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
-                            <Trash2 size={13} strokeWidth={1.75} />
-                            {t("documentDeleteButton")}
-                          </SubmitButton>
-                        </form>
-                      )}
-                    </div>
+                    <VerificationDocumentControl
+                      locale={locale}
+                      type={item.type}
+                      doc={{
+                        id: doc.id,
+                        status: doc.status,
+                        originalFilename: doc.originalFilename,
+                        sizeBytes: doc.sizeBytes,
+                        versionToken: doc.versionToken,
+                      }}
+                      canDelete={doc.status !== "APPROVED"}
+                      storageAvailable={data.storageAvailable}
+                    />
                   </div>
                 ) : data.storageAvailable ? (
-                  <form
-                    action="/api/provider/documents"
-                    method="post"
-                    encType="multipart/form-data"
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    <input type="hidden" name="locale" value={locale} />
-                    <input type="hidden" name="type" value={item.type} />
-                    <input
-                      type="file"
-                      name="file"
-                      required
-                      accept={ACCEPT}
-                      className="max-w-[200px] text-xs text-foreground/60 file:mr-2 file:rounded-full file:border-0 file:bg-accent/20 file:px-3 file:py-1.5 file:text-xs file:font-medium"
-                    />
-                    <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
-                      <Upload size={14} strokeWidth={1.75} />
-                      {t("documentUploadButton")}
-                    </SubmitButton>
-                    <span className="w-full text-xs text-foreground/40">{t("documentUploadHint")}</span>
-                  </form>
+                  <VerificationDocumentControl
+                    locale={locale}
+                    type={item.type}
+                    doc={null}
+                    canDelete={false}
+                    storageAvailable={data.storageAvailable}
+                  />
                 ) : (
                   <p className="text-xs text-foreground/40">{t("documentUploadUnavailableShort")}</p>
                 )}

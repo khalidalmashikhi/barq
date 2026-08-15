@@ -76,7 +76,9 @@ export async function replaceProviderDocument(input: ReplaceProviderDocumentInpu
       documentId: doc.id,
       message: error instanceof Error ? error.message : String(error),
     });
-    return { ok: false, error: "UNKNOWN_ERROR" };
+    // Gate 0: same split as uploadProviderDocument — a failed private-bucket
+    // write is UPLOAD_FAILED (actionable), not the generic UNKNOWN_ERROR.
+    return { ok: false, error: "UPLOAD_FAILED" };
   }
 
   try {

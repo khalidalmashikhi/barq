@@ -344,6 +344,10 @@
   "documentErrorReasonRequired": "È necessario un motivo per rifiutare un documento.",
   "documentErrorStaleDocument": "Questo documento è cambiato dopo il caricamento della pagina. Ricarica la pagina e riprova.",
   "documentErrorUnknown": "Qualcosa è andato storto. Riprova.",
+  "documentErrorUploadFailed": "Impossibile caricare il documento in questo momento. Riprova.",
+  "documentUploadingLabel": "Caricamento del documento…",
+  "documentUploadCancelButton": "Annulla",
+  "documentUploadRetryButton": "Riprova",
   "applicationCompleteDocumentsLink": "Completa i tuoi documenti di verifica",
   "applicationVerificationLink": "Verifica e documenti"
 }

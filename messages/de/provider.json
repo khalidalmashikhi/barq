@@ -344,6 +344,10 @@
   "documentErrorReasonRequired": "Für die Ablehnung eines Dokuments ist ein Grund erforderlich.",
   "documentErrorStaleDocument": "Dieses Dokument hat sich geändert, seit die Seite geladen wurde. Laden Sie die Seite neu und versuchen Sie es erneut.",
   "documentErrorUnknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+  "documentErrorUploadFailed": "Das Dokument konnte gerade nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
+  "documentUploadingLabel": "Dokument wird hochgeladen…",
+  "documentUploadCancelButton": "Abbrechen",
+  "documentUploadRetryButton": "Erneut versuchen",
   "applicationCompleteDocumentsLink": "Vervollständigen Sie Ihre Verifizierungsdokumente",
   "applicationVerificationLink": "Verifizierung & Dokumente"
 }

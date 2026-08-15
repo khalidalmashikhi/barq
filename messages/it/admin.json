@@ -603,5 +603,6 @@
   "documentErrorNotDeletable": "Questo documento non può più essere eliminato.",
   "documentErrorReasonRequired": "È necessario un motivo per rifiutare un documento.",
   "documentErrorStaleDocument": "Questo documento è cambiato dopo il caricamento della pagina. Ricarica la pagina e riprova.",
-  "documentErrorUnknown": "Qualcosa è andato storto. Riprova."
+  "documentErrorUnknown": "Qualcosa è andato storto. Riprova.",
+  "documentErrorUploadFailed": "Impossibile caricare il documento in questo momento. Riprova."
 }

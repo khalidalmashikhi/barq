@@ -603,5 +603,6 @@
   "documentErrorNotDeletable": "Tego dokumentu nie można już usunąć.",
   "documentErrorReasonRequired": "Do odrzucenia dokumentu wymagany jest powód.",
   "documentErrorStaleDocument": "Ten dokument zmienił się od czasu załadowania strony. Odśwież stronę i spróbuj ponownie.",
-  "documentErrorUnknown": "Coś poszło nie tak. Spróbuj ponownie."
+  "documentErrorUnknown": "Coś poszło nie tak. Spróbuj ponownie.",
+  "documentErrorUploadFailed": "Nie udało się teraz przesłać dokumentu. Spróbuj ponownie."
 }

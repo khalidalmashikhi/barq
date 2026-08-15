@@ -40,9 +40,14 @@ export const DEFAULT_VERIFICATION_REQUIREMENTS: readonly DefaultVerificationRequ
     required: true,
     active: true,
     name: { ar: "إثبات الهوية", en: "Identity Proof" },
+    // Gate 0 product policy: the accepted primary identity evidence for an
+    // INDIVIDUAL is a VALID Civil / National ID card only — passport is NOT
+    // accepted (the former "national ID or passport" wording is removed). The
+    // server-side accepted document-TYPE rules are unchanged; this is the
+    // provider-facing description text. (Expiry/OCR automation is a later gate.)
     description: {
-      ar: "صورة واضحة من بطاقة الهوية الوطنية أو جواز السفر لمقدم الخدمة الفرد.",
-      en: "A clear copy of the individual provider's national ID or passport.",
+      ar: "نسخة واضحة من البطاقة الشخصية / المدنية سارية الصلاحية.",
+      en: "A clear copy of your valid Civil / National ID card.",
     },
     sortOrder: 0,
   },

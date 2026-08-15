@@ -147,6 +147,15 @@ describe("uploadProviderDocument", () => {
     expect(removeMock).toHaveBeenCalledTimes(1); // orphan cleanup
   });
 
+  it("returns UPLOAD_FAILED (not the generic UNKNOWN_ERROR) and writes nothing when the storage upload throws", async () => {
+    // Gate 0: a failed private-bucket write (e.g. missing/misconfigured bucket)
+    // is now a distinct, actionable code — never collapsed into UNKNOWN_ERROR.
+    uploadMock.mockRejectedValue(new Error("bucket missing"));
+    const result = await uploadProviderDocument(baseInput());
+    expect(result).toEqual({ ok: false, error: "UPLOAD_FAILED" });
+    expect(createMock).not.toHaveBeenCalled(); // no DB row on a storage failure
+  });
+
   it("maps a non-provider caller to NO_PROVIDER_PROFILE", async () => {
     requireProviderMock.mockRejectedValue(new ForbiddenError());
     const result = await uploadProviderDocument(baseInput());
