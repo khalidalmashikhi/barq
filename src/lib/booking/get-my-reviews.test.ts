@@ -11,9 +11,20 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const requireAuthMock = vi.fn();
+const assertNotActiveAdminMock = vi.fn();
+
+class ForbiddenError extends Error {
+  code?: string;
+  constructor(message?: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  assertNotActiveAdmin: (...args: unknown[]) => assertNotActiveAdminMock(...args),
+  ForbiddenError,
 }));
 
 vi.mock("next-intl/server", () => ({
@@ -44,6 +55,7 @@ const { getMyReviewsPageData } = await import("./get-my-reviews");
 
 afterEach(() => {
   requireAuthMock.mockReset();
+  assertNotActiveAdminMock.mockReset();
   customerFindUniqueMock.mockReset();
   bookingFindManyMock.mockReset();
   reviewCountMock.mockReset();
@@ -51,6 +63,17 @@ afterEach(() => {
 });
 
 describe("getMyReviewsPageData — customer isolation and empty states", () => {
+  it("Gate A: denies an ACTIVE admin at the domain layer, before any Customer/Review read", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "admin-user" } });
+    assertNotActiveAdminMock.mockRejectedValue(new ForbiddenError("Admin accounts are backoffice-only", "ADMIN_BACKOFFICE_ONLY"));
+
+    const error = await getMyReviewsPageData().catch((e) => e);
+
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect((error as ForbiddenError).code).toBe("ADMIN_BACKOFFICE_ONLY");
+    expect(customerFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("returns an honest empty page for a user with no Customer profile, without querying bookings/reviews", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
     customerFindUniqueMock.mockResolvedValue(null);

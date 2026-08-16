@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { assertNotActiveAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { Locale } from "@/i18n/locales";
@@ -86,6 +87,12 @@ type ServiceWithJoins = {
 };
 
 export async function getDashboardData(barqUserId: string): Promise<DashboardData> {
+  // Gate A (domain-layer authorization): an ACTIVE Admin is backoffice-only and
+  // must not obtain Customer dashboard data, even its own. This function receives
+  // an already-resolved barqUserId (its page caller runs requireAuth + redirects
+  // active admins), but the exclusion is enforced HERE too so a direct call from
+  // the BARQ API/iOS/Android or another server action is denied identically.
+  await assertNotActiveAdmin(barqUserId);
   const locale = await getLocale();
 
   const customer = await prisma.customer.findUnique({

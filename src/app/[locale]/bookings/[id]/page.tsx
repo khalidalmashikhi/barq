@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect, Link } from "@/i18n/navigation";
-import { UnauthenticatedError } from "@/lib/auth";
+import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { getBookingDetail } from "@/lib/booking/get-booking-detail";
 import { cancelBooking } from "@/lib/booking/cancel-booking";
 import { createReview } from "@/lib/booking/create-review";
@@ -53,6 +53,13 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
   const { id } = await params;
   const { error, reviewed } = await searchParams;
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before any customer-capability read or action.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+    return null;
+  }
 
   // Phase C.2 — CRITICAL FIX: getBookingDetail() calls requireAuth()
   // internally, which throws UnauthenticatedError for an unauthenticated

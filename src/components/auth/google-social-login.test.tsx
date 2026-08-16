@@ -38,7 +38,7 @@ vi.mock("@/lib/i18n/metadata", () => ({ buildLocalizedMetadata: vi.fn() }));
 
 // login-page deps
 const getSessionMock = vi.fn();
-vi.mock("@/lib/auth", () => ({ getSession: (...a: unknown[]) => getSessionMock(...a), UnauthenticatedError: class extends Error {} }));
+vi.mock("@/lib/auth", () => ({ getSession: (...a: unknown[]) => getSessionMock(...a), UnauthenticatedError: class extends Error {}, isActiveAdminSession: async () => false }));
 const isGoogleConfiguredMock = vi.fn();
 vi.mock("@/lib/auth/social-config", () => ({ isGoogleConfigured: (...a: unknown[]) => isGoogleConfiguredMock(...a) }));
 function LoginFormMock() {

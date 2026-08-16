@@ -51,6 +51,8 @@ describe("getProviders", () => {
         businessName: { ar: "شركة", en: "Trips Co" },
         slug: "trips-co",
         status: "APPROVED",
+        providerType: "COMPANY",
+        submittedAt: null,
         visible: true,
         city: "Muscat",
         createdAt: new Date(),

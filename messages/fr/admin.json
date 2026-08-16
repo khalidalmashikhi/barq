@@ -611,6 +611,7 @@
   "verificationRequiredProgress": "{approved} sur {total} documents requis approuvés",
   "verificationAllRequiredApproved": "Tous les documents requis approuvés",
   "submittedAtLabel": "Soumis le",
+  "reviewApplicationLabel": "Examiner la demande",
   "documentMissingLabel": "Manquant",
   "documentNotUploadedYet": "Pas encore téléversé",
   "noVerificationRequirements": "Aucune exigence de vérification applicable.",

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, ForbiddenError, assertNotActiveAdmin } from "@/lib/auth";
 import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { logger } from "@/lib/logger";
@@ -70,9 +70,19 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
   try {
     const auth = await requireAuth();
     barqUserId = auth.barqUser.id;
+    // Gate A: an ACTIVE Admin is backoffice-only — it may not BECOME a provider.
+    // This flow uses requireAuth() (not requireProvider), so the exclusion is
+    // enforced explicitly here (raw-prisma bypass). No Provider row is created.
+    await assertNotActiveAdmin(barqUserId);
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
+    }
+    if (error instanceof ForbiddenError) {
+      // Active admin (backoffice-only): deny generically without revealing the
+      // Admin row. (An admin is redirected to /admin before ever reaching this
+      // form; this is the direct-call defense.)
+      return { ok: false, error: "UNKNOWN_ERROR" };
     }
     throw error;
   }

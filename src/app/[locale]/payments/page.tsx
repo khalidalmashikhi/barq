@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CreditCard } from "lucide-react";
 import { redirect, getPathname, Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { UnauthenticatedError } from "@/lib/auth";
+import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { getMyPayments } from "@/lib/payments/get-my-payments";
 import { getPaymentStatusLabel, getPaymentStatusBadgeVariant } from "@/lib/payments/payment-status";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
@@ -36,6 +36,13 @@ type SearchParams = {
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before any customer payment read.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+    return null;
+  }
 
   const status = STATUSES.includes(params.status as PaymentStatus) ? (params.status as PaymentStatus) : undefined;
   const pageParsed = params.page ? Number(params.page) : 1;

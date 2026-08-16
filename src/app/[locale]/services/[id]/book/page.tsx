@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect, Link } from "@/i18n/navigation";
 import { Calendar, PackageX, Users, ArrowRight } from "lucide-react";
-import { getSession } from "@/lib/auth";
+import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { resolveBarqUser } from "@/lib/auth/barq-user";
 import { getServiceById, getActivePricesForService } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
@@ -41,6 +41,11 @@ export default async function BookServicePage({ params, searchParams }: Props) {
 
   const session = await getSession();
   if (!session) { redirect({ href: "/login", locale }); return null; }
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only and may
+  // not book. Redirect it to /admin SERVER-SIDE before the booking form renders;
+  // createBooking() (via requireCustomer) independently denies it too.
+  if (await isActiveAdminSession()) { redirect({ href: "/admin", locale }); return null; }
 
   const fetchedService = await getServiceById(id);
   if (!fetchedService) { notFound(); return null; }

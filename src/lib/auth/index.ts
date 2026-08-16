@@ -18,6 +18,8 @@ export {
   requireStaff,
   requireAdmin,
   hasActiveAdminProfile,
+  assertNotActiveAdmin,
+  isActiveAdminSession,
   hasApprovedProviderProfile,
   resolveProviderStatus,
 } from "./rbac";

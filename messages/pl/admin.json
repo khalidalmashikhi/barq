@@ -611,6 +611,7 @@
   "verificationRequiredProgress": "Zatwierdzono {approved} z {total} wymaganych dokumentów",
   "verificationAllRequiredApproved": "Wszystkie wymagane dokumenty zatwierdzone",
   "submittedAtLabel": "Wysłano",
+  "reviewApplicationLabel": "Sprawdź wniosek",
   "documentMissingLabel": "Brak",
   "documentNotUploadedYet": "Jeszcze nie przesłano",
   "noVerificationRequirements": "Brak obowiązujących wymagań weryfikacyjnych.",

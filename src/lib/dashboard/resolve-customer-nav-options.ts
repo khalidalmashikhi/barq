@@ -46,11 +46,19 @@ export async function resolveCustomerNavOptions(): Promise<CustomerNavOptions> {
     hasActiveAdminProfile(barqUser.id),
   ]);
 
-  const providerDoorway: ProviderDoorway = !provider
-    ? "become"
-    : provider.status === "APPROVED"
-      ? "workspace"
-      : "application";
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // it is never offered a "Become a Provider" / workspace / application doorway
+  // into the customer→provider journey. (An active admin is also redirected away
+  // from every customer page before this nav renders, so this is the display-layer
+  // companion to that server-side redirect, never the enforcement itself.) The
+  // Admin Panel entry is still surfaced via isAdmin.
+  const providerDoorway: ProviderDoorway | undefined = isAdmin
+    ? undefined
+    : !provider
+      ? "become"
+      : provider.status === "APPROVED"
+        ? "workspace"
+        : "application";
 
   return { providerDoorway, isAdmin };
 }

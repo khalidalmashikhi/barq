@@ -611,6 +611,7 @@
   "verificationRequiredProgress": "Schváleno {approved} z {total} požadovaných dokumentů",
   "verificationAllRequiredApproved": "Všechny požadované dokumenty schváleny",
   "submittedAtLabel": "Odesláno",
+  "reviewApplicationLabel": "Zkontrolovat žádost",
   "documentMissingLabel": "Chybí",
   "documentNotUploadedYet": "Zatím nenahráno",
   "noVerificationRequirements": "Nevztahují se žádné ověřovací požadavky.",

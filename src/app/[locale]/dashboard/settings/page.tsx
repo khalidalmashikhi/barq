@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { UnauthenticatedError } from "@/lib/auth";
+import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { isGoogleConfigured } from "@/lib/auth/social-config";
 import { getLinkedProviderIds } from "@/lib/auth/connected-accounts";
 import { ConnectGoogleButton } from "@/components/auth/connect-google-button";
@@ -43,6 +43,13 @@ type SearchParams = { notice?: string; error?: string };
 export default async function CustomerSettingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const { notice, error } = await searchParams;
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before any customer-capability read or action.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+    return null;
+  }
 
   let settings;
   try {

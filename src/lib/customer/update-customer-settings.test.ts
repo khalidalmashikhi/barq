@@ -10,9 +10,21 @@ vi.mock("@/i18n/locales", () => ({ locales: ["ar", "en", "de", "it", "pl", "fr",
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
 
 const requireAuthMock = vi.fn();
+const assertNotActiveAdminMock = vi.fn();
+
+class ForbiddenError extends Error {
+  code?: string;
+  constructor(message?: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  assertNotActiveAdmin: (...args: unknown[]) => assertNotActiveAdminMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
+  ForbiddenError,
 }));
 
 const userUpdateMock = vi.fn();
@@ -39,6 +51,7 @@ function fd(fields: Record<string, string>): FormData {
 
 afterEach(() => {
   requireAuthMock.mockReset();
+  assertNotActiveAdminMock.mockReset();
   userUpdateMock.mockReset();
   customerUpsertMock.mockReset();
   auditCreateMock.mockReset();
@@ -70,6 +83,19 @@ describe("updateCustomerSettings", () => {
     const result = await updateCustomerSettings(fd({ name: "X", languagePreference: "xx" }));
     expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(requireAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("Gate A: denies an ACTIVE admin generically (UNKNOWN_ERROR) and never upserts a Customer row", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "admin-user" } });
+    // The backoffice-only exclusion fires before the transaction, so the lazy
+    // Customer upsert never runs — an active admin cannot create a Customer profile.
+    assertNotActiveAdminMock.mockRejectedValue(new ForbiddenError("Admin accounts are backoffice-only", "ADMIN_BACKOFFICE_ONLY"));
+
+    const result = await updateCustomerSettings(fd({ name: "Layla", languagePreference: "ar" }));
+
+    expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(customerUpsertMock).not.toHaveBeenCalled();
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
   it("clears name and language to null when submitted empty", async () => {

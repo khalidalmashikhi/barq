@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, ForbiddenError, assertNotActiveAdmin } from "@/lib/auth";
 import { locales } from "@/i18n/locales";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
@@ -39,9 +39,16 @@ export async function updateCustomerSettings(formData: FormData): Promise<Update
   let barqUser;
   try {
     ({ barqUser } = await requireAuth());
+    // Gate A: an ACTIVE Admin is backoffice-only — it must not lazily create or
+    // update a Customer profile. This flow uses requireAuth() + a raw customer
+    // upsert (bypasses requireCustomer), so the exclusion is enforced explicitly.
+    await assertNotActiveAdmin(barqUser.id);
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
+    }
+    if (error instanceof ForbiddenError) {
+      return { ok: false, error: "UNKNOWN_ERROR" };
     }
     throw error;
   }

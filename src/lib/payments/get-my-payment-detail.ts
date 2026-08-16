@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
@@ -48,6 +48,10 @@ export async function getMyPaymentDetail(paymentId: string): Promise<MyPaymentDe
   if (!isValidUuid(paymentId)) return null;
 
   const { barqUser } = await requireAuth();
+  // Gate A (domain-layer authorization): an ACTIVE Admin is backoffice-only —
+  // deny before any Customer/Payment read, so a direct (non-page) invocation is
+  // denied identically to the redirected page path.
+  await assertNotActiveAdmin(barqUser.id);
 
   const customer = await prisma.customer.findUnique({
     where: { userId: barqUser.id },

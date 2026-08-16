@@ -94,6 +94,9 @@ export async function requireAuth(): Promise<AuthContext> {
 export async function requireCustomer() {
   const { barqUser } = await requireAuth();
 
+  // Gate A: an ACTIVE Admin is backoffice-only and cannot act as a Customer.
+  await assertNotActiveAdmin(barqUser.id);
+
   const customer = await prisma.customer.findUnique({
     where: { userId: barqUser.id },
   });
@@ -172,6 +175,10 @@ export async function resolveProviderStatus(
  */
 export async function requireProvider() {
   const { barqUser } = await requireAuth();
+
+  // Gate A: an ACTIVE Admin is backoffice-only and cannot act as a Provider.
+  // requireApprovedProvider() composes this, so it inherits the exclusion.
+  await assertNotActiveAdmin(barqUser.id);
 
   const lookup = await resolveProviderStatus(barqUser.id);
 
@@ -309,7 +316,57 @@ export async function requireAdmin() {
  */
 export async function hasActiveAdminProfile(barqUserId: string): Promise<boolean> {
   const admin = await prisma.admin.findUnique({ where: { userId: barqUserId } });
-  return admin !== null && admin.status === "ACTIVE";
+  // Null-safe by design: no Admin row (null) — and, defensively, any absent
+  // value — is simply "not an active admin". Now that requireCustomer()/
+  // requireProvider() call this on every request via assertNotActiveAdmin(), it
+  // must never throw for a non-admin user.
+  return admin?.status === "ACTIVE";
+}
+
+/**
+ * Backoffice-only invariant (Admin Backoffice Hardening — Gate A). An ACTIVE
+ * Admin account is administrative-only: it must NOT exercise Customer or Provider
+ * PRODUCT capabilities, even if the same User historically holds Customer/Provider
+ * rows. This is the single, reusable authorization authority — baked into
+ * requireCustomer()/requireProvider() AND called explicitly at the raw-prisma
+ * entry points that bypass those helpers (applyAsProvider, update-customer-settings,
+ * and the customer-capability reads). It deletes nothing; it only removes authority.
+ *
+ * Throws the SAME ForbiddenError every require-helper / mutation catch already handles, so
+ * callers map it to their generic NO_CUSTOMER_PROFILE / NO_PROVIDER_PROFILE outcome
+ * WITHOUT revealing that a hidden Admin row exists. A non-admin, or an INACTIVE
+ * (DEACTIVATED) Admin, is never blocked here — normal Customer/Provider (and
+ * Customer+Provider coexistence) is unchanged for every non-active-admin user.
+ */
+export async function assertNotActiveAdmin(barqUserId: string): Promise<void> {
+  if (await hasActiveAdminProfile(barqUserId)) {
+    logger.warn("auth.admin_backoffice_only", { userId: barqUserId });
+    throw new ForbiddenError("Admin accounts are backoffice-only", "ADMIN_BACKOFFICE_ONLY");
+  }
+}
+
+/**
+ * Non-throwing, session-level companion to assertNotActiveAdmin(): is the
+ * CURRENTLY authenticated user an ACTIVE Admin? Used ONLY for role-aware PAGE
+ * routing — redirecting an active admin away from the Customer/Provider pages
+ * to /admin — which is a UX decision, never the authorization gate. Every
+ * guarded action still calls assertNotActiveAdmin()/requireCustomer()/
+ * requireProvider() independently, so a false negative here can only ever fail
+ * to redirect a link; it can never grant a capability. Resolves the Admin row
+ * through hasActiveAdminProfile() (no duplicated admin-detection) and returns
+ * false for no session or any unlinked/non-active-admin user. Deliberately
+ * does NOT create a BARQ User (unlike requireAuth's resolveBarqUser) — a pure
+ * lookup with no side effects.
+ */
+export async function isActiveAdminSession(): Promise<boolean> {
+  const session = await getSession();
+  if (!session) return false;
+  const linked = await prisma.user.findUnique({
+    where: { authUserId: session.user.id },
+    select: { id: true },
+  });
+  if (!linked) return false;
+  return hasActiveAdminProfile(linked.id);
 }
 
 /**

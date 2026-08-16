@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
 import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound, FileCheck2 } from "lucide-react";
-import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireProvider, UnauthenticatedError, ForbiddenError, isActiveAdminSession } from "@/lib/auth";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
@@ -60,6 +60,15 @@ export const metadata: Metadata = {
 
 export default async function ProviderLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only and
+  // may not enter the provider workspace. Redirect it to /admin SERVER-SIDE before
+  // the provider gate runs, for a clean landing instead of the 404 requireProvider()
+  // would otherwise produce (its ADMIN_BACKOFFICE_ONLY ForbiddenError → notFound
+  // below). requireProvider() STILL re-checks independently as the real boundary.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+  }
 
   try {
     await requireProvider();

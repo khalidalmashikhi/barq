@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { Locale } from "@/i18n/locales";
@@ -58,6 +58,13 @@ export async function getMyBookings(
   localeOverride?: Locale
 ): Promise<GetMyBookingsResult> {
   const { barqUser } = await requireAuth();
+  // Gate A: an ACTIVE Admin is backoffice-only — it must not read Customer
+  // bookings, even its own. This read uses requireAuth() + a raw Customer query
+  // (bypasses requireCustomer), and it is directly API-reachable via
+  // GET /api/v1/me/bookings, so the exclusion is enforced explicitly here; the
+  // /api/v1 auth wrapper maps this ForbiddenError to 403. (On the Web path an
+  // active admin is redirected to /admin before ever reaching this loader.)
+  await assertNotActiveAdmin(barqUser.id);
   const locale = localeOverride ?? (await getLocale());
 
   const page = Math.max(1, params.page ?? 1);

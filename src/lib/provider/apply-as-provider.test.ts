@@ -10,10 +10,21 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const requireAuthMock = vi.fn();
+const assertNotActiveAdminMock = vi.fn();
+
+class ForbiddenError extends Error {
+  code?: string;
+  constructor(message?: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  assertNotActiveAdmin: (...args: unknown[]) => assertNotActiveAdminMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
+  ForbiddenError,
 }));
 
 const findUniqueMock = vi.fn();
@@ -51,6 +62,7 @@ function buildFormData(fields: Record<string, string>): FormData {
 
 afterEach(() => {
   requireAuthMock.mockReset();
+  assertNotActiveAdminMock.mockReset();
   findUniqueMock.mockReset();
   createMock.mockReset();
   createManyMock.mockReset();
@@ -143,6 +155,19 @@ describe("applyAsProvider", () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ providerType: "INDIVIDUAL" }) })
     );
+  });
+
+  it("Gate A: denies an ACTIVE admin generically (UNKNOWN_ERROR) and creates no Provider row", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "admin-user" } });
+    // Backoffice-only exclusion fires right after auth resolves, before any
+    // Provider lookup/create — mapped to a non-leaking UNKNOWN_ERROR.
+    assertNotActiveAdminMock.mockRejectedValue(new ForbiddenError("Admin accounts are backoffice-only", "ADMIN_BACKOFFICE_ONLY"));
+
+    const result = await applyAsProvider(buildFormData({ businessNameAr: "شركة", businessNameEn: "Acme" }));
+
+    expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(findUniqueMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
   });
 
   it("returns UNKNOWN_ERROR when an unexpected exception occurs", async () => {

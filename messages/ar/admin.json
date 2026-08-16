@@ -611,6 +611,7 @@
   "verificationRequiredProgress": "تمت الموافقة على {approved} من {total} من المستندات المطلوبة",
   "verificationAllRequiredApproved": "تمت الموافقة على جميع المستندات المطلوبة",
   "submittedAtLabel": "أُرسل في",
+  "reviewApplicationLabel": "مراجعة الطلب",
   "documentMissingLabel": "غير مرفوع",
   "documentNotUploadedYet": "لم يُرفع بعد",
   "noVerificationRequirements": "لا توجد متطلبات تحقق منطبقة.",

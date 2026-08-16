@@ -9,9 +9,20 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const requireAuthMock = vi.fn();
+const assertNotActiveAdminMock = vi.fn();
+
+class ForbiddenError extends Error {
+  code?: string;
+  constructor(message?: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  assertNotActiveAdmin: (...args: unknown[]) => assertNotActiveAdminMock(...args),
+  ForbiddenError,
 }));
 
 const getLocaleMock = vi.fn();
@@ -40,6 +51,7 @@ const PAYMENT_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
 afterEach(() => {
   requireAuthMock.mockReset();
+  assertNotActiveAdminMock.mockReset();
   getLocaleMock.mockReset();
   findUniqueCustomerMock.mockReset();
   findFirstMock.mockReset();
@@ -51,6 +63,17 @@ describe("getMyPaymentDetail", () => {
 
     expect(result).toBeNull();
     expect(requireAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("Gate A: denies an ACTIVE admin at the domain layer, before any Customer/Payment read", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "admin-user" } });
+    assertNotActiveAdminMock.mockRejectedValue(new ForbiddenError("Admin accounts are backoffice-only", "ADMIN_BACKOFFICE_ONLY"));
+
+    const error = await getMyPaymentDetail(PAYMENT_ID).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect((error as ForbiddenError).code).toBe("ADMIN_BACKOFFICE_ONLY");
+    expect(findUniqueCustomerMock).not.toHaveBeenCalled();
   });
 
   it("returns null when the authenticated user has no Customer profile", async () => {

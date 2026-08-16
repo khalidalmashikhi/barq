@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PackageOpen, Flame } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, hasActiveAdminProfile } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
@@ -103,6 +103,16 @@ export default async function DashboardPage() {
       redirect({ href: "/login", locale });
     }
     throw error;
+  }
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only and
+  // must not use the customer dashboard. Redirect it to /admin SERVER-SIDE, before
+  // any customer loader (getDashboardData/getUnreadCount) runs — never a client-side
+  // hide. /dashboard is the universal post-login + Google-callback landing, so this
+  // one redirect also covers those entry paths. Every non-active-admin user (including
+  // a Customer who is also a Provider) is unaffected.
+  if (await hasActiveAdminProfile(barqUserId)) {
+    redirect({ href: "/admin", locale });
   }
 
   // Phase 5.2 (Production Hardening) — these were previously awaited

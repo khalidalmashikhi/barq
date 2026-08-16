@@ -4,7 +4,6 @@ import { Link, redirect } from "@/i18n/navigation";
 import { Users, Plus } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviders } from "@/lib/admin/get-providers";
-import { approveProvider } from "@/lib/admin/approve-provider";
 import { archiveProvider } from "@/lib/admin/archive-provider";
 import { publishProvider, unpublishProvider } from "@/lib/admin/toggle-provider-visibility";
 import { getProviderStatusBadgeVariant, getProviderStatusTranslationKey } from "@/lib/admin/presentation/provider-status";
@@ -17,6 +16,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getPathname } from "@/i18n/navigation";
+import { formatDate } from "@/lib/i18n/format-date";
 import type { ProviderStatus } from "@prisma/client";
 
 // Admin Providers — extended in Phase 2.2 (Provider Admin UI) from
@@ -24,13 +24,19 @@ import type { ProviderStatus } from "@prisma/client";
 // full Provider list page this phase's own scope requests (Search/
 // Filters/Pagination/status+visibility badges/Publish-Unpublish/
 // Archive). Reuses getProviders() (Phase 2.1) instead of the narrower
-// getPendingProviders() — but the original Approve action for
-// APPLIED/UNDER_REVIEW providers is preserved unchanged: this phase's
-// own instructions say "consume the existing actions... do not
-// redesign the backend," and removing a real, working admin capability
-// would be a regression, not a redesign. Mirrors
-// admin/categories/page.tsx's list-page shape (row-list, 3-tier empty
-// state, Pagination, filters-as-plain-GET-form).
+// getPendingProviders(). Mirrors admin/categories/page.tsx's list-page
+// shape (row-list, 3-tier empty state, Pagination, filters-as-plain-GET-form).
+//
+// REVIEW-FIRST LIST (Admin Backoffice Hardening — Gate A): the inline
+// one-click "Approve" button was REMOVED from the list. A verification
+// decision must not be made blind from a row — an application in a
+// reviewable state (APPLIED / UNDER_REVIEW / CHANGES_REQUESTED) now surfaces
+// a primary "Review application" link into the per-provider review workspace
+// (/admin/providers/[id]), where approveProvider() still lives, unchanged, behind
+// the full document checklist. Non-verification lifecycle controls
+// (Publish/Unpublish, Archive) stay on the row — they are visibility/lifecycle
+// management, not the identity-verification decision this gate is gating. Each
+// row also summarizes the applicant at a glance (type + submission date).
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -106,8 +112,11 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
               <Link href={`/admin/providers/${provider.id}`} className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{provider.businessName}</p>
                 <p className="mt-0.5 truncate text-xs text-foreground/40">
+                  {t(provider.providerType === "INDIVIDUAL" ? "providerTypeIndividual" : "providerTypeCompany")}
+                  {" · "}
                   {provider.slug ? `/${provider.slug}` : t("noSlugLabel")}
                   {provider.city ? ` · ${provider.city}` : ""}
+                  {provider.submittedAt ? ` · ${t("submittedAtLabel")}: ${formatDate(provider.submittedAt, locale)}` : ""}
                 </p>
               </Link>
 
@@ -117,22 +126,13 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
                   {provider.visible ? t("providerVisibleLabel") : t("providerHiddenLabel")}
                 </Badge>
 
-                {(provider.status === "APPLIED" || provider.status === "UNDER_REVIEW") && (
-                  <form
-                    action={async () => {
-                      "use server";
-                      const result = await approveProvider(provider.id);
-                      if (!result.ok) {
-                        redirect({ href: `/admin/providers?error=${result.error}`, locale });
-                        return;
-                      }
-                      redirect({ href: "/admin/providers", locale });
-                    }}
+                {(provider.status === "APPLIED" || provider.status === "UNDER_REVIEW" || provider.status === "CHANGES_REQUESTED") && (
+                  <Link
+                    href={`/admin/providers/${provider.id}`}
+                    className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
-                    <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
-                      {t("approveButton")}
-                    </SubmitButton>
-                  </form>
+                    {t("reviewApplicationLabel")}
+                  </Link>
                 )}
 
                 <form

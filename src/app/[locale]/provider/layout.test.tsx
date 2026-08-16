@@ -14,6 +14,9 @@ vi.mock("@/lib/auth", () => ({
   requireProvider: (...a: unknown[]) => requireProviderMock(...a),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
+  // Gate A: the layout redirects an active admin before requireProvider(); a normal
+  // provider is not an active admin, so it never redirects.
+  isActiveAdminSession: async () => false,
 }));
 
 vi.mock("@/i18n/navigation", () => ({

@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 
@@ -75,6 +75,10 @@ const AWAITING_REVIEW_LIMIT = 20;
 
 export async function getMyReviewsPageData(params: GetMyReviewsPageParams = {}): Promise<MyReviewsPageData> {
   const { barqUser } = await requireAuth();
+  // Gate A (domain-layer authorization): an ACTIVE Admin is backoffice-only and
+  // must not obtain Customer review data — denied at the domain boundary so a
+  // direct call outside the (redirected) page is denied identically.
+  await assertNotActiveAdmin(barqUser.id);
   const locale = await getLocale();
 
   const page = Math.max(1, params.page ?? 1);

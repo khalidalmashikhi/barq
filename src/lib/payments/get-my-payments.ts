@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { PaymentStatus } from "@prisma/client";
@@ -51,6 +51,11 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export async function getMyPayments(filters: MyPaymentListFilters = {}): Promise<MyPaymentListResult> {
   const { barqUser } = await requireAuth();
+  // Gate A (domain-layer authorization): an ACTIVE Admin is backoffice-only and
+  // must not obtain Customer payment data, even its own — enforced here at the
+  // domain boundary (not only via the page redirect) so a direct call from the
+  // BARQ API/iOS/Android or another server action is denied identically.
+  await assertNotActiveAdmin(barqUser.id);
   const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);

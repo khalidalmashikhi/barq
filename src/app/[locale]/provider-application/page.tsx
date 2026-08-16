@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { redirect, Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
-import { requireAuth, UnauthenticatedError } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, hasActiveAdminProfile } from "@/lib/auth";
 import { applyAsProvider } from "@/lib/provider/apply-as-provider";
 import { resubmitProviderApplication } from "@/lib/provider/resubmit-provider-application";
 import { assertProviderApprovable } from "@/lib/provider/documents/assert-provider-approvable";
@@ -98,6 +98,14 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
       return null;
     }
     throw authError;
+  }
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only and may
+  // not become a provider. Redirect it to /admin SERVER-SIDE before the application
+  // form renders; the applyAsProvider action independently denies it too.
+  if (await hasActiveAdminProfile(barqUserId)) {
+    redirect({ href: "/admin", locale });
+    return null;
   }
 
   const existingProvider = await prisma.provider.findUnique({

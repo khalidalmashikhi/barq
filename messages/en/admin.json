@@ -611,6 +611,7 @@
   "verificationRequiredProgress": "{approved} of {total} required documents approved",
   "verificationAllRequiredApproved": "All required documents approved",
   "submittedAtLabel": "Submitted",
+  "reviewApplicationLabel": "Review application",
   "documentMissingLabel": "Missing",
   "documentNotUploadedYet": "Not uploaded yet",
   "noVerificationRequirements": "No verification requirements apply.",

@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
@@ -49,6 +49,11 @@ export async function getBookingDetail(
   if (!isValidUuid(bookingId)) return null;
 
   const { barqUser } = await requireAuth();
+  // Gate A: an ACTIVE Admin is backoffice-only — no Customer booking reads.
+  // API-reachable via GET /api/v1/me/bookings/[id]; the /api/v1 auth wrapper
+  // maps this ForbiddenError to 403. (Web callers redirect the admin to /admin
+  // before reaching this loader.)
+  await assertNotActiveAdmin(barqUser.id);
 
   const customer = await prisma.customer.findUnique({
     where: { userId: barqUser.id },

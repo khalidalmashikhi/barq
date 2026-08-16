@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Star, PenLine, MessageSquareText } from "lucide-react";
 import { redirect, getPathname } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { UnauthenticatedError } from "@/lib/auth";
+import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { getMyReviewsPageData } from "@/lib/booking/get-my-reviews";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
@@ -41,6 +41,13 @@ export const metadata: Metadata = {
 
 export default async function ReviewsPage({ searchParams }: Props) {
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before any customer-capability read or action.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+    return null;
+  }
   const params = await searchParams;
   const pageParsed = params.page ? Number(params.page) : 1;
   const page = Number.isInteger(pageParsed) && pageParsed > 0 ? pageParsed : 1;

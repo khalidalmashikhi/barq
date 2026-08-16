@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 
 // Customer account settings read (Finish-Line: Customer Profile). Returns the
 // legitimately self-editable identity fields for the signed-in user: a display
@@ -19,6 +19,10 @@ export type CustomerSettings = {
 
 export async function getCustomerSettings(): Promise<CustomerSettings> {
   const { barqUser } = await requireAuth();
+  // Gate A (domain-layer authorization): an ACTIVE Admin is backoffice-only —
+  // deny before reading Customer account settings, so a direct (non-page)
+  // invocation is denied identically to the redirected page path.
+  await assertNotActiveAdmin(barqUser.id);
 
   const customer = await prisma.customer.findUnique({
     where: { userId: barqUser.id },

@@ -1,22 +1,25 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { ReactElement } from "react";
 
-// UX remediation (Admin navigation entry) — regression tests proving:
-// (1) an Admin user's rendered nav items include a real "Admin Panel"
-// entry pointing at /admin, and (2) a non-admin user's nav items never
-// contain it at all — not hidden client-side, genuinely absent from
-// the returned tree, since DashboardPage is an async Server Component
-// called directly here (the same convention service-filters.test.tsx
-// already uses), not rendered through any DOM/testing-library layer.
+// Admin Backoffice Hardening (Gate A) — updated regression tests proving:
+// (1) an ACTIVE Admin is REDIRECTED away from the customer dashboard to /admin
+// (backoffice-only) before any customer loader runs — the old "Admin Panel nav
+// item for an admin" behavior is gone precisely because an active admin never
+// renders this page anymore; (2) a non-admin's nav items never contain an Admin
+// Panel entry — genuinely absent from the returned tree, since DashboardPage is an
+// async Server Component called directly here (the same convention
+// service-filters.test.tsx uses), not rendered through any DOM layer.
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("next/navigation", () => ({}));
 
 const requireAuthMock = vi.fn();
+const hasActiveAdminProfileMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  hasActiveAdminProfile: (...args: unknown[]) => hasActiveAdminProfileMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
 }));
 
@@ -63,6 +66,7 @@ type NavItem = { label: string; href?: string };
 
 afterEach(() => {
   requireAuthMock.mockReset();
+  hasActiveAdminProfileMock.mockReset();
   resolveCustomerNavOptionsMock.mockReset();
   getDashboardDataMock.mockReset();
   getUnreadCountMock.mockReset();
@@ -83,22 +87,22 @@ const EMPTY_DASHBOARD_DATA = {
 };
 
 describe("DashboardPage — nav composition from resolveCustomerNavOptions", () => {
-  it("includes a real 'Admin Panel' nav item pointing at /admin for a user with an active Admin profile", async () => {
-    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
-    resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "become", isAdmin: true });
+  it("Gate A: redirects an ACTIVE admin to /admin before any customer loader runs (backoffice-only)", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "admin-user" } });
+    hasActiveAdminProfileMock.mockResolvedValue(true);
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
 
-    const element = (await DashboardPage()) as ReactElement<{ navItems: NavItem[] }>;
-    const navItems = element.props.navItems;
-
-    const adminItem = navItems.find((item) => item.href === "/admin");
-    expect(adminItem).toBeDefined();
-    expect(adminItem?.label).toBe("navAdminPanel");
+    // The mocked locale-aware redirect throws NEXT_REDIRECT, so the page never
+    // returns a nav tree — and, crucially, no customer data is ever loaded.
+    await expect(DashboardPage()).rejects.toThrow("NEXT_REDIRECT");
+    expect(getDashboardDataMock).not.toHaveBeenCalled();
+    expect(resolveCustomerNavOptionsMock).not.toHaveBeenCalled();
   });
 
   it("never includes an Admin Panel nav item for a user with no Admin profile", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    hasActiveAdminProfileMock.mockResolvedValue(false);
     resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "become", isAdmin: false });
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
@@ -112,6 +116,7 @@ describe("DashboardPage — nav composition from resolveCustomerNavOptions", () 
 
   it("exposes the Provider workspace doorway (→ /provider) for an approved provider", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    hasActiveAdminProfileMock.mockResolvedValue(false);
     resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "workspace", isAdmin: false });
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);

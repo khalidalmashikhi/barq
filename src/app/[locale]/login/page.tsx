@@ -2,7 +2,7 @@ import { ShieldCheck, Award, Zap, Headset } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { getSession } from "@/lib/auth";
+import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { isGoogleConfigured } from "@/lib/auth/social-config";
 import { LoginForm } from "@/components/auth/login-form";
 import { Logo } from "@/components/ui/logo";
@@ -54,7 +54,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   if (session) {
     const locale = await getLocale();
-    redirect({ href: "/dashboard", locale });
+    // Role-aware post-login landing (Gate A): an ACTIVE Admin is backoffice-only,
+    // so an already-authenticated admin lands in /admin, never the customer
+    // dashboard. Every other authenticated user keeps the existing /dashboard
+    // landing (Google OAuth callbackURL=/dashboard is covered too, because
+    // /dashboard itself redirects active admins onward).
+    redirect({ href: (await isActiveAdminSession()) ? "/admin" : "/dashboard", locale });
   }
 
   // Better Auth redirects here with `?error=...` if a Google OAuth attempt fails

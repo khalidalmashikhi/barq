@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Link as LocaleLink, redirect } from "@/i18n/navigation";
 import { CalendarX } from "lucide-react";
-import { getSession } from "@/lib/auth";
+import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { getMyBookings } from "@/lib/booking/get-my-bookings";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { Pagination } from "@/components/ui/pagination";
@@ -41,6 +41,13 @@ export default async function BookingsPage({
   const session = await getSession();
   if (!session) {
     redirect({ href: "/login", locale });
+  }
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before getMyBookings() runs (that loader also
+  // denies an active admin at the domain layer, so this is the clean-UX companion).
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
   }
 
   const params = await searchParams;

@@ -69,4 +69,14 @@ describe("resolveCustomerNavOptions — provider doorway mapping", () => {
     const result = await resolveCustomerNavOptions();
     expect(result.isAdmin).toBe(true);
   });
+
+  it("Gate A: suppresses the provider doorway entirely for an ACTIVE admin (backoffice-only)", async () => {
+    // Even though this admin has no provider row (which would normally map to
+    // 'become'), an active admin is never offered the customer→provider journey.
+    providerFindUniqueMock.mockResolvedValue(null);
+    hasActiveAdminProfileMock.mockResolvedValue(true);
+    const result = await resolveCustomerNavOptions();
+    expect(result.providerDoorway).toBeUndefined();
+    expect(result.isAdmin).toBe(true);
+  });
 });

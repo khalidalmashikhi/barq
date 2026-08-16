@@ -24,6 +24,9 @@ vi.mock("next-intl/server", () => ({
 vi.mock("@/lib/auth", () => ({
   getSession: async () => ({ user: { id: "test-user-id" } }),
   requireAuth: async () => ({ barqUser: { id: "test-user-id" } }),
+  // Gate A: the page calls isActiveAdminSession() before loading bookings; a normal
+  // test user is not an active admin, so it never redirects.
+  isActiveAdminSession: async () => false,
 }));
 
 vi.mock("@/lib/booking/get-my-bookings", () => ({

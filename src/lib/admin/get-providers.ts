@@ -23,6 +23,11 @@ export type ProviderListItem = {
   businessName: string;
   slug: string | null;
   status: string;
+  // Review-first list UX (Gate A) — the INDIVIDUAL/COMPANY kind and the explicit
+  // submission timestamp (null until the provider submits, per Gate 1A) let the
+  // list summarize each application at a glance without opening the detail page.
+  providerType: string;
+  submittedAt: Date | null;
   visible: boolean;
   city: string | null;
   createdAt: Date;
@@ -93,6 +98,8 @@ export async function getProviders(filters: ProviderListFilters = {}): Promise<P
     businessName: extractLocalizedText(provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     slug: provider.slug,
     status: provider.status,
+    providerType: provider.providerType,
+    submittedAt: provider.submittedAt,
     visible: provider.visible,
     city: provider.city,
     createdAt: provider.createdAt,

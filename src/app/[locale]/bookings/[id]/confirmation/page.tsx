@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
 import { Download, Share2, MessageCircle, Compass } from "lucide-react";
-import { UnauthenticatedError } from "@/lib/auth";
+import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { getBookingDetail } from "@/lib/booking/get-booking-detail";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
@@ -38,6 +38,13 @@ export const metadata: Metadata = {
 export default async function BookingConfirmationPage({ params }: Props) {
   const { id } = await params;
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before any customer-capability read or action.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+    return null;
+  }
 
   // Phase C.2 — CRITICAL FIX: same uncaught UnauthenticatedError issue
   // as src/app/[locale]/bookings/[id]/page.tsx — see that file's

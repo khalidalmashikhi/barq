@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRight, FileText } from "lucide-react";
 import { redirect, Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { UnauthenticatedError } from "@/lib/auth";
+import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { getMyPaymentDetail } from "@/lib/payments/get-my-payment-detail";
 import { getPaymentStatusLabel, getPaymentStatusBadgeVariant } from "@/lib/payments/payment-status";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
@@ -40,6 +40,13 @@ type Props = {
 export default async function PaymentDetailPage({ params }: Props) {
   const { id } = await params;
   const locale = await getLocale();
+
+  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only:
+  // redirect it to /admin SERVER-SIDE before any customer-capability read or action.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
+    return null;
+  }
 
   if (!isValidUuid(id)) {
     notFound();

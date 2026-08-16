@@ -20,6 +20,8 @@ vi.mock("server-only", () => ({}));
 const adminFindUniqueMock = vi.fn();
 const providerFindUniqueMock = vi.fn();
 const staffFindUniqueMock = vi.fn();
+const customerFindUniqueMock = vi.fn();
+const userFindUniqueMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -31,6 +33,12 @@ vi.mock("@/lib/db", () => ({
     },
     staff: {
       findUnique: (...args: unknown[]) => staffFindUniqueMock(...args),
+    },
+    customer: {
+      findUnique: (...args: unknown[]) => customerFindUniqueMock(...args),
+    },
+    user: {
+      findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
     },
   },
 }));
@@ -49,7 +57,7 @@ vi.mock("./barq-user", () => ({
   resolveBarqUser: (...args: unknown[]) => resolveBarqUserMock(...args),
 }));
 
-const { hasActiveAdminProfile, hasApprovedProviderProfile, requireProvider, requireApprovedProvider, requireAuth, requireAdmin, requireStaff } = await import("./rbac");
+const { hasActiveAdminProfile, hasApprovedProviderProfile, requireProvider, requireApprovedProvider, requireAuth, requireAdmin, requireStaff, requireCustomer, assertNotActiveAdmin, isActiveAdminSession } = await import("./rbac");
 const { ForbiddenError, UnauthenticatedError } = await import("./errors");
 
 const USER_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
@@ -58,6 +66,8 @@ afterEach(() => {
   adminFindUniqueMock.mockReset();
   providerFindUniqueMock.mockReset();
   staffFindUniqueMock.mockReset();
+  customerFindUniqueMock.mockReset();
+  userFindUniqueMock.mockReset();
   getSessionMock.mockReset();
   resolveBarqUserMock.mockReset();
 });
@@ -279,5 +289,105 @@ describe("requireProvider (Production Blocker fix)", () => {
 
     expect(error).toBeInstanceOf(ForbiddenError);
     expect((error as InstanceType<typeof ForbiddenError>).code).toBeUndefined();
+  });
+});
+
+// Admin Backoffice Hardening (Gate A) — an ACTIVE Admin is backoffice-only: it
+// must not exercise Customer/Provider PRODUCT capabilities, even if the same User
+// historically holds Customer/Provider rows. assertNotActiveAdmin() is the single
+// reusable authority, baked into requireCustomer()/requireProvider() and the
+// raw-prisma entry points; isActiveAdminSession() is its non-throwing, session-level
+// companion for role-aware page redirects. A non-admin (and a DEACTIVATED admin) is
+// never blocked — normal Customer+Provider coexistence is fully preserved.
+describe("assertNotActiveAdmin (Gate A — backoffice-only authority)", () => {
+  it("throws ForbiddenError with code ADMIN_BACKOFFICE_ONLY for an ACTIVE admin", async () => {
+    adminFindUniqueMock.mockResolvedValue({ id: "admin-1", userId: USER_ID, status: "ACTIVE" });
+    const error = await assertNotActiveAdmin(USER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect((error as InstanceType<typeof ForbiddenError>).code).toBe("ADMIN_BACKOFFICE_ONLY");
+  });
+
+  it("resolves (does NOT throw) for a user with no Admin row — normal users are unaffected", async () => {
+    adminFindUniqueMock.mockResolvedValue(null);
+    await expect(assertNotActiveAdmin(USER_ID)).resolves.toBeUndefined();
+  });
+
+  it("resolves for a DEACTIVATED admin — only an ACTIVE admin is backoffice-locked", async () => {
+    adminFindUniqueMock.mockResolvedValue({ id: "admin-1", userId: USER_ID, status: "DEACTIVATED" });
+    await expect(assertNotActiveAdmin(USER_ID)).resolves.toBeUndefined();
+  });
+});
+
+describe("requireCustomer (Gate A — active admin excluded)", () => {
+  it("throws ForbiddenError (ADMIN_BACKOFFICE_ONLY) for an ACTIVE admin, before any Customer lookup", async () => {
+    mockAuthenticatedWithStatus("ACTIVE");
+    adminFindUniqueMock.mockResolvedValue({ id: "admin-1", userId: USER_ID, status: "ACTIVE" });
+    const error = await requireCustomer().catch((e) => e);
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect((error as InstanceType<typeof ForbiddenError>).code).toBe("ADMIN_BACKOFFICE_ONLY");
+    // The admin exclusion short-circuits before the Customer row is ever read.
+    expect(customerFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("still admits a normal (non-admin) Customer — coexistence and the common path are unchanged", async () => {
+    mockAuthenticatedWithStatus("ACTIVE");
+    adminFindUniqueMock.mockResolvedValue(null);
+    customerFindUniqueMock.mockResolvedValue({ id: "cust-1", userId: USER_ID });
+    const { customer } = await requireCustomer();
+    expect(customer.id).toBe("cust-1");
+  });
+});
+
+describe("requireProvider (Gate A — active admin excluded)", () => {
+  it("throws ForbiddenError (ADMIN_BACKOFFICE_ONLY) for an ACTIVE admin, before any Provider lookup", async () => {
+    mockAuthenticatedWithStatus("ACTIVE");
+    adminFindUniqueMock.mockResolvedValue({ id: "admin-1", userId: USER_ID, status: "ACTIVE" });
+    const error = await requireProvider().catch((e) => e);
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect((error as InstanceType<typeof ForbiddenError>).code).toBe("ADMIN_BACKOFFICE_ONLY");
+    expect(providerFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("still admits a normal (non-admin) APPROVED Provider — a plain provider is unaffected", async () => {
+    mockAuthenticatedWithStatus("ACTIVE");
+    adminFindUniqueMock.mockResolvedValue(null);
+    providerFindUniqueMock.mockResolvedValue({ id: "prov-1", userId: USER_ID, status: "APPROVED" });
+    const { provider } = await requireProvider();
+    expect(provider.status).toBe("APPROVED");
+  });
+});
+
+describe("isActiveAdminSession (Gate A — non-throwing page-redirect companion)", () => {
+  it("returns false when there is no session", async () => {
+    getSessionMock.mockResolvedValue(null);
+    expect(await isActiveAdminSession()).toBe(false);
+  });
+
+  it("returns false when the auth user resolves to no linked BARQ User", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
+    userFindUniqueMock.mockResolvedValue(null);
+    expect(await isActiveAdminSession()).toBe(false);
+  });
+
+  it("returns false for a linked user who is not an active admin", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
+    userFindUniqueMock.mockResolvedValue({ id: USER_ID });
+    adminFindUniqueMock.mockResolvedValue(null);
+    expect(await isActiveAdminSession()).toBe(false);
+  });
+
+  it("returns true for a linked user with an ACTIVE Admin row", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
+    userFindUniqueMock.mockResolvedValue({ id: USER_ID });
+    adminFindUniqueMock.mockResolvedValue({ id: "admin-1", userId: USER_ID, status: "ACTIVE" });
+    expect(await isActiveAdminSession()).toBe(true);
+  });
+
+  it("never creates a BARQ User — it uses a plain user.findUnique, not resolveBarqUser", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
+    userFindUniqueMock.mockResolvedValue({ id: USER_ID });
+    adminFindUniqueMock.mockResolvedValue({ status: "DEACTIVATED" });
+    await isActiveAdminSession();
+    expect(resolveBarqUserMock).not.toHaveBeenCalled();
   });
 });

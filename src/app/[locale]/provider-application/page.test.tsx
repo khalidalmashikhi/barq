@@ -17,6 +17,9 @@ class UnauthenticatedError extends Error {}
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...a: unknown[]) => requireAuthMock(...a),
   UnauthenticatedError,
+  // Gate A: the page redirects an active admin before rendering the form; every
+  // case here is a normal (non-admin) applicant, so it never redirects.
+  hasActiveAdminProfile: async () => false,
 }));
 
 const providerFindUniqueMock = vi.fn();
