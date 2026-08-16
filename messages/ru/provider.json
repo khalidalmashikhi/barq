@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "Некоторые необходимые документы всё ещё отсутствуют. Загрузите их, затем отправьте.",
   "verificationSubmitInvalidState": "Эту заявку нельзя отправить в её текущем состоянии.",
   "verificationUnderReviewNote": "Ваша заявка на рассмотрении. Документы заблокированы, пока наша команда их проверяет.",
+  "verificationChangesRequestedNote": "Администратор вернул вашу заявку на доработку. Обновите документы ниже и отправьте снова.",
+  "applicationStatusChangesRequested": "Запрошены изменения",
+  "applicationStatusChangesRequestedBody": "Наша команда запросила изменения в вашей заявке. Ознакомьтесь с причиной, обновите документы на странице проверки и отправьте снова.",
+  "applicationChangesRequestedReasonLabel": "Запрошенные изменения",
   "applicationCompleteDocumentsLink": "Завершите оформление документов для верификации",
   "applicationVerificationLink": "Верификация и документы"
 }

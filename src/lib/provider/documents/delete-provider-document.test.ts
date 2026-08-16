@@ -98,4 +98,11 @@ describe("deleteProviderDocument", () => {
       expect(findUniqueMock).not.toHaveBeenCalled();
     }
   );
+
+  it("Gate 1B: a CHANGES_REQUESTED provider CAN delete (documents editable again)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "CHANGES_REQUESTED" } });
+    findUniqueMock.mockResolvedValue(doc("PENDING"));
+    expect(await deleteProviderDocument({ documentId: "doc-1", expectedVersionToken: token })).toEqual({ ok: true });
+    expect(findUniqueMock).toHaveBeenCalled();
+  });
 });

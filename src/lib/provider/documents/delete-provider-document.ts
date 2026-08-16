@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { removePrivateObject } from "@/lib/storage/storage";
 import { documentVersionToken } from "./document-version-token";
+import { isVerificationEditableStatus } from "./verification-lifecycle";
 import type { ProviderDocumentActionResult } from "./provider-document-errors";
 
 // Delete a provider document. Allowed only for PENDING/REJECTED — an APPROVED
@@ -30,10 +31,10 @@ export async function deleteProviderDocument(input: {
     throw error;
   }
 
-  // Gate 1A SERVER invariant: delete is allowed ONLY while DRAFT (see
-  // uploadProviderDocument). Rejected server-side for every other status so a
-  // direct API call cannot bypass the UI lock.
-  if (provider.status !== "DRAFT") {
+  // Gate 1A/1B SERVER invariant: delete is allowed ONLY while editable
+  // (DRAFT or CHANGES_REQUESTED — see uploadProviderDocument). Rejected
+  // server-side for every other status so a direct API call cannot bypass the UI.
+  if (!isVerificationEditableStatus(provider.status)) {
     return { ok: false, error: "APPLICATION_LOCKED" };
   }
 

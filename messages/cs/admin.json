@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Něco se pokazilo. Zkuste to prosím znovu.",
   "documentErrorUploadFailed": "Dokument se teď nepodařilo nahrát. Zkuste to prosím znovu.",
   "statusDraft": "Koncept",
-  "documentErrorApplicationLocked": "Tato žádost byla odeslána, takže její dokumenty již nelze měnit."
+  "documentErrorApplicationLocked": "Tato žádost byla odeslána, takže její dokumenty již nelze měnit.",
+  "statusChangesRequested": "Vyžádány změny",
+  "verificationRequiredProgress": "Schváleno {approved} z {total} požadovaných dokumentů",
+  "verificationAllRequiredApproved": "Všechny požadované dokumenty schváleny",
+  "submittedAtLabel": "Odesláno",
+  "documentMissingLabel": "Chybí",
+  "documentNotUploadedYet": "Zatím nenahráno",
+  "noVerificationRequirements": "Nevztahují se žádné ověřovací požadavky.",
+  "requestChangesButton": "Vyžádat změny",
+  "requestChangesReasonLabel": "Důvod vyžádaných změn",
+  "requestChangesReasonPlaceholder": "Vysvětlete, co má poskytovatel opravit…"
 }

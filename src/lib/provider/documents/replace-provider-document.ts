@@ -9,6 +9,7 @@ import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject }
 import { validateDocumentUpload } from "./document-constants";
 import { buildDocumentObjectKey, sanitizeOriginalFilename } from "./document-object-key";
 import { documentVersionToken } from "./document-version-token";
+import { isVerificationEditableStatus } from "./verification-lifecycle";
 import type { ProviderDocumentActionResult, ProviderDocumentErrorCode } from "./provider-document-errors";
 
 // Replace an existing provider document with a NEW immutable object, resetting
@@ -43,10 +44,10 @@ export async function replaceProviderDocument(input: ReplaceProviderDocumentInpu
     throw error;
   }
 
-  // Gate 1A SERVER invariant: replace is allowed ONLY while DRAFT (see
-  // uploadProviderDocument). Rejected server-side for every other status so a
-  // direct API call cannot bypass the UI lock.
-  if (provider.status !== "DRAFT") {
+  // Gate 1A/1B SERVER invariant: replace is allowed ONLY while editable
+  // (DRAFT or CHANGES_REQUESTED — see uploadProviderDocument). Rejected
+  // server-side for every other status so a direct API call cannot bypass the UI.
+  if (!isVerificationEditableStatus(provider.status)) {
     return { ok: false, error: "APPLICATION_LOCKED" };
   }
 

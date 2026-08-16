@@ -43,6 +43,7 @@ const STATUS_LABEL_KEYS = {
   DRAFT: "applicationStatusDraft",
   APPLIED: "applicationStatusApplied",
   UNDER_REVIEW: "applicationStatusUnderReview",
+  CHANGES_REQUESTED: "applicationStatusChangesRequested",
   APPROVED: "applicationStatusApproved",
   REJECTED: "applicationStatusRejected",
   SUSPENDED: "applicationStatusSuspended",
@@ -59,6 +60,7 @@ const STATUS_BODY_KEYS = {
   DRAFT: "applicationStatusDraftBody",
   APPLIED: "applicationStatusAppliedBody",
   UNDER_REVIEW: "applicationStatusUnderReviewBody",
+  CHANGES_REQUESTED: "applicationStatusChangesRequestedBody",
   APPROVED: "applicationStatusApprovedBody",
   REJECTED: "applicationStatusRejectedBody",
   SUSPENDED: "applicationStatusSuspendedBody",
@@ -69,7 +71,14 @@ const STATUS_BODY_KEYS = {
 // these reassure the applicant that their customer account is unaffected.
 // REJECTED is included: a rejected applicant remains a full customer and can
 // correct + resubmit.
-const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = ["DRAFT", "APPLIED", "UNDER_REVIEW", "APPROVED", "REJECTED"];
+const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = [
+  "DRAFT",
+  "APPLIED",
+  "UNDER_REVIEW",
+  "CHANGES_REQUESTED",
+  "APPROVED",
+  "REJECTED",
+];
 const TERMINATED_STATUSES: ProviderStatus[] = ["SUSPENDED", "DEACTIVATED"];
 
 type Props = { searchParams: Promise<{ error?: string }> };
@@ -148,6 +157,24 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
                 {t("applicationContinueVerificationLink")}
                 <ArrowRight size={16} strokeWidth={1.75} className="rtl:-scale-x-100" />
               </Link>
+            )}
+
+            {existingProvider.status === "CHANGES_REQUESTED" && (
+              <div className="flex flex-col gap-3">
+                {existingProvider.rejectionReason && (
+                  <div className="flex flex-col gap-1 rounded-xl border border-warning/40 bg-warning/5 p-3">
+                    <span className="text-xs font-medium text-warning">{t("applicationChangesRequestedReasonLabel")}</span>
+                    <p className="whitespace-pre-wrap text-sm text-foreground/80">{existingProvider.rejectionReason}</p>
+                  </div>
+                )}
+                <Link
+                  href="/provider/verification"
+                  className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  {t("applicationContinueVerificationLink")}
+                  <ArrowRight size={16} strokeWidth={1.75} className="rtl:-scale-x-100" />
+                </Link>
+              </div>
             )}
 
             {(existingProvider.status === "APPLIED" || existingProvider.status === "UNDER_REVIEW") && hasDocumentBlockers && (

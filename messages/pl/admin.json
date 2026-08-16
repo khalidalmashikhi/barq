@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Coś poszło nie tak. Spróbuj ponownie.",
   "documentErrorUploadFailed": "Nie udało się teraz przesłać dokumentu. Spróbuj ponownie.",
   "statusDraft": "Wersja robocza",
-  "documentErrorApplicationLocked": "Ten wniosek został wysłany, więc jego dokumentów nie można już zmieniać."
+  "documentErrorApplicationLocked": "Ten wniosek został wysłany, więc jego dokumentów nie można już zmieniać.",
+  "statusChangesRequested": "Poproszono o zmiany",
+  "verificationRequiredProgress": "Zatwierdzono {approved} z {total} wymaganych dokumentów",
+  "verificationAllRequiredApproved": "Wszystkie wymagane dokumenty zatwierdzone",
+  "submittedAtLabel": "Wysłano",
+  "documentMissingLabel": "Brak",
+  "documentNotUploadedYet": "Jeszcze nie przesłano",
+  "noVerificationRequirements": "Brak obowiązujących wymagań weryfikacyjnych.",
+  "requestChangesButton": "Poproś o zmiany",
+  "requestChangesReasonLabel": "Powód żądanych zmian",
+  "requestChangesReasonPlaceholder": "Wyjaśnij, co dostawca musi poprawić…"
 }

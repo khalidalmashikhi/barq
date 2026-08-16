@@ -26,6 +26,10 @@ export type ProviderDetail = {
   rejectionReason: string | null;
   rejectedAt: Date | null;
   rejectedByAdminId: string | null;
+  /// Gate 1B — when the provider explicitly submitted for verification
+  /// (DRAFT/CHANGES_REQUESTED -> UNDER_REVIEW). Null for DRAFT and for legacy
+  /// APPLIED rows that never went through the explicit submit action.
+  submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 } | null;
@@ -60,6 +64,7 @@ export async function getProviderDetail(providerId: string): Promise<ProviderDet
     rejectionReason: provider.rejectionReason,
     rejectedAt: provider.rejectedAt,
     rejectedByAdminId: provider.rejectedByAdminId,
+    submittedAt: provider.submittedAt,
     createdAt: provider.createdAt,
     updatedAt: provider.updatedAt,
   };

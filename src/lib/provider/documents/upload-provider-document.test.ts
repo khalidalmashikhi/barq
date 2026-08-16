@@ -171,4 +171,11 @@ describe("uploadProviderDocument", () => {
       expect(uploadMock).not.toHaveBeenCalled();
     }
   );
+
+  it("Gate 1B: a CHANGES_REQUESTED provider CAN upload (documents editable again)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "CHANGES_REQUESTED" } });
+    const result = await uploadProviderDocument(baseInput());
+    expect(result).toEqual({ ok: true, documentId: "doc-1" });
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+  });
 });

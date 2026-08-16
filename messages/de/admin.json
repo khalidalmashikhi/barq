@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   "documentErrorUploadFailed": "Das Dokument konnte gerade nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
   "statusDraft": "Entwurf",
-  "documentErrorApplicationLocked": "Dieser Antrag wurde eingereicht, daher können seine Dokumente nicht mehr geändert werden."
+  "documentErrorApplicationLocked": "Dieser Antrag wurde eingereicht, daher können seine Dokumente nicht mehr geändert werden.",
+  "statusChangesRequested": "Änderungen angefordert",
+  "verificationRequiredProgress": "{approved} von {total} erforderlichen Dokumenten genehmigt",
+  "verificationAllRequiredApproved": "Alle erforderlichen Dokumente genehmigt",
+  "submittedAtLabel": "Eingereicht",
+  "documentMissingLabel": "Fehlt",
+  "documentNotUploadedYet": "Noch nicht hochgeladen",
+  "noVerificationRequirements": "Keine Verifizierungsanforderungen anwendbar.",
+  "requestChangesButton": "Änderungen anfordern",
+  "requestChangesReasonLabel": "Grund für die angeforderten Änderungen",
+  "requestChangesReasonPlaceholder": "Erläutern Sie, was der Anbieter korrigieren muss…"
 }

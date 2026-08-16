@@ -115,6 +115,12 @@ enum ProviderStatus {
   /// stay reviewable.
   APPLIED
   UNDER_REVIEW
+  /// Gate 1B — an admin RETURNED the submitted application for correction (distinct
+  /// from REJECTED = denied). Document mutation is re-enabled (like DRAFT); the
+  /// provider fixes and EXPLICITLY re-submits (-> UNDER_REVIEW). Not in the admin
+  /// queue and never admin-approvable while in this state. The changes reason is
+  /// stored in the existing `rejectionReason` field and cleared on re-submit.
+  CHANGES_REQUESTED
   APPROVED
   REJECTED
   SUSPENDED

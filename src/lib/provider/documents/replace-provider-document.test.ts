@@ -146,4 +146,11 @@ describe("replaceProviderDocument", () => {
       expect(uploadMock).not.toHaveBeenCalled();
     }
   );
+
+  it("Gate 1B: a CHANGES_REQUESTED provider CAN replace (documents editable again)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "CHANGES_REQUESTED" } });
+    const result = await replaceProviderDocument(baseInput());
+    expect(result).toEqual({ ok: true });
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+  });
 });

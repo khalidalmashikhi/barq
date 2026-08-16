@@ -11,6 +11,7 @@ import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject }
 import { validateDocumentUpload } from "./document-constants";
 import { buildDocumentObjectKey, sanitizeOriginalFilename } from "./document-object-key";
 import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
+import { isVerificationEditableStatus } from "./verification-lifecycle";
 import type { UploadProviderDocumentResult, ProviderDocumentErrorCode } from "./provider-document-errors";
 
 // Upload a NEW provider verification document (Option 1: bytes already received
@@ -41,12 +42,13 @@ export async function uploadProviderDocument(input: UploadProviderDocumentInput)
     throw error;
   }
 
-  // Gate 1A SERVER invariant: documents may be mutated ONLY while DRAFT. Once the
-  // provider has submitted (UNDER_REVIEW), been decided (APPROVED/REJECTED), or is
-  // a legacy APPLIED row, the server rejects the mutation — a direct API call can
+  // Gate 1A/1B SERVER invariant: documents may be mutated ONLY while the
+  // application is editable — DRAFT or CHANGES_REQUESTED (an admin returned it for
+  // correction). Once submitted (UNDER_REVIEW), decided (APPROVED/REJECTED), or a
+  // legacy APPLIED row, the server rejects the mutation — a direct API call can
   // never bypass the UI lock. (requireProvider() proves ownership/active status,
-  // not the lifecycle stage.) A REJECTED provider must resubmit (-> DRAFT) first.
-  if (provider.status !== "DRAFT") {
+  // not the lifecycle stage.)
+  if (!isVerificationEditableStatus(provider.status)) {
     return { ok: false, error: "APPLICATION_LOCKED" };
   }
 

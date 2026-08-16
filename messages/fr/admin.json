@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Une erreur s'est produite. Veuillez réessayer.",
   "documentErrorUploadFailed": "Le document n'a pas pu être téléchargé pour le moment. Veuillez réessayer.",
   "statusDraft": "Brouillon",
-  "documentErrorApplicationLocked": "Cette demande a été soumise, ses documents ne peuvent donc plus être modifiés."
+  "documentErrorApplicationLocked": "Cette demande a été soumise, ses documents ne peuvent donc plus être modifiés.",
+  "statusChangesRequested": "Modifications demandées",
+  "verificationRequiredProgress": "{approved} sur {total} documents requis approuvés",
+  "verificationAllRequiredApproved": "Tous les documents requis approuvés",
+  "submittedAtLabel": "Soumis le",
+  "documentMissingLabel": "Manquant",
+  "documentNotUploadedYet": "Pas encore téléversé",
+  "noVerificationRequirements": "Aucune exigence de vérification applicable.",
+  "requestChangesButton": "Demander des modifications",
+  "requestChangesReasonLabel": "Raison des modifications demandées",
+  "requestChangesReasonPlaceholder": "Expliquez ce que le prestataire doit corriger…"
 }

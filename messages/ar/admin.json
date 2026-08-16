@@ -606,5 +606,15 @@
   "documentErrorUnknown": "حدث خطأ ما. يُرجى المحاولة مرة أخرى.",
   "documentErrorUploadFailed": "تعذر رفع الملف حاليًا. حاول مرة أخرى.",
   "statusDraft": "مسودة",
-  "documentErrorApplicationLocked": "تم إرسال هذا الطلب، لذا لم يعد بالإمكان تغيير مستنداته."
+  "documentErrorApplicationLocked": "تم إرسال هذا الطلب، لذا لم يعد بالإمكان تغيير مستنداته.",
+  "statusChangesRequested": "طُلبت تعديلات",
+  "verificationRequiredProgress": "تمت الموافقة على {approved} من {total} من المستندات المطلوبة",
+  "verificationAllRequiredApproved": "تمت الموافقة على جميع المستندات المطلوبة",
+  "submittedAtLabel": "أُرسل في",
+  "documentMissingLabel": "غير مرفوع",
+  "documentNotUploadedYet": "لم يُرفع بعد",
+  "noVerificationRequirements": "لا توجد متطلبات تحقق منطبقة.",
+  "requestChangesButton": "طلب تعديلات",
+  "requestChangesReasonLabel": "سبب طلب التعديلات",
+  "requestChangesReasonPlaceholder": "اشرح ما الذي يجب على مزوّد الخدمة تصحيحه…"
 }

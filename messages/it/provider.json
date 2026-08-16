@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "Alcuni documenti richiesti mancano ancora. Caricali, poi invia.",
   "verificationSubmitInvalidState": "Questa domanda non può essere inviata nel suo stato attuale.",
   "verificationUnderReviewNote": "La tua domanda è in revisione. I documenti sono bloccati mentre il nostro team la esamina.",
+  "verificationChangesRequestedNote": "L'amministratore ha restituito la tua domanda per modifiche. Aggiorna i documenti qui sotto, poi invia di nuovo.",
+  "applicationStatusChangesRequested": "Modifiche richieste",
+  "applicationStatusChangesRequestedBody": "Il nostro team ha richiesto modifiche alla tua domanda. Controlla il motivo, aggiorna i documenti nella pagina di verifica, poi invia di nuovo.",
+  "applicationChangesRequestedReasonLabel": "Modifiche richieste",
   "applicationCompleteDocumentsLink": "Completa i tuoi documenti di verifica",
   "applicationVerificationLink": "Verifica e documenti"
 }

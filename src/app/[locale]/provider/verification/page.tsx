@@ -105,6 +105,17 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
         </Alert>
       )}
 
+      {data.providerStatus === "CHANGES_REQUESTED" && (
+        <Alert variant="warning">
+          <span className="flex flex-col gap-1">
+            <span className="font-medium">{t("verificationChangesRequestedNote")}</span>
+            {data.changesRequestedReason && (
+              <span className="whitespace-pre-wrap text-foreground/80">{data.changesRequestedReason}</span>
+            )}
+          </span>
+        </Alert>
+      )}
+
       {!data.storageAvailable && (
         <Alert variant="warning">
           <span className="flex items-center gap-2">

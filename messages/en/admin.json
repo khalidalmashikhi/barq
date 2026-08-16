@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Something went wrong. Please try again.",
   "documentErrorUploadFailed": "The document could not be uploaded right now. Please try again.",
   "statusDraft": "Draft",
-  "documentErrorApplicationLocked": "This application has been submitted, so its documents can no longer be changed."
+  "documentErrorApplicationLocked": "This application has been submitted, so its documents can no longer be changed.",
+  "statusChangesRequested": "Changes requested",
+  "verificationRequiredProgress": "{approved} of {total} required documents approved",
+  "verificationAllRequiredApproved": "All required documents approved",
+  "submittedAtLabel": "Submitted",
+  "documentMissingLabel": "Missing",
+  "documentNotUploadedYet": "Not uploaded yet",
+  "noVerificationRequirements": "No verification requirements apply.",
+  "requestChangesButton": "Request changes",
+  "requestChangesReasonLabel": "Reason for the requested changes",
+  "requestChangesReasonPlaceholder": "Explain what the provider needs to correct…"
 }

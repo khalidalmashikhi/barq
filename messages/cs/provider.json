@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "Některé požadované dokumenty stále chybí. Nahrajte je a poté odešlete.",
   "verificationSubmitInvalidState": "Tuto žádost nelze v aktuálním stavu odeslat.",
   "verificationUnderReviewNote": "Vaše žádost se kontroluje. Dokumenty jsou během kontroly naším týmem uzamčeny.",
+  "verificationChangesRequestedNote": "Administrátor vrátil vaši žádost k úpravám. Aktualizujte níže uvedené dokumenty a poté odešlete znovu.",
+  "applicationStatusChangesRequested": "Vyžádány změny",
+  "applicationStatusChangesRequestedBody": "Náš tým požádal o změny ve vaší žádosti. Zkontrolujte důvod, aktualizujte dokumenty na stránce ověření a poté odešlete znovu.",
+  "applicationChangesRequestedReasonLabel": "Vyžádané změny",
   "applicationCompleteDocumentsLink": "Dokončete své ověřovací dokumenty",
   "applicationVerificationLink": "Ověření a dokumenty"
 }

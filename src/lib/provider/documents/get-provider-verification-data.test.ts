@@ -265,5 +265,21 @@ describe("getProviderVerificationData — Gate 1A submission fields (editable / 
 
     expect(data.editable).toBe(false);
     expect(data.canSubmit).toBe(false); // editable === false gates canSubmit regardless of presence
+    expect(data.changesRequestedReason).toBeNull();
+  });
+
+  it("CHANGES_REQUESTED is editable again and exposes the admin's changes reason", async () => {
+    requireProviderMock.mockResolvedValue({
+      provider: { id: "prov-1", providerType: "INDIVIDUAL", status: "CHANGES_REQUESTED", rejectionReason: "Upload a clearer ID" },
+    });
+    findManyMock.mockResolvedValue([doc({ type: "IDENTITY_PROOF", status: "PENDING" })]);
+    requirementFindManyMock.mockResolvedValue(SEEDED_ROWS);
+    storageConfiguredMock.mockReturnValue(true);
+
+    const data = await getProviderVerificationData();
+
+    expect(data.editable).toBe(true);
+    expect(data.canSubmit).toBe(true); // required doc present (PENDING satisfies submission)
+    expect(data.changesRequestedReason).toBe("Upload a clearer ID");
   });
 });

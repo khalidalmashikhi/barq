@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Qualcosa è andato storto. Riprova.",
   "documentErrorUploadFailed": "Impossibile caricare il documento in questo momento. Riprova.",
   "statusDraft": "Bozza",
-  "documentErrorApplicationLocked": "Questa domanda è stata inviata, quindi i suoi documenti non possono più essere modificati."
+  "documentErrorApplicationLocked": "Questa domanda è stata inviata, quindi i suoi documenti non possono più essere modificati.",
+  "statusChangesRequested": "Modifiche richieste",
+  "verificationRequiredProgress": "{approved} di {total} documenti richiesti approvati",
+  "verificationAllRequiredApproved": "Tutti i documenti richiesti approvati",
+  "submittedAtLabel": "Inviato",
+  "documentMissingLabel": "Mancante",
+  "documentNotUploadedYet": "Non ancora caricato",
+  "noVerificationRequirements": "Nessun requisito di verifica applicabile.",
+  "requestChangesButton": "Richiedi modifiche",
+  "requestChangesReasonLabel": "Motivo delle modifiche richieste",
+  "requestChangesReasonPlaceholder": "Spiega cosa deve correggere il fornitore…"
 }

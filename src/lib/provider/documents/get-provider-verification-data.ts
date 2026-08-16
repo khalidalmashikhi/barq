@@ -6,6 +6,7 @@ import { isDocumentStorageConfigured } from "@/lib/storage/storage";
 import { resolveVerificationChecklist, resolveSubmitBlockers, type SubmitBlocker } from "@/lib/provider-document-types";
 import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
 import { documentVersionToken } from "./document-version-token";
+import { isVerificationEditableStatus } from "./verification-lifecycle";
 
 // Single provider-side read backing the /provider/verification page AND the
 // dashboard readiness card — so the required/optional checklist is derived once,
@@ -44,12 +45,17 @@ export type ProviderVerificationData = {
   items: VerificationChecklistItem[]; // ordered by policy sortOrder (required first by default)
   requiredTotal: number;
   requiredApproved: number;
-  // Gate 1A submission lifecycle. `editable` gates document mutation + the submit
-  // control to DRAFT only. `canSubmit` is TRUE only when editable AND every
-  // required document is present (not admin-REJECTED) — presence-only readiness.
+  // Gate 1A/1B submission lifecycle. `editable` gates document mutation + the
+  // submit control to DRAFT or CHANGES_REQUESTED. `canSubmit` is TRUE only when
+  // editable AND every required document is present (not admin-REJECTED) —
+  // presence-only readiness.
   editable: boolean;
   canSubmit: boolean;
   submitBlockers: SubmitBlocker[];
+  // Gate 1B — the admin's mandatory reason when status is CHANGES_REQUESTED
+  // (reused rejectionReason field); null otherwise. Shown so the provider knows
+  // what to fix before re-submitting.
+  changesRequestedReason: string | null;
 };
 
 export async function getProviderVerificationData(): Promise<ProviderVerificationData> {
@@ -93,7 +99,7 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
     requiredItems.map((req) => req.key),
     rows.map((r) => ({ type: r.type, status: r.status }))
   );
-  const editable = provider.status === "DRAFT";
+  const editable = isVerificationEditableStatus(provider.status);
 
   return {
     providerType: provider.providerType,
@@ -105,5 +111,6 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
     editable,
     canSubmit: editable && submitBlockers.length === 0,
     submitBlockers,
+    changesRequestedReason: provider.status === "CHANGES_REQUESTED" ? provider.rejectionReason : null,
   };
 }

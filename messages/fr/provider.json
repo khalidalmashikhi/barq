@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "Certains documents requis manquent encore. Téléversez-les, puis soumettez.",
   "verificationSubmitInvalidState": "Cette demande ne peut pas être soumise dans son état actuel.",
   "verificationUnderReviewNote": "Votre demande est en cours d'examen. Les documents sont verrouillés pendant l'examen par notre équipe.",
+  "verificationChangesRequestedNote": "L'administrateur a renvoyé votre demande pour modifications. Mettez à jour les documents ci-dessous, puis soumettez à nouveau.",
+  "applicationStatusChangesRequested": "Modifications demandées",
+  "applicationStatusChangesRequestedBody": "Notre équipe a demandé des modifications à votre demande. Consultez la raison, mettez à jour vos documents sur la page de vérification, puis soumettez à nouveau.",
+  "applicationChangesRequestedReasonLabel": "Modifications demandées",
   "applicationCompleteDocumentsLink": "Complétez vos documents de vérification",
   "applicationVerificationLink": "Vérification et documents"
 }

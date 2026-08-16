@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "Einige erforderliche Dokumente fehlen noch. Laden Sie sie hoch und reichen Sie dann ein.",
   "verificationSubmitInvalidState": "Dieser Antrag kann in seinem aktuellen Zustand nicht eingereicht werden.",
   "verificationUnderReviewNote": "Ihr Antrag wird geprüft. Die Dokumente sind gesperrt, während unser Team ihn prüft.",
+  "verificationChangesRequestedNote": "Der Administrator hat Ihren Antrag zur Änderung zurückgegeben. Aktualisieren Sie die Dokumente unten und reichen Sie erneut ein.",
+  "applicationStatusChangesRequested": "Änderungen angefordert",
+  "applicationStatusChangesRequestedBody": "Unser Team hat Änderungen an Ihrem Antrag angefordert. Prüfen Sie den Grund, aktualisieren Sie Ihre Dokumente auf der Verifizierungsseite und reichen Sie erneut ein.",
+  "applicationChangesRequestedReasonLabel": "Angeforderte Änderungen",
   "applicationCompleteDocumentsLink": "Vervollständigen Sie Ihre Verifizierungsdokumente",
   "applicationVerificationLink": "Verifizierung & Dokumente"
 }

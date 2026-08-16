@@ -41,17 +41,19 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("submitProviderVerification", () => {
-  it("DRAFT + ready → UNDER_REVIEW, sets submittedAt, records audit (optimistic guard on status='DRAFT')", async () => {
+  it("DRAFT + ready → UNDER_REVIEW, sets submittedAt, clears reason, records audit (optimistic guard on editable states)", async () => {
     const result = await submitProviderVerification();
     expect(result).toEqual({ ok: true, status: "UNDER_REVIEW", alreadySubmitted: false });
 
     const arg = updateManyMock.mock.calls[0]![0] as {
-      where: { id: string; status: string };
-      data: { status: string; submittedAt: unknown };
+      where: { id: string; status: { in: string[] } };
+      data: { status: string; submittedAt: unknown; rejectionReason: null };
     };
-    expect(arg.where).toEqual({ id: "prov-1", status: "DRAFT" }); // legacy APPLIED can never be moved by this
+    // Guarded on the editable states only — legacy APPLIED can never be moved by this.
+    expect(arg.where).toEqual({ id: "prov-1", status: { in: ["DRAFT", "CHANGES_REQUESTED"] } });
     expect(arg.data.status).toBe("UNDER_REVIEW");
     expect(arg.data.submittedAt).toBeInstanceOf(Date);
+    expect(arg.data.rejectionReason).toBeNull(); // clears any prior changes-request reason
 
     const audit = auditCreateMock.mock.calls[0]![0] as {
       data: { action: string; actorType: string; previousValue: unknown; newValue: unknown };
@@ -60,6 +62,14 @@ describe("submitProviderVerification", () => {
     expect(audit.data.actorType).toBe("PROVIDER");
     expect(audit.data.previousValue).toEqual({ status: "DRAFT" });
     expect(audit.data.newValue).toEqual({ status: "UNDER_REVIEW" });
+  });
+
+  it("CHANGES_REQUESTED + ready → UNDER_REVIEW (re-submit), audits with the correct previous status", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "CHANGES_REQUESTED", providerType: "INDIVIDUAL" } });
+    const result = await submitProviderVerification();
+    expect(result).toEqual({ ok: true, status: "UNDER_REVIEW", alreadySubmitted: false });
+    const audit = auditCreateMock.mock.calls[0]![0] as { data: { previousValue: unknown } };
+    expect(audit.data.previousValue).toEqual({ status: "CHANGES_REQUESTED" });
   });
 
   it("blocks submission when a required document is missing (NOT_READY) and writes nothing", async () => {

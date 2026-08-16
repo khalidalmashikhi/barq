@@ -606,5 +606,15 @@
   "documentErrorUnknown": "Что-то пошло не так. Повторите попытку.",
   "documentErrorUploadFailed": "Не удалось загрузить документ. Повторите попытку.",
   "statusDraft": "Черновик",
-  "documentErrorApplicationLocked": "Эта заявка отправлена, поэтому изменить её документы больше нельзя."
+  "documentErrorApplicationLocked": "Эта заявка отправлена, поэтому изменить её документы больше нельзя.",
+  "statusChangesRequested": "Запрошены изменения",
+  "verificationRequiredProgress": "Одобрено {approved} из {total} обязательных документов",
+  "verificationAllRequiredApproved": "Все обязательные документы одобрены",
+  "submittedAtLabel": "Отправлено",
+  "documentMissingLabel": "Отсутствует",
+  "documentNotUploadedYet": "Ещё не загружено",
+  "noVerificationRequirements": "Требования к проверке не применяются.",
+  "requestChangesButton": "Запросить изменения",
+  "requestChangesReasonLabel": "Причина запрошенных изменений",
+  "requestChangesReasonPlaceholder": "Объясните, что поставщику нужно исправить…"
 }

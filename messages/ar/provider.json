@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "لا تزال بعض المستندات المطلوبة ناقصة. ارفعها ثم أرسل الطلب.",
   "verificationSubmitInvalidState": "لا يمكن إرسال هذا الطلب في حالته الحالية.",
   "verificationUnderReviewNote": "طلبك قيد المراجعة. المستندات مقفلة أثناء مراجعة فريقنا لها.",
+  "verificationChangesRequestedNote": "أعاد المسؤول طلبك لإجراء تعديلات. حدّث المستندات أدناه ثم أرسل الطلب مرة أخرى.",
+  "applicationStatusChangesRequested": "مطلوب تعديلات",
+  "applicationStatusChangesRequestedBody": "طلب فريقنا إجراء تعديلات على طلبك. راجع السبب، وحدّث مستنداتك في صفحة التحقق، ثم أرسل الطلب مرة أخرى.",
+  "applicationChangesRequestedReasonLabel": "التعديلات المطلوبة",
   "applicationCompleteDocumentsLink": "أكمل مستندات التحقق الخاصة بك",
   "applicationVerificationLink": "التحقق والمستندات"
 }

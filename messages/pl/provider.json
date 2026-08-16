@@ -360,6 +360,10 @@
   "verificationSubmitNotReady": "Brakuje jeszcze niektórych wymaganych dokumentów. Prześlij je, a następnie wyślij.",
   "verificationSubmitInvalidState": "Tego wniosku nie można wysłać w obecnym stanie.",
   "verificationUnderReviewNote": "Twój wniosek jest w trakcie przeglądu. Dokumenty są zablokowane podczas przeglądu przez nasz zespół.",
+  "verificationChangesRequestedNote": "Administrator zwrócił Twój wniosek do zmian. Zaktualizuj poniższe dokumenty, a następnie wyślij ponownie.",
+  "applicationStatusChangesRequested": "Poproszono o zmiany",
+  "applicationStatusChangesRequestedBody": "Nasz zespół poprosił o zmiany w Twoim wniosku. Sprawdź powód, zaktualizuj dokumenty na stronie weryfikacji, a następnie wyślij ponownie.",
+  "applicationChangesRequestedReasonLabel": "Żądane zmiany",
   "applicationCompleteDocumentsLink": "Uzupełnij dokumenty weryfikacyjne",
   "applicationVerificationLink": "Weryfikacja i dokumenty"
 }

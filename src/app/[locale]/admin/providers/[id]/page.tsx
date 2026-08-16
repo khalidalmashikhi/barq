@@ -17,14 +17,12 @@ import { getAuditEventsForEntity, type AuditEventItem } from "@/lib/admin/get-au
 import { AuditHistory } from "@/components/admin/audit-history";
 import { assertProviderApprovable, type RequiredDocumentBlocker } from "@/lib/provider/documents/assert-provider-approvable";
 import {
-  listProviderDocumentsForAdmin,
-  type AdminProviderDocumentListItem,
-} from "@/lib/provider/documents/list-provider-documents-for-admin";
-import {
-  PROVIDER_DOCUMENT_TYPE_LABEL_KEYS,
-  requiredDocumentTypesFor,
-  isValidProviderDocumentTypeKey,
-} from "@/lib/provider-document-types";
+  getAdminProviderVerificationChecklist,
+  type AdminProviderVerification,
+} from "@/lib/provider/documents/get-admin-provider-verification-checklist";
+import { requestProviderChanges } from "@/lib/admin/request-provider-changes";
+import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { PROVIDER_DOCUMENT_TYPE_LABEL_KEYS, isValidProviderDocumentTypeKey } from "@/lib/provider-document-types";
 import {
   isProviderDocumentErrorCode,
   getProviderDocumentErrorTranslationKey,
@@ -117,16 +115,19 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
     auditEvents = [];
   }
 
-  // Verification documents (Gate 3) — one admin-side read of this provider's
-  // documents plus the proactive approval blockers. Both are best-effort: if the
-  // storage-backed read or the blocker check fails, the rest of the admin page
-  // (status control, related links, audit) must still render. `documents` is the
-  // raw list; `blockers` drives the approval-gate panel and disables Approve.
-  let documents: AdminProviderDocumentListItem[] = [];
+  // Verification workspace (Gate 1B) — the FULL resolved requirement checklist
+  // (each requirement present/missing + its admin document) plus the proactive
+  // approval blockers. Both are best-effort: if the storage-backed read or the
+  // blocker check fails, the rest of the admin page (status control, related
+  // links, audit) must still render. `verification` drives the checklist +
+  // progress; `blockers` drives the approval-gate panel and disables Approve.
+  let verification: AdminProviderVerification = { items: [], requiredTotal: 0, requiredApproved: 0 };
   try {
-    documents = await listProviderDocumentsForAdmin(id);
+    // getProviderDetail types providerType as a plain string; the DB value is
+    // always a valid ProviderType enum member.
+    verification = await getAdminProviderVerificationChecklist(id, provider.providerType as ProviderType);
   } catch {
-    documents = [];
+    verification = { items: [], requiredTotal: 0, requiredApproved: 0 };
   }
   let blockers: RequiredDocumentBlocker[] = [];
   try {
@@ -135,12 +136,6 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
     blockers = [];
   }
   const hasBlockers = blockers.length > 0;
-  // getProviderDetail types providerType as a plain string; the DB value is
-  // always a valid ProviderType enum member. Cast narrowly here so the pure
-  // requirement helper (keyed by ProviderType) type-checks.
-  const requiredTypes = new Set<string>(
-    requiredDocumentTypesFor({ providerType: provider.providerType as ProviderType })
-  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -426,6 +421,41 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             </SubmitButton>
           </form>
         )}
+
+        {/* Gate 1B — Request Changes: return the submitted application for
+            correction (distinct from Reject). Mandatory reason; server-authoritative
+            (requestProviderChanges validates the reason + the submitted state). The
+            provider then edits documents and explicitly re-submits. */}
+        {isPending && (
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const reason = formData.get("reason");
+              const result = await requestProviderChanges(id, typeof reason === "string" ? reason : "");
+              if (!result.ok) {
+                redirect({ href: `/admin/providers/${id}?error=${result.error}`, locale });
+                return;
+              }
+              redirect({ href: `/admin/providers/${id}`, locale });
+            }}
+            className="mt-4 flex flex-col gap-2 border-t border-border pt-4"
+          >
+            <label htmlFor="changes-reason" className="text-xs font-medium text-foreground/50">
+              {t("requestChangesReasonLabel")}
+            </label>
+            <textarea
+              id="changes-reason"
+              name="reason"
+              required
+              rows={3}
+              placeholder={t("requestChangesReasonPlaceholder")}
+              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-warning focus:outline-none focus:ring-2 focus:ring-warning/20"
+            />
+            <SubmitButton className="self-start rounded-full border border-warning/40 px-5 py-2 text-sm font-medium text-warning transition-colors hover:bg-warning/5 disabled:opacity-50">
+              {t("requestChangesButton")}
+            </SubmitButton>
+          </form>
+        )}
       </Card>
 
       {/* Verification Documents (Gate 3) — the admin review surface. Not a
@@ -440,101 +470,131 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
           {t("verificationDocumentsTitle")}
         </h2>
 
-        {documents.length === 0 ? (
-          <p className="mt-3 text-sm text-foreground/50">{t("noDocumentsUploaded")}</p>
+        {/* Gate 1B — verification progress + submittedAt. Rendered from the full
+            resolved requirement checklist, so a MISSING required document is a row
+            (not only a hidden approval blocker). */}
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-foreground/50">
+          <span className="font-medium text-foreground/70">
+            {verification.requiredTotal > 0 && verification.requiredApproved === verification.requiredTotal
+              ? t("verificationAllRequiredApproved")
+              : t("verificationRequiredProgress", {
+                  approved: verification.requiredApproved,
+                  total: verification.requiredTotal,
+                })}
+          </span>
+          {provider.submittedAt && (
+            <span>
+              · {t("submittedAtLabel")}:{" "}
+              {formatDate(provider.submittedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          )}
+        </div>
+
+        {verification.items.length === 0 ? (
+          <p className="mt-3 text-sm text-foreground/50">{t("noVerificationRequirements")}</p>
         ) : (
           <div className="mt-3 flex flex-col gap-4">
-            {documents.map((doc) => {
-              const typeLabel = isValidProviderDocumentTypeKey(doc.type)
-                ? t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[doc.type])
-                : doc.type;
-              const isRequired = requiredTypes.has(doc.type);
+            {verification.items.map((item) => {
+              const label =
+                extractLocalizedText(item.name, locale) ||
+                (isValidProviderDocumentTypeKey(item.type) ? t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[item.type]) : item.type);
+              const doc = item.document;
               return (
-                <div key={doc.id} className="rounded-xl border border-border p-4">
+                <div key={item.type} className="rounded-xl border border-border p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-foreground">{typeLabel}</span>
-                    <Badge variant={isRequired ? "default" : "info"}>
-                      {isRequired ? t("documentRequiredLabel") : t("documentOptionalLabel")}
+                    <span className="text-sm font-medium text-foreground">{label}</span>
+                    <Badge variant={item.required ? "default" : "info"}>
+                      {item.required ? t("documentRequiredLabel") : t("documentOptionalLabel")}
                     </Badge>
-                    <Badge variant={DOC_STATUS_BADGE[doc.status]}>{t(DOC_STATUS_LABEL_KEY[doc.status])}</Badge>
-                  </div>
-
-                  <p className="mt-2 text-sm text-foreground/70">
-                    {doc.originalFilename}{" "}
-                    <span className="text-foreground/40">
-                      · {doc.mimeType} · {formatDocumentBytes(doc.sizeBytes)}
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-foreground/40">
-                    {t("documentUploadedAtLabel")}:{" "}
-                    {formatDate(doc.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
-                    {doc.reviewedAt && (
-                      <>
-                        {" · "}
-                        {t("documentReviewedAtLabel")}:{" "}
-                        {formatDate(doc.reviewedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
-                      </>
-                    )}
-                  </p>
-
-                  {doc.status === "REJECTED" && doc.rejectionReason && (
-                    <div className="mt-2 rounded-xl border border-danger/30 bg-danger/5 p-3">
-                      <span className="text-xs font-medium text-danger">{t("documentRejectionReasonLabel")}</span>
-                      <p className="whitespace-pre-wrap text-sm text-foreground/80">{doc.rejectionReason}</p>
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex flex-wrap items-start gap-3">
-                    <a
-                      href={`/api/provider/documents/${doc.id}/view`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
-                    >
-                      <Eye size={14} strokeWidth={1.75} />
-                      {t("documentViewButton")}
-                    </a>
-
-                    {doc.status !== "APPROVED" && (
-                      <form action={`/api/admin/provider-documents/${doc.id}/review`} method="post">
-                        <input type="hidden" name="locale" value={locale} />
-                        <input type="hidden" name="providerId" value={id} />
-                        <input type="hidden" name="versionToken" value={doc.versionToken} />
-                        <input type="hidden" name="decision" value="APPROVE" />
-                        <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
-                          <Check size={14} strokeWidth={1.75} />
-                          {t("documentApproveButton")}
-                        </SubmitButton>
-                      </form>
+                    {doc ? (
+                      <Badge variant={DOC_STATUS_BADGE[doc.status]}>{t(DOC_STATUS_LABEL_KEY[doc.status])}</Badge>
+                    ) : (
+                      <Badge variant="warning">{t("documentMissingLabel")}</Badge>
                     )}
                   </div>
 
-                  {doc.status !== "REJECTED" && (
-                    <form
-                      action={`/api/admin/provider-documents/${doc.id}/review`}
-                      method="post"
-                      className="mt-3 flex flex-col gap-2 border-t border-border pt-3"
-                    >
-                      <input type="hidden" name="locale" value={locale} />
-                      <input type="hidden" name="providerId" value={id} />
-                      <input type="hidden" name="versionToken" value={doc.versionToken} />
-                      <input type="hidden" name="decision" value="REJECT" />
-                      <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/50">
-                        {t("documentRejectReasonLabel")}
-                      </label>
-                      <textarea
-                        id={`reject-doc-${doc.id}`}
-                        name="reason"
-                        required
-                        rows={2}
-                        placeholder={t("documentRejectReasonPlaceholder")}
-                        className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
-                      />
-                      <SubmitButton className="inline-flex items-center gap-1.5 self-start rounded-full border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
-                        <X size={14} strokeWidth={1.75} />
-                        {t("documentRejectButton")}
-                      </SubmitButton>
-                    </form>
+                  {!doc ? (
+                    <p className="mt-2 text-sm text-foreground/50">{t("documentNotUploadedYet")}</p>
+                  ) : (
+                    <>
+                      <p className="mt-2 text-sm text-foreground/70">
+                        {doc.originalFilename}{" "}
+                        <span className="text-foreground/40">
+                          · {doc.mimeType} · {formatDocumentBytes(doc.sizeBytes)}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-foreground/40">
+                        {t("documentUploadedAtLabel")}:{" "}
+                        {formatDate(doc.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+                        {doc.reviewedAt && (
+                          <>
+                            {" · "}
+                            {t("documentReviewedAtLabel")}:{" "}
+                            {formatDate(doc.reviewedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+                          </>
+                        )}
+                      </p>
+
+                      {doc.status === "REJECTED" && doc.rejectionReason && (
+                        <div className="mt-2 rounded-xl border border-danger/30 bg-danger/5 p-3">
+                          <span className="text-xs font-medium text-danger">{t("documentRejectionReasonLabel")}</span>
+                          <p className="whitespace-pre-wrap text-sm text-foreground/80">{doc.rejectionReason}</p>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap items-start gap-3">
+                        <a
+                          href={`/api/provider/documents/${doc.id}/view`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20"
+                        >
+                          <Eye size={14} strokeWidth={1.75} />
+                          {t("documentViewButton")}
+                        </a>
+
+                        {doc.status !== "APPROVED" && (
+                          <form action={`/api/admin/provider-documents/${doc.id}/review`} method="post">
+                            <input type="hidden" name="locale" value={locale} />
+                            <input type="hidden" name="providerId" value={id} />
+                            <input type="hidden" name="versionToken" value={doc.versionToken} />
+                            <input type="hidden" name="decision" value="APPROVE" />
+                            <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                              <Check size={14} strokeWidth={1.75} />
+                              {t("documentApproveButton")}
+                            </SubmitButton>
+                          </form>
+                        )}
+                      </div>
+
+                      {doc.status !== "REJECTED" && (
+                        <form
+                          action={`/api/admin/provider-documents/${doc.id}/review`}
+                          method="post"
+                          className="mt-3 flex flex-col gap-2 border-t border-border pt-3"
+                        >
+                          <input type="hidden" name="locale" value={locale} />
+                          <input type="hidden" name="providerId" value={id} />
+                          <input type="hidden" name="versionToken" value={doc.versionToken} />
+                          <input type="hidden" name="decision" value="REJECT" />
+                          <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/50">
+                            {t("documentRejectReasonLabel")}
+                          </label>
+                          <textarea
+                            id={`reject-doc-${doc.id}`}
+                            name="reason"
+                            required
+                            rows={2}
+                            placeholder={t("documentRejectReasonPlaceholder")}
+                            className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+                          />
+                          <SubmitButton className="inline-flex items-center gap-1.5 self-start rounded-full border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+                            <X size={14} strokeWidth={1.75} />
+                            {t("documentRejectButton")}
+                          </SubmitButton>
+                        </form>
+                      )}
+                    </>
                   )}
                 </div>
               );

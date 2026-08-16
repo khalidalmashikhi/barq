@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { assertReadyToSubmit, type SubmitBlocker } from "./documents/assert-ready-to-submit";
+import { isVerificationEditableStatus } from "./documents/verification-lifecycle";
 
 // Gate 1A — explicit provider verification submission. Uploading a document does
 // NOT submit; ONLY this explicit action transitions DRAFT -> UNDER_REVIEW.
@@ -38,11 +39,13 @@ export async function submitProviderVerification(): Promise<SubmitProviderVerifi
   if (provider.status === "UNDER_REVIEW") {
     return { ok: true, status: "UNDER_REVIEW", alreadySubmitted: true };
   }
-  // Only a DRAFT is submittable. Legacy APPLIED (already submitted), APPROVED,
-  // REJECTED (resubmit -> DRAFT first), SUSPENDED/DEACTIVATED are not.
-  if (provider.status !== "DRAFT") {
+  // Submittable ONLY from an editable state: DRAFT (initial) or CHANGES_REQUESTED
+  // (admin returned it for correction). Legacy APPLIED (already submitted),
+  // APPROVED, REJECTED (resubmit -> DRAFT first), SUSPENDED/DEACTIVATED are not.
+  if (!isVerificationEditableStatus(provider.status)) {
     return { ok: false, error: "INVALID_STATE" };
   }
+  const fromStatus = provider.status;
 
   const blockers = await assertReadyToSubmit(provider.id, provider.providerType);
   if (blockers.length > 0) {
@@ -52,8 +55,11 @@ export async function submitProviderVerification(): Promise<SubmitProviderVerifi
   const submittedAt = new Date();
   const raced = await prisma.$transaction(async (tx) => {
     const updated = await tx.provider.updateMany({
-      where: { id: provider.id, status: "DRAFT" }, // optimistic concurrency guard
-      data: { status: "UNDER_REVIEW", submittedAt },
+      // Optimistic concurrency guard — only an editable row can be submitted.
+      where: { id: provider.id, status: { in: ["DRAFT", "CHANGES_REQUESTED"] } },
+      // Clear any prior changes-request reason (stored in rejectionReason) as the
+      // application re-enters review. Harmless when submitting a fresh DRAFT (null).
+      data: { status: "UNDER_REVIEW", submittedAt, rejectionReason: null },
     });
     if (updated.count === 0) return true; // a concurrent submit won the race
     await recordAuditEvent(
@@ -63,7 +69,7 @@ export async function submitProviderVerification(): Promise<SubmitProviderVerifi
         action: "provider.verification_submitted",
         entityType: "Provider",
         entityId: provider.id,
-        previousValue: { status: "DRAFT" },
+        previousValue: { status: fromStatus },
         newValue: { status: "UNDER_REVIEW" },
       },
       tx
