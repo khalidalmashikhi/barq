@@ -6,12 +6,12 @@ import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { isUploadableDocumentType } from "@/lib/provider-document-types";
+import { isUploadableDocumentType, resolveVerificationChecklist } from "@/lib/provider-document-types";
 import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject } from "@/lib/storage/storage";
 import { validateDocumentUpload } from "./document-constants";
 import { buildDocumentObjectKey, sanitizeOriginalFilename } from "./document-object-key";
 import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
-import { isVerificationEditableStatus } from "./verification-lifecycle";
+import { canMutateVerificationDocument } from "./verification-lifecycle";
 import type { UploadProviderDocumentResult, ProviderDocumentErrorCode } from "./provider-document-errors";
 
 // Upload a NEW provider verification document (Option 1: bytes already received
@@ -42,22 +42,35 @@ export async function uploadProviderDocument(input: UploadProviderDocumentInput)
     throw error;
   }
 
-  // Gate 1A/1B SERVER invariant: documents may be mutated ONLY while the
-  // application is editable — DRAFT or CHANGES_REQUESTED (an admin returned it for
-  // correction). Once submitted (UNDER_REVIEW), decided (APPROVED/REJECTED), or a
-  // legacy APPLIED row, the server rejects the mutation — a direct API call can
-  // never bypass the UI lock. (requireProvider() proves ownership/active status,
-  // not the lifecycle stage.)
-  if (!isVerificationEditableStatus(provider.status)) {
-    return { ok: false, error: "APPLICATION_LOCKED" };
-  }
-
   // ADR-0017: accept a registry key (compatibility + fail-safe) OR an active
   // configured requirement key; reject arbitrary strings. Never stores a key that
   // is neither, so ProviderDocument.type stays a governed stable code.
   const uploadPolicy = await getActiveVerificationRequirements();
   if (!isUploadableDocumentType(input.type, uploadPolicy)) {
     return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  // Gate 1A/1B + optional-during-review SERVER invariant. Mutation is allowed
+  // while DRAFT/CHANGES_REQUESTED; once submitted (UNDER_REVIEW or legacy APPLIED)
+  // the ONLY permitted upload is the FIRST upload of an APPLICABLE OPTIONAL
+  // requirement (required docs + non-applicable types stay locked). Required-ness
+  // is derived from the RESOLVED checklist (server-side), never from the client;
+  // a type not in the provider's checklist is treated as required (no exception).
+  // A direct API call can never bypass this. (documentExists is enforced below by
+  // the ALREADY_EXISTS pre-check + the unique constraint, so it is false here.)
+  const checklistItem = resolveVerificationChecklist(uploadPolicy, { providerType: provider.providerType }).find(
+    (r) => r.key === input.type
+  );
+  const requirementRequired = checklistItem ? checklistItem.required : true;
+  if (
+    !canMutateVerificationDocument({
+      providerStatus: provider.status,
+      requirementRequired,
+      documentExists: false,
+      mutationType: "upload",
+    })
+  ) {
+    return { ok: false, error: "APPLICATION_LOCKED" };
   }
 
   const head = new Uint8Array(input.bytes);

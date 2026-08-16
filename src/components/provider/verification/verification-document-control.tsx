@@ -45,16 +45,21 @@ type Props = {
   // "new upload" case when storage IS available, so the new-upload path here is
   // always reached with storage present.
   storageAvailable: boolean;
-  // Gate 1A: document mutation (upload / replace / delete) is only offered while
-  // the application is a DRAFT. Once submitted (UNDER_REVIEW) or decided, the
-  // control is read-only — View stays available where authorized.
+  // Gate 1A/1B: Replace / Delete of an existing document are offered only while
+  // the application is editable (DRAFT / CHANGES_REQUESTED). Once submitted or
+  // decided, the control is read-only for existing docs — View stays available.
   editable: boolean;
+  // Targeted fix: whether a NEW upload is allowed for THIS requirement right now
+  // (server-authoritative). Differs from `editable` only for an optional missing
+  // requirement during UNDER_REVIEW / legacy APPLIED, where a first upload is
+  // permitted even though replace/delete are not.
+  canUpload: boolean;
 };
 
 const BTN_BASE =
   "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
 
-export function VerificationDocumentControl({ locale, type, doc, canDelete, storageAvailable, editable }: Props) {
+export function VerificationDocumentControl({ locale, type, doc, canDelete, storageAvailable, editable, canUpload }: Props) {
   const t = useTranslations("provider");
   const router = useRouter();
   const [state, dispatch] = useReducer(uploadReducer, initialUploadState);
@@ -295,11 +300,12 @@ export function VerificationDocumentControl({ locale, type, doc, canDelete, stor
   }
 
   // ---- No document yet ----
-  // Locked (not DRAFT): nothing to upload here — the read-only state is shown by
-  // the page (status badge / under-review note).
-  if (!editable) return null;
+  // Upload offered only when the server permits a NEW upload for this requirement
+  // (DRAFT/CHANGES_REQUESTED, or an optional missing requirement during review).
+  // Otherwise nothing here — the read-only state is shown by the page.
+  if (!canUpload) return null;
 
-  // DRAFT: custom auto-upload control.
+  // Custom auto-upload control.
   return (
     <div className="flex flex-col gap-2" dir={locale === "ar" ? "rtl" : "ltr"}>
       {errorBlock}

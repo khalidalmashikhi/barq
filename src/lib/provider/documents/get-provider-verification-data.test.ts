@@ -282,4 +282,33 @@ describe("getProviderVerificationData — Gate 1A submission fields (editable / 
     expect(data.canSubmit).toBe(true); // required doc present (PENDING satisfies submission)
     expect(data.changesRequestedReason).toBe("Upload a clearer ID");
   });
+
+  it("DRAFT: canUpload is true for a missing requirement (existing behavior)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", providerType: "INDIVIDUAL", status: "DRAFT" } });
+    findManyMock.mockResolvedValue([]);
+    requirementFindManyMock.mockResolvedValue(SEEDED_ROWS);
+    storageConfiguredMock.mockReturnValue(true);
+
+    const data = await getProviderVerificationData();
+    expect(data.items.find((i) => i.type === "IDENTITY_PROOF")!.canUpload).toBe(true);
+    expect(data.items.find((i) => i.type === "TOURISM_LICENCE")!.canUpload).toBe(true);
+  });
+
+  it("Targeted fix: UNDER_REVIEW exposes canUpload ONLY for an optional missing requirement", async () => {
+    // Required IDENTITY_PROOF present (PENDING); optional TOURISM_LICENCE missing.
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", providerType: "INDIVIDUAL", status: "UNDER_REVIEW" } });
+    findManyMock.mockResolvedValue([doc({ type: "IDENTITY_PROOF", status: "PENDING" })]);
+    requirementFindManyMock.mockResolvedValue(SEEDED_ROWS);
+    storageConfiguredMock.mockReturnValue(true);
+
+    const data = await getProviderVerificationData();
+    const identity = data.items.find((i) => i.type === "IDENTITY_PROOF")!;
+    const tourism = data.items.find((i) => i.type === "TOURISM_LICENCE")!;
+
+    expect(identity.canUpload).toBe(false); // required + present → no upload
+    expect(tourism.required).toBe(false);
+    expect(tourism.document).toBeNull();
+    expect(tourism.canUpload).toBe(true); // OPTIONAL + missing during UNDER_REVIEW → uploadable
+    expect(data.editable).toBe(false); // global still locked (no replace/delete/submit)
+  });
 });

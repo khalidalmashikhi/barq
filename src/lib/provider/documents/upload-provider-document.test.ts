@@ -178,4 +178,26 @@ describe("uploadProviderDocument", () => {
     expect(result).toEqual({ ok: true, documentId: "doc-1" });
     expect(uploadMock).toHaveBeenCalledTimes(1);
   });
+
+  it("Targeted fix: UNDER_REVIEW + OPTIONAL requirement (TOURISM_LICENCE) missing → initial upload ALLOWED", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "UNDER_REVIEW", providerType: "INDIVIDUAL" } });
+    const result = await uploadProviderDocument({ ...baseInput(), type: "TOURISM_LICENCE" });
+    expect(result).toEqual({ ok: true, documentId: "doc-1" }); // optional exception, not APPLICATION_LOCKED
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Targeted fix: UNDER_REVIEW + OPTIONAL requirement that already EXISTS → duplicate blocked (ALREADY_EXISTS)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "UNDER_REVIEW", providerType: "INDIVIDUAL" } });
+    findUniqueMock.mockResolvedValue({ id: "existing" });
+    const result = await uploadProviderDocument({ ...baseInput(), type: "TOURISM_LICENCE" });
+    expect(result).toEqual({ ok: false, error: "ALREADY_EXISTS" }); // no duplicate optional upload
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("Targeted fix: UNDER_REVIEW + REQUIRED requirement (IDENTITY_PROOF) missing → upload DENIED (APPLICATION_LOCKED)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "UNDER_REVIEW", providerType: "INDIVIDUAL" } });
+    const result = await uploadProviderDocument({ ...baseInput(), type: "IDENTITY_PROOF" });
+    expect(result).toEqual({ ok: false, error: "APPLICATION_LOCKED" }); // required stays locked during review
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
 });

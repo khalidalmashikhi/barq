@@ -6,7 +6,7 @@ import { isDocumentStorageConfigured } from "@/lib/storage/storage";
 import { resolveVerificationChecklist, resolveSubmitBlockers, type SubmitBlocker } from "@/lib/provider-document-types";
 import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
 import { documentVersionToken } from "./document-version-token";
-import { isVerificationEditableStatus } from "./verification-lifecycle";
+import { isVerificationEditableStatus, canMutateVerificationDocument } from "./verification-lifecycle";
 
 // Single provider-side read backing the /provider/verification page AND the
 // dashboard readiness card — so the required/optional checklist is derived once,
@@ -36,6 +36,12 @@ export type VerificationChecklistItem = {
     rejectionReason: string | null;
     versionToken: string;
   } | null;
+  // Whether the provider may START a NEW upload for THIS requirement right now
+  // (server-authoritative, per canMutateVerificationDocument). True while
+  // DRAFT/CHANGES_REQUESTED (no doc yet), and — the targeted fix — for an
+  // APPLICABLE OPTIONAL requirement with no document while UNDER_REVIEW / legacy
+  // APPLIED. Replace/Delete remain gated by the global `editable` flag.
+  canUpload: boolean;
 };
 
 export type ProviderVerificationData = {
@@ -86,6 +92,12 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
             versionToken: documentVersionToken(r.objectKey),
           }
         : null,
+      canUpload: canMutateVerificationDocument({
+        providerStatus: provider.status,
+        requirementRequired: req.required,
+        documentExists: r != null,
+        mutationType: "upload",
+      }),
     };
   });
 

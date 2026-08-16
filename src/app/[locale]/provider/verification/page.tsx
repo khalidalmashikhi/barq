@@ -174,6 +174,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                       canDelete={doc.status !== "APPROVED"}
                       storageAvailable={data.storageAvailable}
                       editable={data.editable}
+                      canUpload={item.canUpload}
                     />
                   </div>
                 ) : data.storageAvailable ? (
@@ -184,6 +185,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                     canDelete={false}
                     storageAvailable={data.storageAvailable}
                     editable={data.editable}
+                    canUpload={item.canUpload}
                   />
                 ) : (
                   <p className="text-xs text-foreground/40">{t("documentUploadUnavailableShort")}</p>

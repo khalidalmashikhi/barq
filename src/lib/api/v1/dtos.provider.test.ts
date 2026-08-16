@@ -192,6 +192,7 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
           {
             type: "IDENTITY_PROOF",
             required: true,
+            canUpload: false,
             name: { ar: "إثبات الهوية", en: "Identity Proof" },
             description: { ar: "وصف", en: "desc" },
             document: {
@@ -240,6 +241,7 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
           {
             type: "COMMERCIAL_REGISTRATION",
             required: true,
+            canUpload: false,
             name: { ar: "السجل التجاري", en: "Commercial Registration" },
             description: null,
             document: {
