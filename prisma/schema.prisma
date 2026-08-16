@@ -101,6 +101,18 @@ enum UserStatus {
 }
 
 enum ProviderStatus {
+  /// Gate 1A — pre-submission. A self-service application starts here
+  /// (apply-as-provider.ts); the provider uploads/replaces/deletes documents
+  /// freely and is NOT in the admin review queue until they EXPLICITLY submit.
+  /// DRAFT -> UNDER_REVIEW is the only submit transition. `@default` stays
+  /// APPLIED (both create sites set status explicitly, so the default never
+  /// fires) — this keeps the additive migration from USING the new enum value
+  /// in its own transaction (a Postgres restriction).
+  DRAFT
+  /// Legacy "submitted — awaiting review" for providers created BEFORE Gate 1A
+  /// (and admin-created providers). No NEW self-service write targets APPLIED;
+  /// the pending queue + approve/reject still accept it so existing applications
+  /// stay reviewable.
   APPLIED
   UNDER_REVIEW
   APPROVED
@@ -457,6 +469,11 @@ model Provider {
   rejectedByAdminId   String?        @db.Uuid
   rejectedByAdmin     Admin?         @relation("ProviderRejectedBy", fields: [rejectedByAdminId], references: [id])
   rejectionReason     String?
+  /// Gate 1A — set the moment the provider EXPLICITLY submits for verification
+  /// (DRAFT -> UNDER_REVIEW via submitProviderVerification). Null while DRAFT,
+  /// and null for legacy APPLIED rows that were never through the explicit
+  /// submit action. Purely additive; no backfill.
+  submittedAt         DateTime?      @db.Timestamptz(6)
   /// Phase 2 (Provider Foundation) additions below — deliberately kept
   /// separate from `status`: `status` is the approval/vetting workflow
   /// (unchanged, still enforced by requireApprovedProvider()/BR-001);

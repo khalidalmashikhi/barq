@@ -20,11 +20,12 @@ import type { ProviderApplicationErrorCode } from "./provider-application-errors
 // requireCustomer/Provider/Staff/Admin do), so only UnauthenticatedError
 // needs handling here.
 //
-// status is always created as "APPLIED" (the schema default, set
-// explicitly for clarity) — this is the exact status
-// get-pending-providers.ts already queries for, so a new application
-// appears in the existing admin approval queue with zero changes to
-// that queue or its page.
+// Gate 1A: a new self-service application is created as "DRAFT" — NOT submitted.
+// The provider uploads/replaces/deletes required documents and then must
+// EXPLICITLY submit (submitProviderVerification: DRAFT -> UNDER_REVIEW) before it
+// enters the admin review queue. Uploading a document is NOT submission. (Legacy
+// APPLIED providers and admin-created providers are unaffected — the pending
+// queue still accepts APPLIED + UNDER_REVIEW.)
 //
 // No license/document/KYC field exists anywhere in the schema
 // (confirmed during the Phase 5 audit) — businessName is the only
@@ -101,7 +102,7 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
           providerType,
-          status: "APPLIED",
+          status: "DRAFT",
         },
       });
 

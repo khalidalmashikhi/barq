@@ -83,6 +83,16 @@ describe("approveProvider", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
+  it("Gate 1A: a DRAFT provider is NOT admin-approvable (must submit first) — PROVIDER_NOT_PENDING", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: "provider-1", status: "DRAFT" });
+
+    const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
+
+    expect(result).toEqual({ ok: false, error: "PROVIDER_NOT_PENDING" });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
   it("updates the provider and records an audit event atomically, in the same transaction", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });

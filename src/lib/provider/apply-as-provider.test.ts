@@ -74,7 +74,7 @@ describe("applyAsProvider", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it("creates a Provider row with status APPLIED for a valid, new application", async () => {
+  it("creates a Provider row with status DRAFT (Gate 1A: not submitted until explicit Submit) for a valid, new application", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-2" } });
     findUniqueMock.mockResolvedValue(null);
     createMock.mockResolvedValue({ id: "provider-2" });
@@ -94,7 +94,7 @@ describe("applyAsProvider", () => {
         businessName: { ar: "شركة", en: "Acme" },
         businessDescription: { ar: "وصف", en: "Description" },
         providerType: "COMPANY",
-        status: "APPLIED",
+        status: "DRAFT",
       },
     });
     expect(result).toEqual({ ok: true });
@@ -113,7 +113,7 @@ describe("applyAsProvider", () => {
         businessName: { ar: "شركة", en: "Acme" },
         businessDescription: undefined,
         providerType: "COMPANY",
-        status: "APPLIED",
+        status: "DRAFT",
       },
     });
   });

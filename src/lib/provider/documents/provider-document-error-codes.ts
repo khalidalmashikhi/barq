@@ -20,6 +20,12 @@ export type ProviderDocumentErrorCode =
   | "NOT_DELETABLE"
   | "REASON_REQUIRED"
   | "STALE_DOCUMENT"
+  // Gate 1A server invariant: document mutation (upload/replace/delete) is allowed
+  // ONLY while the application is a DRAFT. Once submitted (UNDER_REVIEW), decided
+  // (APPROVED/REJECTED), or for a legacy APPLIED row, the server rejects mutation
+  // with this code — NOT just the UI. requireProvider() proves ownership/active
+  // status but NOT the DRAFT lifecycle stage, so this is enforced separately.
+  | "APPLICATION_LOCKED"
   // The private-bucket write itself threw (storage reachable-but-failed, e.g. a
   // missing/misconfigured bucket). Split OUT of UNKNOWN_ERROR (Gate 0) so the
   // provider gets an actionable "try again" message and the operator/telemetry
@@ -42,6 +48,7 @@ const PROVIDER_DOCUMENT_ERROR_CODES: readonly ProviderDocumentErrorCode[] = [
   "NOT_DELETABLE",
   "REASON_REQUIRED",
   "STALE_DOCUMENT",
+  "APPLICATION_LOCKED",
   "UPLOAD_FAILED",
   "UNKNOWN_ERROR",
 ];
@@ -64,6 +71,7 @@ const TRANSLATION_KEYS = {
   NOT_DELETABLE: "documentErrorNotDeletable",
   REASON_REQUIRED: "documentErrorReasonRequired",
   STALE_DOCUMENT: "documentErrorStaleDocument",
+  APPLICATION_LOCKED: "documentErrorApplicationLocked",
   UPLOAD_FAILED: "documentErrorUploadFailed",
   UNKNOWN_ERROR: "documentErrorUnknown",
 } as const satisfies Record<ProviderDocumentErrorCode, string>;

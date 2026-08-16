@@ -9,6 +9,7 @@ import type { ProviderStatus } from "@prisma/client";
 // component's variant set — no new visual vocabulary introduced.
 
 const PROVIDER_STATUS_BADGE_VARIANT = {
+  DRAFT: "default",
   APPLIED: "default",
   UNDER_REVIEW: "info",
   APPROVED: "success",
@@ -18,6 +19,7 @@ const PROVIDER_STATUS_BADGE_VARIANT = {
 } as const satisfies Record<ProviderStatus, "default" | "success" | "warning" | "danger" | "info">;
 
 const PROVIDER_STATUS_TRANSLATION_KEYS = {
+  DRAFT: "statusDraft",
   APPLIED: "statusApplied",
   UNDER_REVIEW: "statusUnderReview",
   APPROVED: "statusApproved",

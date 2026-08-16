@@ -45,12 +45,16 @@ type Props = {
   // "new upload" case when storage IS available, so the new-upload path here is
   // always reached with storage present.
   storageAvailable: boolean;
+  // Gate 1A: document mutation (upload / replace / delete) is only offered while
+  // the application is a DRAFT. Once submitted (UNDER_REVIEW) or decided, the
+  // control is read-only — View stays available where authorized.
+  editable: boolean;
 };
 
 const BTN_BASE =
   "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
 
-export function VerificationDocumentControl({ locale, type, doc, canDelete, storageAvailable }: Props) {
+export function VerificationDocumentControl({ locale, type, doc, canDelete, storageAvailable, editable }: Props) {
   const t = useTranslations("provider");
   const router = useRouter();
   const [state, dispatch] = useReducer(uploadReducer, initialUploadState);
@@ -260,7 +264,7 @@ export function VerificationDocumentControl({ locale, type, doc, canDelete, stor
             {t("documentViewButton")}
           </a>
 
-          {storageAvailable && (
+          {storageAvailable && editable && (
             <>
               {hiddenInput}
               <button
@@ -274,7 +278,7 @@ export function VerificationDocumentControl({ locale, type, doc, canDelete, stor
             </>
           )}
 
-          {canDelete && (
+          {canDelete && editable && (
             <button
               type="button"
               onClick={onDelete}
@@ -290,7 +294,12 @@ export function VerificationDocumentControl({ locale, type, doc, canDelete, stor
     );
   }
 
-  // ---- No document yet: custom auto-upload control ----
+  // ---- No document yet ----
+  // Locked (not DRAFT): nothing to upload here — the read-only state is shown by
+  // the page (status badge / under-review note).
+  if (!editable) return null;
+
+  // DRAFT: custom auto-upload control.
   return (
     <div className="flex flex-col gap-2" dir={locale === "ar" ? "rtl" : "ltr"}>
       {errorBlock}

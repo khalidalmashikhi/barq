@@ -54,7 +54,7 @@ const baseInput = () => ({
 });
 
 beforeEach(() => {
-  requireProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+  requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "DRAFT" } });
   configuredMock.mockReturnValue(true);
   findUniqueMock.mockResolvedValue(null);
   uploadMock.mockResolvedValue(undefined);
@@ -161,4 +161,14 @@ describe("uploadProviderDocument", () => {
     const result = await uploadProviderDocument(baseInput());
     expect(result).toEqual({ ok: false, error: "NO_PROVIDER_PROFILE" });
   });
+
+  it.each(["UNDER_REVIEW", "APPLIED", "APPROVED", "REJECTED"])(
+    "Gate 1A server invariant: a %s provider cannot upload (APPLICATION_LOCKED) — a direct API call cannot bypass the UI lock",
+    async (status) => {
+      requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status } });
+      const result = await uploadProviderDocument(baseInput());
+      expect(result).toEqual({ ok: false, error: "APPLICATION_LOCKED" });
+      expect(uploadMock).not.toHaveBeenCalled();
+    }
+  );
 });

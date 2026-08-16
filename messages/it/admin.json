@@ -604,5 +604,7 @@
   "documentErrorReasonRequired": "È necessario un motivo per rifiutare un documento.",
   "documentErrorStaleDocument": "Questo documento è cambiato dopo il caricamento della pagina. Ricarica la pagina e riprova.",
   "documentErrorUnknown": "Qualcosa è andato storto. Riprova.",
-  "documentErrorUploadFailed": "Impossibile caricare il documento in questo momento. Riprova."
+  "documentErrorUploadFailed": "Impossibile caricare il documento in questo momento. Riprova.",
+  "statusDraft": "Bozza",
+  "documentErrorApplicationLocked": "Questa domanda è stata inviata, quindi i suoi documenti non possono più essere modificati."
 }

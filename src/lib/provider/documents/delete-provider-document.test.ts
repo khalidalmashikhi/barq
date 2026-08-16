@@ -39,7 +39,7 @@ const token = documentVersionToken(KEY);
 const doc = (status: string) => ({ id: "doc-1", providerId: "prov-1", objectKey: KEY, type: "IDENTITY_PROOF", status });
 
 beforeEach(() => {
-  requireProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+  requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "DRAFT" } });
   removeMock.mockResolvedValue(undefined);
   deleteManyMock.mockResolvedValue({ count: 1 });
   auditCreateMock.mockResolvedValue({});
@@ -86,4 +86,16 @@ describe("deleteProviderDocument", () => {
     findUniqueMock.mockResolvedValue({ ...doc("PENDING"), providerId: "prov-2" });
     expect(await deleteProviderDocument({ documentId: "doc-1", expectedVersionToken: token })).toEqual({ ok: false, error: "DOCUMENT_NOT_FOUND" });
   });
+
+  it.each(["UNDER_REVIEW", "APPLIED", "APPROVED", "REJECTED"])(
+    "Gate 1A server invariant: a %s provider cannot delete (APPLICATION_LOCKED) — before the document is even looked up",
+    async (status) => {
+      requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status } });
+      expect(await deleteProviderDocument({ documentId: "doc-1", expectedVersionToken: token })).toEqual({
+        ok: false,
+        error: "APPLICATION_LOCKED",
+      });
+      expect(findUniqueMock).not.toHaveBeenCalled();
+    }
+  );
 });

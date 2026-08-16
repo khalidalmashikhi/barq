@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 
 // Provider Review / Reject / Resubmit — resubmitProviderApplication() domain
 // tests. A provider self-action: identity comes ONLY from requireProvider()
-// (own provider, never a URL id). Proves: REJECTED → APPLIED with the rejection
+// (own provider, never a URL id). Proves: REJECTED → DRAFT with the rejection
 // fields cleared, the optimistic conditional guard (updateMany WHERE status =
 // REJECTED), the provider.resubmitted audit (PROVIDER actor), and that a
 // non-rejected / stale / non-provider caller is refused with NOT_REJECTED.
@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 describe("resubmitProviderApplication", () => {
-  it("own REJECTED provider → APPLIED: clears rejection fields, records provider.resubmitted audit", async () => {
+  it("own REJECTED provider → DRAFT: clears rejection fields, records provider.resubmitted audit", async () => {
     requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "prov-1" } });
     updateManyMock.mockResolvedValue({ count: 1 });
     auditCreateMock.mockResolvedValue({});
@@ -59,7 +59,7 @@ describe("resubmitProviderApplication", () => {
       data: { status: string; rejectionReason: null; rejectedAt: null; rejectedByAdminId: null };
     };
     expect(updateArg.where).toEqual({ id: "prov-1", status: "REJECTED" });
-    expect(updateArg.data.status).toBe("APPLIED");
+    expect(updateArg.data.status).toBe("DRAFT");
     expect(updateArg.data.rejectionReason).toBeNull();
     expect(updateArg.data.rejectedAt).toBeNull();
     expect(updateArg.data.rejectedByAdminId).toBeNull();
@@ -71,7 +71,7 @@ describe("resubmitProviderApplication", () => {
     expect(auditArg.data.actorId).toBe("prov-1");
     expect(auditArg.data.action).toBe("provider.resubmitted");
     expect(auditArg.data.previousValue).toEqual({ status: "REJECTED" });
-    expect(auditArg.data.newValue).toEqual({ status: "APPLIED" });
+    expect(auditArg.data.newValue).toEqual({ status: "DRAFT" });
   });
 
   it("uses the authenticated provider's own id — never a caller-supplied id (no id parameter exists)", async () => {

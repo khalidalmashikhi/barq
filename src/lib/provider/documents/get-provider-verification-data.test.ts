@@ -227,3 +227,43 @@ describe("getProviderVerificationData — fail-closed fallback", () => {
     expect(data.storageAvailable).toBe(false);
   });
 });
+
+describe("getProviderVerificationData — Gate 1A submission fields (editable / canSubmit)", () => {
+  it("DRAFT with the required document present (PENDING) → editable, canSubmit true, no blockers", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", providerType: "INDIVIDUAL", status: "DRAFT" } });
+    findManyMock.mockResolvedValue([doc({ type: "IDENTITY_PROOF", status: "PENDING" })]);
+    requirementFindManyMock.mockResolvedValue(SEEDED_ROWS);
+    storageConfiguredMock.mockReturnValue(true);
+
+    const data = await getProviderVerificationData();
+
+    expect(data.editable).toBe(true);
+    expect(data.canSubmit).toBe(true);
+    expect(data.submitBlockers).toEqual([]);
+  });
+
+  it("DRAFT with the required document MISSING → editable, canSubmit false + blocker", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", providerType: "INDIVIDUAL", status: "DRAFT" } });
+    findManyMock.mockResolvedValue([]);
+    requirementFindManyMock.mockResolvedValue(SEEDED_ROWS);
+    storageConfiguredMock.mockReturnValue(true);
+
+    const data = await getProviderVerificationData();
+
+    expect(data.editable).toBe(true);
+    expect(data.canSubmit).toBe(false);
+    expect(data.submitBlockers).toEqual([{ type: "IDENTITY_PROOF", reason: "MISSING" }]);
+  });
+
+  it("UNDER_REVIEW is NOT editable and cannot submit (documents locked)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", providerType: "INDIVIDUAL", status: "UNDER_REVIEW" } });
+    findManyMock.mockResolvedValue([doc({ type: "IDENTITY_PROOF", status: "PENDING" })]);
+    requirementFindManyMock.mockResolvedValue(SEEDED_ROWS);
+    storageConfiguredMock.mockReturnValue(true);
+
+    const data = await getProviderVerificationData();
+
+    expect(data.editable).toBe(false);
+    expect(data.canSubmit).toBe(false); // editable === false gates canSubmit regardless of presence
+  });
+});

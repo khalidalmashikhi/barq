@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ProviderType } from "@prisma/client";
-import { requiredDocumentTypesFor, resolveRequiredDocumentBlockers } from "./requirements";
+import { requiredDocumentTypesFor, resolveRequiredDocumentBlockers, resolveSubmitBlockers } from "./requirements";
 
 // Provider document REQUIREMENT rules + the pure completeness primitive that the
 // future assertProviderApprovable() gate will consume. Requirements key ONLY on
@@ -85,5 +85,42 @@ describe("resolveRequiredDocumentBlockers (pure completeness primitive)", () => 
 
   it("empty required set → never blocks", () => {
     expect(resolveRequiredDocumentBlockers([], [{ type: "COMMERCIAL_REGISTRATION", status: "REJECTED" }])).toEqual([]);
+  });
+});
+
+describe("resolveSubmitBlockers — Gate 1A presence-only submit readiness", () => {
+  const required = ["IDENTITY_PROOF"] as const;
+
+  it("a PENDING document satisfies submission (unlike the APPROVAL gate)", () => {
+    expect(resolveSubmitBlockers(required, [{ type: "IDENTITY_PROOF", status: "PENDING" }])).toEqual([]);
+  });
+
+  it("an APPROVED document satisfies submission", () => {
+    expect(resolveSubmitBlockers(required, [{ type: "IDENTITY_PROOF", status: "APPROVED" }])).toEqual([]);
+  });
+
+  it("a MISSING required document blocks submission", () => {
+    expect(resolveSubmitBlockers(required, [])).toEqual([{ type: "IDENTITY_PROOF", reason: "MISSING" }]);
+  });
+
+  it("an admin-REJECTED document blocks submission (must be replaced first)", () => {
+    expect(resolveSubmitBlockers(required, [{ type: "IDENTITY_PROOF", status: "REJECTED" }])).toEqual([
+      { type: "IDENTITY_PROOF", reason: "REJECTED" },
+    ]);
+  });
+
+  it("optional documents never block submission", () => {
+    expect(
+      resolveSubmitBlockers(required, [
+        { type: "IDENTITY_PROOF", status: "PENDING" },
+        { type: "TOURISM_LICENCE", status: "REJECTED" },
+      ])
+    ).toEqual([]);
+  });
+
+  it("differs from the approval gate: PENDING blocks approval but NOT submission", () => {
+    const docs = [{ type: "IDENTITY_PROOF", status: "PENDING" as const }];
+    expect(resolveRequiredDocumentBlockers(required, docs)).toEqual([{ type: "IDENTITY_PROOF", reason: "NOT_APPROVED" }]);
+    expect(resolveSubmitBlockers(required, docs)).toEqual([]);
   });
 });

@@ -184,6 +184,9 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
         storageAvailable: true,
         requiredTotal: 1,
         requiredApproved: 0,
+        editable: false,
+        canSubmit: false,
+        submitBlockers: [],
         items: [
           {
             type: "IDENTITY_PROOF",
@@ -228,6 +231,9 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
         storageAvailable: true,
         requiredTotal: 1,
         requiredApproved: 1,
+        editable: false,
+        canSubmit: false,
+        submitBlockers: [],
         items: [
           {
             type: "COMMERCIAL_REGISTRATION",

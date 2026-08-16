@@ -14,10 +14,13 @@ import type { ProviderApplicationErrorCode } from "./provider-application-errors
 // resolveProviderStatus(), so requireProvider() admits a rejected provider
 // (exactly like APPLIED) — no RBAC change is needed.
 //
-// Only transition: REJECTED -> APPLIED, via an OPTIMISTIC conditional guard
-// (updateMany WHERE status = REJECTED) so a stale/concurrent action (e.g. an
-// admin archiving the provider, or a double submit) matches 0 rows and is
-// reported as NOT_REJECTED rather than silently overwriting another state.
+// Gate 1A: transition REJECTED -> DRAFT (was APPLIED), via an OPTIMISTIC
+// conditional guard (updateMany WHERE status = REJECTED) so a stale/concurrent
+// action (e.g. an admin archiving the provider, or a double submit) matches 0
+// rows and is reported as NOT_REJECTED rather than silently overwriting another
+// state. Returning to DRAFT (not straight back to the queue) makes the provider
+// edit their documents and then EXPLICITLY re-submit — consistent with the new
+// "upload is not submission" rule.
 // Resubmission CLEARS the current rejection fields (rejectionReason/rejectedAt/
 // rejectedByAdminId) — the full history remains in the AuditLog
 // (provider.rejected). `visible` is deliberately never touched, and no new
@@ -46,7 +49,7 @@ export async function resubmitProviderApplication(): Promise<ResubmitProviderApp
       const updated = await tx.provider.updateMany({
         where: { id: provider.id, status: "REJECTED" },
         data: {
-          status: "APPLIED",
+          status: "DRAFT",
           rejectionReason: null,
           rejectedAt: null,
           rejectedByAdminId: null,
@@ -65,7 +68,7 @@ export async function resubmitProviderApplication(): Promise<ResubmitProviderApp
           entityType: "Provider",
           entityId: provider.id,
           previousValue: { status: "REJECTED" },
-          newValue: { status: "APPLIED" },
+          newValue: { status: "DRAFT" },
         },
         tx
       );

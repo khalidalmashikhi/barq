@@ -40,6 +40,7 @@ export const metadata: Metadata = {
 };
 
 const STATUS_LABEL_KEYS = {
+  DRAFT: "applicationStatusDraft",
   APPLIED: "applicationStatusApplied",
   UNDER_REVIEW: "applicationStatusUnderReview",
   APPROVED: "applicationStatusApproved",
@@ -55,6 +56,7 @@ const STATUS_LABEL_KEYS = {
 // INTO it is added in this batch. SUSPENDED/DEACTIVATED get accurate, neutral
 // guidance only (no invented reason — there is no reason field in the data).
 const STATUS_BODY_KEYS = {
+  DRAFT: "applicationStatusDraftBody",
   APPLIED: "applicationStatusAppliedBody",
   UNDER_REVIEW: "applicationStatusUnderReviewBody",
   APPROVED: "applicationStatusApprovedBody",
@@ -67,7 +69,7 @@ const STATUS_BODY_KEYS = {
 // these reassure the applicant that their customer account is unaffected.
 // REJECTED is included: a rejected applicant remains a full customer and can
 // correct + resubmit.
-const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = ["APPLIED", "UNDER_REVIEW", "APPROVED", "REJECTED"];
+const REMAIN_CUSTOMER_STATUSES: ProviderStatus[] = ["DRAFT", "APPLIED", "UNDER_REVIEW", "APPROVED", "REJECTED"];
 const TERMINATED_STATUSES: ProviderStatus[] = ["SUSPENDED", "DEACTIVATED"];
 
 type Props = { searchParams: Promise<{ error?: string }> };
@@ -138,6 +140,16 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
               </Link>
             )}
 
+            {existingProvider.status === "DRAFT" && (
+              <Link
+                href="/provider/verification"
+                className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {t("applicationContinueVerificationLink")}
+                <ArrowRight size={16} strokeWidth={1.75} className="rtl:-scale-x-100" />
+              </Link>
+            )}
+
             {(existingProvider.status === "APPLIED" || existingProvider.status === "UNDER_REVIEW") && hasDocumentBlockers && (
               <Link
                 href="/provider/verification"
@@ -157,8 +169,9 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-4">
-                  {/* Resubmit returns REJECTED -> APPLIED; the existing APPLIED UX
-                      then renders naturally on reload. Corrections are made in the
+                  {/* Gate 1A: resubmit returns REJECTED -> DRAFT; the applicant
+                      then edits documents on the verification page and EXPLICITLY
+                      submits again. Corrections to profile fields are made in the
                       existing Provider Settings, not duplicated here. */}
                   <form
                     action={async () => {

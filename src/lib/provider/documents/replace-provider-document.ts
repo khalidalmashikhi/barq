@@ -43,6 +43,13 @@ export async function replaceProviderDocument(input: ReplaceProviderDocumentInpu
     throw error;
   }
 
+  // Gate 1A SERVER invariant: replace is allowed ONLY while DRAFT (see
+  // uploadProviderDocument). Rejected server-side for every other status so a
+  // direct API call cannot bypass the UI lock.
+  if (provider.status !== "DRAFT") {
+    return { ok: false, error: "APPLICATION_LOCKED" };
+  }
+
   const doc = await prisma.providerDocument.findUnique({ where: { id: input.documentId } });
   // Uniform 404 for missing OR not-owned — never reveal another provider's doc.
   if (!doc || doc.providerId !== provider.id) {

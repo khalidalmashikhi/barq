@@ -604,5 +604,7 @@
   "documentErrorReasonRequired": "Un motif est requis pour rejeter un document.",
   "documentErrorStaleDocument": "Ce document a changé depuis le chargement de la page. Rechargez la page et réessayez.",
   "documentErrorUnknown": "Une erreur s'est produite. Veuillez réessayer.",
-  "documentErrorUploadFailed": "Le document n'a pas pu être téléchargé pour le moment. Veuillez réessayer."
+  "documentErrorUploadFailed": "Le document n'a pas pu être téléchargé pour le moment. Veuillez réessayer.",
+  "statusDraft": "Brouillon",
+  "documentErrorApplicationLocked": "Cette demande a été soumise, ses documents ne peuvent donc plus être modifiés."
 }

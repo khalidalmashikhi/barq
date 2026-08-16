@@ -3,7 +3,7 @@ import type { ProviderType, ProviderDocumentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
 import { isDocumentStorageConfigured } from "@/lib/storage/storage";
-import { resolveVerificationChecklist } from "@/lib/provider-document-types";
+import { resolveVerificationChecklist, resolveSubmitBlockers, type SubmitBlocker } from "@/lib/provider-document-types";
 import { getActiveVerificationRequirements } from "./get-active-verification-requirements";
 import { documentVersionToken } from "./document-version-token";
 
@@ -44,6 +44,12 @@ export type ProviderVerificationData = {
   items: VerificationChecklistItem[]; // ordered by policy sortOrder (required first by default)
   requiredTotal: number;
   requiredApproved: number;
+  // Gate 1A submission lifecycle. `editable` gates document mutation + the submit
+  // control to DRAFT only. `canSubmit` is TRUE only when editable AND every
+  // required document is present (not admin-REJECTED) — presence-only readiness.
+  editable: boolean;
+  canSubmit: boolean;
+  submitBlockers: SubmitBlocker[];
 };
 
 export async function getProviderVerificationData(): Promise<ProviderVerificationData> {
@@ -80,6 +86,15 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
   const requiredItems = checklist.filter((req) => req.required);
   const requiredApproved = requiredItems.filter((req) => byType.get(req.key)?.status === "APPROVED").length;
 
+  // Gate 1A submission readiness — presence-only (a PENDING/APPROVED doc passes;
+  // MISSING or admin-REJECTED blocks). Same resolver the authoritative submit
+  // path uses (assertReadyToSubmit), so the button state matches the server gate.
+  const submitBlockers = resolveSubmitBlockers(
+    requiredItems.map((req) => req.key),
+    rows.map((r) => ({ type: r.type, status: r.status }))
+  );
+  const editable = provider.status === "DRAFT";
+
   return {
     providerType: provider.providerType,
     providerStatus: provider.status,
@@ -87,5 +102,8 @@ export async function getProviderVerificationData(): Promise<ProviderVerificatio
     items,
     requiredTotal: requiredItems.length,
     requiredApproved,
+    editable,
+    canSubmit: editable && submitBlockers.length === 0,
+    submitBlockers,
   };
 }

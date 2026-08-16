@@ -41,6 +41,15 @@ export async function uploadProviderDocument(input: UploadProviderDocumentInput)
     throw error;
   }
 
+  // Gate 1A SERVER invariant: documents may be mutated ONLY while DRAFT. Once the
+  // provider has submitted (UNDER_REVIEW), been decided (APPROVED/REJECTED), or is
+  // a legacy APPLIED row, the server rejects the mutation — a direct API call can
+  // never bypass the UI lock. (requireProvider() proves ownership/active status,
+  // not the lifecycle stage.) A REJECTED provider must resubmit (-> DRAFT) first.
+  if (provider.status !== "DRAFT") {
+    return { ok: false, error: "APPLICATION_LOCKED" };
+  }
+
   // ADR-0017: accept a registry key (compatibility + fail-safe) OR an active
   // configured requirement key; reject arbitrary strings. Never stores a key that
   // is neither, so ProviderDocument.type stays a governed stable code.

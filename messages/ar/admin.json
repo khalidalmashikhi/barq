@@ -604,5 +604,7 @@
   "documentErrorReasonRequired": "يلزم إدخال سبب لرفض المستند.",
   "documentErrorStaleDocument": "تغيّر هذا المستند منذ تحميل الصفحة. أعد تحميل الصفحة وحاول مرة أخرى.",
   "documentErrorUnknown": "حدث خطأ ما. يُرجى المحاولة مرة أخرى.",
-  "documentErrorUploadFailed": "تعذر رفع الملف حاليًا. حاول مرة أخرى."
+  "documentErrorUploadFailed": "تعذر رفع الملف حاليًا. حاول مرة أخرى.",
+  "statusDraft": "مسودة",
+  "documentErrorApplicationLocked": "تم إرسال هذا الطلب، لذا لم يعد بالإمكان تغيير مستنداته."
 }

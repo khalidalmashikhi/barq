@@ -78,3 +78,38 @@ export function resolveRequiredDocumentBlockers(
   }
   return blockers;
 }
+
+export type SubmitBlocker = {
+  type: string;
+  // MISSING: no document uploaded for this required type. REJECTED: a document
+  // exists but an admin previously rejected it, so it must be replaced first.
+  reason: "MISSING" | "REJECTED";
+};
+
+/**
+ * Gate 1A SUBMIT-readiness primitive — DISTINCT from resolveRequiredDocumentBlockers
+ * (which is the admin APPROVAL gate). Submission only checks document PRESENCE:
+ * a required type is a blocker if no document exists (MISSING) or the existing one
+ * was admin-REJECTED (must be replaced). A PENDING or APPROVED document satisfies
+ * submission — the admin reviews/approves AFTER the provider submits.
+ *
+ * IMPORTANT (Gate 1A scope): this asserts document PRESENCE only. It makes NO
+ * claim that the ID is the correct semantic type, non-expired, or otherwise valid
+ * — automated document-type/expiry intelligence is Gate 1C. Optional documents
+ * (types not in `requiredTypes`) never block. No I/O.
+ */
+export function resolveSubmitBlockers(
+  requiredTypes: readonly string[],
+  documents: readonly ProviderDocumentSnapshot[]
+): SubmitBlocker[] {
+  const blockers: SubmitBlocker[] = [];
+  for (const type of requiredTypes) {
+    const doc = documents.find((d) => d.type === type);
+    if (!doc) {
+      blockers.push({ type, reason: "MISSING" });
+    } else if (doc.status === "REJECTED") {
+      blockers.push({ type, reason: "REJECTED" });
+    }
+  }
+  return blockers;
+}

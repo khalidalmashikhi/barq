@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowRight, FileCheck2, AlertTriangle } from "lucide-react";
+import { ArrowRight, FileCheck2, AlertTriangle, Send } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { VerificationDocumentControl } from "@/components/provider/verification/verification-document-control";
 import { formatFileSize } from "@/lib/provider/documents/upload-ui";
 
@@ -37,11 +38,13 @@ const STATUS_LABEL_KEY = {
   REJECTED: "documentStatusRejected",
 } as const;
 
-type Props = { searchParams: Promise<{ docError?: string; docNotice?: string }> };
+type Props = {
+  searchParams: Promise<{ docError?: string; docNotice?: string; vNotice?: string; vError?: string }>;
+};
 
 export default async function ProviderVerificationPage({ searchParams }: Props) {
   const locale = await getLocale();
-  const { docError, docNotice } = await searchParams;
+  const { docError, docNotice, vNotice, vError } = await searchParams;
   const t = await getServerTranslator("provider");
 
   let data;
@@ -57,6 +60,14 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
 
   const errorMessage =
     docError && isProviderDocumentErrorCode(docError) ? t(getProviderDocumentErrorTranslationKey(docError)) : null;
+  const submitErrorMessage =
+    vError === "NOT_READY"
+      ? t("verificationSubmitNotReady")
+      : vError === "INVALID_STATE"
+        ? t("verificationSubmitInvalidState")
+        : vError === "NO_PROVIDER_PROFILE"
+          ? t("documentErrorNoProviderProfile")
+          : null;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-10">
@@ -72,7 +83,18 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
       </div>
 
       {docNotice && <Alert variant="success">{t("documentNoticeSaved")}</Alert>}
+      {vNotice === "submitted" && <Alert variant="success">{t("verificationSubmitNotice")}</Alert>}
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
+      {submitErrorMessage && <Alert variant="danger">{submitErrorMessage}</Alert>}
+
+      {data.providerStatus === "UNDER_REVIEW" && (
+        <Alert variant="info">
+          <span className="flex items-center gap-2">
+            <FileCheck2 size={15} strokeWidth={1.75} />
+            {t("verificationUnderReviewNote")}
+          </span>
+        </Alert>
+      )}
 
       {data.providerStatus === "REJECTED" && (
         <Alert variant="warning">
@@ -140,6 +162,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                       }}
                       canDelete={doc.status !== "APPROVED"}
                       storageAvailable={data.storageAvailable}
+                      editable={data.editable}
                     />
                   </div>
                 ) : data.storageAvailable ? (
@@ -149,6 +172,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                     doc={null}
                     canDelete={false}
                     storageAvailable={data.storageAvailable}
+                    editable={data.editable}
                   />
                 ) : (
                   <p className="text-xs text-foreground/40">{t("documentUploadUnavailableShort")}</p>
@@ -158,6 +182,28 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
           );
         })}
       </div>
+
+      {/* Gate 1A — explicit "Submit for verification". Only in DRAFT; disabled
+          until every required document is present (uploading is NOT submitting). */}
+      {data.editable && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-semibold text-foreground">{t("verificationSubmitTitle")}</h2>
+            <p className="text-sm text-foreground/60">{t("verificationSubmitIntro")}</p>
+          </div>
+          {!data.canSubmit && <p className="text-xs text-foreground/50">{t("verificationSubmitDisabledHint")}</p>}
+          <form action="/api/provider/verification/submit" method="post">
+            <input type="hidden" name="locale" value={locale} />
+            <SubmitButton
+              disabled={!data.canSubmit}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              <Send size={16} strokeWidth={1.75} className="rtl:-scale-x-100" />
+              {t("verificationSubmitButton")}
+            </SubmitButton>
+          </form>
+        </div>
+      )}
 
       <Link
         href="/provider-application"

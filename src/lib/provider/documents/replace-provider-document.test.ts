@@ -59,7 +59,7 @@ function baseInput(overrides: Record<string, unknown> = {}) {
 const approvedDoc = { id: "doc-1", providerId: "prov-1", objectKey: OLD_KEY, type: "COMMERCIAL_REGISTRATION", status: "APPROVED" };
 
 beforeEach(() => {
-  requireProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+  requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status: "DRAFT" } });
   configuredMock.mockReturnValue(true);
   findUniqueMock.mockResolvedValue({ ...approvedDoc });
   uploadMock.mockResolvedValue(undefined);
@@ -136,4 +136,14 @@ describe("replaceProviderDocument", () => {
     const result = await replaceProviderDocument(baseInput());
     expect(result).toEqual({ ok: true }); // old-cleanup failure never rolls back
   });
+
+  it.each(["UNDER_REVIEW", "APPLIED", "APPROVED", "REJECTED"])(
+    "Gate 1A server invariant: a %s provider cannot replace (APPLICATION_LOCKED) — before any storage/DB work",
+    async (status) => {
+      requireProviderMock.mockResolvedValue({ provider: { id: "prov-1", status } });
+      const result = await replaceProviderDocument(baseInput());
+      expect(result).toEqual({ ok: false, error: "APPLICATION_LOCKED" });
+      expect(uploadMock).not.toHaveBeenCalled();
+    }
+  );
 });
