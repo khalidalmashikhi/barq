@@ -117,8 +117,13 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
       });
 
       if (categoryIds.length > 0) {
+        // Gate B1: ProviderCategory.source is now a required, no-default column.
+        // These are the provider's own self-selections, so source = SELF. This is
+        // only the minimal write-compat glue for the required column — the
+        // one-activity/isPrimary onboarding rule is the separate B4 rework, and
+        // nothing reads source/isPrimary yet.
         await tx.providerCategory.createMany({
-          data: categoryIds.map((categoryId) => ({ providerId: provider.id, categoryId })),
+          data: categoryIds.map((categoryId) => ({ providerId: provider.id, categoryId, source: "SELF" as const })),
         });
       }
     });

@@ -64,8 +64,12 @@ export async function setProviderCategories(formData: FormData): Promise<SetProv
 
       await tx.providerCategory.deleteMany({ where: { providerId: provider.id } });
       if (categoryIds.length > 0) {
+        // Gate B1: ProviderCategory.source is now a required, no-default column.
+        // These are provider self-selections, so source = SELF — minimal write-compat
+        // glue only. This deprecated multi-select replace path is reworked to the
+        // single-primary model in B4; nothing reads source/isPrimary yet.
         await tx.providerCategory.createMany({
-          data: categoryIds.map((categoryId) => ({ providerId: provider.id, categoryId })),
+          data: categoryIds.map((categoryId) => ({ providerId: provider.id, categoryId, source: "SELF" as const })),
         });
       }
 

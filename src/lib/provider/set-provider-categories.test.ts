@@ -69,8 +69,8 @@ describe("setProviderCategories", () => {
     expect(deleteManyMock).toHaveBeenCalledWith({ where: { providerId: "p1" } });
     expect(createManyMock).toHaveBeenCalledWith({
       data: [
-        { providerId: "p1", categoryId: "c1" },
-        { providerId: "p1", categoryId: "c2" },
+        { providerId: "p1", categoryId: "c1", source: "SELF" },
+        { providerId: "p1", categoryId: "c2", source: "SELF" },
       ],
     });
     expect(auditCreateMock).toHaveBeenCalledWith({

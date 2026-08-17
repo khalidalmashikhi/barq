@@ -196,8 +196,8 @@ describe("applyAsProvider", () => {
     expect(assertAssignableCategoryMock).toHaveBeenCalledWith("c1", "EXPERIENCE");
     expect(createManyMock).toHaveBeenCalledWith({
       data: [
-        { providerId: "provider-5", categoryId: "c1" },
-        { providerId: "provider-5", categoryId: "c2" },
+        { providerId: "provider-5", categoryId: "c1", source: "SELF" },
+        { providerId: "provider-5", categoryId: "c2", source: "SELF" },
       ],
     });
   });

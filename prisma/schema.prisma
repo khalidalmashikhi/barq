@@ -319,6 +319,18 @@ enum NotificationChannel {
   WHATSAPP
   EMAIL
   SMS
+  IN_APP
+}
+
+/// Provenance of a ProviderCategory link (Gate B). SELF = the provider's one
+/// self-selected primary activity. ADMIN = an additional activity granted by an
+/// ACTIVE admin AFTER Gate B. LEGACY = a pre-provenance relationship backfilled
+/// from before Gate B (authorized during the compatibility period, never
+/// fabricated as an admin grant).
+enum ProviderCategorySource {
+  SELF
+  ADMIN
+  LEGACY
 }
 
 enum NotificationStatus {
@@ -759,10 +771,30 @@ model ProviderCategory {
   categoryId String   @db.Uuid
   provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   category   Category @relation(fields: [categoryId], references: [id])
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  /// Provenance of this activity link (Gate B). DELIBERATELY NO @default:
+  /// provenance is meaningful and must be set EXPLICITLY by every runtime write
+  /// (onboarding → SELF, admin grant → ADMIN). The migration stages this column
+  /// nullable, backfills every existing row deterministically (elected primary →
+  /// SELF, all other pre-existing rows → LEGACY, never fabricated as ADMIN), then
+  /// SET NOT NULL — so the final column is NOT NULL with NO database default.
+  source           ProviderCategorySource
+  /// The DB enforces AT MOST ONE primary per provider via a Postgres PARTIAL
+  /// UNIQUE INDEX (`WHERE isPrimary`, added in the migration — not expressible in
+  /// Prisma schema). "At least one primary" for a new provider is a DOMAIN
+  /// invariant enforced by onboarding / DRAFT primary-selection, NOT by this
+  /// index. The primary row is source=SELF.
+  isPrimary        Boolean  @default(false)
+  /// Set ONLY for source=ADMIN grants — the authenticated admin who granted it.
+  /// Never accepted from client input; null for SELF and LEGACY.
+  grantedByAdminId String?  @db.Uuid
+  grantedByAdmin   Admin?   @relation("ProviderCategoryGrantedBy", fields: [grantedByAdminId], references: [id])
+  /// Set ONLY for source=ADMIN grants; null for SELF and LEGACY.
+  grantedAt        DateTime? @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
 
   @@id([providerId, categoryId])
   @@index([categoryId])
+  @@index([providerId, isPrimary])
   @@map("provider_categories")
 }
 
@@ -1551,6 +1583,17 @@ model Notification {
   causingBookingId String?  @db.Uuid
   causingBooking   Booking? @relation(fields: [causingBookingId], references: [id])
 
+  /// Gate B — stable machine event key (e.g. "provider.verification_submitted").
+  /// Additive companion to the legacy inline content.kind: new rows set this;
+  /// pre-Gate-B rows leave it null and still render via content.kind. Never a
+  /// Prisma enum (open-ended, same convention as AuditLog.action).
+  eventType  String?
+  /// Gate B — generic actionable target (e.g. entityType="Provider"). The CTA
+  /// route is resolved server/UI-side from (eventType, entityType, entityId)
+  /// through an allowlist — a raw URL is NEVER stored here.
+  entityType String?
+  entityId   String?  @db.Uuid
+
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
@@ -1561,6 +1604,8 @@ model Notification {
   /// IS NULL` and getNotifications()'s paginated, newest-first list for
   /// one user, without a table scan.
   @@index([userId, readAt, createdAt])
+  /// Gate B — "notifications about this entity" (e.g. all rows for a Provider).
+  @@index([entityType, entityId])
   @@map("notifications")
 }
 
@@ -1659,6 +1704,7 @@ model Admin {
   approvedProviders Provider[] @relation("ProviderApprovedBy")
   rejectedProviders Provider[] @relation("ProviderRejectedBy")
   reviewedDocuments ProviderDocument[] @relation("ProviderDocumentReviewedBy")
+  grantedProviderCategories ProviderCategory[] @relation("ProviderCategoryGrantedBy")
 
   @@map("admins")
 }
