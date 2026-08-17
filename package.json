@@ -28,6 +28,7 @@
     "bootstrap-staging-taxonomy": "tsx scripts/bootstrap-staging-taxonomy.ts",
     "bootstrap-staging-taxonomy:vercel": "tsx scripts/bootstrap-staging-taxonomy-vercel.ts",
     "bootstrap-staging-verification-requirements": "tsx scripts/bootstrap-staging-verification-requirements.ts",
+    "bootstrap-staging-tour-template": "tsx scripts/bootstrap-staging-tour-template.ts",
     "verify-deployment": "tsx scripts/verify-deployment.ts"
   },
   "dependencies": {

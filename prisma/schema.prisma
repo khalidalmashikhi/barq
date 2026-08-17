@@ -1765,6 +1765,93 @@ model HomepageSection {
 }
 
 // =============================================================================
+// TOUR GUIDE TEMPLATE CONFIG
+// =============================================================================
+// Admin-governed, DB-backed configuration for the Smart Tour-Guide service
+// template. Mirrors the ProviderVerificationRequirement precedent (ADR-0017):
+// a stable, immutable `key`/`code` the APPLICATION owns, bilingual { ar, en }
+// Json presentation an admin may edit, and enabled/order flags — behind a
+// fail-closed reader that falls back to built-in code defaults. The application
+// owns field keys, types, validation, package/vehicle SEMANTICS, and security
+// invariants; these tables carry only SAFE presentation/enablement. No Prisma
+// enum is used (String key/code validated against a code registry), the same
+// convention as Category.serviceTypeKey / Price.pricingUnit — so config stays
+// additive with no ALTER TYPE. Per-service tour DATA lives in the existing
+// Experience.guidingContent Json (validated by a strict server-side contract),
+// never here.
+
+/// Admin-governed tour package preset. `key` is app-owned & immutable; the
+/// behavioural semantics (includes-transport, requires-4x4) are derived from
+/// `key` in CODE and are NEVER stored or admin-editable. Admin edits label /
+/// description / enabled / sortOrder only.
+model TourPackagePreset {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  key         String   @unique
+  label       Json
+  description Json?
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([enabled])
+  @@map("tour_package_presets")
+}
+
+/// Admin-editable localized template text / help block, keyed by an app-defined,
+/// allowlisted `key`. Readers fail closed to a built-in default when a key is
+/// absent or disabled — an unknown DB key is ignored, never rendered.
+model TourTemplateText {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  key       String   @unique
+  content   Json
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([enabled])
+  @@map("tour_template_texts")
+}
+
+/// Admin-manageable vehicle-type option. The canonical `code` set and its
+/// server semantics (FOUR_BY_FOUR is structurally meaningful to validation) are
+/// app-owned; admin edits label / enabled / sortOrder only.
+model TourVehicleTypeOption {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  code      String   @unique
+  label     Json
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([enabled])
+  @@map("tour_vehicle_type_options")
+}
+
+/// Admin-safe presentation config for the SUBSET of tour fields the application
+/// explicitly marks configurable. `key` MUST be an app-owned allowlisted field
+/// identifier — an unknown DB key creates NO form field (the app owns the field
+/// registry). `required` / `visible` here govern only SOFT form presentation and
+/// can NEVER relax a hard server-side invariant (package→vehicle requirements are
+/// enforced by the guidingContent contract regardless of this row).
+model TourTemplateFieldRule {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  key       String   @unique
+  label     Json?
+  helpText  Json?
+  visible   Boolean  @default(true)
+  required  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([visible])
+  @@map("tour_template_field_rules")
+}
+
+// =============================================================================
 // AI CONTEXT
 // =============================================================================
 
