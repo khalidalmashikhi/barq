@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell } from "lucide-react";
+import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell, BadgeCheck, Send, FileUp, FileX2, AlertTriangle } from "lucide-react";
 import { getNotificationPresentation } from "./notification-presentation";
 
 // Notification presentation consolidation — Provider Notifications &
@@ -21,6 +21,15 @@ describe("getNotificationPresentation", () => {
     ["BOOKING_CANCELLED_BY_CUSTOMER", XOctagon, "warning", "categoryCancelled"],
     ["BOOKING_EXPIRED", Clock, "warning", "categoryExpired"],
     ["NEW_REVIEW_RECEIVED", Star, "success", "categoryReview"],
+    // Gate B2/B3 — provider-verification lifecycle kinds.
+    ["PROVIDER_APPROVED", BadgeCheck, "success", "categoryApproved"],
+    ["PROVIDER_REJECTED", XCircle, "default", "categoryRejected"],
+    ["PROVIDER_VERIFICATION_SUBMITTED", Send, "info", "categorySubmitted"],
+    ["PROVIDER_CHANGES_RESUBMITTED", Send, "info", "categorySubmitted"],
+    ["PROVIDER_DOCUMENT_UPLOADED", FileUp, "info", "categoryDocument"],
+    ["PROVIDER_DOCUMENT_REPLACED", FileUp, "info", "categoryDocument"],
+    ["PROVIDER_CHANGES_REQUESTED", AlertTriangle, "warning", "categoryChanges"],
+    ["PROVIDER_DOCUMENT_REJECTED", FileX2, "danger", "categoryRejected"],
   ] as const)("maps kind %s to the correct icon/badge/category", (kind, Icon, badgeVariant, categoryKey) => {
     const presentation = getNotificationPresentation(kind);
     expect(presentation.Icon).toBe(Icon);

@@ -59,6 +59,29 @@ describe("getNotifications — kind extraction", () => {
     expect(result.items[0]!.kind).toBe("PENDING_PROVIDER");
   });
 
+  it("Gate B3: surfaces the structured eventType/entityType/entityId for the CTA resolver", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([
+      {
+        id: "notif-b2",
+        content: { ar: "أُرسل", en: "submitted", kind: "PROVIDER_VERIFICATION_SUBMITTED" },
+        readAt: null,
+        createdAt: new Date(),
+        causingBookingId: null,
+        eventType: "provider.verification_submitted",
+        entityType: "Provider",
+        entityId: "019f4e4e-8116-7052-b15e-b79b5ccb1af9",
+      },
+    ]);
+
+    const result = await getNotifications();
+    const item = result.items[0]!;
+    expect(item.eventType).toBe("provider.verification_submitted");
+    expect(item.entityType).toBe("Provider");
+    expect(item.entityId).toBe("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
+  });
+
   it("returns undefined for a historical row with no kind key at all", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
     countMock.mockResolvedValue(1);

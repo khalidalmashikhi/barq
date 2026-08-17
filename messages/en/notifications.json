@@ -13,5 +13,13 @@
   "categoryExpired": "Expired",
   "categoryReview": "Review",
   "categoryApproved": "Approved",
-  "categoryGeneral": "General"
+  "categoryGeneral": "General",
+  "ctaReviewApplication": "Review application",
+  "ctaReviewDocument": "Review document",
+  "ctaBrowseWorkspace": "Browse your workspace",
+  "ctaReviewChanges": "Review required changes",
+  "ctaViewApplicationStatus": "View application status",
+  "categorySubmitted": "Submitted",
+  "categoryDocument": "Document",
+  "categoryChanges": "Changes requested"
 }

@@ -13,5 +13,13 @@
   "categoryExpired": "Истёк срок",
   "categoryReview": "Отзыв",
   "categoryApproved": "Одобрено",
-  "categoryGeneral": "Общее"
+  "categoryGeneral": "Общее",
+  "ctaReviewApplication": "Проверить заявку",
+  "ctaReviewDocument": "Проверить документ",
+  "ctaBrowseWorkspace": "Открыть рабочее пространство",
+  "ctaReviewChanges": "Проверить требуемые изменения",
+  "ctaViewApplicationStatus": "Посмотреть статус заявки",
+  "categorySubmitted": "Отправлено",
+  "categoryDocument": "Документ",
+  "categoryChanges": "Требуются изменения"
 }

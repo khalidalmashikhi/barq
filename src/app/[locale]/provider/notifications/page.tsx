@@ -15,6 +15,7 @@ import { getPathname } from "@/i18n/navigation";
 import { formatDate } from "@/lib/i18n/format-date";
 import { groupNotificationsByDate } from "@/lib/notifications/group-notifications-by-date";
 import { getNotificationPresentation } from "@/components/notifications/notification-presentation";
+import { NotificationActionLink } from "@/components/notifications/notification-action-link";
 
 // Phase F.3 (Provider Notifications: "Grouping... Icons... Visual
 // hierarchy") — grouped by the notification's own real createdAt date
@@ -153,6 +154,13 @@ export default async function ProviderNotificationsPage({
                           <p className="mt-1 text-xs text-foreground/40">
                             {formatDate(new Date(item.createdAt), locale, { hour: "2-digit", minute: "2-digit" })}
                           </p>
+                          <div className="mt-2">
+                            <NotificationActionLink
+                              eventType={item.eventType}
+                              entityType={item.entityType}
+                              entityId={item.entityId}
+                            />
+                          </div>
                         </div>
                       </div>
 

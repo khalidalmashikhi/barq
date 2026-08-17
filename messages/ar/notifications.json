@@ -13,5 +13,13 @@
   "categoryExpired": "منتهي الصلاحية",
   "categoryReview": "تقييم",
   "categoryApproved": "تمت الموافقة",
-  "categoryGeneral": "عام"
+  "categoryGeneral": "عام",
+  "ctaReviewApplication": "مراجعة الطلب",
+  "ctaReviewDocument": "مراجعة المستند",
+  "ctaBrowseWorkspace": "تصفح مساحتك",
+  "ctaReviewChanges": "مراجعة التعديلات المطلوبة",
+  "ctaViewApplicationStatus": "عرض حالة الطلب",
+  "categorySubmitted": "أُرسل",
+  "categoryDocument": "مستند",
+  "categoryChanges": "تعديلات مطلوبة"
 }

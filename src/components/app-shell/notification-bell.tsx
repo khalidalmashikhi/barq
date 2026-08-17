@@ -8,6 +8,7 @@ import { markNotificationRead } from "@/lib/notifications/mark-notification-read
 import { markAllNotificationsRead } from "@/lib/notifications/mark-all-notifications-read";
 import type { NotificationListItem } from "@/lib/notifications/get-notifications";
 import { getNotificationPresentation } from "@/components/notifications/notification-presentation";
+import { NotificationActionLink } from "@/components/notifications/notification-action-link";
 
 // Notification bell + dropdown — Phase D.1 (Notifications & Messaging
 // Implementation).
@@ -142,7 +143,7 @@ export function NotificationBell({ initialUnreadCount, initialItems, viewAllHref
         <div
           role="menu"
           aria-label={t("pageTitle")}
-          className="absolute end-0 top-full z-20 mt-2 w-80 rounded-2xl border border-border bg-card p-2 shadow-premium-lg"
+          className="absolute end-0 top-full z-20 mt-2 w-[calc(100vw-1.5rem)] max-w-sm rounded-2xl border border-border bg-card p-2 shadow-premium-lg sm:w-80"
         >
           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
             <span className="text-sm font-semibold text-foreground">{t("pageTitle")}</span>
@@ -164,26 +165,48 @@ export function NotificationBell({ initialUnreadCount, initialItems, viewAllHref
             <ul className="mt-1 flex max-h-80 flex-col gap-0.5 overflow-y-auto">
               {items.map((item) => {
                 const { Icon } = getNotificationPresentation(item.kind);
+                // CTA is a navigation <Link>, so it must be a SIBLING of the
+                // mark-read <button> (never nested inside it). onActivate marks an
+                // unread row read + closes the panel; navigation never waits on it.
+                const cta = (
+                  <NotificationActionLink
+                    eventType={item.eventType}
+                    entityType={item.entityType}
+                    entityId={item.entityId}
+                    onActivate={() => {
+                      if (!item.isRead) handleMarkOneRead(item.id);
+                      setIsOpen(false);
+                    }}
+                  />
+                );
                 return (
-                  <li key={item.id} role="none">
-                    {item.isRead ? (
-                      <p role="menuitem" className="flex items-start gap-2 rounded-xl px-2 py-2 text-sm text-foreground/50">
-                        <Icon size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-foreground/30" />
-                        <span className="flex-1">{item.message}</span>
-                      </p>
-                    ) : (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => handleMarkOneRead(item.id)}
-                        aria-label={`${t("markReadAriaLabel")}: ${item.message}`}
-                        className="flex w-full items-start gap-2 rounded-xl px-2 py-2 text-start text-sm font-medium text-foreground hover:bg-accent/15"
-                      >
-                        <Icon size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-primary" />
-                        <span className="flex-1">{item.message}</span>
-                        <Check size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-foreground/30" />
-                      </button>
-                    )}
+                  <li key={item.id} role="none" className="rounded-xl hover:bg-accent/15">
+                    <div className="flex items-start gap-2 px-2 py-2">
+                      <Icon
+                        size={14}
+                        strokeWidth={1.75}
+                        className={`mt-0.5 shrink-0 ${item.isRead ? "text-foreground/30" : "text-primary"}`}
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        {item.isRead ? (
+                          <span role="menuitem" className="text-sm text-foreground/50">
+                            {item.message}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => handleMarkOneRead(item.id)}
+                            aria-label={`${t("markReadAriaLabel")}: ${item.message}`}
+                            className="flex items-start gap-2 text-start text-sm font-medium text-foreground"
+                          >
+                            <span className="flex-1">{item.message}</span>
+                            <Check size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-foreground/30" />
+                          </button>
+                        )}
+                        {cta}
+                      </div>
+                    </div>
                   </li>
                 );
               })}

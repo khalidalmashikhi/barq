@@ -13,5 +13,13 @@
   "categoryExpired": "Vypršelo",
   "categoryReview": "Recenze",
   "categoryApproved": "Schváleno",
-  "categoryGeneral": "Obecné"
+  "categoryGeneral": "Obecné",
+  "ctaReviewApplication": "Zkontrolovat žádost",
+  "ctaReviewDocument": "Zkontrolovat dokument",
+  "ctaBrowseWorkspace": "Otevřít váš prostor",
+  "ctaReviewChanges": "Zkontrolovat požadované změny",
+  "ctaViewApplicationStatus": "Zobrazit stav žádosti",
+  "categorySubmitted": "Odesláno",
+  "categoryDocument": "Dokument",
+  "categoryChanges": "Požadované změny"
 }

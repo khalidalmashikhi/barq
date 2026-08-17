@@ -43,6 +43,13 @@ export type NotificationListItem = {
   /// must treat this as optional and fall back safely, never assume
   /// presence.
   kind: string | undefined;
+  /// Gate B3 — the structured, actionable metadata (Gate B1 columns, set by the
+  /// Gate B2 writers). null on legacy rows. The CTA route is resolved from these
+  /// by resolveNotificationAction() through an ALLOWLIST — a raw href is never
+  /// stored or read from the row.
+  eventType: string | null;
+  entityType: string | null;
+  entityId: string | null;
 };
 
 export type GetNotificationsParams = {
@@ -95,6 +102,9 @@ export async function getNotifications(
     readAt: Date | null;
     createdAt: Date;
     causingBookingId: string | null;
+    eventType: string | null;
+    entityType: string | null;
+    entityId: string | null;
   };
 
   const items: NotificationListItem[] = (notifications as NotificationRow[]).map((notification) => ({
@@ -104,6 +114,9 @@ export async function getNotifications(
     createdAt: notification.createdAt,
     causingBookingId: notification.causingBookingId,
     kind: extractNotificationKind(notification.content),
+    eventType: notification.eventType,
+    entityType: notification.entityType,
+    entityId: notification.entityId,
   }));
 
   return {

@@ -121,6 +121,9 @@ describe("toNotificationDTO", () => {
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       causingBookingId: "b1",
       kind: undefined,
+      eventType: null,
+      entityType: null,
+      entityId: null,
     });
     expect(dto).toEqual({
       id: "n1",
@@ -140,6 +143,9 @@ describe("toNotificationDTO", () => {
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       causingBookingId: null,
       kind: "BOOKING_CONFIRMED",
+      eventType: null,
+      entityType: null,
+      entityId: null,
     });
     expect(dto.kind).toBe("BOOKING_CONFIRMED");
     expect(dto.isRead).toBe(true);

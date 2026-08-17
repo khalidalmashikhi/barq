@@ -20,6 +20,7 @@ import { formatDate } from "@/lib/i18n/format-date";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { groupNotificationsByDate } from "@/lib/notifications/group-notifications-by-date";
 import { getNotificationPresentation } from "@/components/notifications/notification-presentation";
+import { NotificationActionLink } from "@/components/notifications/notification-action-link";
 
 // Notification Center — Customer surface — Phase D.1 (Notifications &
 // Messaging Implementation).
@@ -161,6 +162,13 @@ export default async function NotificationsPage({
                             <p className="mt-1 text-xs text-foreground/40">
                               {formatDate(new Date(item.createdAt), locale, { hour: "2-digit", minute: "2-digit" })}
                             </p>
+                            <div className="mt-2">
+                              <NotificationActionLink
+                                eventType={item.eventType}
+                                entityType={item.entityType}
+                                entityId={item.entityId}
+                              />
+                            </div>
                           </div>
                         </div>
 

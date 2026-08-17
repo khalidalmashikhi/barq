@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell, BadgeCheck } from "lucide-react";
+import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell, BadgeCheck, Send, FileUp, FileX2, AlertTriangle } from "lucide-react";
 import type { BadgeVariant } from "@/components/ui/badge";
 
 // Notification presentation consolidation — Provider Notifications &
@@ -37,7 +37,11 @@ export type NotificationCategoryKey =
   | "categoryExpired"
   | "categoryReview"
   | "categoryApproved"
-  | "categoryGeneral";
+  | "categoryGeneral"
+  // Gate B3 — provider-verification event categories.
+  | "categorySubmitted"
+  | "categoryDocument"
+  | "categoryChanges";
 
 export type NotificationPresentation = {
   Icon: LucideIcon;
@@ -65,6 +69,14 @@ const PRESENTATION_BY_KIND: Record<string, NotificationPresentation> = {
   PROVIDER_APPROVED: { Icon: BadgeCheck, badgeVariant: "success", categoryKey: "categoryApproved" },
   // Provider Review / Reject / Resubmit — application rejected (resubmittable).
   PROVIDER_REJECTED: { Icon: XCircle, badgeVariant: "default", categoryKey: "categoryRejected" },
+  // Gate B2/B3 — provider-verification lifecycle events (kinds set by the B2
+  // writers; keyed here for icon/category presentation).
+  PROVIDER_VERIFICATION_SUBMITTED: { Icon: Send, badgeVariant: "info", categoryKey: "categorySubmitted" },
+  PROVIDER_CHANGES_RESUBMITTED: { Icon: Send, badgeVariant: "info", categoryKey: "categorySubmitted" },
+  PROVIDER_DOCUMENT_UPLOADED: { Icon: FileUp, badgeVariant: "info", categoryKey: "categoryDocument" },
+  PROVIDER_DOCUMENT_REPLACED: { Icon: FileUp, badgeVariant: "info", categoryKey: "categoryDocument" },
+  PROVIDER_CHANGES_REQUESTED: { Icon: AlertTriangle, badgeVariant: "warning", categoryKey: "categoryChanges" },
+  PROVIDER_DOCUMENT_REJECTED: { Icon: FileX2, badgeVariant: "danger", categoryKey: "categoryRejected" },
 };
 
 export function getNotificationPresentation(kind: string | undefined): NotificationPresentation {

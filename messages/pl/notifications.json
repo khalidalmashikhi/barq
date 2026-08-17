@@ -13,5 +13,13 @@
   "categoryExpired": "Wygasłe",
   "categoryReview": "Recenzja",
   "categoryApproved": "Zatwierdzono",
-  "categoryGeneral": "Ogólne"
+  "categoryGeneral": "Ogólne",
+  "ctaReviewApplication": "Sprawdź wniosek",
+  "ctaReviewDocument": "Sprawdź dokument",
+  "ctaBrowseWorkspace": "Otwórz swój panel",
+  "ctaReviewChanges": "Sprawdź wymagane zmiany",
+  "ctaViewApplicationStatus": "Zobacz status wniosku",
+  "categorySubmitted": "Wysłano",
+  "categoryDocument": "Dokument",
+  "categoryChanges": "Wymagane zmiany"
 }
