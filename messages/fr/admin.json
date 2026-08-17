@@ -617,5 +617,21 @@
   "noVerificationRequirements": "Aucune exigence de vérification applicable.",
   "requestChangesButton": "Demander des modifications",
   "requestChangesReasonLabel": "Raison des modifications demandées",
-  "requestChangesReasonPlaceholder": "Expliquez ce que le prestataire doit corriger…"
+  "requestChangesReasonPlaceholder": "Expliquez ce que le prestataire doit corriger…",
+  "authorizedActivitiesTitle": "Activités autorisées",
+  "primaryActivityLabel": "Activité principale",
+  "primaryActivityNone": "Aucune activité principale sélectionnée",
+  "providerSelectedActivityNote": "Choisie par le prestataire",
+  "adminGrantedActivityLabel": "Activité supplémentaire",
+  "adminGrantedActivityNote": "Accordée par l’administration",
+  "legacyActivityLabel": "Activité précédente",
+  "legacyActivityNote": "Autorisation conservée",
+  "removeActivityButton": "Supprimer l’activité",
+  "addActivityLabel": "Ajouter une activité",
+  "addActivitySelectPlaceholder": "Sélectionner une activité…",
+  "addActivityButton": "Ajouter l’activité",
+  "activityInUseError": "Cette activité ne peut pas être supprimée car elle est utilisée par des services existants du prestataire.",
+  "activityInvalidCategoryError": "Cette activité n’est pas sélectionnable.",
+  "activityNotRevocableError": "Cette activité ne peut pas être supprimée.",
+  "activityNotFoundError": "Activité introuvable."
 }

@@ -617,5 +617,21 @@
   "noVerificationRequirements": "No verification requirements apply.",
   "requestChangesButton": "Request changes",
   "requestChangesReasonLabel": "Reason for the requested changes",
-  "requestChangesReasonPlaceholder": "Explain what the provider needs to correct…"
+  "requestChangesReasonPlaceholder": "Explain what the provider needs to correct…",
+  "authorizedActivitiesTitle": "Authorized activities",
+  "primaryActivityLabel": "Primary activity",
+  "primaryActivityNone": "No primary activity selected",
+  "providerSelectedActivityNote": "Chosen by the provider",
+  "adminGrantedActivityLabel": "Additional activity",
+  "adminGrantedActivityNote": "Granted by administration",
+  "legacyActivityLabel": "Previous activity",
+  "legacyActivityNote": "Preserved authorization",
+  "removeActivityButton": "Remove activity",
+  "addActivityLabel": "Add an activity",
+  "addActivitySelectPlaceholder": "Select an activity…",
+  "addActivityButton": "Add activity",
+  "activityInUseError": "This activity cannot be removed because it is used by existing provider services.",
+  "activityInvalidCategoryError": "That activity is not selectable.",
+  "activityNotRevocableError": "This activity cannot be removed.",
+  "activityNotFoundError": "That activity was not found."
 }

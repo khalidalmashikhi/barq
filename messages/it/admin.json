@@ -617,5 +617,21 @@
   "noVerificationRequirements": "Nessun requisito di verifica applicabile.",
   "requestChangesButton": "Richiedi modifiche",
   "requestChangesReasonLabel": "Motivo delle modifiche richieste",
-  "requestChangesReasonPlaceholder": "Spiega cosa deve correggere il fornitore…"
+  "requestChangesReasonPlaceholder": "Spiega cosa deve correggere il fornitore…",
+  "authorizedActivitiesTitle": "Attività autorizzate",
+  "primaryActivityLabel": "Attività principale",
+  "primaryActivityNone": "Nessuna attività principale selezionata",
+  "providerSelectedActivityNote": "Scelta dal fornitore",
+  "adminGrantedActivityLabel": "Attività aggiuntiva",
+  "adminGrantedActivityNote": "Concessa dall’amministrazione",
+  "legacyActivityLabel": "Attività precedente",
+  "legacyActivityNote": "Autorizzazione conservata",
+  "removeActivityButton": "Rimuovi attività",
+  "addActivityLabel": "Aggiungi un’attività",
+  "addActivitySelectPlaceholder": "Seleziona un’attività…",
+  "addActivityButton": "Aggiungi attività",
+  "activityInUseError": "Questa attività non può essere rimossa perché è usata da servizi esistenti del fornitore.",
+  "activityInvalidCategoryError": "Questa attività non è selezionabile.",
+  "activityNotRevocableError": "Questa attività non può essere rimossa.",
+  "activityNotFoundError": "Attività non trovata."
 }

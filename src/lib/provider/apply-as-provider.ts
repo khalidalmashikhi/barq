@@ -63,6 +63,14 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
     return { ok: false, error: "INVALID_INPUT" };
   }
 
+  // Gate B4: a provider self-selects AT MOST ONE primary activity. The onboarding
+  // UI is single-select, but the array payload is untrusted — reject 2+ outright
+  // (never silently truncate). Zero remains allowed (the one primary can be set
+  // while still DRAFT via setProviderPrimaryActivity).
+  if (categoryIds.length > 1) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+
   const trimmedDescriptionAr = typeof businessDescriptionAr === "string" ? businessDescriptionAr.trim() : "";
   const trimmedDescriptionEn = typeof businessDescriptionEn === "string" ? businessDescriptionEn.trim() : "";
 
@@ -116,14 +124,11 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
         },
       });
 
-      if (categoryIds.length > 0) {
-        // Gate B1: ProviderCategory.source is now a required, no-default column.
-        // These are the provider's own self-selections, so source = SELF. This is
-        // only the minimal write-compat glue for the required column — the
-        // one-activity/isPrimary onboarding rule is the separate B4 rework, and
-        // nothing reads source/isPrimary yet.
-        await tx.providerCategory.createMany({
-          data: categoryIds.map((categoryId) => ({ providerId: provider.id, categoryId, source: "SELF" as const })),
+      if (categoryIds.length === 1) {
+        // Gate B4: the one self-selected activity is the SELF primary. The B1
+        // partial unique index guarantees at most one primary per provider.
+        await tx.providerCategory.create({
+          data: { providerId: provider.id, categoryId: categoryIds[0]!, source: "SELF", isPrimary: true },
         });
       }
     });

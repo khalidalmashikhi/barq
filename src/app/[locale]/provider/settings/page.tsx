@@ -9,9 +9,13 @@ import { isProviderProfileActionErrorCode, getProviderProfileErrorTranslationKey
 import { isProviderLogoErrorCode, getProviderLogoErrorTranslationKey } from "@/lib/provider/media/provider-logo-errors";
 import { isProviderMediaErrorCode, getProviderMediaErrorTranslationKey } from "@/lib/provider/media/provider-media-errors";
 import { getProviderMedia } from "@/lib/provider/media/get-provider-media";
-import { getMyProviderCategorySelection } from "@/lib/provider/get-my-provider-category-selection";
-import { setProviderCategories } from "@/lib/provider/set-provider-categories";
-import { ProviderCategoryChecklist } from "@/components/categories/provider-category-checklist";
+import { getProviderActivities } from "@/lib/provider/activities/get-provider-activities";
+import { canProviderEditPrimaryActivity } from "@/lib/provider/activities/activity-policy";
+import { setProviderPrimaryActivity } from "@/lib/provider/set-provider-primary-activity";
+import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
+import { ProviderPrimaryActivityPicker } from "@/components/categories/provider-primary-activity-picker";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -69,8 +73,12 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
   const logoErrorMessage = logoError && isProviderLogoErrorCode(logoError) ? t(getProviderLogoErrorTranslationKey(logoError)) : null;
   const mediaErrorMessage = mediaError && isProviderMediaErrorCode(mediaError) ? t(getProviderMediaErrorTranslationKey(mediaError)) : null;
 
-  // Areas of activity (Gap G) — admin-managed taxonomy, editable any time.
-  const { tree: categoryTree, selectedIds: selectedCategoryIds } = await getMyProviderCategorySelection();
+  // Gate B4 — authorized activities (SELF primary + admin-granted + legacy),
+  // read-only. The single primary is self-editable ONLY while the application is
+  // still DRAFT; otherwise it (and the admin/legacy grants) are display-only.
+  const activities = await getProviderActivities(profile.id, locale);
+  const canEditPrimary = canProviderEditPrimaryActivity(profile.status);
+  const primaryPickerTree = canEditPrimary ? await getSelectableCategories(DEFAULT_SERVICE_TYPE_KEY) : null;
 
   // Provider media (Gap C) — one bounded query for logo + cover + portfolio.
   const media = await getProviderMedia(profile.id);
@@ -368,33 +376,69 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
       {areasSaved === "1" && <Alert variant="success">{t("areasSavedLabel")}</Alert>}
       {areasError && <Alert variant="danger">{t("areasErrorLabel")}</Alert>}
 
+      {/* Gate B4 — "My activities": read-only authorized set. A provider never has
+          controls here to self-add an activity or remove an admin/legacy grant.
+          Only the single primary is self-editable, and only while DRAFT. */}
       <Card hoverLift={false}>
-        <form
-          action={async (formData: FormData) => {
-            "use server";
-            const result = await setProviderCategories(formData);
-            redirect({
-              href: result.ok ? "/provider/settings?areasSaved=1" : `/provider/settings?areasError=${result.error}`,
-              locale,
-            });
-          }}
-          className="flex flex-col gap-4"
-        >
+        <div className="flex flex-col gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">{t("settingsAreasTitle")}</h2>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("settingsAreasHint")}</p>
+            <h2 className="text-sm font-semibold text-foreground">{t("myActivitiesTitle")}</h2>
+            <p className="mt-0.5 text-xs text-foreground/50">{t("myActivitiesHint")}</p>
           </div>
 
-          <ProviderCategoryChecklist
-            tree={categoryTree}
-            selectedIds={selectedCategoryIds}
-            emptyLabel={t("settingsAreasEmpty")}
-          />
+          <ul className="flex flex-col gap-2">
+            <li className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+              <span className="text-sm font-medium text-foreground">
+                {activities.primary ? activities.primary.label : t("primaryActivityNone")}
+              </span>
+              <Badge variant="success">{t("primaryActivityLabel")}</Badge>
+              <span className="text-xs text-foreground/40">{t("primaryActivityNote")}</span>
+            </li>
+            {activities.adminGranted.map((a) => (
+              <li key={a.categoryId} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+                <span className="text-sm text-foreground">{a.label}</span>
+                <Badge variant="info">{t("adminGrantedActivityLabel")}</Badge>
+                <span className="text-xs text-foreground/40">{t("adminGrantedActivityNote")}</span>
+              </li>
+            ))}
+            {activities.legacy.map((a) => (
+              <li key={a.categoryId} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+                <span className="text-sm text-foreground">{a.label}</span>
+                <Badge variant="default">{t("legacyActivityLabel")}</Badge>
+                <span className="text-xs text-foreground/40">{t("legacyActivityNote")}</span>
+              </li>
+            ))}
+          </ul>
 
-          <SubmitButton className="mt-1 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
-            {t("settingsAreasSubmitButton")}
-          </SubmitButton>
-        </form>
+          {/* DRAFT-only: choose/replace the ONE primary activity (single-select). */}
+          {canEditPrimary && primaryPickerTree && (
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                const result = await setProviderPrimaryActivity(formData);
+                redirect({
+                  href: result.ok ? "/provider/settings?areasSaved=1" : `/provider/settings?areasError=${result.error}`,
+                  locale,
+                });
+              }}
+              className="flex flex-col gap-3 border-t border-border pt-4"
+            >
+              <div>
+                <h3 className="text-sm font-medium text-foreground">{t("choosePrimaryActivityTitle")}</h3>
+                <p className="mt-0.5 text-xs text-foreground/50">{t("choosePrimaryActivityHint")}</p>
+              </div>
+              <ProviderPrimaryActivityPicker
+                tree={primaryPickerTree}
+                selectedId={activities.primary?.categoryId ?? null}
+                emptyLabel={t("settingsAreasEmpty")}
+                name="categoryId"
+              />
+              <SubmitButton className="mt-1 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
+                {t("choosePrimaryActivitySubmit")}
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       </Card>
     </div>
   );

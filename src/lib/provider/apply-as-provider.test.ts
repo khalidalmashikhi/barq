@@ -29,7 +29,7 @@ vi.mock("@/lib/auth", () => ({
 
 const findUniqueMock = vi.fn();
 const createMock = vi.fn();
-const createManyMock = vi.fn();
+const pcCreateMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -40,7 +40,7 @@ vi.mock("@/lib/db", () => ({
     $transaction: async (cb: (tx: unknown) => unknown) =>
       cb({
         provider: { create: (...args: unknown[]) => createMock(...args) },
-        providerCategory: { createMany: (...args: unknown[]) => createManyMock(...args) },
+        providerCategory: { create: (...args: unknown[]) => pcCreateMock(...args) },
       }),
   },
 }));
@@ -65,7 +65,7 @@ afterEach(() => {
   assertNotActiveAdminMock.mockReset();
   findUniqueMock.mockReset();
   createMock.mockReset();
-  createManyMock.mockReset();
+  pcCreateMock.mockReset();
   assertAssignableCategoryMock.mockReset();
 });
 
@@ -179,12 +179,28 @@ describe("applyAsProvider", () => {
     expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
   });
 
-  it("writes ProviderCategory rows for submitted areas, validated against the taxonomy", async () => {
+  it("Gate B4: exactly ONE selected activity is created as the SELF primary", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-5" } });
     findUniqueMock.mockResolvedValue(null);
     assertAssignableCategoryMock.mockResolvedValue(true);
     createMock.mockResolvedValue({ id: "provider-5" });
-    createManyMock.mockResolvedValue({});
+    pcCreateMock.mockResolvedValue({});
+
+    const fd = buildFormData({ businessNameAr: "شركة", businessNameEn: "Acme" });
+    fd.append("categoryIds", "c1");
+
+    const result = await applyAsProvider(fd);
+
+    expect(result).toEqual({ ok: true });
+    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("c1", "EXPERIENCE");
+    expect(pcCreateMock).toHaveBeenCalledWith({
+      data: { providerId: "provider-5", categoryId: "c1", source: "SELF", isPrimary: true },
+    });
+  });
+
+  it("Gate B4: rejects 2+ self-selected activities (INVALID_INPUT) — never truncates, creates nothing", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-5b" } });
+    findUniqueMock.mockResolvedValue(null);
 
     const fd = buildFormData({ businessNameAr: "شركة", businessNameEn: "Acme" });
     fd.append("categoryIds", "c1");
@@ -192,14 +208,9 @@ describe("applyAsProvider", () => {
 
     const result = await applyAsProvider(fd);
 
-    expect(result).toEqual({ ok: true });
-    expect(assertAssignableCategoryMock).toHaveBeenCalledWith("c1", "EXPERIENCE");
-    expect(createManyMock).toHaveBeenCalledWith({
-      data: [
-        { providerId: "provider-5", categoryId: "c1", source: "SELF" },
-        { providerId: "provider-5", categoryId: "c2", source: "SELF" },
-      ],
-    });
+    expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(createMock).not.toHaveBeenCalled();
+    expect(pcCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects an unassignable area with INVALID_INPUT and creates nothing", async () => {

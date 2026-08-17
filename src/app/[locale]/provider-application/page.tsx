@@ -10,7 +10,7 @@ import { assertProviderApprovable } from "@/lib/provider/documents/assert-provid
 import { isProviderApplicationErrorCode, getProviderApplicationErrorTranslationKey } from "@/lib/provider/provider-application-errors";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
-import { ProviderCategoryChecklist } from "@/components/categories/provider-category-checklist";
+import { ProviderPrimaryActivityPicker } from "@/components/categories/provider-primary-activity-picker";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -333,9 +333,11 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
 
             {categoryTree && (
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("settingsAreasTitle")}</span>
-                <p className="text-xs text-foreground/40">{t("settingsAreasHint")}</p>
-                <ProviderCategoryChecklist tree={categoryTree} selectedIds={[]} emptyLabel={t("settingsAreasEmpty")} />
+                <span className="text-xs font-medium text-foreground/50">{t("choosePrimaryActivityTitle")}</span>
+                <p className="text-xs text-foreground/40">{t("choosePrimaryActivityHint")}</p>
+                {/* Gate B4 — single-select primary activity. Submits as `categoryIds`
+                    (a radio group = at most one); applyAsProvider re-enforces ≤1. */}
+                <ProviderPrimaryActivityPicker tree={categoryTree} emptyLabel={t("settingsAreasEmpty")} name="categoryIds" />
               </div>
             )}
 

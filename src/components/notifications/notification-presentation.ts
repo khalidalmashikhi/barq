@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell, BadgeCheck, Send, FileUp, FileX2, AlertTriangle } from "lucide-react";
+import { CalendarPlus, CalendarCheck, XCircle, XOctagon, Clock, Star, Bell, BadgeCheck, Send, FileUp, FileX2, AlertTriangle, Layers } from "lucide-react";
 import type { BadgeVariant } from "@/components/ui/badge";
 
 // Notification presentation consolidation — Provider Notifications &
@@ -77,6 +77,9 @@ const PRESENTATION_BY_KIND: Record<string, NotificationPresentation> = {
   PROVIDER_DOCUMENT_REPLACED: { Icon: FileUp, badgeVariant: "info", categoryKey: "categoryDocument" },
   PROVIDER_CHANGES_REQUESTED: { Icon: AlertTriangle, badgeVariant: "warning", categoryKey: "categoryChanges" },
   PROVIDER_DOCUMENT_REJECTED: { Icon: FileX2, badgeVariant: "danger", categoryKey: "categoryRejected" },
+  // Gate B4 — provider activity governance.
+  PROVIDER_ACTIVITY_GRANTED: { Icon: Layers, badgeVariant: "success", categoryKey: "categoryGeneral" },
+  PROVIDER_ACTIVITY_REVOKED: { Icon: Layers, badgeVariant: "default", categoryKey: "categoryGeneral" },
 };
 
 export function getNotificationPresentation(kind: string | undefined): NotificationPresentation {

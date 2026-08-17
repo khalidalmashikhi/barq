@@ -617,5 +617,21 @@
   "noVerificationRequirements": "لا توجد متطلبات تحقق منطبقة.",
   "requestChangesButton": "طلب تعديلات",
   "requestChangesReasonLabel": "سبب طلب التعديلات",
-  "requestChangesReasonPlaceholder": "اشرح ما الذي يجب على مزوّد الخدمة تصحيحه…"
+  "requestChangesReasonPlaceholder": "اشرح ما الذي يجب على مزوّد الخدمة تصحيحه…",
+  "authorizedActivitiesTitle": "الأنشطة المصرح بها",
+  "primaryActivityLabel": "النشاط الأساسي",
+  "primaryActivityNone": "لم يتم اختيار نشاط أساسي",
+  "providerSelectedActivityNote": "اختاره المزود",
+  "adminGrantedActivityLabel": "نشاط إضافي",
+  "adminGrantedActivityNote": "مضاف بواسطة الإدارة",
+  "legacyActivityLabel": "نشاط سابق",
+  "legacyActivityNote": "صلاحية محفوظة",
+  "removeActivityButton": "إزالة النشاط",
+  "addActivityLabel": "إضافة نشاط",
+  "addActivitySelectPlaceholder": "اختر نشاطًا…",
+  "addActivityButton": "إضافة نشاط",
+  "activityInUseError": "لا يمكن إزالة هذا النشاط لأنه مرتبط بخدمات حالية لدى المزود.",
+  "activityInvalidCategoryError": "هذا النشاط غير قابل للاختيار.",
+  "activityNotRevocableError": "لا يمكن إزالة هذا النشاط.",
+  "activityNotFoundError": "لم يتم العثور على هذا النشاط."
 }

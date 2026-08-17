@@ -45,6 +45,13 @@ describe("resolveNotificationAction — PROVIDER events → fixed self-scoped ro
       href: "/provider-application",
     });
   });
+
+  it.each(["provider.activity_granted", "provider.activity_revoked"])("%s → /provider (Browse your workspace)", (eventType) => {
+    expect(resolveNotificationAction({ eventType, entityType: "Provider", entityId: UUID })).toEqual({
+      labelKey: "ctaBrowseWorkspace",
+      href: "/provider",
+    });
+  });
 });
 
 describe("resolveNotificationAction — safety / null cases", () => {

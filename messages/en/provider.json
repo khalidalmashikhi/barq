@@ -365,5 +365,17 @@
   "applicationStatusChangesRequestedBody": "Our team asked for changes to your application. Review the reason, update your documents on the verification page, then submit again.",
   "applicationChangesRequestedReasonLabel": "Requested changes",
   "applicationCompleteDocumentsLink": "Complete your verification documents",
-  "applicationVerificationLink": "Verification & documents"
+  "applicationVerificationLink": "Verification & documents",
+  "myActivitiesTitle": "My activities",
+  "myActivitiesHint": "Your authorized activities. Administration may add more when needed.",
+  "primaryActivityLabel": "Primary activity",
+  "primaryActivityNote": "Chosen by you",
+  "primaryActivityNone": "Not selected yet",
+  "adminGrantedActivityLabel": "Additional activity",
+  "adminGrantedActivityNote": "Granted by administration",
+  "legacyActivityLabel": "Previous activity",
+  "legacyActivityNote": "Preserved authorization",
+  "choosePrimaryActivityTitle": "Choose your primary activity",
+  "choosePrimaryActivityHint": "You can select one primary activity. Additional activities may be granted by administration when needed.",
+  "choosePrimaryActivitySubmit": "Save primary activity"
 }

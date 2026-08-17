@@ -29,6 +29,8 @@ describe("provider notification event contract", () => {
   it("exposes exactly the stable machine event names (never translated strings)", () => {
     expect(Object.values(PROVIDER_NOTIFICATION_EVENT).sort()).toEqual(
       [
+        "provider.activity_granted",
+        "provider.activity_revoked",
         "provider.approved",
         "provider.changes_requested",
         "provider.changes_resubmitted",
@@ -95,7 +97,7 @@ describe("event content privacy + locale parity", () => {
     createInAppNotificationMock.mockResolvedValue(undefined);
     notifyActiveAdminsMock.mockResolvedValue(undefined);
 
-    const providerEvents = ["provider.approved", "provider.rejected", "provider.changes_requested", "provider.document_rejected"] as const;
+    const providerEvents = ["provider.approved", "provider.rejected", "provider.changes_requested", "provider.document_rejected", "provider.activity_granted", "provider.activity_revoked"] as const;
     const adminEvents = ["provider.verification_submitted", "provider.changes_resubmitted", "provider.document_uploaded", "provider.document_replaced"] as const;
 
     for (const e of providerEvents) await notifyProviderOfEvent(e, { providerUserId: "u", providerId: "p" });
@@ -105,7 +107,7 @@ describe("event content privacy + locale parity", () => {
       ...createInAppNotificationMock.mock.calls.map((c) => (c[0] as { content: Record<string, unknown> }).content),
       ...notifyActiveAdminsMock.mock.calls.map((c) => (c[0] as { content: Record<string, unknown> }).content),
     ];
-    expect(contents).toHaveLength(8);
+    expect(contents).toHaveLength(10);
     for (const content of contents) {
       expect(typeof content.kind).toBe("string");
       for (const locale of LOCALES) expect(content[locale]).toBeTypeOf("string");

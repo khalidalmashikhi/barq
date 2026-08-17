@@ -365,5 +365,17 @@
   "applicationStatusChangesRequestedBody": "Наша команда запросила изменения в вашей заявке. Ознакомьтесь с причиной, обновите документы на странице проверки и отправьте снова.",
   "applicationChangesRequestedReasonLabel": "Запрошенные изменения",
   "applicationCompleteDocumentsLink": "Завершите оформление документов для верификации",
-  "applicationVerificationLink": "Верификация и документы"
+  "applicationVerificationLink": "Верификация и документы",
+  "myActivitiesTitle": "Мои виды деятельности",
+  "myActivitiesHint": "Ваши разрешённые виды деятельности. Администрация может добавить другие при необходимости.",
+  "primaryActivityLabel": "Основной вид деятельности",
+  "primaryActivityNote": "Выбрано вами",
+  "primaryActivityNone": "Ещё не выбрано",
+  "adminGrantedActivityLabel": "Дополнительный вид деятельности",
+  "adminGrantedActivityNote": "Предоставлено администрацией",
+  "legacyActivityLabel": "Прежний вид деятельности",
+  "legacyActivityNote": "Сохранённое разрешение",
+  "choosePrimaryActivityTitle": "Выберите основной вид деятельности",
+  "choosePrimaryActivityHint": "Вы можете выбрать один основной вид деятельности. Дополнительные при необходимости предоставляет администрация.",
+  "choosePrimaryActivitySubmit": "Сохранить основной вид деятельности"
 }

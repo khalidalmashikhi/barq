@@ -365,5 +365,17 @@
   "applicationStatusChangesRequestedBody": "Náš tým požádal o změny ve vaší žádosti. Zkontrolujte důvod, aktualizujte dokumenty na stránce ověření a poté odešlete znovu.",
   "applicationChangesRequestedReasonLabel": "Vyžádané změny",
   "applicationCompleteDocumentsLink": "Dokončete své ověřovací dokumenty",
-  "applicationVerificationLink": "Ověření a dokumenty"
+  "applicationVerificationLink": "Ověření a dokumenty",
+  "myActivitiesTitle": "Moje aktivity",
+  "myActivitiesHint": "Vaše autorizované aktivity. Administrace může v případě potřeby přidat další.",
+  "primaryActivityLabel": "Hlavní aktivita",
+  "primaryActivityNote": "Zvoleno vámi",
+  "primaryActivityNone": "Zatím nevybráno",
+  "adminGrantedActivityLabel": "Další aktivita",
+  "adminGrantedActivityNote": "Uděleno administrací",
+  "legacyActivityLabel": "Předchozí aktivita",
+  "legacyActivityNote": "Zachovaná autorizace",
+  "choosePrimaryActivityTitle": "Vyberte svou hlavní aktivitu",
+  "choosePrimaryActivityHint": "Můžete vybrat jednu hlavní aktivitu. Další může v případě potřeby udělit administrace.",
+  "choosePrimaryActivitySubmit": "Uložit hlavní aktivitu"
 }

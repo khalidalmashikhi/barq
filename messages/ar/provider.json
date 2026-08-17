@@ -365,5 +365,17 @@
   "applicationStatusChangesRequestedBody": "طلب فريقنا إجراء تعديلات على طلبك. راجع السبب، وحدّث مستنداتك في صفحة التحقق، ثم أرسل الطلب مرة أخرى.",
   "applicationChangesRequestedReasonLabel": "التعديلات المطلوبة",
   "applicationCompleteDocumentsLink": "أكمل مستندات التحقق الخاصة بك",
-  "applicationVerificationLink": "التحقق والمستندات"
+  "applicationVerificationLink": "التحقق والمستندات",
+  "myActivitiesTitle": "أنشطتي",
+  "myActivitiesHint": "الأنشطة المصرح بها في حسابك. يمكن للإدارة إضافة أنشطة أخرى عند الحاجة.",
+  "primaryActivityLabel": "النشاط الأساسي",
+  "primaryActivityNote": "اخترته بنفسك",
+  "primaryActivityNone": "لم يتم اختياره بعد",
+  "adminGrantedActivityLabel": "نشاط إضافي",
+  "adminGrantedActivityNote": "مضاف بواسطة الإدارة",
+  "legacyActivityLabel": "نشاط سابق",
+  "legacyActivityNote": "صلاحية محفوظة",
+  "choosePrimaryActivityTitle": "اختر نشاطك الأساسي",
+  "choosePrimaryActivityHint": "يمكنك اختيار نشاط أساسي واحد. يمكن للإدارة إضافة أنشطة أخرى إلى حسابك عند الحاجة.",
+  "choosePrimaryActivitySubmit": "حفظ النشاط الأساسي"
 }

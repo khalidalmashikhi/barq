@@ -617,5 +617,21 @@
   "noVerificationRequirements": "Nevztahují se žádné ověřovací požadavky.",
   "requestChangesButton": "Vyžádat změny",
   "requestChangesReasonLabel": "Důvod vyžádaných změn",
-  "requestChangesReasonPlaceholder": "Vysvětlete, co má poskytovatel opravit…"
+  "requestChangesReasonPlaceholder": "Vysvětlete, co má poskytovatel opravit…",
+  "authorizedActivitiesTitle": "Autorizované aktivity",
+  "primaryActivityLabel": "Hlavní aktivita",
+  "primaryActivityNone": "Není vybrána hlavní aktivita",
+  "providerSelectedActivityNote": "Zvoleno poskytovatelem",
+  "adminGrantedActivityLabel": "Další aktivita",
+  "adminGrantedActivityNote": "Uděleno administrací",
+  "legacyActivityLabel": "Předchozí aktivita",
+  "legacyActivityNote": "Zachovaná autorizace",
+  "removeActivityButton": "Odebrat aktivitu",
+  "addActivityLabel": "Přidat aktivitu",
+  "addActivitySelectPlaceholder": "Vyberte aktivitu…",
+  "addActivityButton": "Přidat aktivitu",
+  "activityInUseError": "Tuto aktivitu nelze odebrat, protože ji používají stávající služby poskytovatele.",
+  "activityInvalidCategoryError": "Tuto aktivitu nelze vybrat.",
+  "activityNotRevocableError": "Tuto aktivitu nelze odebrat.",
+  "activityNotFoundError": "Aktivita nebyla nalezena."
 }

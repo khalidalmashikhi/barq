@@ -617,5 +617,21 @@
   "noVerificationRequirements": "Требования к проверке не применяются.",
   "requestChangesButton": "Запросить изменения",
   "requestChangesReasonLabel": "Причина запрошенных изменений",
-  "requestChangesReasonPlaceholder": "Объясните, что поставщику нужно исправить…"
+  "requestChangesReasonPlaceholder": "Объясните, что поставщику нужно исправить…",
+  "authorizedActivitiesTitle": "Разрешённые виды деятельности",
+  "primaryActivityLabel": "Основной вид деятельности",
+  "primaryActivityNone": "Основной вид деятельности не выбран",
+  "providerSelectedActivityNote": "Выбрано поставщиком",
+  "adminGrantedActivityLabel": "Дополнительный вид деятельности",
+  "adminGrantedActivityNote": "Предоставлено администрацией",
+  "legacyActivityLabel": "Прежний вид деятельности",
+  "legacyActivityNote": "Сохранённое разрешение",
+  "removeActivityButton": "Удалить вид деятельности",
+  "addActivityLabel": "Добавить вид деятельности",
+  "addActivitySelectPlaceholder": "Выберите вид деятельности…",
+  "addActivityButton": "Добавить",
+  "activityInUseError": "Этот вид деятельности нельзя удалить, так как он используется существующими услугами поставщика.",
+  "activityInvalidCategoryError": "Этот вид деятельности недоступен для выбора.",
+  "activityNotRevocableError": "Этот вид деятельности нельзя удалить.",
+  "activityNotFoundError": "Вид деятельности не найден."
 }

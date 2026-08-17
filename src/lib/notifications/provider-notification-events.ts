@@ -27,6 +27,9 @@ export const PROVIDER_NOTIFICATION_EVENT = {
   CHANGES_REQUESTED: "provider.changes_requested",
   APPROVED: "provider.approved",
   REJECTED: "provider.rejected",
+  // Gate B4 — admin-governed activities.
+  ACTIVITY_GRANTED: "provider.activity_granted",
+  ACTIVITY_REVOKED: "provider.activity_revoked",
 } as const;
 
 export type ProviderNotificationEventType =
@@ -159,6 +162,36 @@ const EVENT_DEFS: Record<ProviderNotificationEventType, EventDef> = {
       fr: "Un document de vérification a été rejeté",
       cs: "Ověřovací dokument byl zamítnut",
       ru: "Документ проверки отклонён",
+    },
+  },
+  // Static, privacy-safe — no category id/name in the body (the provider sees the
+  // activity in their workspace). Both route to the provider workspace (B3 CTA).
+  "provider.activity_granted": {
+    audience: "PROVIDER",
+    kind: "PROVIDER_ACTIVITY_GRANTED",
+    messages: {
+      ar: "تمت إضافة نشاط جديد إلى حساب مزود الخدمة",
+      en: "A new activity was added to your provider account",
+      de: "Ihrem Anbieterkonto wurde eine neue Aktivität hinzugefügt",
+      it: "Una nuova attività è stata aggiunta al tuo account fornitore",
+      pl: "Do Twojego konta dostawcy dodano nową aktywność",
+      fr: "Une nouvelle activité a été ajoutée à votre compte prestataire",
+      cs: "K vašemu účtu poskytovatele byla přidána nová aktivita",
+      ru: "В ваш аккаунт поставщика добавлена новая деятельность",
+    },
+  },
+  "provider.activity_revoked": {
+    audience: "PROVIDER",
+    kind: "PROVIDER_ACTIVITY_REVOKED",
+    messages: {
+      ar: "تم تحديث الأنشطة المصرح بها في حساب مزود الخدمة",
+      en: "The authorized activities on your provider account were updated",
+      de: "Die autorisierten Aktivitäten Ihres Anbieterkontos wurden aktualisiert",
+      it: "Le attività autorizzate del tuo account fornitore sono state aggiornate",
+      pl: "Zaktualizowano autoryzowane aktywności na Twoim koncie dostawcy",
+      fr: "Les activités autorisées de votre compte prestataire ont été mises à jour",
+      cs: "Autorizované aktivity vašeho účtu poskytovatele byly aktualizovány",
+      ru: "Разрешённые виды деятельности вашего аккаунта поставщика обновлены",
     },
   },
 };

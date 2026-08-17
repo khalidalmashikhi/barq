@@ -66,6 +66,7 @@ describe("toProviderProfileDTO", () => {
       city: "",
       logoUrl: "",
       providerType: "COMPANY",
+      status: "APPROVED",
     });
     expect(dto).toEqual({
       id: "p1",

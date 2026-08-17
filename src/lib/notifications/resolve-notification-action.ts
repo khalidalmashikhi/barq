@@ -52,6 +52,9 @@ const ACTION_BY_EVENT: Record<string, ActionDef> = {
   "provider.document_replaced": { labelKey: "ctaReviewDocument", kind: "adminProviderDetail" },
   // ---- PROVIDER audience ----
   "provider.approved": { labelKey: "ctaBrowseWorkspace", kind: "fixed", href: "/provider" },
+  // Gate B4 — activity governance events route to the provider workspace.
+  "provider.activity_granted": { labelKey: "ctaBrowseWorkspace", kind: "fixed", href: "/provider" },
+  "provider.activity_revoked": { labelKey: "ctaBrowseWorkspace", kind: "fixed", href: "/provider" },
   "provider.changes_requested": { labelKey: "ctaReviewChanges", kind: "fixed", href: "/provider/verification" },
   "provider.document_rejected": { labelKey: "ctaReviewDocument", kind: "fixed", href: "/provider/verification" },
   "provider.rejected": { labelKey: "ctaViewApplicationStatus", kind: "fixed", href: "/provider-application" },

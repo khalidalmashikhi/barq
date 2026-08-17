@@ -21,6 +21,12 @@ import {
   type AdminProviderVerification,
 } from "@/lib/provider/documents/get-admin-provider-verification-checklist";
 import { requestProviderChanges } from "@/lib/admin/request-provider-changes";
+import { getProviderActivities } from "@/lib/provider/activities/get-provider-activities";
+import { grantProviderActivity } from "@/lib/admin/grant-provider-activity";
+import { revokeProviderActivity } from "@/lib/admin/revoke-provider-activity";
+import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { flattenCategoryTree } from "@/lib/categories/category-tree";
+import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { PROVIDER_DOCUMENT_TYPE_LABEL_KEYS, isValidProviderDocumentTypeKey } from "@/lib/provider-document-types";
 import {
@@ -78,12 +84,19 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; docError?: string; docNotice?: string }>;
+  searchParams: Promise<{ error?: string; docError?: string; docNotice?: string; activityError?: string }>;
 };
+
+const ACTIVITY_ERROR_KEYS = {
+  ACTIVITY_IN_USE: "activityInUseError",
+  INVALID_CATEGORY: "activityInvalidCategoryError",
+  NOT_REVOCABLE: "activityNotRevocableError",
+  NOT_FOUND: "activityNotFoundError",
+} as const;
 
 export default async function ProviderDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error, docError, docNotice } = await searchParams;
+  const { error, docError, docNotice, activityError } = await searchParams;
   const t = await getServerTranslator("admin");
   const locale = await getLocale();
 
@@ -148,6 +161,29 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
   // in the decision section (the server gate in approveProvider() stays the real
   // enforcement — this is only its visible reflection).
   const approvalReady = isPending && !hasBlockers;
+
+  // Gate B4 — authorized activities + the categories eligible to grant (the
+  // selectable taxonomy minus the ones already linked to this provider). Best-effort.
+  let activities = { primary: null as Awaited<ReturnType<typeof getProviderActivities>>["primary"], adminGranted: [] as Awaited<ReturnType<typeof getProviderActivities>>["adminGranted"], legacy: [] as Awaited<ReturnType<typeof getProviderActivities>>["legacy"] };
+  let grantableCategories: { id: string; label: string }[] = [];
+  try {
+    activities = await getProviderActivities(id, locale);
+    const linked = new Set<string>([
+      ...(activities.primary ? [activities.primary.categoryId] : []),
+      ...activities.adminGranted.map((a) => a.categoryId),
+      ...activities.legacy.map((a) => a.categoryId),
+    ]);
+    const tree = await getSelectableCategories(DEFAULT_SERVICE_TYPE_KEY);
+    grantableCategories = flattenCategoryTree(tree)
+      .filter((n) => !linked.has(n.id))
+      .map((n) => ({ id: n.id, label: n.label }));
+  } catch {
+    // leave activities empty / no grant options; the rest of the page still renders.
+  }
+  const activityErrorMessage =
+    activityError && activityError in ACTIVITY_ERROR_KEYS
+      ? t(ACTIVITY_ERROR_KEYS[activityError as keyof typeof ACTIVITY_ERROR_KEYS])
+      : null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -621,6 +657,94 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             />
             <SubmitButton className="self-start rounded-full border border-warning/40 px-5 py-2 text-sm font-medium text-warning transition-colors hover:bg-warning/5 disabled:opacity-50">
               {t("requestChangesButton")}
+            </SubmitButton>
+          </form>
+        )}
+      </Card>
+
+      {/* Gate B4 — Authorized activities. Admin grants ADDITIONAL activities
+          (source=ADMIN, never primary, provenance server-derived) and revokes only
+          those. The self-selected PRIMARY and LEGACY links are display-only here —
+          no remove control — and a revoke is server-blocked when services use it. */}
+      <Card hoverLift={false}>
+        <h2 className="text-sm font-semibold text-foreground">{t("authorizedActivitiesTitle")}</h2>
+        {activityErrorMessage && <Alert variant="danger" className="mt-3">{activityErrorMessage}</Alert>}
+
+        <ul className="mt-3 flex flex-col gap-2">
+          <li className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
+            <span className="text-sm font-medium text-foreground">
+              {activities.primary ? activities.primary.label : t("primaryActivityNone")}
+            </span>
+            <Badge variant="success">{t("primaryActivityLabel")}</Badge>
+            <span className="text-xs text-foreground/40">{t("providerSelectedActivityNote")}</span>
+          </li>
+
+          {activities.adminGranted.map((a) => (
+            <li key={a.categoryId} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-foreground">{a.label}</span>
+                <Badge variant="info">{t("adminGrantedActivityLabel")}</Badge>
+                {a.grantedAt && (
+                  <span className="text-xs text-foreground/40">
+                    {t("adminGrantedActivityNote")} · {formatDate(a.grantedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+              <form
+                action={async () => {
+                  "use server";
+                  const result = await revokeProviderActivity(id, a.categoryId);
+                  redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?activityError=${result.error}`, locale });
+                }}
+              >
+                <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+                  {t("removeActivityButton")}
+                </SubmitButton>
+              </form>
+            </li>
+          ))}
+
+          {activities.legacy.map((a) => (
+            <li key={a.categoryId} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
+              <span className="text-sm text-foreground">{a.label}</span>
+              <Badge variant="default">{t("legacyActivityLabel")}</Badge>
+              <span className="text-xs text-foreground/40">{t("legacyActivityNote")}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* Grant an additional activity — only categories not already linked. No
+            "make primary" control exists: a grant is always source=ADMIN, isPrimary=false. */}
+        {grantableCategories.length > 0 && (
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const categoryId = formData.get("categoryId");
+              const result = await grantProviderActivity(id, typeof categoryId === "string" ? categoryId : "");
+              redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?activityError=${result.error}`, locale });
+            }}
+            className="mt-4 flex flex-wrap items-end gap-2 border-t border-border pt-4"
+          >
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-xs font-medium text-foreground/50">{t("addActivityLabel")}</span>
+              <select
+                name="categoryId"
+                required
+                defaultValue=""
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="" disabled>
+                  {t("addActivitySelectPlaceholder")}
+                </option>
+                {grantableCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <SubmitButton className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+              {t("addActivityButton")}
             </SubmitButton>
           </form>
         )}

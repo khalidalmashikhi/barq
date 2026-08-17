@@ -617,5 +617,21 @@
   "noVerificationRequirements": "Keine Verifizierungsanforderungen anwendbar.",
   "requestChangesButton": "Änderungen anfordern",
   "requestChangesReasonLabel": "Grund für die angeforderten Änderungen",
-  "requestChangesReasonPlaceholder": "Erläutern Sie, was der Anbieter korrigieren muss…"
+  "requestChangesReasonPlaceholder": "Erläutern Sie, was der Anbieter korrigieren muss…",
+  "authorizedActivitiesTitle": "Autorisierte Aktivitäten",
+  "primaryActivityLabel": "Hauptaktivität",
+  "primaryActivityNone": "Keine Hauptaktivität ausgewählt",
+  "providerSelectedActivityNote": "Vom Anbieter gewählt",
+  "adminGrantedActivityLabel": "Zusätzliche Aktivität",
+  "adminGrantedActivityNote": "Von der Verwaltung gewährt",
+  "legacyActivityLabel": "Frühere Aktivität",
+  "legacyActivityNote": "Erhaltene Berechtigung",
+  "removeActivityButton": "Aktivität entfernen",
+  "addActivityLabel": "Aktivität hinzufügen",
+  "addActivitySelectPlaceholder": "Aktivität auswählen…",
+  "addActivityButton": "Hinzufügen",
+  "activityInUseError": "Diese Aktivität kann nicht entfernt werden, da sie von bestehenden Anbieterdiensten genutzt wird.",
+  "activityInvalidCategoryError": "Diese Aktivität ist nicht auswählbar.",
+  "activityNotRevocableError": "Diese Aktivität kann nicht entfernt werden.",
+  "activityNotFoundError": "Diese Aktivität wurde nicht gefunden."
 }

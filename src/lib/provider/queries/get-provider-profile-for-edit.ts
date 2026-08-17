@@ -23,6 +23,9 @@ export type ProviderProfileForEdit = {
   city: string;
   logoUrl: string;
   providerType: string;
+  /// Gate B4 — drives the read-only-vs-editable primary-activity control (the
+  /// provider may self-edit their one primary activity only while DRAFT).
+  status: string;
 };
 
 function readBilingual(value: unknown): { ar: string; en: string } {
@@ -52,5 +55,6 @@ export async function getProviderProfileForEdit(): Promise<ProviderProfileForEdi
     city: provider.city ?? "",
     logoUrl: provider.logoUrl ?? "",
     providerType: provider.providerType,
+    status: provider.status,
   };
 }

@@ -365,5 +365,17 @@
   "applicationStatusChangesRequestedBody": "Notre équipe a demandé des modifications à votre demande. Consultez la raison, mettez à jour vos documents sur la page de vérification, puis soumettez à nouveau.",
   "applicationChangesRequestedReasonLabel": "Modifications demandées",
   "applicationCompleteDocumentsLink": "Complétez vos documents de vérification",
-  "applicationVerificationLink": "Vérification et documents"
+  "applicationVerificationLink": "Vérification et documents",
+  "myActivitiesTitle": "Mes activités",
+  "myActivitiesHint": "Vos activités autorisées. L’administration peut en ajouter d’autres si nécessaire.",
+  "primaryActivityLabel": "Activité principale",
+  "primaryActivityNote": "Choisie par vous",
+  "primaryActivityNone": "Pas encore sélectionnée",
+  "adminGrantedActivityLabel": "Activité supplémentaire",
+  "adminGrantedActivityNote": "Accordée par l’administration",
+  "legacyActivityLabel": "Activité précédente",
+  "legacyActivityNote": "Autorisation conservée",
+  "choosePrimaryActivityTitle": "Choisissez votre activité principale",
+  "choosePrimaryActivityHint": "Vous pouvez sélectionner une activité principale. L’administration peut en accorder d’autres si nécessaire.",
+  "choosePrimaryActivitySubmit": "Enregistrer l’activité principale"
 }

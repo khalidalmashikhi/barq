@@ -62,8 +62,8 @@ const getSelectableCategoriesMock = vi.fn().mockResolvedValue([]);
 vi.mock("@/lib/categories/get-selectable-categories", () => ({
   getSelectableCategories: (...a: unknown[]) => getSelectableCategoriesMock(...a),
 }));
-vi.mock("@/components/categories/provider-category-checklist", () => ({
-  ProviderCategoryChecklist: () => null,
+vi.mock("@/components/categories/provider-primary-activity-picker", () => ({
+  ProviderPrimaryActivityPicker: () => null,
 }));
 
 const { default: ProviderApplicationPage } = await import("./page");

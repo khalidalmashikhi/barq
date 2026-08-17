@@ -365,5 +365,17 @@
   "applicationStatusChangesRequestedBody": "Unser Team hat Änderungen an Ihrem Antrag angefordert. Prüfen Sie den Grund, aktualisieren Sie Ihre Dokumente auf der Verifizierungsseite und reichen Sie erneut ein.",
   "applicationChangesRequestedReasonLabel": "Angeforderte Änderungen",
   "applicationCompleteDocumentsLink": "Vervollständigen Sie Ihre Verifizierungsdokumente",
-  "applicationVerificationLink": "Verifizierung & Dokumente"
+  "applicationVerificationLink": "Verifizierung & Dokumente",
+  "myActivitiesTitle": "Meine Aktivitäten",
+  "myActivitiesHint": "Ihre autorisierten Aktivitäten. Die Verwaltung kann bei Bedarf weitere hinzufügen.",
+  "primaryActivityLabel": "Hauptaktivität",
+  "primaryActivityNote": "Von Ihnen gewählt",
+  "primaryActivityNone": "Noch nicht ausgewählt",
+  "adminGrantedActivityLabel": "Zusätzliche Aktivität",
+  "adminGrantedActivityNote": "Von der Verwaltung gewährt",
+  "legacyActivityLabel": "Frühere Aktivität",
+  "legacyActivityNote": "Erhaltene Berechtigung",
+  "choosePrimaryActivityTitle": "Wählen Sie Ihre Hauptaktivität",
+  "choosePrimaryActivityHint": "Sie können eine Hauptaktivität auswählen. Weitere Aktivitäten kann bei Bedarf die Verwaltung gewähren.",
+  "choosePrimaryActivitySubmit": "Hauptaktivität speichern"
 }
