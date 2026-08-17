@@ -40,6 +40,18 @@ describe("GET /api/v1/me", () => {
     expect((await res.json()).error.code).toBe("UNAUTHORIZED");
   });
 
+  it("403 FORBIDDEN for a SUSPENDED/DEACTIVATED account — unchanged by Gate 0C.1B", async () => {
+    // Gate 0C.1B narrowed SIGN-OUT to authentication-only. /me deliberately keeps
+    // the full withApiV1Auth status gate: reading your identity is a product
+    // capability, whereas destroying your session is not. This test exists so a
+    // future change to the shared auth helper cannot quietly relax /me too.
+    h.requireAuth.mockRejectedValue(new h.ForbiddenError("Account is not active", "USER_INACTIVE"));
+    const res = await GET(new Request("http://x/api/v1/me"));
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe("FORBIDDEN");
+    expect(h.resolveProviderStatus).not.toHaveBeenCalled();
+  });
+
   it("200 identity DTO for a customer with NO provider record", async () => {
     h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: USER });
     h.resolveProviderStatus.mockResolvedValue({ kind: "not_found" });

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
-import { withApiV1Auth } from "@/lib/api/v1/auth";
+import { withApiV1Session } from "@/lib/api/v1/auth";
 import { apiOk } from "@/lib/api/v1/respond";
 
 // POST /api/v1/me/sign-out — native-safe session sign-out.
@@ -43,11 +43,17 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   return withRequestTracing("api.v1.me.sign-out", () =>
-    // Requires a live session and maps the auth failures to BARQ's standard
-    // envelope: 401 UNAUTHORIZED with no/expired session, 403 FORBIDDEN for a
-    // SUSPENDED/DEACTIVATED account. Signing out is only meaningful for a caller
-    // who is actually signed in.
-    withApiV1Auth(request, async () => {
+    // AUTHENTICATION ONLY — deliberately withApiV1Session, not withApiV1Auth.
+    //
+    // Signing out is only meaningful for a caller who is actually signed in, so a
+    // valid Better Auth session is still required and an absent/expired one is
+    // still 401 UNAUTHORIZED. But it must NOT require an ACTIVE BARQ account.
+    // requireAuth()'s SUSPENDED/DEACTIVATED denylist previously returned 403 here
+    // before auth.api.signOut() could run, which meant a punished account could
+    // not invalidate its own still-valid session — it survived until natural
+    // expiry. Sign-out reduces access and grants nothing, so status is the wrong
+    // gate for it. Every other /api/v1 route keeps the full status gate.
+    withApiV1Session(request, async () => {
       // `returnHeaders: true` hands back the Set-Cookie Better Auth generated for
       // the expired session cookie, so the deletion is authored by Better Auth
       // rather than hand-rolled here (name, __Secure- prefix, Path, SameSite and
