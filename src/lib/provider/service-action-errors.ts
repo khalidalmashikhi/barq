@@ -21,6 +21,11 @@ export type ServiceActionErrorCode =
   | "INVALID_CATEGORY"
   // Task B (BR-026): a publish was attempted on an uncategorized service.
   | "SERVICE_CATEGORY_REQUIRED"
+  // Gate B5: the category is valid/assignable, but this provider is NOT
+  // authorized for it (holds no SELF/ADMIN/LEGACY ProviderCategory link). Raised
+  // on create, on re-categorization, and on publish — distinct from
+  // INVALID_CATEGORY (which is about the category itself, not the provider).
+  | "ACTIVITY_NOT_AUTHORIZED"
   | "INVALID_STATUS_TRANSITION"
   | "UNKNOWN_ERROR";
 
@@ -32,6 +37,7 @@ const SERVICE_ACTION_ERROR_CODES: readonly ServiceActionErrorCode[] = [
   "NO_ACTIVE_PRICE",
   "INVALID_CATEGORY",
   "SERVICE_CATEGORY_REQUIRED",
+  "ACTIVITY_NOT_AUTHORIZED",
   "INVALID_STATUS_TRANSITION",
   "UNKNOWN_ERROR",
 ];
@@ -51,6 +57,7 @@ const SERVICE_ERROR_TRANSLATION_KEYS = {
   NO_ACTIVE_PRICE: "serviceErrorNoActivePrice",
   INVALID_CATEGORY: "serviceErrorInvalidCategory",
   SERVICE_CATEGORY_REQUIRED: "serviceErrorCategoryRequired",
+  ACTIVITY_NOT_AUTHORIZED: "serviceErrorActivityNotAuthorized",
   INVALID_STATUS_TRANSITION: "serviceErrorInvalidTransition",
   UNKNOWN_ERROR: "serviceErrorUnknown",
 } as const satisfies Record<ServiceActionErrorCode, string>;

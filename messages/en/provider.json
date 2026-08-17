@@ -144,6 +144,7 @@
   "serviceErrorNotFound": "Experience not found",
   "serviceErrorNoActivePrice": "Add a price before publishing this experience",
   "serviceErrorInvalidCategory": "The selected category isn't available for this experience",
+  "serviceErrorActivityNotAuthorized": "This activity is not authorized for your provider account.",
   "serviceErrorCategoryRequired": "Choose a category before publishing this experience",
   "categoryFieldLabel": "Category",
   "categoryFieldHint": "Optional now — required before publishing",

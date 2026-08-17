@@ -6,6 +6,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
 import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
+import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import type { ServiceActionErrorCode } from "./service-action-errors";
@@ -75,6 +76,18 @@ async function transition(
       const [primaryBlocker] = blockers;
       if (primaryBlocker) {
         return { ok: false, error: primaryBlocker, blockers };
+      }
+
+      // Gate B5 — the customer-facing gate: a provider may only publish (or
+      // republish PAUSED → PUBLISHED) a service whose CURRENT category they are
+      // authorized for. This intentionally lives in the PROVIDER action, NOT in
+      // the shared assertServicePublishable(): the admin transition uses the same
+      // publishable policy but is governance and is deliberately exempt from
+      // provider authorization. After the blockers pass, categoryId is guaranteed
+      // present (SERVICE_CATEGORY_REQUIRED would have fired) — the guard is
+      // defensive.
+      if (service.categoryId && !(await isProviderAuthorizedForCategory(provider.id, service.categoryId))) {
+        return { ok: false, error: "ACTIVITY_NOT_AUTHORIZED" };
       }
     }
 

@@ -7,6 +7,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
+import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
 import type { ServiceActionErrorCode } from "./service-action-errors";
@@ -114,6 +115,15 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       const resolved = await resolveAssignableCategory(submittedCategoryId as string);
       if (!resolved) {
         return { ok: false, error: "INVALID_CATEGORY" };
+      }
+      // Gate B5 — a provider may only re-categorize INTO a category they are
+      // authorized for (SELF/ADMIN/LEGACY). This fires ONLY when the category
+      // actually changes: a metadata-only edit (name/description/region/unit,
+      // categoryId left empty or unchanged) never reaches here, so an existing
+      // service sitting on a now-unauthorized historical category is NEVER
+      // destructively blocked from ordinary edits.
+      if (!(await isProviderAuthorizedForCategory(provider.id, submittedCategoryId as string))) {
+        return { ok: false, error: "ACTIVITY_NOT_AUTHORIZED" };
       }
       derivedServiceType = resolved.serviceTypeKey;
     }

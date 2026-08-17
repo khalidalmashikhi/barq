@@ -6,6 +6,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
+import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
@@ -102,6 +103,14 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     const resolved = await resolveAssignableCategory(categoryId);
     if (!resolved) {
       return { ok: false, error: "INVALID_CATEGORY" };
+    }
+    // Gate B5 — validity is necessary but NOT sufficient: the provider must also
+    // be AUTHORIZED for this category (hold a SELF/ADMIN/LEGACY ProviderCategory
+    // link). Checked here, after validity, so the two concerns stay distinct and
+    // the error is precise. An uncategorized draft (categoryId === null) skips
+    // both checks — category is only required at publish.
+    if (!(await isProviderAuthorizedForCategory(provider.id, categoryId))) {
+      return { ok: false, error: "ACTIVITY_NOT_AUTHORIZED" };
     }
     serviceType = resolved.serviceTypeKey;
   }

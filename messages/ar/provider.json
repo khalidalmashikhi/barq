@@ -144,6 +144,7 @@
   "serviceErrorNotFound": "التجربة غير موجودة",
   "serviceErrorNoActivePrice": "أضف سعراً قبل نشر هذه التجربة",
   "serviceErrorInvalidCategory": "الفئة المحددة غير متاحة لهذه التجربة",
+  "serviceErrorActivityNotAuthorized": "هذا النشاط غير مصرح به لحساب مزود الخدمة.",
   "serviceErrorCategoryRequired": "اختر فئة قبل نشر هذه التجربة",
   "categoryFieldLabel": "الفئة",
   "categoryFieldHint": "اختيارية الآن — مطلوبة قبل النشر",

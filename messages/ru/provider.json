@@ -144,6 +144,7 @@
   "serviceErrorNotFound": "Впечатление не найдено",
   "serviceErrorNoActivePrice": "Добавьте цену перед публикацией этого впечатления",
   "serviceErrorInvalidCategory": "Выбранная категория недоступна для этого впечатления",
+  "serviceErrorActivityNotAuthorized": "Эта деятельность не разрешена для вашей учётной записи поставщика.",
   "serviceErrorCategoryRequired": "Выберите категорию перед публикацией этого впечатления",
   "categoryFieldLabel": "Категория",
   "categoryFieldHint": "Сейчас необязательно — требуется перед публикацией",

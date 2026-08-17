@@ -42,6 +42,10 @@ export type ApiErrorCode =
   | "INVALID_STATUS_TRANSITION"
   | "SERVICE_NOT_PUBLISHABLE"
   | "INVALID_CATEGORY"
+  // Gate B5 (Provider Service Category Authorization) — the category is valid but
+  // the provider is not authorized for it. A distinct 403 so a native client can
+  // tell "unauthorized activity" apart from "invalid category" (422).
+  | "ACTIVITY_NOT_AUTHORIZED"
   | "CAPACITY_BELOW_BOOKED"
   | "SLOT_HAS_BOOKINGS"
   | "RATE_LIMITED"
@@ -67,6 +71,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   INVALID_STATUS_TRANSITION: 409,
   SERVICE_NOT_PUBLISHABLE: 422,
   INVALID_CATEGORY: 422,
+  ACTIVITY_NOT_AUTHORIZED: 403,
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
   RATE_LIMITED: 429,
@@ -118,6 +123,10 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   INVALID_CATEGORY: {
     en: "The selected category can't be assigned to this experience.",
     ar: "لا يمكن تعيين الفئة المحددة لهذه التجربة.",
+  },
+  ACTIVITY_NOT_AUTHORIZED: {
+    en: "This activity is not authorized for your provider account.",
+    ar: "هذا النشاط غير مصرح به لحساب مزود الخدمة.",
   },
   CAPACITY_BELOW_BOOKED: {
     en: "Capacity can't be set below the number of seats already booked.",

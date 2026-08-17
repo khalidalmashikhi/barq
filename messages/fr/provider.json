@@ -144,6 +144,7 @@
   "serviceErrorNotFound": "Expérience introuvable",
   "serviceErrorNoActivePrice": "Ajoutez un prix avant de publier cette expérience",
   "serviceErrorInvalidCategory": "La catégorie sélectionnée n'est pas disponible pour cette expérience",
+  "serviceErrorActivityNotAuthorized": "Cette activité n'est pas autorisée pour votre compte prestataire.",
   "serviceErrorCategoryRequired": "Choisissez une catégorie avant de publier cette expérience",
   "categoryFieldLabel": "Catégorie",
   "categoryFieldHint": "Facultative pour l'instant — requise avant la publication",

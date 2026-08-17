@@ -144,6 +144,7 @@
   "serviceErrorNotFound": "Zážitek nebyl nalezen",
   "serviceErrorNoActivePrice": "Před zveřejněním tohoto zážitku přidejte cenu",
   "serviceErrorInvalidCategory": "Vybraná kategorie není pro tento zážitek dostupná",
+  "serviceErrorActivityNotAuthorized": "Tato aktivita není pro váš účet poskytovatele autorizována.",
   "serviceErrorCategoryRequired": "Před zveřejněním tohoto zážitku vyberte kategorii",
   "categoryFieldLabel": "Kategorie",
   "categoryFieldHint": "Nyní volitelné — před zveřejněním povinné",

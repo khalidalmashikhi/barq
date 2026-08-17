@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Phase 5.2 (Production Hardening) — regression tests for
 // publishService/unpublishService/archiveService, extended this phase
@@ -38,9 +38,20 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// Gate B5 — publish is authorization-gated on the service's current category.
+// Default AUTHORIZED (true); the unauthorized path is exercised explicitly below.
+const isProviderAuthorizedForCategoryMock = vi.fn();
+vi.mock("./activities/assert-provider-authorized-for-category", () => ({
+  isProviderAuthorizedForCategory: (...args: unknown[]) => isProviderAuthorizedForCategoryMock(...args),
+}));
+
 const { publishService, unpublishService, archiveService } = await import("./transition-service-status");
 
 const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
+
+beforeEach(() => {
+  isProviderAuthorizedForCategoryMock.mockResolvedValue(true);
+});
 
 afterEach(() => {
   requireProviderMock.mockReset();
@@ -48,6 +59,7 @@ afterEach(() => {
   findFirstMock.mockReset();
   updateMock.mockReset();
   auditCreateMock.mockReset();
+  isProviderAuthorizedForCategoryMock.mockReset();
 });
 
 describe("publishService", () => {
@@ -110,6 +122,45 @@ describe("publishService", () => {
       error: "SERVICE_CATEGORY_REQUIRED",
       blockers: ["SERVICE_CATEGORY_REQUIRED", "NO_ACTIVE_PRICE"],
     });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  // Gate B5 — the customer-facing gate: publish requires the CURRENT category to
+  // be authorized for this provider.
+  it("blocks publish with ACTIVITY_NOT_AUTHORIZED when the provider is not authorized for the service's current category", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", status: "DRAFT", categoryId: "cat-1" });
+    findFirstMock.mockResolvedValue({ id: "price-1" }); // price gate passes
+    isProviderAuthorizedForCategoryMock.mockResolvedValue(false);
+
+    const result = await publishService(SERVICE_ID);
+
+    expect(result).toEqual({ ok: false, error: "ACTIVITY_NOT_AUTHORIZED" });
+    expect(isProviderAuthorizedForCategoryMock).toHaveBeenCalledWith("provider-1", "cat-1");
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("checks authorization only AFTER the publishable blockers — an uncategorized service never reaches it (SERVICE_CATEGORY_REQUIRED wins)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", status: "DRAFT", categoryId: null });
+    findFirstMock.mockResolvedValue({ id: "price-1" });
+
+    const result = await publishService(SERVICE_ID);
+
+    expect(result.ok).toBe(false);
+    expect(isProviderAuthorizedForCategoryMock).not.toHaveBeenCalled();
+  });
+
+  it("re-checks authorization when republishing a PAUSED service (PAUSED → PUBLISHED)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", status: "PAUSED", categoryId: "cat-1" });
+    findFirstMock.mockResolvedValue({ id: "price-1" });
+    isProviderAuthorizedForCategoryMock.mockResolvedValue(false);
+
+    const result = await publishService(SERVICE_ID);
+
+    expect(result).toEqual({ ok: false, error: "ACTIVITY_NOT_AUTHORIZED" });
     expect(updateMock).not.toHaveBeenCalled();
   });
 });

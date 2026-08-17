@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Phase 0.1 (Foundation Hardening) — regression tests for
 // updateService(), covering the BR-001 PROVIDER_NOT_APPROVED path this
@@ -52,6 +52,13 @@ vi.mock("@/lib/categories/resolve-assignable-category", () => ({
   resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
 }));
 
+// Gate B5 — the provider authorization primitive. Default AUTHORIZED (true);
+// the unauthorized path is exercised explicitly below.
+const isProviderAuthorizedForCategoryMock = vi.fn();
+vi.mock("./activities/assert-provider-authorized-for-category", () => ({
+  isProviderAuthorizedForCategory: (...args: unknown[]) => isProviderAuthorizedForCategoryMock(...args),
+}));
+
 const { updateService } = await import("./update-service");
 const { ForbiddenError } = await import("@/lib/auth");
 
@@ -65,6 +72,11 @@ function buildFormData(fields: Record<string, string>): FormData {
   return formData;
 }
 
+beforeEach(() => {
+  // A category CHANGE is authorized by default; specific tests override.
+  isProviderAuthorizedForCategoryMock.mockResolvedValue(true);
+});
+
 afterEach(() => {
   requireApprovedProviderMock.mockReset();
   findUniqueMock.mockReset();
@@ -72,6 +84,7 @@ afterEach(() => {
   priceUpdateManyMock.mockReset();
   auditCreateMock.mockReset();
   resolveAssignableCategoryMock.mockReset();
+  isProviderAuthorizedForCategoryMock.mockReset();
 });
 
 describe("updateService", () => {
@@ -185,6 +198,58 @@ describe("updateService", () => {
     expect(auditCreateMock).not.toHaveBeenCalled();
     expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("categoryId");
     expect(updateMock.mock.calls[0]![0].data).not.toHaveProperty("serviceType");
+  });
+
+  // Gate B5 — Provider Service Category Authorization (only on category CHANGE).
+  describe("category authorization (Gate B5)", () => {
+    it("rejects a category CHANGE to a valid-but-unauthorized category (ACTIVITY_NOT_AUTHORIZED, mutates nothing)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "old-cat", serviceType: "EXPERIENCE" });
+      resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+      isProviderAuthorizedForCategoryMock.mockResolvedValue(false);
+
+      const result = await updateService(
+        SERVICE_ID,
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", categoryId: "new-cat" })
+      );
+
+      expect(result).toEqual({ ok: false, error: "ACTIVITY_NOT_AUTHORIZED" });
+      expect(isProviderAuthorizedForCategoryMock).toHaveBeenCalledWith("provider-1", "new-cat");
+      expect(updateMock).not.toHaveBeenCalled();
+      expect(auditCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("checks authorization only AFTER validity — an invalid category never reaches the authorization check", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "old-cat", serviceType: "EXPERIENCE" });
+      resolveAssignableCategoryMock.mockResolvedValue(null);
+
+      const result = await updateService(
+        SERVICE_ID,
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", categoryId: "bad-cat" })
+      );
+
+      expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
+      expect(isProviderAuthorizedForCategoryMock).not.toHaveBeenCalled();
+    });
+
+    it("HISTORICAL COMPATIBILITY: a metadata-only save re-submitting the SAME category never triggers the authorization check", async () => {
+      // The edit form always re-submits the current categoryId as its default.
+      // Even if the provider is no longer authorized for that historical category,
+      // an unchanged category is not a "change" → no authorization check, no block.
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "historical-cat", serviceType: "EXPERIENCE" });
+      updateMock.mockResolvedValue({});
+
+      const result = await updateService(
+        SERVICE_ID,
+        buildFormData({ nameAr: "اسم جديد", nameEn: "New name", categoryId: "historical-cat" })
+      );
+
+      expect(result).toEqual({ ok: true });
+      expect(resolveAssignableCategoryMock).not.toHaveBeenCalled();
+      expect(isProviderAuthorizedForCategoryMock).not.toHaveBeenCalled();
+    });
   });
 
   // Core Service Enrichment, Gate 3 — regionCode (Service) + pricingUnit (ACTIVE Price).

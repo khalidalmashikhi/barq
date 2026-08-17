@@ -8,7 +8,8 @@ import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
-import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { requireProvider } from "@/lib/auth";
+import { getProviderAuthorizedServiceCategories } from "@/lib/provider/get-provider-authorized-service-categories";
 import { CategoryField } from "@/components/categories/category-field";
 import { RegionField } from "@/components/regions/region-field";
 import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
@@ -34,10 +35,14 @@ export default async function NewServicePage({ searchParams }: Props) {
 
   const errorMessage = error && isServiceActionErrorCode(error) ? t(getServiceErrorTranslationKey(error)) : null;
 
-  // BR-028: offer the UNIFIED assignable category set across every vertical — the
-  // chosen category DRIVES the service type server-side (there is no serviceType
-  // picker; the provider only picks a category).
-  const categoryTree = await getSelectableCategories();
+  // Gate B5: offer only the categories this provider is AUTHORIZED for
+  // (SELF/ADMIN/LEGACY) AND that are assignable — the picker is authorized ∩
+  // assignable. The layout already guarantees a provider session; the chosen
+  // category still DRIVES the service type server-side (no serviceType picker).
+  // This is a UX affordance only — create-service.ts independently re-checks
+  // authorization, so it is never the security boundary.
+  const { provider } = await requireProvider();
+  const categoryTree = await getProviderAuthorizedServiceCategories(provider.id);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">

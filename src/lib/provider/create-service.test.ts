@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Phase 0.1 (Foundation Hardening) — regression tests for
 // createService(), covering the BR-001 PROVIDER_NOT_APPROVED path this
@@ -47,6 +47,13 @@ vi.mock("@/lib/categories/resolve-assignable-category", () => ({
   resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
 }));
 
+// Gate B5 — the provider authorization primitive. Default AUTHORIZED (true) via
+// beforeEach; the unauthorized path is exercised explicitly below.
+const isProviderAuthorizedForCategoryMock = vi.fn();
+vi.mock("./activities/assert-provider-authorized-for-category", () => ({
+  isProviderAuthorizedForCategory: (...args: unknown[]) => isProviderAuthorizedForCategoryMock(...args),
+}));
+
 const { createService } = await import("./create-service");
 const { ForbiddenError } = await import("@/lib/auth");
 
@@ -58,12 +65,18 @@ function buildFormData(fields: Record<string, string>): FormData {
   return formData;
 }
 
+beforeEach(() => {
+  // A categorized create is authorized by default; specific tests override.
+  isProviderAuthorizedForCategoryMock.mockResolvedValue(true);
+});
+
 afterEach(() => {
   requireApprovedProviderMock.mockReset();
   serviceCreateMock.mockReset();
   priceCreateMock.mockReset();
   auditCreateMock.mockReset();
   resolveAssignableCategoryMock.mockReset();
+  isProviderAuthorizedForCategoryMock.mockReset();
 });
 
 describe("createService", () => {
@@ -194,6 +207,46 @@ describe("createService", () => {
 
     expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
     expect(serviceCreateMock).not.toHaveBeenCalled();
+  });
+
+  // Gate B5 — Provider Service Category Authorization.
+  describe("category authorization (Gate B5)", () => {
+    it("rejects a valid category the provider is NOT authorized for (ACTIVITY_NOT_AUTHORIZED, creates nothing)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+      isProviderAuthorizedForCategoryMock.mockResolvedValue(false);
+
+      const result = await createService(
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: "cat-1" })
+      );
+
+      expect(result).toEqual({ ok: false, error: "ACTIVITY_NOT_AUTHORIZED" });
+      expect(isProviderAuthorizedForCategoryMock).toHaveBeenCalledWith("provider-1", "cat-1");
+      expect(serviceCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("checks authorization only AFTER validity — an invalid category never reaches the authorization check", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      resolveAssignableCategoryMock.mockResolvedValue(null);
+
+      const result = await createService(
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: "bad" })
+      );
+
+      expect(result).toEqual({ ok: false, error: "INVALID_CATEGORY" });
+      expect(isProviderAuthorizedForCategoryMock).not.toHaveBeenCalled();
+    });
+
+    it("never checks authorization for an uncategorized draft (category optional at create)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      serviceCreateMock.mockResolvedValue({ id: "service-1" });
+      priceCreateMock.mockResolvedValue({});
+
+      const result = await createService(buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10" }));
+
+      expect(result).toEqual({ ok: true, serviceId: "service-1" });
+      expect(isProviderAuthorizedForCategoryMock).not.toHaveBeenCalled();
+    });
   });
 
   // Core Service Enrichment, Gate 3 — regionCode (Service) + pricingUnit (Price).

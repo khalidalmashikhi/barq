@@ -25,6 +25,8 @@ describe("serviceErrorResponse", () => {
     expect(await read(serviceErrorResponse("NO_ACTIVE_PRICE", "en"))).toMatchObject({ status: 422, code: "SERVICE_NOT_PUBLISHABLE" });
     expect(await read(serviceErrorResponse("SERVICE_CATEGORY_REQUIRED", "en"))).toMatchObject({ status: 422, code: "SERVICE_NOT_PUBLISHABLE" });
     expect(await read(serviceErrorResponse("INVALID_CATEGORY", "en"))).toMatchObject({ status: 422, code: "INVALID_CATEGORY" });
+    // Gate B5 — valid category but provider not authorized → distinct 403.
+    expect(await read(serviceErrorResponse("ACTIVITY_NOT_AUTHORIZED", "en"))).toMatchObject({ status: 403, code: "ACTIVITY_NOT_AUTHORIZED" });
     expect(await read(serviceErrorResponse("INVALID_STATUS_TRANSITION", "en"))).toMatchObject({ status: 409, code: "INVALID_STATUS_TRANSITION" });
     expect(await read(serviceErrorResponse("UNKNOWN_ERROR", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
   });

@@ -144,6 +144,7 @@
   "serviceErrorNotFound": "Nie znaleziono atrakcji",
   "serviceErrorNoActivePrice": "Dodaj cenę przed opublikowaniem tej atrakcji",
   "serviceErrorInvalidCategory": "Wybrana kategoria nie jest dostępna dla tej atrakcji",
+  "serviceErrorActivityNotAuthorized": "Ta aktywność nie jest autoryzowana dla Twojego konta dostawcy.",
   "serviceErrorCategoryRequired": "Wybierz kategorię przed opublikowaniem tej atrakcji",
   "categoryFieldLabel": "Kategoria",
   "categoryFieldHint": "Teraz opcjonalna — wymagana przed publikacją",

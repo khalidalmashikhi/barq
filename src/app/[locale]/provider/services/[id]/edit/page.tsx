@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight, Eye } from "lucide-react";
-import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { UnauthenticatedError, ForbiddenError, requireProvider } from "@/lib/auth";
 import { getProviderServiceForEdit } from "@/lib/provider/queries/get-provider-service-for-edit";
 import { updateService } from "@/lib/provider/update-service";
 import { isServiceActionErrorCode, getServiceErrorTranslationKey } from "@/lib/provider/service-action-errors";
@@ -11,7 +11,7 @@ import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
-import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
+import { getProviderAuthorizedServiceCategories } from "@/lib/provider/get-provider-authorized-service-categories";
 import { CategoryField } from "@/components/categories/category-field";
 import { RegionField } from "@/components/regions/region-field";
 import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
@@ -66,11 +66,16 @@ export default async function EditServicePage({ params, searchParams }: Props) {
   const errorMessage = error && isServiceActionErrorCode(error) ? t(getServiceErrorTranslationKey(error)) : null;
   const mediaErrorMessage = mediaError && isProviderMediaErrorCode(mediaError) ? t(getProviderMediaErrorTranslationKey(mediaError)) : null;
 
-  // BR-028: offer the UNIFIED assignable set across every vertical — changing the
-  // category re-derives serviceType server-side. Existing safe edit semantics are
-  // preserved: the current categoryId is still passed as the field's defaultValue,
-  // and effective-visibility rules are unchanged.
-  const categoryTree = await getSelectableCategories();
+  // Gate B5: offer only categories this provider is AUTHORIZED for (SELF/ADMIN/
+  // LEGACY) ∩ assignable. HISTORICAL COMPATIBILITY: if this service sits on a
+  // category the provider is no longer authorized for, that category won't appear
+  // in the picker — but the current categoryId is still passed as the field's
+  // defaultValue and round-trips through the hidden input, and update-service.ts
+  // only re-checks authorization when the category actually CHANGES, so a
+  // metadata-only save is never blocked. This picker is a UX affordance, not the
+  // security boundary.
+  const { provider } = await requireProvider();
+  const categoryTree = await getProviderAuthorizedServiceCategories(provider.id);
 
   // Service media (Gap C) — one bounded query for cover + gallery.
   const media = await getServiceMedia(id);
