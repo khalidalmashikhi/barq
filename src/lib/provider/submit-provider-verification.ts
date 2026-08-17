@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { logger } from "@/lib/logger";
+import { notifyAdminsOfProviderEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import { assertReadyToSubmit, type SubmitBlocker } from "./documents/assert-ready-to-submit";
 import { isVerificationEditableStatus } from "./documents/verification-lifecycle";
 
@@ -76,6 +78,27 @@ export async function submitProviderVerification(): Promise<SubmitProviderVerifi
     );
     return false;
   });
+
+  // Gate B2 — admin fan-out on the REAL transition only (raced === false means
+  // THIS call performed the DRAFT/CHANGES_REQUESTED -> UNDER_REVIEW transition; a
+  // duplicate/concurrent/no-op submit fired no audit and fires no notification).
+  // Post-commit, fire-and-forget: a notification failure must never fail or roll
+  // back the (already durable) submission. fromStatus selects the event —
+  // CHANGES_REQUESTED -> changes_resubmitted, DRAFT -> verification_submitted.
+  if (!raced) {
+    const eventType =
+      fromStatus === "CHANGES_REQUESTED"
+        ? PROVIDER_NOTIFICATION_EVENT.CHANGES_RESUBMITTED
+        : PROVIDER_NOTIFICATION_EVENT.VERIFICATION_SUBMITTED;
+    try {
+      await notifyAdminsOfProviderEvent(eventType, { providerId: provider.id });
+    } catch (notifyError) {
+      logger.error("submitProviderVerification.notification_failed", {
+        providerId: provider.id,
+        message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+      });
+    }
+  }
 
   return { ok: true, status: "UNDER_REVIEW", alreadySubmitted: raced };
 }

@@ -80,13 +80,16 @@ describe("rejectProvider", () => {
     expect(auditArg.data.previousValue).toEqual({ status: "APPLIED" });
     expect(auditArg.data.newValue.reason).toBe("Please add a valid business name");
 
-    // Post-commit notification.
+    // Post-commit notification (Gate B2 — IN_APP + structured metadata).
     expect(notificationCreateMock).toHaveBeenCalledTimes(1);
     const notifArg = notificationCreateMock.mock.calls[0]![0] as {
-      data: { userId: string; channel: string; content: { kind: string } };
+      data: { userId: string; channel: string; eventType: string; entityType: string; entityId: string; content: { kind: string } };
     };
     expect(notifArg.data.userId).toBe("user-9");
-    expect(notifArg.data.channel).toBe("EMAIL");
+    expect(notifArg.data.channel).toBe("IN_APP");
+    expect(notifArg.data.eventType).toBe("provider.rejected");
+    expect(notifArg.data.entityType).toBe("Provider");
+    expect(notifArg.data.entityId).toBe(PID);
     expect(notifArg.data.content.kind).toBe("PROVIDER_REJECTED");
   });
 

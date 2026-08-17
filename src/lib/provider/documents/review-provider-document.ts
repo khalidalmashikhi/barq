@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { notifyProviderApplicationEvent } from "@/lib/provider/notify-provider-application";
+import { notifyProviderOfEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import { documentVersionToken } from "./document-version-token";
 import type { ProviderDocumentActionResult } from "./provider-document-errors";
 
@@ -108,7 +108,10 @@ export async function reviewProviderDocument(input: {
   // on /provider/verification, never in the notification body.
   if (input.decision === "REJECT") {
     try {
-      await notifyProviderApplicationEvent({ userId: doc.provider.userId, kind: "PROVIDER_DOCUMENT_REJECTED" });
+      await notifyProviderOfEvent(PROVIDER_NOTIFICATION_EVENT.DOCUMENT_REJECTED, {
+        providerUserId: doc.provider.userId,
+        providerId: doc.providerId,
+      });
     } catch (notifyError) {
       logger.error("reviewProviderDocument.notification_failed", {
         documentId: doc.id,

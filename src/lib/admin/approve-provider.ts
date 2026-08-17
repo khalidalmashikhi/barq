@@ -6,7 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { notifyProviderApplicationEvent } from "@/lib/provider/notify-provider-application";
+import { notifyProviderOfEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import { assertProviderApprovable } from "@/lib/provider/documents/assert-provider-approvable";
 import type { RequiredDocumentBlocker } from "@/lib/provider-document-types";
 
@@ -117,7 +117,10 @@ export async function approveProvider(providerId: string): Promise<ApproveProvid
     // succeeded approval into a misleading UNKNOWN_ERROR result. This mirrors
     // the post-commit notification pattern used across the booking lifecycle.
     try {
-      await notifyProviderApplicationEvent({ userId: provider.userId, kind: "PROVIDER_APPROVED" });
+      await notifyProviderOfEvent(PROVIDER_NOTIFICATION_EVENT.APPROVED, {
+        providerUserId: provider.userId,
+        providerId,
+      });
     } catch (notifyError) {
       logger.error("approveProvider.notification_failed", {
         providerId,

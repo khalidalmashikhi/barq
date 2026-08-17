@@ -30,6 +30,19 @@ vi.mock("./documents/assert-ready-to-submit", () => ({
   assertReadyToSubmit: (...a: unknown[]) => assertReadyToSubmitMock(...a),
 }));
 
+vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+
+// Gate B2 — the admin fan-out is dispatched through this module; mocked so the
+// idempotency contract (fires on a REAL transition only) can be asserted directly.
+const notifyAdminsMock = vi.fn();
+vi.mock("@/lib/notifications/provider-notification-events", () => ({
+  PROVIDER_NOTIFICATION_EVENT: {
+    VERIFICATION_SUBMITTED: "provider.verification_submitted",
+    CHANGES_RESUBMITTED: "provider.changes_resubmitted",
+  },
+  notifyAdminsOfProviderEvent: (...a: unknown[]) => notifyAdminsMock(...a),
+}));
+
 const { submitProviderVerification } = await import("./submit-provider-verification");
 
 beforeEach(() => {
@@ -37,6 +50,7 @@ beforeEach(() => {
   assertReadyToSubmitMock.mockResolvedValue([]);
   updateManyMock.mockResolvedValue({ count: 1 });
   auditCreateMock.mockResolvedValue({});
+  notifyAdminsMock.mockResolvedValue(undefined);
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -62,6 +76,10 @@ describe("submitProviderVerification", () => {
     expect(audit.data.actorType).toBe("PROVIDER");
     expect(audit.data.previousValue).toEqual({ status: "DRAFT" });
     expect(audit.data.newValue).toEqual({ status: "UNDER_REVIEW" });
+
+    // Gate B2 — DRAFT -> UNDER_REVIEW fans out provider.verification_submitted.
+    expect(notifyAdminsMock).toHaveBeenCalledTimes(1);
+    expect(notifyAdminsMock).toHaveBeenCalledWith("provider.verification_submitted", { providerId: "prov-1" });
   });
 
   it("CHANGES_REQUESTED + ready → UNDER_REVIEW (re-submit), audits with the correct previous status", async () => {
@@ -70,6 +88,10 @@ describe("submitProviderVerification", () => {
     expect(result).toEqual({ ok: true, status: "UNDER_REVIEW", alreadySubmitted: false });
     const audit = auditCreateMock.mock.calls[0]![0] as { data: { previousValue: unknown } };
     expect(audit.data.previousValue).toEqual({ status: "CHANGES_REQUESTED" });
+
+    // Gate B2 — a CHANGES_REQUESTED re-submit fans out the DISTINCT event.
+    expect(notifyAdminsMock).toHaveBeenCalledTimes(1);
+    expect(notifyAdminsMock).toHaveBeenCalledWith("provider.changes_resubmitted", { providerId: "prov-1" });
   });
 
   it("blocks submission when a required document is missing (NOT_READY) and writes nothing", async () => {
@@ -78,6 +100,7 @@ describe("submitProviderVerification", () => {
     expect(result).toEqual({ ok: false, error: "NOT_READY", blockers: [{ type: "IDENTITY_PROOF", reason: "MISSING" }] });
     expect(updateManyMock).not.toHaveBeenCalled();
     expect(auditCreateMock).not.toHaveBeenCalled();
+    expect(notifyAdminsMock).not.toHaveBeenCalled();
   });
 
   it("is idempotent: an already-UNDER_REVIEW provider returns success (no re-transition, no audit)", async () => {
@@ -86,6 +109,8 @@ describe("submitProviderVerification", () => {
     expect(result).toEqual({ ok: true, status: "UNDER_REVIEW", alreadySubmitted: true });
     expect(updateManyMock).not.toHaveBeenCalled();
     expect(auditCreateMock).not.toHaveBeenCalled();
+    // Idempotency: no transition -> no notification.
+    expect(notifyAdminsMock).not.toHaveBeenCalled();
   });
 
   it.each(["APPROVED", "REJECTED", "APPLIED", "SUSPENDED"])(
@@ -114,5 +139,7 @@ describe("submitProviderVerification", () => {
     const result = await submitProviderVerification();
     expect(result).toEqual({ ok: true, status: "UNDER_REVIEW", alreadySubmitted: true });
     expect(auditCreateMock).not.toHaveBeenCalled();
+    // Idempotency: a lost race performed no transition -> no notification.
+    expect(notifyAdminsMock).not.toHaveBeenCalled();
   });
 });

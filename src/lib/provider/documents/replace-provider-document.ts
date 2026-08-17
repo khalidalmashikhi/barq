@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { notifyAdminsOfProviderEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject } from "@/lib/storage/storage";
 import { validateDocumentUpload } from "./document-constants";
 import { buildDocumentObjectKey, sanitizeOriginalFilename } from "./document-object-key";
@@ -136,6 +137,20 @@ export async function replaceProviderDocument(input: ReplaceProviderDocumentInpu
       message: error instanceof Error ? error.message : String(error),
     });
   });
+
+  // Gate B2 — admin fan-out on a successful replacement (post-commit,
+  // fire-and-forget: never fails or rolls back the durable replace). Static
+  // content — no filename/size/contents in the notification body.
+  try {
+    await notifyAdminsOfProviderEvent(PROVIDER_NOTIFICATION_EVENT.DOCUMENT_REPLACED, {
+      providerId: provider.id,
+    });
+  } catch (notifyError) {
+    logger.error("replaceProviderDocument.notification_failed", {
+      documentId: doc.id,
+      message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+    });
+  }
 
   return { ok: true };
 }

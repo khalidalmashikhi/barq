@@ -114,10 +114,13 @@ describe("reviewProviderDocument", () => {
 
     expect(notificationCreateMock).toHaveBeenCalledTimes(1);
     const arg = notificationCreateMock.mock.calls[0]![0] as {
-      data: { userId: string; channel: string; content: Record<string, unknown> };
+      data: { userId: string; channel: string; eventType: string; entityType: string; entityId: string; content: Record<string, unknown> };
     };
     expect(arg.data.userId).toBe("user-9");
-    expect(arg.data.channel).toBe("EMAIL");
+    expect(arg.data.channel).toBe("IN_APP");
+    expect(arg.data.eventType).toBe("provider.document_rejected");
+    expect(arg.data.entityType).toBe("Provider");
+    expect(arg.data.entityId).toBe("prov-1");
     expect(arg.data.content.kind).toBe("PROVIDER_DOCUMENT_REJECTED");
     // Static, fully-localized content (all 8 BARQ locales), and NOT tied to a booking.
     for (const locale of ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"]) {

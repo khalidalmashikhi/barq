@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { notifyAdminsOfProviderEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import { isUploadableDocumentType, resolveVerificationChecklist } from "@/lib/provider-document-types";
 import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject } from "@/lib/storage/storage";
 import { validateDocumentUpload } from "./document-constants";
@@ -142,6 +143,20 @@ export async function uploadProviderDocument(input: UploadProviderDocumentInput)
       );
       return doc;
     });
+    // Gate B2 — admin fan-out on a successful INITIAL upload (post-commit,
+    // fire-and-forget: a notification failure must never fail the durable upload
+    // and must not reach the outer catch). Static content — no filename, size, or
+    // document contents in the notification body.
+    try {
+      await notifyAdminsOfProviderEvent(PROVIDER_NOTIFICATION_EVENT.DOCUMENT_UPLOADED, {
+        providerId: provider.id,
+      });
+    } catch (notifyError) {
+      logger.error("uploadProviderDocument.notification_failed", {
+        providerId: provider.id,
+        message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+      });
+    }
     return { ok: true, documentId: created.id };
   } catch (error) {
     // DB write failed after a successful upload — clean up the orphan object.

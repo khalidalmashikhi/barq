@@ -133,13 +133,16 @@ describe("approveProvider", () => {
     expect(result).toEqual({ ok: true });
     expect(notificationCreateMock).toHaveBeenCalledTimes(1);
     const arg = notificationCreateMock.mock.calls[0]![0] as {
-      data: { userId: string; channel: string; content: Record<string, unknown> };
+      data: { userId: string; channel: string; eventType: string; entityType: string; entityId: string; content: Record<string, unknown> };
     };
-    // Notification targets the provider's User, carries the kind inline in the
-    // free-form content Json, uses the schema-compatible EMAIL channel, and is
-    // NOT tied to a booking.
+    // Gate B2 — targets the provider's User, IN_APP channel, stable eventType +
+    // server-derived entityType/entityId, kind inline for the existing
+    // presentation layer, and NOT tied to a booking.
     expect(arg.data.userId).toBe("user-9");
-    expect(arg.data.channel).toBe("EMAIL");
+    expect(arg.data.channel).toBe("IN_APP");
+    expect(arg.data.eventType).toBe("provider.approved");
+    expect(arg.data.entityType).toBe("Provider");
+    expect(arg.data.entityId).toBe("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
     expect(arg.data.content.kind).toBe("PROVIDER_APPROVED");
     expect(arg.data.content).not.toHaveProperty("causingBookingId");
     expect("causingBookingId" in arg.data).toBe(false);

@@ -37,6 +37,14 @@ vi.mock("@/lib/storage/storage", () => ({
 }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 
+// Gate B2 — admin fan-out dispatched through this module; mocked to assert the
+// success-only contract (fires after a durable replacement, never on stale/fail).
+const notifyAdminsMock = vi.fn();
+vi.mock("@/lib/notifications/provider-notification-events", () => ({
+  PROVIDER_NOTIFICATION_EVENT: { DOCUMENT_REPLACED: "provider.document_replaced" },
+  notifyAdminsOfProviderEvent: (...a: unknown[]) => notifyAdminsMock(...a),
+}));
+
 const { replaceProviderDocument } = await import("./replace-provider-document");
 const { documentVersionToken } = await import("./document-version-token");
 
@@ -87,12 +95,18 @@ describe("replaceProviderDocument", () => {
     expect(auditCreateMock.mock.calls[0]![0]).toMatchObject({ data: { action: "provider.document_replaced", actorType: "PROVIDER" } });
     // old object removed AFTER commit (best-effort)
     expect(removeMock).toHaveBeenCalledWith(OLD_KEY);
+
+    // Gate B2 — a successful replacement fans out an admin notification.
+    expect(notifyAdminsMock).toHaveBeenCalledTimes(1);
+    expect(notifyAdminsMock).toHaveBeenCalledWith("provider.document_replaced", { providerId: "prov-1" });
   });
 
   it("returns STALE_DOCUMENT when the version token no longer matches (concurrent replacement) — no upload", async () => {
     const result = await replaceProviderDocument(baseInput({ expectedVersionToken: "stale-token" }));
     expect(result).toEqual({ ok: false, error: "STALE_DOCUMENT" });
     expect(uploadMock).not.toHaveBeenCalled();
+    // Gate B2 — a stale (no-op) replace notifies no one.
+    expect(notifyAdminsMock).not.toHaveBeenCalled();
   });
 
   it("returns STALE_DOCUMENT and cleans up the NEW object when the conditional swap matches 0 rows (race after token check)", async () => {

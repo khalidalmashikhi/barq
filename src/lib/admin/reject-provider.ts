@@ -6,7 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { notifyProviderApplicationEvent } from "@/lib/provider/notify-provider-application";
+import { notifyProviderOfEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import type { ProviderAdminActionErrorCode } from "./provider-admin-errors";
 
 // Reject provider — Provider Review / Reject / Resubmit lifecycle. Mirrors
@@ -126,7 +126,10 @@ export async function rejectProvider(providerId: string, reasonInput: string): P
     // outer UNKNOWN_ERROR, so it has its own try/catch. No external email/SMS is
     // dispatched — this is the in-app Notification Center row only.
     try {
-      await notifyProviderApplicationEvent({ userId: provider.userId, kind: "PROVIDER_REJECTED" });
+      await notifyProviderOfEvent(PROVIDER_NOTIFICATION_EVENT.REJECTED, {
+        providerUserId: provider.userId,
+        providerId,
+      });
     } catch (notifyError) {
       logger.error("rejectProvider.notification_failed", {
         providerId,

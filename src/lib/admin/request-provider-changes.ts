@@ -6,6 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { notifyProviderOfEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
 import type { ProviderAdminActionErrorCode } from "./provider-admin-errors";
 
 // Request Changes — Gate 1B. An admin RETURNS a submitted application for
@@ -63,7 +64,7 @@ export async function requestProviderChanges(providerId: string, reasonInput: st
   try {
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
-      select: { status: true },
+      select: { status: true, userId: true },
     });
 
     if (!provider) {
@@ -107,6 +108,22 @@ export async function requestProviderChanges(providerId: string, reasonInput: st
 
     if (!transitioned) {
       return { ok: false, error: "PROVIDER_NOT_PENDING" };
+    }
+
+    // Gate B2 — notify the provider that changes are required, on the REAL
+    // transition only. Post-commit, fire-and-forget (a notification failure must
+    // never fail or roll back the durable transition). Static content — the
+    // requested-changes reason stays on /provider/verification, never in the body.
+    try {
+      await notifyProviderOfEvent(PROVIDER_NOTIFICATION_EVENT.CHANGES_REQUESTED, {
+        providerUserId: provider.userId,
+        providerId,
+      });
+    } catch (notifyError) {
+      logger.error("requestProviderChanges.notification_failed", {
+        providerId,
+        message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+      });
     }
 
     return { ok: true };

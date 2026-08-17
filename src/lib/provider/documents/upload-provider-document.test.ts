@@ -39,6 +39,14 @@ vi.mock("@/lib/storage/storage", () => ({
 }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 
+// Gate B2 — admin fan-out dispatched through this module; mocked to assert the
+// success-only contract (fires after a durable initial upload, never on failure).
+const notifyAdminsMock = vi.fn();
+vi.mock("@/lib/notifications/provider-notification-events", () => ({
+  PROVIDER_NOTIFICATION_EVENT: { DOCUMENT_UPLOADED: "provider.document_uploaded" },
+  notifyAdminsOfProviderEvent: (...a: unknown[]) => notifyAdminsMock(...a),
+}));
+
 const { uploadProviderDocument } = await import("./upload-provider-document");
 
 function pdfBytes(size = 64): ArrayBuffer {
@@ -80,6 +88,10 @@ describe("uploadProviderDocument", () => {
     const createArg = createMock.mock.calls[0]![0] as { data: { status: string; providerId: string; type: string; objectKey: string } };
     expect(createArg.data).toMatchObject({ status: "PENDING", providerId: "prov-1", type: "COMMERCIAL_REGISTRATION" });
     expect(auditCreateMock.mock.calls[0]![0]).toMatchObject({ data: { action: "provider.document_uploaded", actorType: "PROVIDER" } });
+
+    // Gate B2 — a successful initial upload fans out an admin notification.
+    expect(notifyAdminsMock).toHaveBeenCalledTimes(1);
+    expect(notifyAdminsMock).toHaveBeenCalledWith("provider.document_uploaded", { providerId: "prov-1" });
   });
 
   it("rejects an arbitrary/unknown type before any upload", async () => {
@@ -145,6 +157,8 @@ describe("uploadProviderDocument", () => {
     expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
     expect(uploadMock).toHaveBeenCalledTimes(1);
     expect(removeMock).toHaveBeenCalledTimes(1); // orphan cleanup
+    // Gate B2 — a FAILED upload notifies no one.
+    expect(notifyAdminsMock).not.toHaveBeenCalled();
   });
 
   it("returns UPLOAD_FAILED (not the generic UNKNOWN_ERROR) and writes nothing when the storage upload throws", async () => {
