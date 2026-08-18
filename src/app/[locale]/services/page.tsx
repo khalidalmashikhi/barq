@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PackageOpen } from "lucide-react";
 import { getServices, getProvidersForFilter } from "@/lib/services/get-services";
 import { getPublicCategoryBySlug } from "@/lib/categories/get-public-category-by-slug";
+import { categorySlugsForGroup } from "@/lib/discovery/home-nav";
 import { isValidRegionCode, regionLabelKey } from "@/lib/regions";
 import { pricingUnitLabelKey } from "@/lib/pricing-units";
 import { ServiceFilters } from "@/components/services/service-filters";
@@ -24,6 +25,7 @@ type SearchParams = {
   sort?: string;
   page?: string;
   category?: string;
+  group?: string;
   region?: string;
 };
 
@@ -128,6 +130,21 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   const legacyCategoryLabel = publicCategory ? undefined : await resolveCategoryLabel(params.category);
   const categoryLabel = publicCategory?.label ?? legacyCategoryLabel;
 
+  // HOME-1 discovery-group scope: a ?group=<KEY> from the Home "What are you
+  // looking for?" grid resolves — via the app-owned registry, never a label — to
+  // that group's real, currently-public Category ids. A group can span several
+  // categories (e.g. EXPERIENCES), so this yields a categoryIds[] the reader ANDs
+  // in. MORE (and any unknown key) resolves to no slugs → no group filter, i.e.
+  // the "browse everything" catch-all — never an unfiltered dump masquerading as a
+  // bucket. This composes with ?category/?region/etc.; it does not replace them.
+  const groupSlugs = params.group ? categorySlugsForGroup(params.group) : [];
+  const groupCategories = groupSlugs.length
+    ? (await Promise.all(groupSlugs.map((slug) => getPublicCategoryBySlug(slug)))).filter(
+        (c): c is NonNullable<typeof c> => c !== null,
+      )
+    : [];
+  const groupCategoryIds = groupCategories.map((c) => c.id);
+
   // Governorate discovery filter (Gate 4): only a valid governed CODE narrows the
   // query. An unknown/hand-edited ?region= silently resolves to undefined and is
   // ignored — the same graceful behaviour an unknown providerId/category gets.
@@ -144,6 +161,9 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
       maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
       sort: (params.sort as "newest" | "price_asc" | "price_desc" | undefined) ?? "newest",
       page: params.page ? Number(params.page) : 1,
+      // A resolved discovery group (?group=) narrows by its real category ids;
+      // otherwise the single ?category= id / legacy keyword path is untouched.
+      categoryIds: groupCategoryIds.length ? groupCategoryIds : undefined,
       categoryId: publicCategory?.id,
       categoryKeyword: legacyCategoryLabel,
       // Composes (AND) with categoryId/keyword and every other filter.
@@ -181,7 +201,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
             gap="gap-3"
             padding="py-16"
             message={
-              params.q || params.providerId || params.minPrice || params.maxPrice || categoryLabel || regionCode
+              params.q || params.providerId || params.minPrice || params.maxPrice || categoryLabel || regionCode || groupCategoryIds.length
                 ? t("noResultsMatchLabel")
                 : t("noPublishedServicesLabel")
             }

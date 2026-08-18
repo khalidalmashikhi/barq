@@ -76,3 +76,49 @@ describe("ServicesPage — dual-read category resolution", () => {
     expect(args.categoryKeyword).toBeUndefined();
   });
 });
+
+// HOME-1 — ?group=<KEY> resolves via the app-owned discovery registry to the
+// group's REAL public category ids (never a label/serviceTypeKey), which the
+// reader ANDs in as categoryIds. MORE/unknown → no group filter (browse all).
+describe("ServicesPage — discovery-group (?group=) resolution", () => {
+  async function renderGroup(group: string) {
+    getProvidersForFilterMock.mockResolvedValue([]);
+    getServicesMock.mockResolvedValue(emptyResult());
+    // Every discovery slug resolves to a fake public category id.
+    getPublicCategoryBySlugMock.mockImplementation(async (slug: string) => ({ id: `id-${slug}`, slug, label: slug }));
+    await ServicesPage({ searchParams: Promise.resolve({ group }) });
+    return getServicesMock.mock.calls[0]![0] as { categoryIds?: string[] };
+  }
+
+  it("EXPERIENCES spans its three real category ids (a multi-slug group)", async () => {
+    const args = await renderGroup("EXPERIENCES");
+    expect(args.categoryIds).toEqual(["id-adventures", "id-local-experiences", "id-cultural-tours"]);
+  });
+
+  it("TOURIST_GUIDES resolves to exactly its own category id (not folded into Experiences)", async () => {
+    const args = await renderGroup("TOURIST_GUIDES");
+    expect(args.categoryIds).toEqual(["id-tourist-guides"]);
+  });
+
+  it("MORE is the browse-everything catch-all — no group filter", async () => {
+    const args = await renderGroup("MORE");
+    expect(getPublicCategoryBySlugMock).not.toHaveBeenCalled();
+    expect(args.categoryIds).toBeUndefined();
+  });
+
+  it("an unknown group key fails closed to no group filter (never an unfiltered dump masquerading as a bucket)", async () => {
+    const args = await renderGroup("NOT_A_GROUP");
+    expect(args.categoryIds).toBeUndefined();
+  });
+
+  it("drops slugs that do not resolve to a public category (only real ids reach the reader)", async () => {
+    getProvidersForFilterMock.mockResolvedValue([]);
+    getServicesMock.mockResolvedValue(emptyResult());
+    getPublicCategoryBySlugMock.mockImplementation(async (slug: string) =>
+      slug === "adventures" ? { id: "id-adventures", slug, label: slug } : null,
+    );
+    await ServicesPage({ searchParams: Promise.resolve({ group: "EXPERIENCES" }) });
+    const args = getServicesMock.mock.calls[0]![0] as { categoryIds?: string[] };
+    expect(args.categoryIds).toEqual(["id-adventures"]);
+  });
+});

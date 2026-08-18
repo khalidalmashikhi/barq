@@ -149,5 +149,16 @@
   "discoveryTransport": "Transport",
   "discoveryCarRental": "Autovermietung",
   "discoveryMarineTrips": "Meeresausflüge",
-  "discoveryMore": "Mehr"
+  "discoveryMore": "Mehr",
+  "home": {
+    "whatLookingFor": "Wonach suchen Sie?",
+    "selectedForYou": "Für Sie ausgewählt",
+    "selectedForYouSubtitle": "Herausragende Erlebnisse in ganz Oman",
+    "exploreOman": "Oman entdecken",
+    "exploreOmanSubtitle": "Nach Gouvernement durchsuchen",
+    "allOman": "Ganz Oman",
+    "priceFrom": "Ab {price}",
+    "searchAria": "Dienste suchen",
+    "governorateAria": "Gouvernement wählen"
+  }
 }

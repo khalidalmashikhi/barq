@@ -149,5 +149,16 @@
   "discoveryTransport": "Transport",
   "discoveryCarRental": "Car Rental",
   "discoveryMarineTrips": "Marine Trips",
-  "discoveryMore": "More"
+  "discoveryMore": "More",
+  "home": {
+    "whatLookingFor": "What are you looking for?",
+    "selectedForYou": "Selected for you",
+    "selectedForYouSubtitle": "Standout experiences across Oman",
+    "exploreOman": "Explore Oman",
+    "exploreOmanSubtitle": "Browse by governorate",
+    "allOman": "All Oman",
+    "priceFrom": "From {price}",
+    "searchAria": "Search services",
+    "governorateAria": "Choose a governorate"
+  }
 }

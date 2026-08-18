@@ -1,41 +1,33 @@
 import type { Metadata } from "next";
-import { Fragment } from "react";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { getSession } from "@/lib/auth";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
+import { isValidRegionCode } from "@/lib/regions";
+import { getHomeDiscovery } from "@/lib/discovery/get-home-discovery";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
-import { DEFAULT_HOMEPAGE_SECTION_KEYS, HOMEPAGE_SECTION_REGISTRY } from "@/components/landing/homepage-section-registry";
-import { getHomepageSectionRenderOrder } from "@/lib/homepage/get-homepage-section-render-order";
+import { HomeHero } from "@/components/home/home-hero";
+import { DiscoveryGrid } from "@/components/home/discovery-grid";
+import { SelectedForYou } from "@/components/home/selected-for-you";
+import { ExploreOman } from "@/components/home/explore-oman";
 
-// Public marketing landing page — Phase F.1 (UI/UX Redesign
-// Foundation).
+// Public customer Home (HOME-1) — the minimal, premium tourism-marketplace
+// landing built on the approved Home Discovery read model (getHomeDiscovery).
 //
-// REPLACES the prior combined hero+login page: "/" previously WAS the
-// login form for every unauthenticated visitor — no way to browse or
-// feel "inspired to explore destinations before performing any
-// action" (this phase's own Product Vision). The login experience
-// itself was relocated, unchanged in substance, to
-// src/app/[locale]/login/page.tsx; this file is now a genuine public
-// marketing page: Hero+Search, Featured Experiences, Categories,
-// Popular Destinations, Trusted Providers, How BARQ Works, Why Choose
-// BARQ, Statistics, Testimonials (placeholder), FAQ, CTA, and the
-// Navbar/Footer pair (built in an earlier, unfinished pass — Visual
-// Identity Sprint — and never rendered by any page until now).
+// Intentionally FIVE layers only — Hero/Search/Governorate, "What are you
+// looking for?" (the six discovery groups), "Selected for you" (the read model's
+// deterministic recommended list), Explore Oman, and the shared Footer. The prior
+// dense marketing page (12+ registry-driven sections) is deliberately retired for
+// this surface; the Homepage Section Registry backend is untouched and still
+// serves admin/experiments elsewhere.
 //
-// Authenticated visitors are still redirected straight to /dashboard,
-// exactly as before — this page is for people who are NOT signed in,
-// or who arrive here deliberately from a link.
+// Server-first: this file and every section are Server Components. The ONE read
+// (getHomeDiscovery) is bounded (6 groups × ≤6 previews + ≤6 recommended) and
+// governorate-scoped server-side — no client fetch, no N+1, no client filtering.
 //
-// Phase 1.5 (Homepage Rendering): the section list itself is no longer
-// hardcoded JSX — it's resolved via getHomepageSectionRenderOrder()
-// against the Homepage Sections backend (Phase 1.4), then rendered from
-// HOMEPAGE_SECTION_REGISTRY. Behavior is unchanged by default: with the
-// `homepage_dynamic_sections` feature flag off (or no sections
-// configured yet), this renders the exact same components, in the exact
-// same order, as the hardcoded version did.
+// Authenticated visitors are still redirected to /dashboard, exactly as before.
 
 export async function generateMetadata(): Promise<Metadata> {
   const tCommon = await getServerTranslator("common");
@@ -50,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ region?: string }> }) {
   const session = await getSession();
 
   if (session) {
@@ -58,16 +50,22 @@ export default async function HomePage() {
     redirect({ href: "/dashboard", locale });
   }
 
-  const sectionKeys = await getHomepageSectionRenderOrder(DEFAULT_HOMEPAGE_SECTION_KEYS);
+  const locale = await getLocale();
+  const params = await searchParams;
+
+  // Only a valid governed code narrows the Home; anything else is treated as
+  // "All Oman" (the read model itself also fails safe on an unknown region).
+  const regionCode = params.region && isValidRegionCode(params.region) ? params.region : null;
+  const discovery = await getHomeDiscovery({ regionCode, locale });
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <main id="main-content" className="flex-1">
-        {sectionKeys.map((key) => {
-          const renderSection = HOMEPAGE_SECTION_REGISTRY[key];
-          return renderSection ? <Fragment key={key}>{renderSection()}</Fragment> : null;
-        })}
+        <HomeHero governorates={discovery.governorates} selectedGovernorate={discovery.selectedGovernorate} />
+        <DiscoveryGrid region={discovery.selectedGovernorate} />
+        <SelectedForYou items={discovery.recommended} />
+        <ExploreOman destinations={discovery.destinations} />
       </main>
       <Footer />
     </div>

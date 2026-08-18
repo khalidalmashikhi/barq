@@ -149,5 +149,16 @@
   "discoveryTransport": "النقل",
   "discoveryCarRental": "تأجير السيارات",
   "discoveryMarineTrips": "رحلات بحرية",
-  "discoveryMore": "المزيد"
+  "discoveryMore": "المزيد",
+  "home": {
+    "whatLookingFor": "عمّاذا تبحث؟",
+    "selectedForYou": "مختارات لك",
+    "selectedForYouSubtitle": "تجارب مميزة عبر عُمان",
+    "exploreOman": "اكتشف عُمان",
+    "exploreOmanSubtitle": "تصفّح حسب المحافظة",
+    "allOman": "كل عُمان",
+    "priceFrom": "من {price}",
+    "searchAria": "ابحث عن الخدمات",
+    "governorateAria": "اختر المحافظة"
+  }
 }

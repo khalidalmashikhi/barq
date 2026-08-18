@@ -149,5 +149,16 @@
   "discoveryTransport": "Doprava",
   "discoveryCarRental": "Půjčovna aut",
   "discoveryMarineTrips": "Námořní výlety",
-  "discoveryMore": "Více"
+  "discoveryMore": "Více",
+  "home": {
+    "whatLookingFor": "Co hledáte?",
+    "selectedForYou": "Vybráno pro vás",
+    "selectedForYouSubtitle": "Výjimečné zážitky po celém Ománu",
+    "exploreOman": "Objevte Omán",
+    "exploreOmanSubtitle": "Procházet podle guvernorátu",
+    "allOman": "Celý Omán",
+    "priceFrom": "Od {price}",
+    "searchAria": "Hledat služby",
+    "governorateAria": "Vyberte guvernorát"
+  }
 }

@@ -149,5 +149,16 @@
   "discoveryTransport": "Транспорт",
   "discoveryCarRental": "Аренда авто",
   "discoveryMarineTrips": "Морские прогулки",
-  "discoveryMore": "Ещё"
+  "discoveryMore": "Ещё",
+  "home": {
+    "whatLookingFor": "Что вы ищете?",
+    "selectedForYou": "Подобрано для вас",
+    "selectedForYouSubtitle": "Яркие впечатления по всему Оману",
+    "exploreOman": "Откройте Оман",
+    "exploreOmanSubtitle": "Просмотр по мухафазам",
+    "allOman": "Весь Оман",
+    "priceFrom": "От {price}",
+    "searchAria": "Поиск услуг",
+    "governorateAria": "Выберите мухафазу"
+  }
 }
