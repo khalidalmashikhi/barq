@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "Antragsstatus anzeigen",
   "categorySubmitted": "Eingereicht",
   "categoryDocument": "Dokument",
-  "categoryChanges": "Änderungen angefordert"
+  "categoryChanges": "Änderungen angefordert",
+  "ctaViewBooking": "Buchung ansehen"
 }

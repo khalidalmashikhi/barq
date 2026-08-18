@@ -38,13 +38,40 @@ describe("notifyBookingEvent", () => {
     await notifyBookingEvent({ userId: "user-1", bookingId: "booking-1", kind: "PENDING_PROVIDER" });
 
     expect(createMock).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         userId: "user-1",
         content: expect.objectContaining({ ar: expect.any(String), en: expect.any(String) }),
         channel: "EMAIL",
         causingBookingId: "booking-1",
-      },
+      }),
     });
+  });
+
+  // TOUR-2.5A1 — the new-booking notification (PENDING_PROVIDER) carries the B3
+  // structured action metadata so it becomes actionable, WITHOUT a second row.
+  it("sets eventType=booking.created / entityType=Booking / entityId=bookingId for the PENDING_PROVIDER (new-booking) kind", async () => {
+    createMock.mockResolvedValue({});
+    await notifyBookingEvent({ userId: "user-1", bookingId: "b-1", kind: "PENDING_PROVIDER" });
+
+    const data = createMock.mock.calls[0]![0].data;
+    expect(data.eventType).toBe("booking.created");
+    expect(data.entityType).toBe("Booking");
+    expect(data.entityId).toBe("b-1");
+    expect(data.causingBookingId).toBe("b-1"); // backward-compat retained
+    expect(createMock).toHaveBeenCalledTimes(1); // exactly one row
+  });
+
+  it("does NOT add eventType for other booking kinds (only PENDING_PROVIDER is mapped today)", async () => {
+    createMock.mockResolvedValue({});
+    for (const kind of ["BOOKING_ACCEPTED", "BOOKING_CANCELLED", "BOOKING_EXPIRED", "NEW_REVIEW_RECEIVED"] as const) {
+      createMock.mockClear();
+      await notifyBookingEvent({ userId: "user-1", bookingId: "b-1", kind });
+      const data = createMock.mock.calls[0]![0].data;
+      expect(data.eventType).toBeUndefined();
+      expect(data.entityType).toBeUndefined();
+      expect(data.entityId).toBeUndefined();
+      expect(data.causingBookingId).toBe("b-1"); // unchanged
+    }
   });
 
   it.each([

@@ -98,3 +98,38 @@ describe("resolveNotificationAction — safety / null cases", () => {
     }
   });
 });
+
+// TOUR-2.5A1 — the new-booking (PENDING_PROVIDER) notification's CTA.
+describe("resolveNotificationAction — booking.created → provider booking detail", () => {
+  it("resolves to /provider/bookings/[id] with ctaViewBooking for a valid Booking UUID", () => {
+    expect(resolveNotificationAction({ eventType: "booking.created", entityType: "Booking", entityId: UUID })).toEqual({
+      labelKey: "ctaViewBooking",
+      href: `/provider/bookings/${UUID}`,
+    });
+  });
+
+  it("returns null for an invalid/malformed UUID (no unsafe interpolation)", () => {
+    expect(resolveNotificationAction({ eventType: "booking.created", entityType: "Booking", entityId: "not-a-uuid" })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "booking.created", entityType: "Booking", entityId: "../../admin" })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "booking.created", entityType: "Booking", entityId: null })).toBeNull();
+  });
+
+  it("returns null for the wrong entityType (Booking is required)", () => {
+    expect(resolveNotificationAction({ eventType: "booking.created", entityType: "Provider", entityId: UUID })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "booking.created", entityType: null, entityId: UUID })).toBeNull();
+  });
+
+  it("is PROVIDER-audience only — never resolves to an /admin or a customer /bookings route", () => {
+    const a = resolveNotificationAction({ eventType: "booking.created", entityType: "Booking", entityId: UUID });
+    expect(a?.href).toBe(`/provider/bookings/${UUID}`);
+    expect(a?.href.startsWith("/admin")).toBe(false);
+    // customer route is /bookings/[id]; provider CTA must be under /provider/
+    expect(a?.href.startsWith("/provider/")).toBe(true);
+    expect(a?.href.startsWith("/bookings/")).toBe(false);
+  });
+
+  it("never reads a caller-supplied/absolute href — the destination is fixed and internal", () => {
+    const a = resolveNotificationAction({ eventType: "booking.created", entityType: "Booking", entityId: "https://evil.example.com" });
+    expect(a).toBeNull();
+  });
+});

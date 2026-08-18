@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "Zobrazit stav žádosti",
   "categorySubmitted": "Odesláno",
   "categoryDocument": "Dokument",
-  "categoryChanges": "Požadované změny"
+  "categoryChanges": "Požadované změny",
+  "ctaViewBooking": "Zobrazit rezervaci"
 }

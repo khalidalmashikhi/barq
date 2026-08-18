@@ -27,7 +27,8 @@ export type NotificationActionLabelKey =
   | "ctaReviewDocument"
   | "ctaBrowseWorkspace"
   | "ctaReviewChanges"
-  | "ctaViewApplicationStatus";
+  | "ctaViewApplicationStatus"
+  | "ctaViewBooking";
 
 export type NotificationAction = {
   /// i18n key in the "notifications" namespace (rendered by the caller's translator).
@@ -38,6 +39,7 @@ export type NotificationAction = {
 
 type ActionDef =
   | { labelKey: NotificationActionLabelKey; kind: "adminProviderDetail" } // interpolates a validated providerId
+  | { labelKey: NotificationActionLabelKey; kind: "providerBookingDetail" } // interpolates a validated bookingId
   | { labelKey: NotificationActionLabelKey; kind: "fixed"; href: string }; // no interpolation
 
 // The complete allowlist. Admin events -> the per-provider admin workspace
@@ -58,6 +60,11 @@ const ACTION_BY_EVENT: Record<string, ActionDef> = {
   "provider.changes_requested": { labelKey: "ctaReviewChanges", kind: "fixed", href: "/provider/verification" },
   "provider.document_rejected": { labelKey: "ctaReviewDocument", kind: "fixed", href: "/provider/verification" },
   "provider.rejected": { labelKey: "ctaViewApplicationStatus", kind: "fixed", href: "/provider-application" },
+  // TOUR-2.5A1 — the existing PENDING_PROVIDER booking-lifecycle notification
+  // (fired once, post-commit, on booking creation) becomes actionable. PROVIDER
+  // audience: resolves ONLY to the provider's own booking-detail route with a
+  // strict-UUID-validated bookingId — never an admin or customer route.
+  "booking.created": { labelKey: "ctaViewBooking", kind: "providerBookingDetail" },
 };
 
 export function resolveNotificationAction(input: {
@@ -75,6 +82,14 @@ export function resolveNotificationAction(input: {
     // strict UUID before interpolating — otherwise no CTA (never an unsafe route).
     if (entityType !== "Provider" || !entityId || !UUID_RE.test(entityId)) return null;
     return { labelKey: def.labelKey, href: `/admin/providers/${entityId}` };
+  }
+
+  if (def.kind === "providerBookingDetail") {
+    // Provider audience: require entityType="Booking" + a strict UUID before
+    // interpolating into the provider's own booking-detail route. A malformed or
+    // wrong-typed entity yields no CTA (the notification still renders as text).
+    if (entityType !== "Booking" || !entityId || !UUID_RE.test(entityId)) return null;
+    return { labelKey: def.labelKey, href: `/provider/bookings/${entityId}` };
   }
 
   // Fixed, self-scoped provider route — no interpolation, no entity trust needed.

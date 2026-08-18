@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "Посмотреть статус заявки",
   "categorySubmitted": "Отправлено",
   "categoryDocument": "Документ",
-  "categoryChanges": "Требуются изменения"
+  "categoryChanges": "Требуются изменения",
+  "ctaViewBooking": "Посмотреть бронирование"
 }

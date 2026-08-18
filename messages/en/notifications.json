@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "View application status",
   "categorySubmitted": "Submitted",
   "categoryDocument": "Document",
-  "categoryChanges": "Changes requested"
+  "categoryChanges": "Changes requested",
+  "ctaViewBooking": "View booking"
 }

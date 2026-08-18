@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "Visualizza stato della richiesta",
   "categorySubmitted": "Inviato",
   "categoryDocument": "Documento",
-  "categoryChanges": "Modifiche richieste"
+  "categoryChanges": "Modifiche richieste",
+  "ctaViewBooking": "Visualizza prenotazione"
 }

@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "عرض حالة الطلب",
   "categorySubmitted": "أُرسل",
   "categoryDocument": "مستند",
-  "categoryChanges": "تعديلات مطلوبة"
+  "categoryChanges": "تعديلات مطلوبة",
+  "ctaViewBooking": "عرض الحجز"
 }

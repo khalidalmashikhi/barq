@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "Voir le statut de la demande",
   "categorySubmitted": "Soumis",
   "categoryDocument": "Document",
-  "categoryChanges": "Modifications demandées"
+  "categoryChanges": "Modifications demandées",
+  "ctaViewBooking": "Voir la réservation"
 }

@@ -21,5 +21,6 @@
   "ctaViewApplicationStatus": "Zobacz status wniosku",
   "categorySubmitted": "Wysłano",
   "categoryDocument": "Dokument",
-  "categoryChanges": "Wymagane zmiany"
+  "categoryChanges": "Wymagane zmiany",
+  "ctaViewBooking": "Zobacz rezerwację"
 }

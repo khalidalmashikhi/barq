@@ -75,8 +75,20 @@ export interface NotifyBookingEventParams {
   kind: BookingNotificationKind;
 }
 
+// TOUR-2.5A1 — the B3 structured-action eventType for a booking-lifecycle kind,
+// used ONLY to make a row actionable via the centralized allowlist resolver
+// (resolve-notification-action.ts). Deliberately partial: only PENDING_PROVIDER
+// (the new-booking notification) carries one today, so every OTHER kind writes
+// EXACTLY as before (no eventType) — no behavior change and no new CTA for them.
+// This does NOT add a second notification; it enriches the single existing one.
+const EVENT_TYPE_BY_KIND: Partial<Record<BookingNotificationKind, string>> = {
+  PENDING_PROVIDER: "booking.created",
+};
+
 export async function notifyBookingEvent(params: NotifyBookingEventParams): Promise<void> {
   const { userId, bookingId, kind } = params;
+
+  const eventType = EVENT_TYPE_BY_KIND[kind];
 
   await prisma.notification.create({
     data: {
@@ -91,7 +103,12 @@ export async function notifyBookingEvent(params: NotifyBookingEventParams): Prom
       // src/components/notifications/notification-presentation.ts).
       content: { ...MESSAGES[kind], kind },
       channel: "EMAIL",
+      // Preserved for backward compatibility (existing readers / presentation).
       causingBookingId: bookingId,
+      // Structured B3 metadata for the centralized CTA resolver — set ONLY for a
+      // mapped kind. entityId is the booking id; the resolver re-validates it as a
+      // strict UUID and NEVER reads a stored href.
+      ...(eventType ? { eventType, entityType: "Booking", entityId: bookingId } : {}),
     },
   });
 }
