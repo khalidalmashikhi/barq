@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { getSession } from "@/lib/auth";
+import { isActiveAdminSession } from "@/lib/auth";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
 import { isValidRegionCode } from "@/lib/regions";
@@ -27,7 +27,11 @@ import { ExploreOman } from "@/components/home/explore-oman";
 // (getHomeDiscovery) is bounded (6 groups × ≤6 previews + ≤6 recommended) and
 // governorate-scoped server-side — no client fetch, no N+1, no client filtering.
 //
-// Authenticated visitors are still redirected to /dashboard, exactly as before.
+// AUTH-NAV: being authenticated is NOT itself a reason to leave Home. Anonymous,
+// customer, provider, and staff visitors all see the public Home/discovery. The
+// ONLY redirect is Gate A's backoffice-only invariant — an ACTIVE Admin is sent
+// to /admin (via the existing isActiveAdminSession primitive, never new role
+// logic). Every /provider and /admin route still enforces its own server gate.
 
 export async function generateMetadata(): Promise<Metadata> {
   const tCommon = await getServerTranslator("common");
@@ -43,14 +47,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ region?: string }> }) {
-  const session = await getSession();
+  const locale = await getLocale();
 
-  if (session) {
-    const locale = await getLocale();
-    redirect({ href: "/dashboard", locale });
+  // Gate A (backoffice-only): only an ACTIVE Admin is redirected off Home.
+  if (await isActiveAdminSession()) {
+    redirect({ href: "/admin", locale });
   }
 
-  const locale = await getLocale();
   const params = await searchParams;
 
   // Only a valid governed code narrows the Home; anything else is treated as

@@ -17,8 +17,14 @@
 // useTranslations) resolves its own label, since a plain data array
 // can't carry a resolved translation across that boundary itself.
 
-export const navLinks = [
-  { labelKey: "nav.browse", href: "/services" },
-  { labelKey: "nav.howItWorks", href: "#how-it-works" },
-  { labelKey: "nav.destinations", href: "#destinations" },
-] as const;
+// AUTH-NAV-3 — dead-anchor cleanup: the "#how-it-works" and "#destinations"
+// in-page anchors targeted sections that only existed on the OLD dense homepage;
+// HOME-1 (approved) no longer renders them, so those anchors scrolled nowhere in
+// every surface that renders this list (Navbar, Footer, MobileNav). Removed
+// rather than repointed — there is no existing page whose semantics genuinely
+// match either anchor, and the rule is not to re-add Home sections just to keep
+// an anchor alive. "Browse" (→ /services) is the one real, working destination.
+// The now-unused nav.howItWorks / nav.destinations message keys are left in
+// landing.json untouched (harmless, and removing them across 8 locales is
+// unrelated churn).
+export const navLinks = [{ labelKey: "nav.browse", href: "/services" }] as const;

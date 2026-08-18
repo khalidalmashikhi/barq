@@ -142,7 +142,11 @@
     "helpLink": "Centrum nápovědy",
     "termsLink": "Podmínky služby",
     "privacyLink": "Zásady ochrany osobních údajů",
-    "cookiesLink": "Zásady používání souborů cookie"
+    "cookiesLink": "Zásady používání souborů cookie",
+    "partnersHeading": "Pro partnery",
+    "joinAsProvider": "Staňte se poskytovatelem",
+    "providerLogin": "Přihlášení poskytovatele",
+    "adminStaffPortal": "Portál administrace a personálu"
   },
   "discoveryExperiences": "Zážitky a dobrodružství",
   "discoveryTouristGuides": "Turističtí průvodci",

@@ -142,7 +142,11 @@
     "helpLink": "Centre d'aide",
     "termsLink": "Conditions d'utilisation",
     "privacyLink": "Politique de confidentialité",
-    "cookiesLink": "Politique de cookies"
+    "cookiesLink": "Politique de cookies",
+    "partnersHeading": "Pour les partenaires",
+    "joinAsProvider": "Devenir prestataire",
+    "providerLogin": "Connexion prestataire",
+    "adminStaffPortal": "Portail admin et personnel"
   },
   "discoveryExperiences": "Expériences et aventures",
   "discoveryTouristGuides": "Guides touristiques",

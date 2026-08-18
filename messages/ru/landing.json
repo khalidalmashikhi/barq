@@ -142,7 +142,11 @@
     "helpLink": "Центр помощи",
     "termsLink": "Условия использования",
     "privacyLink": "Политика конфиденциальности",
-    "cookiesLink": "Политика использования файлов cookie"
+    "cookiesLink": "Политика использования файлов cookie",
+    "partnersHeading": "Для партнёров",
+    "joinAsProvider": "Стать поставщиком",
+    "providerLogin": "Вход для поставщиков",
+    "adminStaffPortal": "Портал администрации и персонала"
   },
   "discoveryExperiences": "Впечатления и приключения",
   "discoveryTouristGuides": "Гиды",

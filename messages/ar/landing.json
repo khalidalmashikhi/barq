@@ -142,7 +142,11 @@
     "termsLink": "شروط الخدمة",
     "privacyLink": "سياسة الخصوصية",
     "cookiesLink": "سياسة ملفات تعريف الارتباط",
-    "rightsReserved": "جميع الحقوق محفوظة."
+    "rightsReserved": "جميع الحقوق محفوظة.",
+    "partnersHeading": "للشركاء",
+    "joinAsProvider": "انضم كمزوّد خدمة",
+    "providerLogin": "دخول المزوّدين",
+    "adminStaffPortal": "بوابة الإدارة والموظفين"
   },
   "discoveryExperiences": "تجارب ومغامرات",
   "discoveryTouristGuides": "مرشدون سياحيون",

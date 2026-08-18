@@ -142,7 +142,11 @@
     "termsLink": "Terms of Service",
     "privacyLink": "Privacy Policy",
     "cookiesLink": "Cookie Policy",
-    "rightsReserved": "All rights reserved."
+    "rightsReserved": "All rights reserved.",
+    "partnersHeading": "For partners",
+    "joinAsProvider": "Join as a provider",
+    "providerLogin": "Provider login",
+    "adminStaffPortal": "Admin & Staff Portal"
   },
   "discoveryExperiences": "Experiences & Adventures",
   "discoveryTouristGuides": "Tourist Guides",

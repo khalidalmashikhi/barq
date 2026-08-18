@@ -142,7 +142,11 @@
     "helpLink": "Hilfe-Center",
     "termsLink": "Nutzungsbedingungen",
     "privacyLink": "Datenschutzerklärung",
-    "cookiesLink": "Cookie-Richtlinie"
+    "cookiesLink": "Cookie-Richtlinie",
+    "partnersHeading": "Für Partner",
+    "joinAsProvider": "Als Anbieter registrieren",
+    "providerLogin": "Anbieter-Login",
+    "adminStaffPortal": "Verwaltungs- & Mitarbeiterportal"
   },
   "discoveryExperiences": "Erlebnisse & Abenteuer",
   "discoveryTouristGuides": "Reiseführer",
