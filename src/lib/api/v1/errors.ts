@@ -46,6 +46,10 @@ export type ApiErrorCode =
   // the provider is not authorized for it. A distinct 403 so a native client can
   // tell "unauthorized activity" apart from "invalid category" (422).
   | "ACTIVITY_NOT_AUTHORIZED"
+  // TOUR-1 — smart tour-guide template: content supplied for a non-eligible
+  // service (422), or content that failed the strict guidingContent contract (422).
+  | "TOUR_TEMPLATE_NOT_ELIGIBLE"
+  | "TOUR_TEMPLATE_INVALID"
   | "CAPACITY_BELOW_BOOKED"
   | "SLOT_HAS_BOOKINGS"
   | "RATE_LIMITED"
@@ -72,6 +76,8 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   SERVICE_NOT_PUBLISHABLE: 422,
   INVALID_CATEGORY: 422,
   ACTIVITY_NOT_AUTHORIZED: 403,
+  TOUR_TEMPLATE_NOT_ELIGIBLE: 422,
+  TOUR_TEMPLATE_INVALID: 422,
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
   RATE_LIMITED: 429,
@@ -127,6 +133,14 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   ACTIVITY_NOT_AUTHORIZED: {
     en: "This activity is not authorized for your provider account.",
     ar: "هذا النشاط غير مصرح به لحساب مزود الخدمة.",
+  },
+  TOUR_TEMPLATE_NOT_ELIGIBLE: {
+    en: "Tour details can only be added to an individual tourist-guide service.",
+    ar: "لا يمكن إضافة تفاصيل الجولة إلا لخدمة مرشد سياحي فردي.",
+  },
+  TOUR_TEMPLATE_INVALID: {
+    en: "The tour details are incomplete or invalid.",
+    ar: "تفاصيل الجولة غير مكتملة أو غير صالحة.",
   },
   CAPACITY_BELOW_BOOKED: {
     en: "Capacity can't be set below the number of seats already booked.",

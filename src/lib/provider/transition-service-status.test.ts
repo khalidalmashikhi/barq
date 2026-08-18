@@ -21,6 +21,8 @@ const findUniqueMock = vi.fn();
 const findFirstMock = vi.fn();
 const updateMock = vi.fn();
 const auditCreateMock = vi.fn();
+const categoryFindUniqueMock = vi.fn();
+const experienceFindUniqueMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -30,6 +32,9 @@ vi.mock("@/lib/db", () => ({
     price: {
       findFirst: (...args: unknown[]) => findFirstMock(...args),
     },
+    // TOUR-1 — publish reads the canonical tour category + the Experience row.
+    category: { findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args) },
+    experience: { findUnique: (...args: unknown[]) => experienceFindUniqueMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
@@ -60,6 +65,8 @@ afterEach(() => {
   updateMock.mockReset();
   auditCreateMock.mockReset();
   isProviderAuthorizedForCategoryMock.mockReset();
+  categoryFindUniqueMock.mockReset();
+  experienceFindUniqueMock.mockReset();
 });
 
 describe("publishService", () => {
@@ -162,6 +169,83 @@ describe("publishService", () => {
 
     expect(result).toEqual({ ok: false, error: "ACTIVITY_NOT_AUTHORIZED" });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  // TOUR-1 — an eligible smart-tour service needs valid guidingContent to publish.
+  describe("smart tour-guide publish gate (TOUR-1)", () => {
+    const TG_CAT = "tg-cat";
+    const validGuiding = {
+      version: 1,
+      packageType: "GUIDE_ONLY",
+      durationMinutes: 90,
+      meetingPoint: "Souq",
+      pickup: { included: false, area: null, hotelPickup: false, airportPickup: false },
+      maxGuests: 3,
+      languages: ["Arabic"],
+      itinerary: [],
+      includedItems: [],
+      excludedItems: [],
+      difficulty: null,
+      childFriendly: null,
+      privateTour: null,
+      recommendedEquipment: [],
+      refreshmentsIncluded: null,
+      importantNotes: null,
+      vehicle: null,
+    };
+
+    const eligibleService = () => {
+      requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", status: "DRAFT", categoryId: TG_CAT });
+      findFirstMock.mockResolvedValue({ id: "price-1" }); // price gate passes
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT }); // eligible
+    };
+
+    it("blocks publish with TOUR_TEMPLATE_REQUIRED when guidingContent is missing", async () => {
+      eligibleService();
+      experienceFindUniqueMock.mockResolvedValue(null);
+
+      const result = await publishService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: false, error: "TOUR_TEMPLATE_REQUIRED" });
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it("blocks publish with TOUR_TEMPLATE_INVALID when stored guidingContent is malformed", async () => {
+      eligibleService();
+      experienceFindUniqueMock.mockResolvedValue({ guidingContent: { garbage: true } });
+
+      const result = await publishService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: false, error: "TOUR_TEMPLATE_INVALID" });
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it("publishes an eligible tour service with valid guidingContent", async () => {
+      eligibleService();
+      experienceFindUniqueMock.mockResolvedValue({ guidingContent: validGuiding });
+      updateMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await publishService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: true });
+      expect(updateMock).toHaveBeenCalled();
+    });
+
+    it("generic (non-tour) publish never consults the Experience row", async () => {
+      requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", status: "DRAFT", categoryId: "generic-cat" });
+      findFirstMock.mockResolvedValue({ id: "price-1" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT }); // service cat != TG_CAT -> not eligible
+      updateMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await publishService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: true });
+      expect(experienceFindUniqueMock).not.toHaveBeenCalled();
+    });
   });
 });
 

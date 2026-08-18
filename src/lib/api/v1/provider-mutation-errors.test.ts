@@ -27,6 +27,11 @@ describe("serviceErrorResponse", () => {
     expect(await read(serviceErrorResponse("INVALID_CATEGORY", "en"))).toMatchObject({ status: 422, code: "INVALID_CATEGORY" });
     // Gate B5 — valid category but provider not authorized → distinct 403.
     expect(await read(serviceErrorResponse("ACTIVITY_NOT_AUTHORIZED", "en"))).toMatchObject({ status: 403, code: "ACTIVITY_NOT_AUTHORIZED" });
+    // TOUR-1 — smart tour-guide template outcomes.
+    expect(await read(serviceErrorResponse("TOUR_TEMPLATE_NOT_ELIGIBLE", "en"))).toMatchObject({ status: 422, code: "TOUR_TEMPLATE_NOT_ELIGIBLE" });
+    expect(await read(serviceErrorResponse("TOUR_TEMPLATE_INVALID", "en"))).toMatchObject({ status: 422, code: "TOUR_TEMPLATE_INVALID" });
+    // Publish-time completeness → reuses "not publishable yet".
+    expect(await read(serviceErrorResponse("TOUR_TEMPLATE_REQUIRED", "en"))).toMatchObject({ status: 422, code: "SERVICE_NOT_PUBLISHABLE" });
     expect(await read(serviceErrorResponse("INVALID_STATUS_TRANSITION", "en"))).toMatchObject({ status: 409, code: "INVALID_STATUS_TRANSITION" });
     expect(await read(serviceErrorResponse("UNKNOWN_ERROR", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
   });

@@ -33,17 +33,27 @@ const priceUpdateManyMock = vi.fn();
 const auditCreateMock = vi.fn();
 const resolveAssignableCategoryMock = vi.fn();
 
+const categoryFindUniqueMock = vi.fn();
+const experienceUpsertMock = vi.fn();
+const experienceUpdateManyMock = vi.fn();
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     service: {
       findUnique: (...args: unknown[]) => findUniqueMock(...args),
       update: (...args: unknown[]) => updateMock(...args),
     },
+    // resolveTouristGuideCategoryId() (TOUR-1).
+    category: { findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
         price: { updateMany: (...args: unknown[]) => priceUpdateManyMock(...args) },
         auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
+        experience: {
+          upsert: (...args: unknown[]) => experienceUpsertMock(...args),
+          updateMany: (...args: unknown[]) => experienceUpdateManyMock(...args),
+        },
       }),
   },
 }));
@@ -85,6 +95,9 @@ afterEach(() => {
   auditCreateMock.mockReset();
   resolveAssignableCategoryMock.mockReset();
   isProviderAuthorizedForCategoryMock.mockReset();
+  categoryFindUniqueMock.mockReset();
+  experienceUpsertMock.mockReset();
+  experienceUpdateManyMock.mockReset();
 });
 
 describe("updateService", () => {
@@ -249,6 +262,104 @@ describe("updateService", () => {
       expect(result).toEqual({ ok: true });
       expect(resolveAssignableCategoryMock).not.toHaveBeenCalled();
       expect(isProviderAuthorizedForCategoryMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // TOUR-1 — smart tour-guide guidingContent on update.
+  describe("smart tour-guide guidingContent (TOUR-1)", () => {
+    const TG_CAT = "tg-cat";
+    const guiding = () =>
+      JSON.stringify({
+        version: 1,
+        packageType: "GUIDE_ONLY",
+        durationMinutes: 90,
+        meetingPoint: "Souq",
+        pickup: { included: false, area: null, hotelPickup: false, airportPickup: false },
+        maxGuests: 3,
+        languages: ["Arabic"],
+        itinerary: [],
+        includedItems: [],
+        excludedItems: [],
+        difficulty: null,
+        childFriendly: null,
+        privateTour: null,
+        recommendedEquipment: [],
+        refreshmentsIncluded: null,
+        importantNotes: null,
+        vehicle: null,
+      });
+
+    it("metadata-only update never touches Experience or resolves the tour category", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: TG_CAT, serviceType: "EXPERIENCE" });
+      updateMock.mockResolvedValue({});
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "اسم", nameEn: "Name" }));
+
+      expect(result).toEqual({ ok: true });
+      expect(categoryFindUniqueMock).not.toHaveBeenCalled();
+      expect(experienceUpsertMock).not.toHaveBeenCalled();
+      expect(experienceUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("valid guidingContent update on an eligible service upserts Experience", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: TG_CAT, serviceType: "EXPERIENCE" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+      updateMock.mockResolvedValue({});
+      experienceUpsertMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "اسم", nameEn: "Name", guidingContent: guiding() }));
+
+      expect(result).toEqual({ ok: true });
+      expect(experienceUpsertMock).toHaveBeenCalledWith(expect.objectContaining({ where: { serviceId: SERVICE_ID } }));
+    });
+
+    it("invalid guidingContent rejects the whole update (nothing written)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: TG_CAT, serviceType: "EXPERIENCE" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "اسم", nameEn: "Name", guidingContent: "{bad" }));
+
+      expect(result).toEqual({ ok: false, error: "TOUR_TEMPLATE_INVALID" });
+      expect(updateMock).not.toHaveBeenCalled();
+      expect(experienceUpsertMock).not.toHaveBeenCalled();
+    });
+
+    it("transition AWAY (tourist-guide -> generic) clears guidingContent atomically", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: TG_CAT, serviceType: "EXPERIENCE" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+      resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "TRANSPORT" });
+      updateMock.mockResolvedValue({});
+      experienceUpdateManyMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "اسم", nameEn: "Name", categoryId: "generic-cat" }));
+
+      expect(result).toEqual({ ok: true });
+      expect(experienceUpdateManyMock).toHaveBeenCalledWith(expect.objectContaining({ where: { serviceId: SERVICE_ID } }));
+      expect(experienceUpsertMock).not.toHaveBeenCalled();
+    });
+
+    it("transition INTO (generic -> tourist-guide) with valid guidingContent upserts it", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "generic-cat", serviceType: "TRANSPORT" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+      resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+      updateMock.mockResolvedValue({});
+      experienceUpsertMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await updateService(
+        SERVICE_ID,
+        buildFormData({ nameAr: "اسم", nameEn: "Name", categoryId: TG_CAT, guidingContent: guiding() })
+      );
+
+      expect(result).toEqual({ ok: true });
+      expect(experienceUpsertMock).toHaveBeenCalled();
     });
   });
 

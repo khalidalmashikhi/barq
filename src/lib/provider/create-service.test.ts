@@ -31,14 +31,19 @@ const serviceCreateMock = vi.fn();
 const priceCreateMock = vi.fn();
 const auditCreateMock = vi.fn();
 const resolveAssignableCategoryMock = vi.fn();
+const categoryFindUniqueMock = vi.fn();
+const experienceCreateMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // resolveTouristGuideCategoryId() (TOUR-1) reads the canonical slug here.
+    category: { findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { create: (...args: unknown[]) => serviceCreateMock(...args) },
         price: { create: (...args: unknown[]) => priceCreateMock(...args) },
         auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
+        experience: { create: (...args: unknown[]) => experienceCreateMock(...args) },
       }),
   },
 }));
@@ -77,6 +82,108 @@ afterEach(() => {
   auditCreateMock.mockReset();
   resolveAssignableCategoryMock.mockReset();
   isProviderAuthorizedForCategoryMock.mockReset();
+  categoryFindUniqueMock.mockReset();
+  experienceCreateMock.mockReset();
+});
+
+// TOUR-1 — smart tour-guide guidingContent on create. The canonical tourist-guide
+// category id is "tg-cat"; an INDIVIDUAL provider owning that category is eligible.
+const TG_CAT = "tg-cat";
+function validGuidingContent(overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    version: 1,
+    packageType: "GUIDE_ONLY",
+    durationMinutes: 120,
+    meetingPoint: "Nizwa Fort",
+    pickup: { included: false, area: null, hotelPickup: false, airportPickup: false },
+    maxGuests: 4,
+    languages: ["Arabic"],
+    itinerary: [],
+    includedItems: [],
+    excludedItems: [],
+    difficulty: null,
+    childFriendly: null,
+    privateTour: null,
+    recommendedEquipment: [],
+    refreshmentsIncluded: null,
+    importantNotes: null,
+    vehicle: null,
+    ...overrides,
+  });
+}
+
+describe("createService — smart tour-guide guidingContent (TOUR-1)", () => {
+  it("persists normalized guidingContent for an eligible INDIVIDUAL tourist-guide service", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+    experienceCreateMock.mockResolvedValue({});
+
+    const result = await createService(
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: TG_CAT, guidingContent: validGuidingContent() })
+    );
+
+    expect(result).toEqual({ ok: true, serviceId: "service-1" });
+    expect(experienceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ serviceId: "service-1" }) })
+    );
+  });
+
+  it("rejects an eligible tour service with MALFORMED guidingContent, creating nothing", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+
+    const result = await createService(
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: TG_CAT, guidingContent: "{bad json" })
+    );
+
+    expect(result).toEqual({ ok: false, error: "TOUR_TEMPLATE_INVALID" });
+    expect(serviceCreateMock).not.toHaveBeenCalled();
+    expect(experienceCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects guidingContent injected onto a NON-tour category (not eligible), creating nothing", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+
+    const result = await createService(
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: "other-cat", guidingContent: validGuidingContent() })
+    );
+
+    expect(result).toEqual({ ok: false, error: "TOUR_TEMPLATE_NOT_ELIGIBLE" });
+    expect(serviceCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects guidingContent from a COMPANY provider on the tourist-guide category (not eligible)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "COMPANY" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+
+    const result = await createService(
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: TG_CAT, guidingContent: validGuidingContent() })
+    );
+
+    expect(result).toEqual({ ok: false, error: "TOUR_TEMPLATE_NOT_ELIGIBLE" });
+    expect(serviceCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("B5 unauthorized category is rejected BEFORE tour validation (ordering preserved)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    isProviderAuthorizedForCategoryMock.mockResolvedValue(false);
+
+    const result = await createService(
+      buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: TG_CAT, guidingContent: validGuidingContent() })
+    );
+
+    expect(result).toEqual({ ok: false, error: "ACTIVITY_NOT_AUTHORIZED" });
+    expect(categoryFindUniqueMock).not.toHaveBeenCalled(); // never reached tour eligibility
+  });
 });
 
 describe("createService", () => {

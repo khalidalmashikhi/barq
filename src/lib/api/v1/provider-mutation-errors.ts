@@ -34,6 +34,12 @@ const SERVICE_CODE_MAP: Record<ServiceActionErrorCode, ApiErrorCode> = {
   INVALID_CATEGORY: "INVALID_CATEGORY",
   // Gate B5 — provider not authorized for the (otherwise valid) category → 403.
   ACTIVITY_NOT_AUTHORIZED: "ACTIVITY_NOT_AUTHORIZED",
+  // TOUR-1 — smart tour-guide template outcomes.
+  TOUR_TEMPLATE_NOT_ELIGIBLE: "TOUR_TEMPLATE_NOT_ELIGIBLE",
+  TOUR_TEMPLATE_INVALID: "TOUR_TEMPLATE_INVALID",
+  // Publish-time completeness (eligible tour missing content) → "not publishable
+  // yet", consistent with the other publish blockers.
+  TOUR_TEMPLATE_REQUIRED: "SERVICE_NOT_PUBLISHABLE",
   INVALID_STATUS_TRANSITION: "INVALID_STATUS_TRANSITION",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
 };

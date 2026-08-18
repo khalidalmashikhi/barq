@@ -26,6 +26,17 @@ export type ServiceActionErrorCode =
   // on create, on re-categorization, and on publish — distinct from
   // INVALID_CATEGORY (which is about the category itself, not the provider).
   | "ACTIVITY_NOT_AUTHORIZED"
+  // TOUR-1: guidingContent (smart tour-guide data) was supplied for a service
+  // that is NOT smart-tour eligible (not INDIVIDUAL, or not the tourist-guide
+  // category). Rejected — a client can never smuggle tour content onto a generic
+  // or COMPANY service.
+  | "TOUR_TEMPLATE_NOT_ELIGIBLE"
+  // TOUR-1: supplied guidingContent failed the strict parseGuidingContent()
+  // contract (unknown/private key, bad package/vehicle combo, out-of-bounds, ...).
+  | "TOUR_TEMPLATE_INVALID"
+  // TOUR-1: an eligible smart-tour service cannot be published without valid
+  // guidingContent present (publish-time completeness).
+  | "TOUR_TEMPLATE_REQUIRED"
   | "INVALID_STATUS_TRANSITION"
   | "UNKNOWN_ERROR";
 
@@ -38,6 +49,9 @@ const SERVICE_ACTION_ERROR_CODES: readonly ServiceActionErrorCode[] = [
   "INVALID_CATEGORY",
   "SERVICE_CATEGORY_REQUIRED",
   "ACTIVITY_NOT_AUTHORIZED",
+  "TOUR_TEMPLATE_NOT_ELIGIBLE",
+  "TOUR_TEMPLATE_INVALID",
+  "TOUR_TEMPLATE_REQUIRED",
   "INVALID_STATUS_TRANSITION",
   "UNKNOWN_ERROR",
 ];
@@ -58,6 +72,9 @@ const SERVICE_ERROR_TRANSLATION_KEYS = {
   INVALID_CATEGORY: "serviceErrorInvalidCategory",
   SERVICE_CATEGORY_REQUIRED: "serviceErrorCategoryRequired",
   ACTIVITY_NOT_AUTHORIZED: "serviceErrorActivityNotAuthorized",
+  TOUR_TEMPLATE_NOT_ELIGIBLE: "serviceErrorTourNotEligible",
+  TOUR_TEMPLATE_INVALID: "serviceErrorTourInvalid",
+  TOUR_TEMPLATE_REQUIRED: "serviceErrorTourRequired",
   INVALID_STATUS_TRANSITION: "serviceErrorInvalidTransition",
   UNKNOWN_ERROR: "serviceErrorUnknown",
 } as const satisfies Record<ServiceActionErrorCode, string>;

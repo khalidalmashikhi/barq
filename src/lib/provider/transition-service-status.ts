@@ -7,6 +7,9 @@ import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
 import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
+import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
+import { isSmartTourGuideEligible } from "@/lib/tour-template/eligibility";
+import { parseGuidingContent } from "@/lib/tour-template/guiding-content";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import type { ServiceActionErrorCode } from "./service-action-errors";
@@ -88,6 +91,29 @@ async function transition(
       // defensive.
       if (service.categoryId && !(await isProviderAuthorizedForCategory(provider.id, service.categoryId))) {
         return { ok: false, error: "ACTIVITY_NOT_AUTHORIZED" };
+      }
+
+      // TOUR-1 — an eligible smart-tour service must not be published/republished
+      // without valid guidingContent. Provider-only (the admin transition uses the
+      // same publishable policy but is governance and stays exempt, like B5).
+      const touristGuideCategoryId = await resolveTouristGuideCategoryId();
+      if (
+        isSmartTourGuideEligible({
+          providerType: provider.providerType,
+          categoryId: service.categoryId,
+          touristGuideCategoryId,
+        })
+      ) {
+        const experience = await prisma.experience.findUnique({
+          where: { serviceId: service.id },
+          select: { guidingContent: true },
+        });
+        if (!experience || experience.guidingContent === null) {
+          return { ok: false, error: "TOUR_TEMPLATE_REQUIRED" };
+        }
+        if (!parseGuidingContent(experience.guidingContent).ok) {
+          return { ok: false, error: "TOUR_TEMPLATE_INVALID" };
+        }
       }
     }
 

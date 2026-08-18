@@ -5,7 +5,7 @@ import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { withApiV1Provider } from "@/lib/api/v1/provider-auth";
 import { withApiV1ProviderMutation } from "@/lib/api/v1/provider-mutation-auth";
 import { serviceErrorResponse } from "@/lib/api/v1/provider-mutation-errors";
-import { readJsonObject, buildFormData, coerceField } from "@/lib/api/v1/request-body";
+import { readJsonObject, buildFormData, coerceField, serializeGuidingContentField } from "@/lib/api/v1/request-body";
 import { parsePageParams } from "@/lib/api/v1/pagination";
 import { apiOk } from "@/lib/api/v1/respond";
 import { apiError } from "@/lib/api/v1/errors";
@@ -82,6 +82,11 @@ export async function POST(request: Request) {
         categoryId: coerceField(body.categoryId),
         regionCode: coerceField(body.regionCode),
         pricingUnit: coerceField(body.pricingUnit),
+        // TOUR-1 — smart tour-guide payload. Native/web send `guidingContent` as a
+        // JSON object; it is serialized to the exact string field the domain action
+        // parses via the SINGLE parseGuidingContent() contract. No validation is
+        // duplicated here — an absent field stays absent (generic service).
+        guidingContent: serializeGuidingContentField(body.guidingContent),
       });
 
       const result = await createService(formData);

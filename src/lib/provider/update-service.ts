@@ -8,8 +8,12 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
+import { resolveGuidingContentWrite, type GuidingContentWrite } from "@/lib/tour-template/resolve-guiding-content-write";
+import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
+import { isSmartTourGuideEligible } from "@/lib/tour-template/eligibility";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
+import { Prisma } from "@prisma/client";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Edit Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -128,6 +132,52 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       derivedServiceType = resolved.serviceTypeKey;
     }
 
+    // TOUR-1 — smart tour-guide guidingContent on update. Two concerns:
+    //  (a) a SUPPLIED payload must be eligible (against the EFFECTIVE post-update
+    //      category) and valid, else reject the whole update; and
+    //  (b) TRANSITION AWAY: if the category actually changes from the tourist-guide
+    //      activity to a non-eligible one, any existing guidingContent is cleared
+    //      atomically so a now-generic service never keeps smart-tour content.
+    // Both are skipped entirely for a metadata-only edit (no category change, no
+    // payload) — Experience is never touched, so historical content is preserved.
+    const rawGuidingContent = formData.get("guidingContent");
+    const guidingContentSupplied = typeof rawGuidingContent === "string" && rawGuidingContent.trim() !== "";
+    const effectiveCategoryId = categoryChanged ? (submittedCategoryId as string) : service.categoryId;
+
+    let guidingWrite: GuidingContentWrite = { kind: "none" };
+    let clearGuidingContent = false;
+
+    if (guidingContentSupplied || categoryChanged) {
+      const touristGuideCategoryId = await resolveTouristGuideCategoryId();
+      const wasEligible = isSmartTourGuideEligible({
+        providerType: provider.providerType,
+        categoryId: service.categoryId,
+        touristGuideCategoryId,
+      });
+      const isEligibleNow = isSmartTourGuideEligible({
+        providerType: provider.providerType,
+        categoryId: effectiveCategoryId,
+        touristGuideCategoryId,
+      });
+
+      if (guidingContentSupplied) {
+        guidingWrite = resolveGuidingContentWrite({
+          raw: rawGuidingContent,
+          providerType: provider.providerType,
+          categoryId: effectiveCategoryId,
+          touristGuideCategoryId,
+        });
+        if (guidingWrite.kind === "error") {
+          return { ok: false, error: guidingWrite.error };
+        }
+      }
+
+      // Category moved off the tourist-guide activity -> clear stale content.
+      if (categoryChanged && wasEligible && !isEligibleNow) {
+        clearGuidingContent = true;
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.service.update({
         where: { id: serviceId },
@@ -163,6 +213,45 @@ export async function updateService(serviceId: string, formData: FormData): Prom
             actorType: "PROVIDER",
             actorId: provider.id,
             action: "service.category_changed",
+            entityType: "Service",
+            entityId: serviceId,
+            previousValue: { categoryId: service.categoryId },
+            newValue: { categoryId: submittedCategoryId },
+          },
+          tx
+        );
+      }
+
+      // TOUR-1 — persist guidingContent changes in the SAME transaction (atomic
+      // with the Service update; a failed Experience write rolls everything back).
+      if (guidingWrite.kind === "set") {
+        // upsert: the 1:1 Experience row may not exist yet (it is created lazily
+        // only for smart-tour services).
+        await tx.experience.upsert({
+          where: { serviceId },
+          create: { serviceId, guidingContent: guidingWrite.value as unknown as Prisma.InputJsonValue },
+          update: { guidingContent: guidingWrite.value as unknown as Prisma.InputJsonValue },
+        });
+        await recordAuditEvent(
+          {
+            actorType: "PROVIDER",
+            actorId: provider.id,
+            action: "service.tour_content_set",
+            entityType: "Service",
+            entityId: serviceId,
+            newValue: { packageType: guidingWrite.value.packageType },
+          },
+          tx
+        );
+      } else if (clearGuidingContent) {
+        // Transition away from the tourist-guide activity: null out any existing
+        // content. updateMany is a safe no-op when no Experience row exists.
+        await tx.experience.updateMany({ where: { serviceId }, data: { guidingContent: Prisma.JsonNull } });
+        await recordAuditEvent(
+          {
+            actorType: "PROVIDER",
+            actorId: provider.id,
+            action: "service.tour_content_cleared",
             entityType: "Service",
             entityId: serviceId,
             previousValue: { categoryId: service.categoryId },

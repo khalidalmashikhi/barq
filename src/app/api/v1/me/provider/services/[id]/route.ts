@@ -4,7 +4,7 @@ import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { withApiV1Provider } from "@/lib/api/v1/provider-auth";
 import { withApiV1ProviderMutation } from "@/lib/api/v1/provider-mutation-auth";
 import { serviceErrorResponse } from "@/lib/api/v1/provider-mutation-errors";
-import { readJsonObject, buildFormData, coerceField } from "@/lib/api/v1/request-body";
+import { readJsonObject, buildFormData, coerceField, serializeGuidingContentField } from "@/lib/api/v1/request-body";
 import { apiOk } from "@/lib/api/v1/respond";
 import { apiError } from "@/lib/api/v1/errors";
 import { toProviderServiceDetailDTO } from "@/lib/api/v1/dtos";
@@ -51,6 +51,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         categoryId: coerceField(body.categoryId),
         regionCode: coerceField(body.regionCode),
         pricingUnit: coerceField(body.pricingUnit),
+        // TOUR-1 — serialized to the domain's single parseGuidingContent() path;
+        // absent = leave unchanged (except on a transition away from eligibility,
+        // which the domain action clears atomically).
+        guidingContent: serializeGuidingContentField(body.guidingContent),
       });
 
       const result = await updateService(id, formData);

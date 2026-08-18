@@ -44,6 +44,24 @@ export function coerceField(value: unknown): string | undefined {
 }
 
 /**
+ * TOUR-1 — serialize a JSON `guidingContent` value into the string form field the
+ * domain action parses (via the single parseGuidingContent() contract). An object
+ * is JSON-stringified; a string passes through (a client MAY send a pre-serialized
+ * payload); `null`/`undefined` (or an unserializable value) become `undefined`
+ * (absent). No validation happens here — a malformed/ineligible payload is
+ * REJECTED by the domain action, never silently dropped.
+ */
+export function serializeGuidingContentField(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Build a `FormData` from a field map, appending only the fields whose coerced
  * value is a string (present); `undefined` entries are skipped (absent). This is
  * the single choke point that preserves the absent-vs-empty distinction above.

@@ -7,9 +7,12 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
+import { resolveGuidingContentWrite, type GuidingContentWrite } from "@/lib/tour-template/resolve-guiding-content-write";
+import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
+import { Prisma } from "@prisma/client";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
 // Create Experience — Phase 4.2 (Provider Experience), Priority 1.
@@ -115,6 +118,27 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     serviceType = resolved.serviceTypeKey;
   }
 
+  // TOUR-1 — smart tour-guide guidingContent. Ordering is intentional: category
+  // validity + B5 authorization above run FIRST; only then is a supplied
+  // guidingContent payload checked for eligibility (INDIVIDUAL + tourist-guide
+  // category) and parsed by the strict contract. A generic create with no payload
+  // skips this entirely and is completely unchanged. The tourist-guide category id
+  // is resolved ONLY when a payload is actually supplied.
+  const rawGuidingContent = formData.get("guidingContent");
+  let guidingWrite: GuidingContentWrite = { kind: "none" };
+  if (typeof rawGuidingContent === "string" && rawGuidingContent.trim() !== "") {
+    const touristGuideCategoryId = await resolveTouristGuideCategoryId();
+    guidingWrite = resolveGuidingContentWrite({
+      raw: rawGuidingContent,
+      providerType: provider.providerType,
+      categoryId,
+      touristGuideCategoryId,
+    });
+    if (guidingWrite.kind === "error") {
+      return { ok: false, error: guidingWrite.error };
+    }
+  }
+
   try {
     const serviceId = await prisma.$transaction(async (tx) => {
       const service = await tx.service.create({
@@ -150,6 +174,30 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
             entityId: service.id,
             previousValue: { categoryId: null },
             newValue: { categoryId },
+          },
+          tx
+        );
+      }
+
+      // TOUR-1 — persist the normalized guidingContent via the Service<->Experience
+      // 1:1 relation, in the SAME transaction as the service/price (atomic: a
+      // failed Experience write rolls the whole create back). Experience is created
+      // only for an eligible smart-tour service that supplied valid content.
+      if (guidingWrite.kind === "set") {
+        await tx.experience.create({
+          data: {
+            serviceId: service.id,
+            guidingContent: guidingWrite.value as unknown as Prisma.InputJsonValue,
+          },
+        });
+        await recordAuditEvent(
+          {
+            actorType: "PROVIDER",
+            actorId: provider.id,
+            action: "service.tour_content_set",
+            entityType: "Service",
+            entityId: service.id,
+            newValue: { packageType: guidingWrite.value.packageType },
           },
           tx
         );
