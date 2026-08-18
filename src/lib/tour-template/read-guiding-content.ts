@@ -29,3 +29,19 @@ export async function getSanitizedGuidingContent(serviceId: string): Promise<Gui
   });
   return sanitizeGuidingContent(experience?.guidingContent ?? null);
 }
+
+// Edit-flow read that DISTINGUISHES absent from malformed, so the provider form
+// can show a safe recovery banner for corrupt historical Json (TOUR-2) instead of
+// conflating it with "no tour details yet". Still never leaks raw Json.
+export type GuidingContentEditRead = { kind: "none" | "ok" | "malformed"; value: GuidingContent | null };
+
+export async function readGuidingContentForEdit(serviceId: string): Promise<GuidingContentEditRead> {
+  const experience = await prisma.experience.findUnique({
+    where: { serviceId },
+    select: { guidingContent: true },
+  });
+  const raw = experience?.guidingContent ?? null;
+  if (raw === null || raw === undefined) return { kind: "none", value: null };
+  const parsed = parseGuidingContent(raw);
+  return parsed.ok ? { kind: "ok", value: parsed.value } : { kind: "malformed", value: null };
+}

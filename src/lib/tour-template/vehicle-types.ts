@@ -7,6 +7,8 @@
 // may NOT invent an arbitrary semantic code: a DB row whose `code` is not in this
 // set is ignored by the reader (fail-closed), never offered as a choice.
 
+import type { LocalizedText } from "./localized-text";
+
 export const TOUR_VEHICLE_CODES = ["SEDAN", "SUV", "FOUR_BY_FOUR", "VAN", "MINIBUS", "OTHER"] as const;
 
 export type TourVehicleCode = (typeof TOUR_VEHICLE_CODES)[number];
@@ -26,15 +28,15 @@ export const MAX_VEHICLE_PASSENGER_CAPACITY = 100;
 
 export type TourVehicleDefault = {
   code: TourVehicleCode;
-  label: { ar: string; en: string };
+  label: LocalizedText;
   sortOrder: number;
 };
 
 export const TOUR_VEHICLE_DEFAULTS: readonly TourVehicleDefault[] = [
-  { code: "SEDAN", sortOrder: 0, label: { ar: "سيارة سيدان", en: "Sedan" } },
-  { code: "SUV", sortOrder: 1, label: { ar: "إس يو في (SUV)", en: "SUV" } },
-  { code: "FOUR_BY_FOUR", sortOrder: 2, label: { ar: "دفع رباعي (4x4)", en: "4x4" } },
-  { code: "VAN", sortOrder: 3, label: { ar: "فان", en: "Van" } },
-  { code: "MINIBUS", sortOrder: 4, label: { ar: "حافلة صغيرة", en: "Minibus" } },
-  { code: "OTHER", sortOrder: 5, label: { ar: "أخرى", en: "Other" } },
+  { code: "SEDAN", sortOrder: 0, label: { ar: "سيارة سيدان", en: "Sedan", de: "Limousine", it: "Berlina", pl: "Sedan", fr: "Berline", cs: "Sedan", ru: "Седан" } },
+  { code: "SUV", sortOrder: 1, label: { ar: "إس يو في (SUV)", en: "SUV", de: "SUV", it: "SUV", pl: "SUV", fr: "SUV", cs: "SUV", ru: "Внедорожник (SUV)" } },
+  { code: "FOUR_BY_FOUR", sortOrder: 2, label: { ar: "دفع رباعي (4x4)", en: "4x4", de: "4x4", it: "4x4", pl: "4x4", fr: "4x4", cs: "4x4", ru: "4x4" } },
+  { code: "VAN", sortOrder: 3, label: { ar: "فان", en: "Van", de: "Van", it: "Van", pl: "Van", fr: "Van", cs: "Van", ru: "Микроавтобус (Van)" } },
+  { code: "MINIBUS", sortOrder: 4, label: { ar: "حافلة صغيرة", en: "Minibus", de: "Minibus", it: "Minibus", pl: "Minibus", fr: "Minibus", cs: "Minibus", ru: "Минибус" } },
+  { code: "OTHER", sortOrder: 5, label: { ar: "أخرى", en: "Other", de: "Sonstige", it: "Altro", pl: "Inny", fr: "Autre", cs: "Jiné", ru: "Другое" } },
 ];

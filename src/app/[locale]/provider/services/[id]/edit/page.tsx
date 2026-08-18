@@ -12,7 +12,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { getProviderAuthorizedServiceCategories } from "@/lib/provider/get-provider-authorized-service-categories";
-import { CategoryField } from "@/components/categories/category-field";
+import { TourAwareCategoryField } from "@/components/tour-template/tour-aware-category-field";
+import { getSmartTourContext } from "@/lib/tour-template/form/get-smart-tour-context";
 import { RegionField } from "@/components/regions/region-field";
 import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 import { getServiceMedia } from "@/lib/service/media/get-service-media";
@@ -76,6 +77,17 @@ export default async function EditServicePage({ params, searchParams }: Props) {
   // security boundary.
   const { provider } = await requireProvider();
   const categoryTree = await getProviderAuthorizedServiceCategories(provider.id);
+
+  // TOUR-2 — smart-tour context. Edit hydrates from the SANITIZED guidingContent
+  // (never raw Json) only when this service is already the tourist-guide category;
+  // malformed historical content surfaces a recovery banner, not a crash.
+  const smartTour = await getSmartTourContext({
+    providerId: provider.id,
+    providerType: provider.providerType,
+    locale,
+    serviceId: service.id,
+    serviceCategoryId: service.categoryId,
+  });
 
   // Service media (Gap C) — one bounded query for cover + gallery.
   const media = await getServiceMedia(id);
@@ -170,13 +182,19 @@ export default async function EditServicePage({ params, searchParams }: Props) {
 
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
-            <CategoryField
+            <TourAwareCategoryField
               name="categoryId"
               tree={categoryTree}
               defaultValue={service.categoryId}
               labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
+              hint={t("categoryFieldHint")}
+              providerType={smartTour.providerType}
+              touristGuideCategoryId={smartTour.touristGuideCategoryId}
+              smartConfig={smartTour.smartConfig}
+              guideProfile={smartTour.guideProfile}
+              initialTourState={smartTour.initialTourState}
+              tourMalformed={smartTour.tourMalformed}
             />
-            <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
           </div>
 
           {/* Discovery/display metadata (Gate 4), prefilled from the current

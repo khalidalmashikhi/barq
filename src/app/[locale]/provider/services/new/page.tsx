@@ -10,7 +10,8 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { requireProvider } from "@/lib/auth";
 import { getProviderAuthorizedServiceCategories } from "@/lib/provider/get-provider-authorized-service-categories";
-import { CategoryField } from "@/components/categories/category-field";
+import { TourAwareCategoryField } from "@/components/tour-template/tour-aware-category-field";
+import { getSmartTourContext } from "@/lib/tour-template/form/get-smart-tour-context";
 import { RegionField } from "@/components/regions/region-field";
 import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 
@@ -43,6 +44,11 @@ export default async function NewServicePage({ searchParams }: Props) {
   // authorization, so it is never the security boundary.
   const { provider } = await requireProvider();
   const categoryTree = await getProviderAuthorizedServiceCategories(provider.id);
+
+  // TOUR-2 — server-derived smart-tour context. The smart section activates on the
+  // client only when the selected category is the canonical tourist-guide activity
+  // AND the provider is INDIVIDUAL (id equality); COMPANY gets the generic form.
+  const smartTour = await getSmartTourContext({ providerId: provider.id, providerType: provider.providerType, locale });
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -117,12 +123,18 @@ export default async function NewServicePage({ searchParams }: Props) {
 
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
-            <CategoryField
+            <TourAwareCategoryField
               name="categoryId"
               tree={categoryTree}
               labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
+              hint={t("categoryFieldHint")}
+              providerType={smartTour.providerType}
+              touristGuideCategoryId={smartTour.touristGuideCategoryId}
+              smartConfig={smartTour.smartConfig}
+              guideProfile={smartTour.guideProfile}
+              initialTourState={smartTour.initialTourState}
+              tourMalformed={smartTour.tourMalformed}
             />
-            <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
           </div>
 
           {/* Governorate — optional discovery metadata (Gate 4). Its own row so it

@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
   prisma: { experience: { findUnique: (...a: unknown[]) => experienceFindUnique(...a) } },
 }));
 
-const { sanitizeGuidingContent, getSanitizedGuidingContent } = await import("./read-guiding-content");
+const { sanitizeGuidingContent, getSanitizedGuidingContent, readGuidingContentForEdit } = await import("./read-guiding-content");
 
 const VALID = {
   version: 1,
@@ -64,5 +64,26 @@ describe("getSanitizedGuidingContent", () => {
   it("fails closed to null for a malformed stored value", async () => {
     experienceFindUnique.mockResolvedValue({ guidingContent: { garbage: true } });
     expect(await getSanitizedGuidingContent("svc-1")).toBeNull();
+  });
+});
+
+describe("readGuidingContentForEdit (distinguishes absent vs malformed)", () => {
+  it("classifies no Experience row / null content as 'none'", async () => {
+    experienceFindUnique.mockResolvedValue(null);
+    expect(await readGuidingContentForEdit("svc-1")).toEqual({ kind: "none", value: null });
+    experienceFindUnique.mockResolvedValue({ guidingContent: null });
+    expect(await readGuidingContentForEdit("svc-1")).toEqual({ kind: "none", value: null });
+  });
+
+  it("classifies a valid value as 'ok' with the parsed shape", async () => {
+    experienceFindUnique.mockResolvedValue({ guidingContent: VALID });
+    const read = await readGuidingContentForEdit("svc-1");
+    expect(read.kind).toBe("ok");
+    expect(read.value?.packageType).toBe("GUIDE_WITH_4X4");
+  });
+
+  it("classifies corrupt historical Json as 'malformed' (value null, never raw)", async () => {
+    experienceFindUnique.mockResolvedValue({ guidingContent: { garbage: true } });
+    expect(await readGuidingContentForEdit("svc-1")).toEqual({ kind: "malformed", value: null });
   });
 });
