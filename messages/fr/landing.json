@@ -143,5 +143,11 @@
     "termsLink": "Conditions d'utilisation",
     "privacyLink": "Politique de confidentialité",
     "cookiesLink": "Politique de cookies"
-  }
+  },
+  "discoveryExperiences": "Expériences et aventures",
+  "discoveryTouristGuides": "Guides touristiques",
+  "discoveryTransport": "Transport",
+  "discoveryCarRental": "Location de voitures",
+  "discoveryMarineTrips": "Excursions en mer",
+  "discoveryMore": "Plus"
 }

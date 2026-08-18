@@ -125,6 +125,40 @@ describe("getServices — categoryId filter (B2 read path)", () => {
     expect(arg.where).not.toHaveProperty("AND");
   });
 
+  it("Home Discovery: categoryIds matches ANY of several categories (categoryId: { in })", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryIds: ["a", "b", "c"] });
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: { status: "PUBLISHED", provider: PROVIDER_GATE, categoryId: { in: ["a", "b", "c"] } },
+    });
+  });
+
+  it("categoryIds takes precedence over a single categoryId when both are passed", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryId: "single", categoryIds: ["a", "b"] });
+
+    const arg = countMock.mock.calls[0]![0] as { where: { categoryId: unknown } };
+    expect(arg.where.categoryId).toEqual({ in: ["a", "b"] });
+  });
+
+  it("an empty categoryIds array is ignored (no filter added — never an all-match dump)", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getServices({ categoryIds: [] });
+
+    const arg = countMock.mock.calls[0]![0] as { where: Record<string, unknown> };
+    expect(arg.where).not.toHaveProperty("categoryId");
+  });
+
   it("composes categoryId AND categoryKeyword when both are supplied (both narrow together)", async () => {
     getLocaleMock.mockResolvedValue("en");
     countMock.mockResolvedValue(0);

@@ -137,6 +137,10 @@ export type ServiceListFilters = {
   /// read). When both `categoryId` and `categoryKeyword` are set they both
   /// narrow (AND) — the caller sets only one.
   categoryId?: string;
+  /// Home Discovery — match ANY of these real Service.categoryId values (a
+  /// discovery group can span several categories). Additive/optional; existing
+  /// callers pass none and are unaffected.
+  categoryIds?: string[];
   /// Governorate discovery filter (Core Service Enrichment, Gate 4) — a direct
   /// match on `Service.regionCode`, a stable governorate CODE (never localized,
   /// never free-text). Optional; composes with `categoryId` and every other
@@ -270,7 +274,16 @@ export async function getServices(
     // Service.categoryId, distinct from the legacy categoryKeyword name-substring
     // bridge above. Additive: absent by default, so every existing caller is
     // unaffected.
-    ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+    // Home Discovery (multi-category preview): a group may map to several real
+    // category slugs (e.g. Experiences = adventures/local-experiences/cultural-
+    // tours), so `categoryIds` matches ANY of them. Additive; when absent the
+    // single `categoryId` path is unchanged. `categoryIds` takes precedence only
+    // if a caller passes both (no real caller does).
+    ...(filters.categoryIds && filters.categoryIds.length > 0
+      ? { categoryId: { in: filters.categoryIds } }
+      : filters.categoryId
+        ? { categoryId: filters.categoryId }
+        : {}),
     // Governorate discovery filter (Gate 4) — a direct match on the stable
     // Service.regionCode. Independent key => composes with categoryId (and every
     // other filter) via AND. Absent by default; the caller validated the code.

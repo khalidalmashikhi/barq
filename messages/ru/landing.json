@@ -143,5 +143,11 @@
     "termsLink": "Условия использования",
     "privacyLink": "Политика конфиденциальности",
     "cookiesLink": "Политика использования файлов cookie"
-  }
+  },
+  "discoveryExperiences": "Впечатления и приключения",
+  "discoveryTouristGuides": "Гиды",
+  "discoveryTransport": "Транспорт",
+  "discoveryCarRental": "Аренда авто",
+  "discoveryMarineTrips": "Морские прогулки",
+  "discoveryMore": "Ещё"
 }

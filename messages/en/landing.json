@@ -143,5 +143,11 @@
     "privacyLink": "Privacy Policy",
     "cookiesLink": "Cookie Policy",
     "rightsReserved": "All rights reserved."
-  }
+  },
+  "discoveryExperiences": "Experiences & Adventures",
+  "discoveryTouristGuides": "Tourist Guides",
+  "discoveryTransport": "Transport",
+  "discoveryCarRental": "Car Rental",
+  "discoveryMarineTrips": "Marine Trips",
+  "discoveryMore": "More"
 }
