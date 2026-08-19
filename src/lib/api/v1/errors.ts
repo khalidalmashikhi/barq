@@ -52,6 +52,10 @@ export type ApiErrorCode =
   | "TOUR_TEMPLATE_INVALID"
   | "CAPACITY_BELOW_BOOKED"
   | "SLOT_HAS_BOOKINGS"
+  // VEHICLE-1B (Provider Vehicle API) — a vehicle with this registration number
+  // already exists (409). Deliberately generic: it never reveals which provider
+  // owns the conflicting plate (the unique index is global).
+  | "DUPLICATE_REGISTRATION"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -80,6 +84,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   TOUR_TEMPLATE_INVALID: 422,
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
+  DUPLICATE_REGISTRATION: 409,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -149,6 +154,10 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   SLOT_HAS_BOOKINGS: {
     en: "This time slot has active bookings and can't be modified or removed.",
     ar: "يحتوي هذا الموعد على حجوزات نشطة ولا يمكن تعديله أو حذفه.",
+  },
+  DUPLICATE_REGISTRATION: {
+    en: "A vehicle with this registration number already exists.",
+    ar: "توجد بالفعل مركبة بهذا رقم التسجيل.",
   },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",

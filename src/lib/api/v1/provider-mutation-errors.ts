@@ -4,6 +4,7 @@ import type { ServiceActionErrorCode } from "@/lib/provider/service-action-error
 import type { AvailabilityActionErrorCode } from "@/lib/provider/availability-action-errors";
 import type { ProviderProfileActionErrorCode } from "@/lib/provider/provider-profile-errors";
 import type { BookingActionErrorCode } from "@/lib/booking/booking-action-errors";
+import type { VehicleActionErrorCode } from "@/lib/vehicles/vehicle-errors";
 import { apiError, type ApiErrorCode } from "./errors";
 
 // Gate PC (Provider Mutation API) — maps the EXISTING authoritative provider
@@ -86,6 +87,24 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   BOOKING_NOT_CANCELLABLE: "INTERNAL_ERROR",
   RATE_LIMITED: "INTERNAL_ERROR",
 };
+
+// VEHICLE-1B — provider vehicle mutation codes. Ownership is uniform-404
+// (VEHICLE_NOT_FOUND -> NOT_FOUND) exactly like services/availability, so a
+// provider can never tell "doesn't exist" from "belongs to someone else". A
+// duplicate registration maps to a dedicated 409 (never reveals the owner).
+const VEHICLE_CODE_MAP: Record<VehicleActionErrorCode, ApiErrorCode> = {
+  INVALID_INPUT: "INVALID_INPUT",
+  NO_PROVIDER_PROFILE: "NO_PROVIDER_PROFILE",
+  PROVIDER_NOT_APPROVED: "PROVIDER_NOT_APPROVED",
+  DUPLICATE_REGISTRATION: "DUPLICATE_REGISTRATION",
+  VEHICLE_NOT_FOUND: "NOT_FOUND",
+  UNKNOWN_ERROR: "INTERNAL_ERROR",
+};
+
+/** Build the API v1 error response for a provider vehicle-action code. */
+export function vehicleErrorResponse(code: VehicleActionErrorCode, locale: Locale): NextResponse {
+  return apiError(VEHICLE_CODE_MAP[code] ?? "INTERNAL_ERROR", { locale });
+}
 
 /** Build the API v1 error response for a provider service-action code. */
 export function serviceErrorResponse(
