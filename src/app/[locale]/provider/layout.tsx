@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
-import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound, FileCheck2 } from "lucide-react";
+import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound, FileCheck2, Car } from "lucide-react";
 import { requireProvider, UnauthenticatedError, ForbiddenError, isActiveAdminSession } from "@/lib/auth";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -97,6 +97,9 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     { label: t("navEarnings"), href: getPathname({ href: "/provider/earnings", locale }), icon: <Wallet size={18} strokeWidth={1.75} /> },
     { label: t("navPayments"), href: getPathname({ href: "/provider/payments", locale }), icon: <CreditCard size={18} strokeWidth={1.75} /> },
     { label: t("navAvailability"), href: getPathname({ href: "/provider/availability", locale }), icon: <Clock size={18} strokeWidth={1.75} /> },
+    // VEHICLE-2 — provider-workspace-only entry (never public/customer/admin nav).
+    // Vehicle ownership stays independent of ProviderCategory (B4/B5).
+    { label: t("navVehicles"), href: getPathname({ href: "/provider/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
     {
       label: t("navNotifications"),
       href: getPathname({ href: "/provider/notifications", locale }),

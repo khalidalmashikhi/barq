@@ -54,4 +54,13 @@ describe("ProviderLayout — customer return path", () => {
     expect(navItems.some((item) => item.href === "/provider")).toBe(true);
     expect(navItems.some((item) => item.href === "/provider/services")).toBe(true);
   });
+
+  it("includes a 'My Vehicles' nav item pointing at /provider/vehicles (VEHICLE-2)", async () => {
+    requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "p1" } });
+
+    const el = (await ProviderLayout({ children: null })) as ReactElement<{ navItems: NavItem[] }>;
+    const vehicles = el.props.navItems.find((item) => item.href === "/provider/vehicles");
+    expect(vehicles).toBeDefined();
+    expect(vehicles?.label).toBe("navVehicles");
+  });
 });

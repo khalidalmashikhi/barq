@@ -20,3 +20,19 @@ export type VehicleActionErrorCode = (typeof VEHICLE_ACTION_ERROR_CODES)[number]
 export function isVehicleActionErrorCode(value: unknown): value is VehicleActionErrorCode {
   return typeof value === "string" && (VEHICLE_ACTION_ERROR_CODES as readonly string[]).includes(value);
 }
+
+// Provider-namespace translation keys for surfacing a vehicle-action error on the
+// Web forms (same pattern as availability-action-errors.ts). Locale-neutral map;
+// the page resolves the actual string via next-intl.
+const VEHICLE_ERROR_TRANSLATION_KEYS = {
+  INVALID_INPUT: "vehicleErrorInvalidInput",
+  NO_PROVIDER_PROFILE: "vehicleErrorNoProviderProfile",
+  PROVIDER_NOT_APPROVED: "vehicleErrorProviderNotApproved",
+  DUPLICATE_REGISTRATION: "vehicleErrorDuplicateRegistration",
+  VEHICLE_NOT_FOUND: "vehicleErrorNotFound",
+  UNKNOWN_ERROR: "vehicleErrorUnknown",
+} as const satisfies Record<VehicleActionErrorCode, string>;
+
+export function getVehicleErrorTranslationKey(code: VehicleActionErrorCode) {
+  return VEHICLE_ERROR_TRANSLATION_KEYS[code];
+}

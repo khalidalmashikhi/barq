@@ -21,4 +21,8 @@ describe("navLinks — no dead Home anchors", () => {
   it("keeps Browse (→ /services) as the real destination", () => {
     expect(navLinks.map((l) => l.href)).toContain("/services");
   });
+
+  it("does NOT expose the provider-only My Vehicles workspace in public/customer nav (VEHICLE-2)", () => {
+    expect(navLinks.some((l) => l.href.includes("/provider/vehicles"))).toBe(false);
+  });
 });
