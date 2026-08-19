@@ -193,12 +193,42 @@ enum GuideStatus {
   DEACTIVATED
 }
 
+/// OPERATIONAL lifecycle of an asset (Asset.status). VEHICLE-LC1 keeps this axis
+/// unchanged and treats it as OPERATIONAL only: REGISTERED (created, not
+/// operational), ACTIVE (operationally available), UNDER_MAINTENANCE (temporarily
+/// unavailable), DEACTIVATED (long-term off). VERIFIED is retained for backward
+/// compatibility but is NO LONGER the verification authority — the separate
+/// AssetVerificationStatus axis owns review. No value is removed/renamed.
 enum AssetStatus {
   REGISTERED
   VERIFIED
   ACTIVE
   UNDER_MAINTENANCE
   DEACTIVATED
+}
+
+/// VEHICLE-LC1 — the VERIFICATION/REVIEW axis of an asset, independent of the
+/// operational AssetStatus. Mirrors the ProviderStatus review subset (a genuinely
+/// fixed lifecycle, so a Prisma enum is correct here, one-enum-per-concept per
+/// DATABASE_DESIGN.md §5). New/legacy assets default DRAFT (fail-closed: never
+/// APPROVED without an explicit admin review in a later gate).
+enum AssetVerificationStatus {
+  DRAFT
+  SUBMITTED
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+/// VEHICLE-LC1 — per-document review lifecycle for AssetDocument. A dedicated
+/// enum (not the Provider-named ProviderDocumentStatus) following the codebase's
+/// one-enum-per-concept convention (DriverStatus/GuideStatus/AssetStatus are each
+/// separate despite overlapping values); identical 3-state meaning, decoupled
+/// from the Provider context.
+enum AssetDocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 /// Deliberately open to future values beyond VEHICLE — per Asset's
@@ -668,15 +698,71 @@ model Asset {
   provider   Provider    @relation(fields: [providerId], references: [id])
   assetType  AssetType
   status     AssetStatus @default(REGISTERED)
+  /// VEHICLE-LC1 — the VERIFICATION/REVIEW axis (independent of operational
+  /// `status`). Defaults DRAFT so every legacy/new asset is fail-closed
+  /// (non-selectable) until a future gate submits + an admin approves. The
+  /// review columns mirror the Provider precedent; `verificationReason` holds the
+  /// changes-requested OR rejection reason (cleared on re-submit, a later gate).
+  /// No runtime review actions exist yet — these are schema/domain foundation.
+  verificationStatus            AssetVerificationStatus @default(DRAFT)
+  verificationSubmittedAt       DateTime?               @db.Timestamptz(6)
+  verificationReviewedAt        DateTime?               @db.Timestamptz(6)
+  verificationReviewedByAdminId String?                 @db.Uuid
+  verificationReviewedByAdmin   Admin?                  @relation("AssetVerificationReviewedBy", fields: [verificationReviewedByAdminId], references: [id])
+  verificationReason            String?
   createdAt  DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt  DateTime    @updatedAt @db.Timestamptz(6)
 
-  vehicle Vehicle?
+  vehicle   Vehicle?
+  documents AssetDocument[]
 
   @@index([providerId])
   @@index([status])
   @@index([assetType])
+  @@index([verificationStatus])
   @@map("assets")
+}
+
+/// VEHICLE-LC1 — a PRIVATE verification document for an Asset (e.g. a vehicle's
+/// registration/insurance). Deliberately NOT ProviderDocument: that model is
+/// unique per (provider, type) and cannot represent one document PER vehicle for a
+/// provider who owns several. Ownership is inherited: AssetDocument → Asset →
+/// Provider. The DB stores only the PRIVATE-bucket `objectKey` — never a public/
+/// signed URL; the future read path mints a short-lived signed URL server-side
+/// AFTER authorizing the caller (owning provider or admin), reusing the existing
+/// storage/signed-URL primitives. No upload/review runtime exists in LC1.
+model AssetDocument {
+  id      String @id @default(uuid(7)) @db.Uuid
+  assetId String @db.Uuid
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /// Stable registry key (src/lib/vehicles/documents/asset-document-types) — a
+  /// plain String, NOT a Prisma enum and NOT a DB CHECK, so adding a document type
+  /// never needs a migration (same convention as ProviderDocument.type).
+  type              String
+  /// PRIVATE storage object key ONLY — never a public/permanent/signed URL.
+  objectKey         String              @unique
+  originalFilename  String
+  mimeType          String
+  sizeBytes         Int
+  status            AssetDocumentStatus @default(PENDING)
+  rejectionReason   String?
+  reviewedAt        DateTime?           @db.Timestamptz(6)
+  reviewedByAdminId String?             @db.Uuid
+  reviewedByAdmin   Admin?              @relation("AssetDocumentReviewedBy", fields: [reviewedByAdminId], references: [id])
+  /// Optional expiry (e.g. insurance). Selectability is COMPUTED against this — an
+  /// expired required document makes the asset non-selectable WITHOUT rewriting the
+  /// stored verification approval (no cron, no status churn).
+  expiresAt         DateTime?           @db.Timestamptz(6)
+  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
+
+  /// One CURRENT document per (asset, type) — replace is an upsert (a later gate),
+  /// exactly like ProviderDocument's (provider, type) uniqueness but scoped to the
+  /// asset, so multiple vehicles of one provider each hold their own per-type doc.
+  @@unique([assetId, type])
+  @@index([status])
+  @@index([reviewedByAdminId])
+  @@map("asset_documents")
 }
 
 /// Specializes Asset via a shared primary key (Class Table Inheritance).
@@ -1735,6 +1821,9 @@ model Admin {
   rejectedProviders Provider[] @relation("ProviderRejectedBy")
   reviewedDocuments ProviderDocument[] @relation("ProviderDocumentReviewedBy")
   grantedProviderCategories ProviderCategory[] @relation("ProviderCategoryGrantedBy")
+  /// VEHICLE-LC1 — back-relations for asset verification review (no runtime yet).
+  verifiedAssets         Asset[]         @relation("AssetVerificationReviewedBy")
+  reviewedAssetDocuments AssetDocument[] @relation("AssetDocumentReviewedBy")
 
   @@map("admins")
 }

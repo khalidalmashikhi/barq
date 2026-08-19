@@ -72,14 +72,9 @@ export function toProviderVehicle(row: VehicleWithAsset): ProviderVehicleDTO {
   };
 }
 
-// FAIL-CLOSED public/selectable rule: a vehicle is customer-visible / eligible
-// for future Tour/Service use ONLY when it is operationally ACTIVE. Every other
-// AssetStatus — REGISTERED (created, not yet operational), VERIFIED,
-// UNDER_MAINTENANCE, DEACTIVATED — is NOT public. ACTIVE is deliberately the
-// single explicit operational state; the repo has no AssetStatus lifecycle yet,
-// so VEHICLE-1 does not decide how a vehicle BECOMES active — a later explicit
-// verification/lifecycle gate owns that. Until then a newly-created vehicle is
-// visible to its owner (private reader) but never public.
-export function isVehicleSelectable(status: AssetStatus): boolean {
-  return status === "ACTIVE";
-}
+// NOTE (VEHICLE-LC1): the old status-only `isVehicleSelectable(status)` has been
+// REPLACED by the authoritative computed policy in src/lib/vehicles/selectability.ts
+// (getVehicleSelectabilityBlockers / isVehicleSelectable), which requires ACTIVE
+// status AND APPROVED verification AND all required documents valid+unexpired.
+// There is deliberately no status-only shortcut here, so the fail-closed rule
+// lives in exactly one place.

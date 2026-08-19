@@ -74,18 +74,19 @@ describe("PATCH /api/v1/me/provider/vehicles/{id}", () => {
     expect(updateVehicleMock).toHaveBeenCalledWith("veh-1", expect.objectContaining({ make: "Toyota", passengerCapacity: 7 }));
   });
 
-  it("forwards ONLY allowlisted fields — status/providerId/assetType cannot be mutated via PATCH", async () => {
+  it("forwards ONLY allowlisted fields — status/providerId/assetType/verification cannot be mutated via PATCH", async () => {
     requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "p1" } });
     updateVehicleMock.mockResolvedValue({ ok: true });
     getProviderVehicleMock.mockResolvedValue(dtoRow);
     await PATCH(
-      patchReq({ make: "Toyota", model: "Prado", vehicleType: "SUV", passengerCapacity: 7, status: "ACTIVE", providerId: "x", assetType: "y" }),
+      patchReq({ make: "Toyota", model: "Prado", vehicleType: "SUV", passengerCapacity: 7, status: "ACTIVE", providerId: "x", assetType: "y", verificationStatus: "APPROVED" }),
       params("veh-1"),
     );
     const arg = updateVehicleMock.mock.calls[0]![1] as Record<string, unknown>;
     expect(arg.status).toBeUndefined();
     expect(arg.providerId).toBeUndefined();
     expect(arg.assetType).toBeUndefined();
+    expect(arg.verificationStatus).toBeUndefined();
     expect(Object.keys(arg).sort()).toEqual(
       ["color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
     );

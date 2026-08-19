@@ -85,10 +85,13 @@ describe("vehicleInputSchema — private registration (optional, conservatively 
 });
 
 describe("vehicleInputSchema — strictness", () => {
-  it("rejects unknown keys (a client can never smuggle providerId / assetType / status)", () => {
+  it("rejects unknown keys (a client can never smuggle providerId / assetType / status / verification fields)", () => {
     expect(parseVehicleInput({ ...base, providerId: "attacker" }).ok).toBe(false);
     expect(parseVehicleInput({ ...base, assetType: "VEHICLE" }).ok).toBe(false);
     expect(parseVehicleInput({ ...base, status: "ACTIVE" }).ok).toBe(false);
+    // VEHICLE-LC1 — verification/review fields are never provider-settable input.
+    expect(parseVehicleInput({ ...base, verificationStatus: "APPROVED" }).ok).toBe(false);
+    expect(parseVehicleInput({ ...base, verificationReviewedByAdminId: "admin-1" }).ok).toBe(false);
     expect(parseVehicleInput({ ...base, registrationNumberExtra: "x" }).ok).toBe(false);
   });
 

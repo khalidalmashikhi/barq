@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toPublicVehicle, toProviderVehicle, isVehicleSelectable, type VehicleWithAsset } from "./vehicle-dto";
+import { toPublicVehicle, toProviderVehicle, type VehicleWithAsset } from "./vehicle-dto";
 
 // A row that also carries fields a public DTO must NEVER surface (registration,
 // status, provider id, and — via cast — a bogus private-ish extra).
@@ -55,15 +55,5 @@ describe("toProviderVehicle — the owner/private view", () => {
   });
 });
 
-describe("isVehicleSelectable — fail-closed (ACTIVE only)", () => {
-  it("is true ONLY for an operationally ACTIVE vehicle", () => {
-    expect(isVehicleSelectable("ACTIVE")).toBe(true);
-  });
-
-  it("is false for every non-ACTIVE status (created/verified/maintenance/deactivated)", () => {
-    expect(isVehicleSelectable("REGISTERED")).toBe(false);
-    expect(isVehicleSelectable("VERIFIED")).toBe(false);
-    expect(isVehicleSelectable("UNDER_MAINTENANCE")).toBe(false);
-    expect(isVehicleSelectable("DEACTIVATED")).toBe(false);
-  });
-});
+// Selectability moved to src/lib/vehicles/selectability.ts (computed from
+// status + verification + documents) — tested in selectability.test.ts.
