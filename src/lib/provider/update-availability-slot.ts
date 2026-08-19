@@ -6,6 +6,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { omanLocalToUtc } from "@/lib/date/oman-time";
 import type { AvailabilityActionErrorCode } from "./availability-action-errors";
 
 // Edit Availability Slot — Phase 4.2 (Provider Experience),
@@ -76,9 +77,10 @@ export async function updateAvailabilitySlot(slotId: string, formData: FormData)
       if (slot.bookedCount > 0) {
         return { ok: false, error: "SLOT_HAS_BOOKINGS" };
       }
-      const parsedStart = new Date(startTimeRaw);
-      const parsedEnd = new Date(endTimeRaw);
-      if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime()) || parsedEnd <= parsedStart || parsedStart <= new Date()) {
+      // Naive Oman wall-clock from datetime-local → Asia/Muscat instant.
+      const parsedStart = omanLocalToUtc(startTimeRaw);
+      const parsedEnd = omanLocalToUtc(endTimeRaw);
+      if (!parsedStart || !parsedEnd || parsedEnd <= parsedStart || parsedStart <= new Date()) {
         return { ok: false, error: "INVALID_INPUT" };
       }
       startTime = parsedStart;

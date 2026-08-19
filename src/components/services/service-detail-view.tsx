@@ -16,6 +16,7 @@ import { FadeIn } from "@/components/ui/fade-in";
 import { Badge } from "@/components/ui/badge";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { formatDate } from "@/lib/i18n/format-date";
+import { isOmanToday } from "@/lib/date/oman-time";
 import { regionLabelKey } from "@/lib/regions";
 import { pricingUnitLabelKey } from "@/lib/pricing-units";
 import type { PreviewMode } from "@/lib/preview/preview-mode";
@@ -154,7 +155,9 @@ export async function ServiceDetailView({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {slots.map((slot) => {
                   const date = new Date(slot.startTime);
-                  const isToday = date.toDateString() === new Date().toDateString();
+                  // "Today" is decided by the Oman business calendar day, not the
+                  // server/UTC day — a slot at 21:00Z is already tomorrow in Muscat.
+                  const isToday = isOmanToday(date);
                   return (
                     <div key={slot.id} className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
                       <span className="text-sm font-medium text-foreground">

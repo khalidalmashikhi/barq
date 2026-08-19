@@ -6,6 +6,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { omanLocalToUtc } from "@/lib/date/oman-time";
 import type { AvailabilityActionErrorCode } from "./availability-action-errors";
 
 // Bulk-create Availability Slots — Phase 4.2 (Provider Experience),
@@ -28,8 +29,19 @@ export type BulkCreateAvailabilityResult =
 
 const MAX_DAYS = 60;
 
-function combineDateAndTime(dateStr: string, timeStr: string): Date {
-  return new Date(`${dateStr}T${timeStr}`);
+// A calendar date ("YYYY-MM-DD") + a time-of-day ("HH:mm") → the correct UTC
+// instant, interpreting the pair as Asia/Muscat wall-clock (not server-local).
+function combineDateAndTime(dateStr: string, timeStr: string): Date | null {
+  return omanLocalToUtc(`${dateStr}T${timeStr}`);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Parse a date-only "YYYY-MM-DD" as a UTC midnight epoch, used ONLY for
+// runtime-timezone-independent day counting / date-string generation (never
+// persisted). The explicit "Z" pins it to UTC regardless of the server zone.
+function dateOnlyToUtcMidnightMs(dateStr: string): number {
+  return Date.parse(`${dateStr}T00:00:00Z`);
 }
 
 export async function createAvailabilitySlotsBulk(formData: FormData): Promise<BulkCreateAvailabilityResult> {
@@ -57,33 +69,36 @@ export async function createAvailabilitySlotsBulk(formData: FormData): Promise<B
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  const rangeStart = new Date(`${startDate}T00:00:00`);
-  const rangeEnd = new Date(`${endDate}T00:00:00`);
+  const rangeStartMs = dateOnlyToUtcMidnightMs(startDate);
+  const rangeEndMs = dateOnlyToUtcMidnightMs(endDate);
 
-  if (Number.isNaN(rangeStart.getTime()) || Number.isNaN(rangeEnd.getTime()) || rangeEnd < rangeStart) {
+  if (Number.isNaN(rangeStartMs) || Number.isNaN(rangeEndMs) || rangeEndMs < rangeStartMs) {
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  const dayCount = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const dayCount = Math.round((rangeEndMs - rangeStartMs) / DAY_MS) + 1;
   if (dayCount > MAX_DAYS) {
     return { ok: false, error: "INVALID_INPUT" };
   }
 
+  // Generate each day's calendar date string from UTC-midnight arithmetic, so the
+  // set of days is identical no matter what timezone the server runs in.
   const slotDates: string[] = [];
   for (let i = 0; i < dayCount; i++) {
-    const d = new Date(rangeStart);
-    d.setDate(d.getDate() + i);
-    slotDates.push(d.toISOString().slice(0, 10));
+    slotDates.push(new Date(rangeStartMs + i * DAY_MS).toISOString().slice(0, 10));
   }
 
-  const slots = slotDates.map((dateStr) => ({
-    startTime: combineDateAndTime(dateStr, startTimeOfDay),
-    endTime: combineDateAndTime(dateStr, endTimeOfDay),
-  }));
-
+  // Resolve every day's Oman-local window to a UTC instant, rejecting the whole
+  // batch on any invalid/past slot. The loop narrows each pair to non-null Dates.
   const now = new Date();
-  if (slots.some(({ startTime, endTime }) => Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime()) || endTime <= startTime || startTime <= now)) {
-    return { ok: false, error: "INVALID_INPUT" };
+  const slots: { startTime: Date; endTime: Date }[] = [];
+  for (const dateStr of slotDates) {
+    const startTime = combineDateAndTime(dateStr, startTimeOfDay);
+    const endTime = combineDateAndTime(dateStr, endTimeOfDay);
+    if (!startTime || !endTime || endTime <= startTime || startTime <= now) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    slots.push({ startTime, endTime });
   }
 
   let provider;

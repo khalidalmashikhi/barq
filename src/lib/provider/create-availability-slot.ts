@@ -6,6 +6,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { omanLocalToUtc } from "@/lib/date/oman-time";
 import type { AvailabilityActionErrorCode } from "./availability-action-errors";
 
 // Create Availability Slot — Phase 4.2 (Provider Experience),
@@ -34,13 +35,15 @@ export async function createAvailabilitySlot(formData: FormData): Promise<Create
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  const startTime = new Date(startTimeRaw);
-  const endTime = new Date(endTimeRaw);
+  // The datetime-local value is a naive Oman wall-clock ("YYYY-MM-DDTHH:mm") — it
+  // MUST be interpreted as Asia/Muscat, not the server's runtime timezone.
+  const startTime = omanLocalToUtc(startTimeRaw);
+  const endTime = omanLocalToUtc(endTimeRaw);
   const capacity = Number.parseInt(capacityRaw, 10);
 
   if (
-    Number.isNaN(startTime.getTime()) ||
-    Number.isNaN(endTime.getTime()) ||
+    !startTime ||
+    !endTime ||
     endTime <= startTime ||
     startTime <= new Date() ||
     !Number.isInteger(capacity) ||

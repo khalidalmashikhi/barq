@@ -13,6 +13,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
+import { utcToOmanDatetimeLocal } from "@/lib/date/oman-time";
 
 // Edit Availability — Phase 2.8 (Availability Admin UI). Mirrors
 // provider/availability/[id]/edit/page.tsx's exact business-rule
@@ -33,14 +34,11 @@ type Props = {
   searchParams: Promise<{ error?: string }>;
 };
 
-// datetime-local inputs require "YYYY-MM-DDTHH:mm" with no timezone
-// designator — same helper as provider/availability/[id]/edit/page.tsx,
-// distinct from formatDate()'s locale-aware display formatting, which
-// is not machine-parseable by this input type.
-function toDatetimeLocalValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+// datetime-local inputs require an Oman-local "YYYY-MM-DDTHH:mm" with no timezone
+// designator — same helper as provider/availability/[id]/edit/page.tsx. It MUST
+// render the stored UTC instant in Asia/Muscat (utcToOmanDatetimeLocal), not the
+// server-local zone, so the prefilled time matches what the provider entered.
+const toDatetimeLocalValue = utcToOmanDatetimeLocal;
 
 export default async function EditAvailabilityPage({ params, searchParams }: Props) {
   const { id } = await params;

@@ -84,6 +84,42 @@ describe("createAvailabilitySlot", () => {
     });
   });
 
+  it("interprets a naive datetime-local value as Asia/Muscat and persists the correct UTC instant (AVAIL-TZ-FIX)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1" });
+    createMock.mockResolvedValue({ id: "slot-1" });
+    auditCreateMock.mockResolvedValue({});
+
+    // A far-future naive Oman wall-clock (what <input type="datetime-local">
+    // sends). 09:00 Muscat = 05:00Z; 12:00 Muscat = 08:00Z. Fixed UTC expectation
+    // ⇒ passes only if the server converts via Asia/Muscat, not its own timezone.
+    const result = await createAvailabilitySlot(
+      buildFormData({ serviceId: SERVICE_ID, startTime: "2099-06-01T09:00", endTime: "2099-06-01T12:00", capacity: "2" })
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(createMock).toHaveBeenCalledWith({
+      data: {
+        serviceId: SERVICE_ID,
+        startTime: new Date("2099-06-01T05:00:00.000Z"),
+        endTime: new Date("2099-06-01T08:00:00.000Z"),
+        capacity: 2,
+      },
+    });
+  });
+
+  it("rejects a naive Oman wall-clock that is in the past (Oman-boundary validation)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1" });
+
+    const result = await createAvailabilitySlot(
+      buildFormData({ serviceId: SERVICE_ID, startTime: "2000-01-01T09:00", endTime: "2000-01-01T12:00", capacity: "2" })
+    );
+
+    expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it("returns SERVICE_NOT_FOUND without creating anything when the service doesn't belong to this provider", async () => {
     requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     findFirstMock.mockResolvedValue(null);

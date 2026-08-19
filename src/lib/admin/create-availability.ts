@@ -6,6 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { omanLocalToUtc } from "@/lib/date/oman-time";
 import type { AvailabilityAdminActionErrorCode } from "./availability-admin-errors";
 
 // Create Availability (admin-initiated) — Phase 2.7 (Availability
@@ -36,13 +37,15 @@ export async function createAvailability(formData: FormData): Promise<CreateAvai
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  const startTime = new Date(startTimeRaw);
-  const endTime = new Date(endTimeRaw);
+  // Naive Oman wall-clock from datetime-local → Asia/Muscat instant (not the
+  // server's runtime timezone). Mirrors the provider action verbatim.
+  const startTime = omanLocalToUtc(startTimeRaw);
+  const endTime = omanLocalToUtc(endTimeRaw);
   const capacity = Number.parseInt(capacityRaw, 10);
 
   if (
-    Number.isNaN(startTime.getTime()) ||
-    Number.isNaN(endTime.getTime()) ||
+    !startTime ||
+    !endTime ||
     endTime <= startTime ||
     startTime <= new Date() ||
     !Number.isInteger(capacity) ||

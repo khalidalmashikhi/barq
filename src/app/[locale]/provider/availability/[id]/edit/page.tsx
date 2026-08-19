@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
+import { utcToOmanDatetimeLocal } from "@/lib/date/oman-time";
 
 // Edit Availability Slot — Phase 4.2 (Provider Experience),
 // Priority 2. Capacity is always editable; start/end time inputs are
@@ -30,13 +31,13 @@ type Props = {
   searchParams: Promise<{ error?: string }>;
 };
 
-// datetime-local inputs require "YYYY-MM-DDTHH:mm" with no timezone
-// designator — distinct from formatDate()'s locale-aware display
-// formatting, which is not machine-parseable by this input type.
-function toDatetimeLocalValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+// datetime-local inputs require an Oman-local "YYYY-MM-DDTHH:mm" with no timezone
+// designator — the inverse of update-availability-slot.ts's omanLocalToUtc parse.
+// It MUST render the stored UTC instant in Asia/Muscat, not the server-local
+// timezone (utcToOmanDatetimeLocal), or the prefilled time would drift by the
+// server's offset. Distinct from formatDate()'s locale-aware display formatting,
+// which is not machine-parseable by this input type.
+const toDatetimeLocalValue = utcToOmanDatetimeLocal;
 
 export default async function EditAvailabilitySlotPage({ params, searchParams }: Props) {
   const { id } = await params;
