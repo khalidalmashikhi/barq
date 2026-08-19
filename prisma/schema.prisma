@@ -680,12 +680,42 @@ model Asset {
 }
 
 /// Specializes Asset via a shared primary key (Class Table Inheritance).
-/// Status lives on the base Asset record, not duplicated here.
+/// Status lives on the base Asset record (Asset.status), not duplicated here.
+///
+/// VEHICLE-1 (Provider Vehicle Foundation): the customer-SAFE structured fields
+/// below replace the opaque `descriptiveDetails` JSON as the canonical source.
+/// They are DB-NULLABLE for an additive, compat-safe migration (the `vehicles`
+/// table was created at init and may hold a legacy/inert row); the domain
+/// contract (src/lib/vehicles/vehicle-input.ts) REQUIRES make/model/vehicleType/
+/// passengerCapacity for every NEW write, so a real vehicle is never partial.
 model Vehicle {
   assetId            String   @id @db.Uuid
   asset              Asset    @relation(fields: [assetId], references: [id])
-  registrationNumber String   @unique
-  /// Bilingual, Partial per DATABASE_DESIGN.md §5.
+  /// PRIVATE + OPTIONAL. Never in a public/customer DTO. Nullable so a vehicle can
+  /// exist without a plate; `@unique` still prevents duplicate NON-NULL values —
+  /// a Postgres unique index permits multiple NULLs, giving exactly the desired
+  /// "nullable + non-null uniqueness" without a partial index.
+  registrationNumber String?  @unique
+  /// Customer-safe make/model (required by the domain contract, DB-nullable for
+  /// migration safety — see model note above).
+  make               String?
+  model              String?
+  /// Optional model year; sane range enforced by the domain contract.
+  modelYear          Int?
+  /// Optional colour descriptor (smallest sensible: a vehicle is identifiable by
+  /// make/model/type without it).
+  color              String?
+  /// Canonical vehicle-type CODE (SEDAN/SUV/FOUR_BY_FOUR/VAN/MINIBUS/OTHER),
+  /// validated against the app-owned registry (src/lib/tour-template/vehicle-types).
+  /// String + code-registry convention (like serviceTypeKey/pricingUnit),
+  /// deliberately NOT a Prisma enum so the vocabulary extends without an ALTER TYPE.
+  vehicleType        String?
+  /// Required by the domain contract; positive, sanely bounded.
+  passengerCapacity  Int?
+  /// Optional short customer-facing blurb (bounded, safe plain text).
+  publicDescription  String?
+  /// Legacy free-form JSON from the original init schema — retained for FK/history
+  /// compatibility, never a public field, superseded by the structured columns.
   descriptiveDetails Json?
   createdAt          DateTime @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @db.Timestamptz(6)
