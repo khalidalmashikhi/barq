@@ -56,6 +56,15 @@ export type ApiErrorCode =
   // already exists (409). Deliberately generic: it never reveals which provider
   // owns the conflicting plate (the unique index is global).
   | "DUPLICATE_REGISTRATION"
+  // VEHICLE-LC2B (Provider Vehicle Verification API) — vehicle-document + submission
+  // outcomes carried onto the wire unchanged (mapped in vehicle-document-errors.ts).
+  // A document of the required type already exists — replace it instead (409).
+  | "DOCUMENT_ALREADY_EXISTS"
+  // The document/verification can't be changed in its current state (verification
+  // not editable, or the document is APPROVED) (409).
+  | "DOCUMENT_LOCKED"
+  // Submit blocked: required documents missing/rejected. blockers ride in details (422).
+  | "VERIFICATION_NOT_READY"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -85,6 +94,9 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
   DUPLICATE_REGISTRATION: 409,
+  DOCUMENT_ALREADY_EXISTS: 409,
+  DOCUMENT_LOCKED: 409,
+  VERIFICATION_NOT_READY: 422,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -158,6 +170,18 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   DUPLICATE_REGISTRATION: {
     en: "A vehicle with this registration number already exists.",
     ar: "توجد بالفعل مركبة بهذا رقم التسجيل.",
+  },
+  DOCUMENT_ALREADY_EXISTS: {
+    en: "A document of this type already exists. Replace it instead.",
+    ar: "يوجد مستند من هذا النوع بالفعل. استبدله بدلاً من ذلك.",
+  },
+  DOCUMENT_LOCKED: {
+    en: "This document can't be changed in its current state.",
+    ar: "لا يمكن تغيير هذا المستند في حالته الحالية.",
+  },
+  VERIFICATION_NOT_READY: {
+    en: "Complete the required documents before submitting for verification.",
+    ar: "أكمل المستندات المطلوبة قبل الإرسال للتحقق.",
   },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",

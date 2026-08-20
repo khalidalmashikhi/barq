@@ -31,7 +31,9 @@ describe("getVehicleVerificationData", () => {
   it("builds the checklist with per-item capabilities for an editable DRAFT vehicle", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
       verificationStatus: "DRAFT",
+      verificationSubmittedAt: null,
       verificationReason: null,
       documents: [{ id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "PENDING", rejectionReason: null, expiresAt: null }],
     });
@@ -50,7 +52,9 @@ describe("getVehicleVerificationData", () => {
   it("locks all mutation capabilities once SUBMITTED (still viewable)", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
       verificationStatus: "SUBMITTED",
+      verificationSubmittedAt: new Date("2026-08-20T00:00:00Z"),
       verificationReason: null,
       documents: [
         { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "PENDING", rejectionReason: null, expiresAt: null },
@@ -59,6 +63,7 @@ describe("getVehicleVerificationData", () => {
     });
     const data = await getVehicleVerificationData("asset-1");
     expect(data!.editable).toBe(false);
+    expect(data!.operationalStatus).toBe("REGISTERED"); // two-axis: operational stays REGISTERED
     for (const item of data!.items) {
       expect(item.canUpload).toBe(false);
       expect(item.canReplace).toBe(false);
@@ -79,7 +84,9 @@ describe("getVehicleVerificationData", () => {
   it("surfaces the admin reason and rejection reason for a CHANGES_REQUESTED vehicle", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
       verificationStatus: "CHANGES_REQUESTED",
+      verificationSubmittedAt: new Date("2026-08-19T00:00:00Z"),
       verificationReason: "Registration is blurry",
       documents: [
         { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "REJECTED", rejectionReason: "Unreadable scan", expiresAt: null },

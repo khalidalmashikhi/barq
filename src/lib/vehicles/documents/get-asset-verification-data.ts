@@ -1,5 +1,5 @@
 import "server-only";
-import type { AssetVerificationStatus, AssetDocumentStatus } from "@prisma/client";
+import type { AssetVerificationStatus, AssetDocumentStatus, AssetStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
@@ -33,7 +33,11 @@ export type VehicleVerificationChecklistItem = {
 };
 
 export type VehicleVerificationData = {
+  /** Operational axis (AssetStatus) — SEPARATE from verificationStatus; never collapsed. */
+  operationalStatus: AssetStatus;
   verificationStatus: AssetVerificationStatus;
+  /** When the vehicle was last submitted for review; null if never submitted. */
+  verificationSubmittedAt: Date | null;
   editable: boolean;
   submittable: boolean;
   submissionBlockers: VehicleSubmissionBlocker[];
@@ -50,7 +54,9 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
   const asset = await prisma.asset.findFirst({
     where: { id: assetId, providerId: provider.id, assetType: "VEHICLE" },
     select: {
+      status: true, // operational AssetStatus (separate axis)
       verificationStatus: true,
+      verificationSubmittedAt: true,
       verificationReason: true,
       // Deliberately NO objectKey.
       documents: { select: { id: true, type: true, status: true, rejectionReason: true, expiresAt: true } },
@@ -86,7 +92,9 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
   );
 
   return {
+    operationalStatus: asset.status,
     verificationStatus: asset.verificationStatus,
+    verificationSubmittedAt: asset.verificationSubmittedAt,
     editable,
     submittable: editable && submissionBlockers.length === 0,
     submissionBlockers,

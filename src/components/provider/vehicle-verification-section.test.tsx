@@ -40,7 +40,9 @@ function strings(el: unknown): string[] {
 }
 
 const base: VehicleVerificationData = {
+  operationalStatus: "REGISTERED",
   verificationStatus: "DRAFT",
+  verificationSubmittedAt: null,
   editable: true,
   submittable: false,
   submissionBlockers: [{ type: "VEHICLE_INSURANCE", reason: "MISSING" }],
