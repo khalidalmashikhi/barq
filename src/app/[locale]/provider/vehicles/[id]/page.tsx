@@ -4,24 +4,48 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight, Pencil } from "lucide-react";
 import { getProviderVehicle } from "@/lib/vehicles/queries/get-provider-vehicle";
 import { getVehicleStatusBadgeVariant, getVehicleStatusTranslationKey } from "@/lib/vehicles/presentation/vehicle-status";
+import { getVehicleVerificationData } from "@/lib/vehicles/documents/get-asset-verification-data";
+import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
+import { VehicleVerificationSection } from "@/components/provider/vehicle-verification-section";
 import { buildVehicleTitle } from "@/lib/vehicles/vehicle-title";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 
-// Vehicle detail — VEHICLE-2 owner view. getProviderVehicle() is ownership-scoped
+// Vehicle detail — provider owner view. getProviderVehicle() is ownership-scoped
 // (foreign/missing/invalid → null → notFound, never enumerable). Shows the private
-// vehicle fields + status (DISPLAY-ONLY) + an Edit link. Deliberately NO activate/
-// verify/deactivate/maintenance/delete control — no lifecycle exists yet.
+// vehicle fields + operational status (DISPLAY-ONLY, no activate/deactivate/
+// maintenance/delete — that lifecycle stays admin/system-owned) + an Edit link.
+// VEHICLE-LC2 adds the VERIFICATION section (a SEPARATE axis): the provider uploads
+// required private documents and submits the vehicle for BARQ review. That section
+// never approves or activates the vehicle and never exposes a document publicly.
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function VehicleDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const DOC_NOTICE_KEYS: Record<string, "vehicleDocNoticeUploaded" | "vehicleDocNoticeReplaced" | "vehicleDocNoticeDeleted"> = {
+  uploaded: "vehicleDocNoticeUploaded",
+  replaced: "vehicleDocNoticeReplaced",
+  deleted: "vehicleDocNoticeDeleted",
+};
+
+function first(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+export default async function VehicleDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
 
@@ -29,6 +53,14 @@ export default async function VehicleDetailPage({ params }: { params: Promise<{ 
   if (!vehicle) {
     notFound();
   }
+
+  const verification = await getVehicleVerificationData(id);
+
+  // Post-redirect feedback (?docNotice/?verifyNotice = success; ?docError/?verifyError = domain code).
+  const docNotice = first(sp.docNotice);
+  const noticeKey = docNotice ? DOC_NOTICE_KEYS[docNotice] : first(sp.verifyNotice) === "submitted" ? "vehicleVerifyNoticeSubmitted" : undefined;
+  const rawError = first(sp.docError) ?? first(sp.verifyError);
+  const errorKey = rawError && isAssetDocumentErrorCode(rawError) ? getAssetDocumentErrorTranslationKey(rawError) : undefined;
 
   const title = buildVehicleTitle(vehicle.make, vehicle.model) ?? t("vehicleUntitled");
   const typeLabel = vehicle.vehicleType
@@ -70,6 +102,9 @@ export default async function VehicleDetailPage({ params }: { params: Promise<{ 
         </Link>
       </div>
 
+      {noticeKey && <Alert variant="success">{t(noticeKey)}</Alert>}
+      {errorKey && <Alert variant="danger">{t(errorKey)}</Alert>}
+
       <Card hoverLift={false}>
         <dl className="flex flex-col divide-y divide-border">
           {rows.map((row) => (
@@ -86,6 +121,8 @@ export default async function VehicleDetailPage({ params }: { params: Promise<{ 
           </div>
         </dl>
       </Card>
+
+      {verification && <VehicleVerificationSection vehicleId={vehicle.id} locale={locale} data={verification} />}
     </div>
   );
 }

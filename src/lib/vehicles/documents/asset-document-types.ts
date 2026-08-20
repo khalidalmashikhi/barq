@@ -23,6 +23,10 @@ export const ASSET_DOCUMENT_TYPE_LABEL_KEYS = {
   VEHICLE_INSURANCE: "assetDocumentTypeVehicleInsurance",
 } as const satisfies Record<AssetDocumentTypeKey, string>;
 
+// Literal union of the label keys, so callers can pass it straight to the strict
+// next-intl translator (a widened `string` would be rejected).
+export type AssetDocumentLabelKey = (typeof ASSET_DOCUMENT_TYPE_LABEL_KEYS)[AssetDocumentTypeKey];
+
 export function isValidAssetDocumentTypeKey(value: unknown): value is AssetDocumentTypeKey {
   return typeof value === "string" && (ASSET_DOCUMENT_TYPE_KEYS as readonly string[]).includes(value);
 }
