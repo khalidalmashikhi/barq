@@ -11,6 +11,7 @@ import {
 } from "./asset-document-types";
 import { getVehicleVerificationSubmissionBlockers, type VehicleSubmissionBlocker } from "./asset-verification-submission";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
+import { isRequiredDocumentRemediable } from "./document-remediation";
 import { isDocumentExpired } from "@/lib/vehicles/document-expiry";
 
 // VEHICLE-LC2 — the provider-private verification READ MODEL for one owned
@@ -29,6 +30,13 @@ export type VehicleVerificationChecklistItem = {
   expiresAt: Date | null;
   /** VEHICLE-LC4 — derived (never stored): the document's expiresAt has lapsed. */
   isExpired: boolean;
+  /**
+   * VEHICLE-LC5 — derived (never stored): this required document may be self-remediated
+   * (replaced) even though the vehicle verification is APPROVED, because it is an expired
+   * approved doc or a rejected LC5 replacement. Drives the provider "renew" affordance;
+   * `canReplace` already reflects it. Always false in editable/other states.
+   */
+  isRemediable: boolean;
   canUpload: boolean;
   canReplace: boolean;
   canDelete: boolean;
@@ -75,6 +83,19 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
   const items: VehicleVerificationChecklistItem[] = requiredTypes.map((type) => {
     const doc = byType.get(type);
     const isMutableDoc = doc ? doc.status === "PENDING" || doc.status === "REJECTED" : false;
+    // LC5 — a required doc may be replaced under an APPROVED vehicle only when it is an
+    // expired-approved or rejected remediation doc (isRequiredDocumentRemediable is false
+    // in every editable/other state, so this composes cleanly with the LC2 rules).
+    const remediable = doc
+      ? isRequiredDocumentRemediable({
+          verificationStatus: asset.verificationStatus,
+          documentType: type,
+          requiredTypes,
+          documentStatus: doc.status,
+          expiresAt: doc.expiresAt,
+          now,
+        })
+      : false;
     return {
       type,
       labelKey: ASSET_DOCUMENT_TYPE_LABEL_KEYS[type],
@@ -84,9 +105,10 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
       rejectionReason: doc?.rejectionReason ?? null,
       expiresAt: doc?.expiresAt ?? null,
       isExpired: isDocumentExpired(doc?.expiresAt ?? null, now),
+      isRemediable: remediable,
       canUpload: editable && !doc,
-      canReplace: editable && isMutableDoc,
-      canDelete: editable && isMutableDoc,
+      canReplace: (editable && isMutableDoc) || remediable,
+      canDelete: editable && isMutableDoc, // LC5 never unlocks delete (a required doc must never go MISSING under APPROVED)
       canView: Boolean(doc),
     };
   });

@@ -86,6 +86,11 @@ export async function VehicleVerificationSection({
                   </p>
                 )}
 
+                {/* VEHICLE-LC5 — an already-approved vehicle whose required document has
+                    expired (or whose renewal was rejected) may replace JUST that document;
+                    it returns to BARQ review before the vehicle is customer-eligible again. */}
+                {item.isRemediable && <p className="text-xs text-foreground/60">{t("vehicleDocRenewHint")}</p>}
+
                 <div className="flex flex-wrap items-center gap-2">
                   {item.canView && item.documentId && (
                     <a

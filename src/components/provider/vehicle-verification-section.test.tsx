@@ -48,8 +48,8 @@ const base: VehicleVerificationData = {
   submissionBlockers: [{ type: "VEHICLE_INSURANCE", reason: "MISSING" }],
   verificationReason: null,
   items: [
-    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "PENDING", rejectionReason: null, expiresAt: null, isExpired: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
-    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
+    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "PENDING", rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
+    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
   ],
 };
 
@@ -93,6 +93,31 @@ describe("VehicleVerificationSection", () => {
     expect(a.every((x) => !x.endsWith("/replace") && !x.endsWith("/delete") && !x.endsWith("/documents"))).toBe(true);
     // Status still shown.
     expect(strings(el)).toContain("vehicleVerifyStatusSubmitted");
+  });
+
+  it("VEHICLE-LC5 — an APPROVED vehicle with a remediable expired doc offers ONLY replace (+ renew hint), never upload/delete/submit", async () => {
+    const remediation: VehicleVerificationData = {
+      ...base,
+      verificationStatus: "APPROVED",
+      editable: false,
+      submittable: false,
+      items: [
+        // Expired approved required doc — remediable: replace only.
+        { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2000-01-01T00:00:00Z"), isExpired: true, isRemediable: true, canUpload: false, canReplace: true, canDelete: false, canView: true },
+        // Valid approved required doc — fully locked.
+        { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: "doc-ins", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2999-01-01T00:00:00Z"), isExpired: false, isRemediable: false, canUpload: false, canReplace: false, canDelete: false, canView: true },
+      ],
+    };
+    const el = await VehicleVerificationSection({ vehicleId: "veh-1", locale: "en", data: remediation });
+    const a = actions(el);
+    // Only the expired doc's replace form is present.
+    expect(a).toContain("/api/provider/vehicles/veh-1/documents/doc-reg/replace");
+    expect(a.some((x) => x.endsWith("/documents/doc-ins/replace"))).toBe(false); // valid doc stays locked
+    expect(a.every((x) => !x.endsWith("/delete"))).toBe(true); // LC5 never unlocks delete
+    expect(a.every((x) => x !== "/api/provider/vehicles/veh-1/documents")).toBe(true); // no upload
+    expect(a).not.toContain("/api/provider/vehicles/veh-1/verification/submit"); // not editable → no submit
+    expect(strings(el)).toContain("vehicleDocRenewHint");
+    expect(strings(el)).toContain("vehicleNotEligibleExpiredNote"); // section-level not-eligible note
   });
 
   it("surfaces the admin reason for a CHANGES_REQUESTED vehicle", async () => {

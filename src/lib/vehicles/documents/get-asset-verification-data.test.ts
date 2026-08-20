@@ -46,6 +46,31 @@ describe("getVehicleVerificationData", () => {
     expect(JSON.stringify(data)).not.toContain("objectKey");
   });
 
+  it("§LC5 — an expired APPROVED required doc on an APPROVED vehicle is remediable+replaceable (still not viewable-only)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+    assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
+      verificationStatus: "APPROVED",
+      verificationSubmittedAt: null,
+      verificationReason: null,
+      documents: [
+        { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2000-01-01T00:00:00Z") }, // expired
+        { id: "doc-ins", type: "VEHICLE_INSURANCE", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2999-01-01T00:00:00Z") }, // valid
+      ],
+    });
+    const data = await getVehicleVerificationData("asset-1");
+    expect(data!.editable).toBe(false); // APPROVED is not an LC2-editable state
+
+    const reg = byType(data, "VEHICLE_REGISTRATION");
+    expect(reg).toMatchObject({ isExpired: true, isRemediable: true, canReplace: true });
+    expect(reg.canUpload).toBe(false); // LC5 never unlocks upload
+    expect(reg.canDelete).toBe(false); // LC5 never unlocks delete
+
+    // The valid (unexpired) approved doc stays fully LOCKED — no arbitrary APPROVED editing.
+    const ins = byType(data, "VEHICLE_INSURANCE");
+    expect(ins).toMatchObject({ isExpired: false, isRemediable: false, canReplace: false, canUpload: false, canDelete: false });
+  });
+
   it("builds the checklist with per-item capabilities for an editable DRAFT vehicle", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     assetFindFirstMock.mockResolvedValue({

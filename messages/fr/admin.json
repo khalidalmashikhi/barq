@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "Ce document a changé depuis son chargement. Rechargez et réexaminez.",
   "vehicleReviewErrorNotSubmitted": "Ce véhicule n'est plus en attente d'examen.",
   "vehicleReviewErrorNotReady": "Complétez les documents requis avant d'approuver.",
-  "vehicleReviewErrorUnknown": "Une erreur s'est produite. Veuillez réessayer."
+  "vehicleReviewErrorUnknown": "Une erreur s'est produite. Veuillez réessayer.",
+  "vehicleReviewKindRemediation": "Réexamen de document",
+  "vehicleRemediationReviewNote": "Ce véhicule est déjà approuvé. Un document requis renouvelé attend votre examen ; son approbation rétablit l'éligibilité du véhicule sans nouvelle vérification complète."
 }

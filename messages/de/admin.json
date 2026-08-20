@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "Dieses Dokument hat sich seit dem Laden geändert. Neu laden und erneut prüfen.",
   "vehicleReviewErrorNotSubmitted": "Dieses Fahrzeug wartet nicht mehr auf Prüfung.",
   "vehicleReviewErrorNotReady": "Vervollständigen Sie die erforderlichen Dokumente vor der Genehmigung.",
-  "vehicleReviewErrorUnknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen."
+  "vehicleReviewErrorUnknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+  "vehicleReviewKindRemediation": "Dokument-Nachprüfung",
+  "vehicleRemediationReviewNote": "Dieses Fahrzeug ist bereits genehmigt. Ein erneuertes Pflichtdokument wartet auf Ihre Prüfung; die Genehmigung stellt die Eignung des Fahrzeugs ohne vollständige Neuprüfung wieder her."
 }

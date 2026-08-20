@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "Ten dokument zmienił się od czasu załadowania. Przeładuj i przejrzyj ponownie.",
   "vehicleReviewErrorNotSubmitted": "Ten pojazd nie oczekuje już na przegląd.",
   "vehicleReviewErrorNotReady": "Uzupełnij wymagane dokumenty przed zatwierdzeniem.",
-  "vehicleReviewErrorUnknown": "Coś poszło nie tak. Spróbuj ponownie."
+  "vehicleReviewErrorUnknown": "Coś poszło nie tak. Spróbuj ponownie.",
+  "vehicleReviewKindRemediation": "Ponowna weryfikacja dokumentu",
+  "vehicleRemediationReviewNote": "Ten pojazd jest już zatwierdzony. Odnowiony wymagany dokument oczekuje na Twoją weryfikację; jego zatwierdzenie przywraca kwalifikowalność pojazdu bez pełnej ponownej weryfikacji."
 }

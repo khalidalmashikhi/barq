@@ -97,6 +97,11 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
   }
 
   const isSubmitted = review.verificationStatus === "SUBMITTED";
+  // LC5 — an APPROVED vehicle carrying a PENDING required document is a document
+  // RE-REVIEW (a renewed/replaced expired doc), NOT a fresh verification. There is no
+  // whole-vehicle decision here — the admin reviews just the pending document below.
+  const hasRemediationDoc =
+    review.verificationStatus === "APPROVED" && review.items.some((i) => i.required && i.document?.status === "PENDING");
   const hasBlockers = review.approvalBlockers.length > 0;
   const approvalReady = isSubmitted && !hasBlockers;
   const title = buildVehicleTitle(review.vehicle?.make ?? null, review.vehicle?.model ?? null) ?? t("vehicleUntitledLabel");
@@ -147,6 +152,8 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
       {review.verificationStatus === "APPROVED" && (
         <Alert variant="info">{t("vehicleApprovedNotLiveNote")}</Alert>
       )}
+
+      {hasRemediationDoc && <Alert variant="warning">{t("vehicleRemediationReviewNote")}</Alert>}
 
       {showReason && (
         <Card hoverLift={false}>
@@ -254,7 +261,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                         {t("documentViewButton")}
                       </a>
 
-                      {doc.status !== "APPROVED" && (
+                      {doc.status === "PENDING" && (
                         <form
                           action={async () => {
                             "use server";
@@ -270,7 +277,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                       )}
                     </div>
 
-                    {doc.status !== "REJECTED" && (
+                    {doc.status === "PENDING" && (
                       <form
                         action={async (formData: FormData) => {
                           "use server";

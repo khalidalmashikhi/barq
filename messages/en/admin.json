@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "This document changed since you loaded it. Reload and review again.",
   "vehicleReviewErrorNotSubmitted": "This vehicle is no longer awaiting review.",
   "vehicleReviewErrorNotReady": "Complete the required documents before approving.",
-  "vehicleReviewErrorUnknown": "Something went wrong. Please try again."
+  "vehicleReviewErrorUnknown": "Something went wrong. Please try again.",
+  "vehicleReviewKindRemediation": "Document re-review",
+  "vehicleRemediationReviewNote": "This vehicle is already approved. A renewed required document is awaiting your review; approving it restores the vehicle's eligibility without a full re-verification."
 }

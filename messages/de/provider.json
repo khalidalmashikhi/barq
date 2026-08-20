@@ -500,5 +500,6 @@
   "vehicleVerifyErrorNotReady": "Vervollständigen Sie die erforderlichen Dokumente vor dem Einreichen.",
   "vehicleVerifyErrorInvalidState": "Dieses Fahrzeug kann im aktuellen Status nicht eingereicht werden.",
   "vehicleDocExpiredWarning": "Dieses Dokument ist abgelaufen.",
-  "vehicleNotEligibleExpiredNote": "Dieses Fahrzeug ist derzeit für Kunden nicht verfügbar, da ein erforderliches Dokument abgelaufen ist."
+  "vehicleNotEligibleExpiredNote": "Dieses Fahrzeug ist derzeit für Kunden nicht verfügbar, da ein erforderliches Dokument abgelaufen ist.",
+  "vehicleDocRenewHint": "Laden Sie ein gültiges Ersatzdokument hoch — es wird erneut von BARQ geprüft, bevor Ihr Fahrzeug wieder verfügbar ist."
 }

@@ -127,4 +127,46 @@ describe("replaceVehicleDocument", () => {
     expect(removePrivateObjectMock).toHaveBeenCalledOnce();
     expect(removePrivateObjectMock).not.toHaveBeenCalledWith(ownedDoc().objectKey);
   });
+
+  // VEHICLE-LC5 — the narrow expired-required-document remediation exception.
+  describe("LC5 remediation (APPROVED verification)", () => {
+    const PAST = new Date("2000-01-01T00:00:00Z");
+    const FUTURE = new Date("2999-01-01T00:00:00Z");
+
+    it("allows replacing an EXPIRED APPROVED required document (→ PENDING)", async () => {
+      happy();
+      docFindFirstMock.mockResolvedValue(ownedDoc({ status: "APPROVED", expiresAt: PAST, asset: { verificationStatus: "APPROVED" } }));
+      const result = await replaceVehicleDocument(VEHICLE, "doc-1", INPUT);
+      expect(result).toEqual({ ok: true });
+      // Resets to PENDING (returns to admin review); verificationStatus is untouched here.
+      expect(txUpdateManyMock).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "PENDING" }) }));
+    });
+
+    it("allows replacing a REJECTED required document under APPROVED (an LC5 retry)", async () => {
+      happy();
+      docFindFirstMock.mockResolvedValue(ownedDoc({ status: "REJECTED", expiresAt: null, asset: { verificationStatus: "APPROVED" } }));
+      expect(await replaceVehicleDocument(VEHICLE, "doc-1", INPUT)).toEqual({ ok: true });
+    });
+
+    it("LOCKS a VALID (unexpired) APPROVED required document — no arbitrary APPROVED editing", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+      docFindFirstMock.mockResolvedValue(ownedDoc({ status: "APPROVED", expiresAt: FUTURE, asset: { verificationStatus: "APPROVED" } }));
+      expect(await replaceVehicleDocument(VEHICLE, "doc-1", INPUT)).toEqual({ ok: false, error: "LOCKED" });
+      expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+    });
+
+    it("LOCKS a PENDING document under APPROVED — fail-closed while in the admin's hands", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+      docFindFirstMock.mockResolvedValue(ownedDoc({ status: "PENDING", expiresAt: PAST, asset: { verificationStatus: "APPROVED" } }));
+      expect(await replaceVehicleDocument(VEHICLE, "doc-1", INPUT)).toEqual({ ok: false, error: "LOCKED" });
+      expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+    });
+
+    it("LOCKS an expired APPROVED but NON-required document under APPROVED", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+      docFindFirstMock.mockResolvedValue(ownedDoc({ type: "SOME_OPTIONAL_DOC", status: "APPROVED", expiresAt: PAST, asset: { verificationStatus: "APPROVED" } }));
+      expect(await replaceVehicleDocument(VEHICLE, "doc-1", INPUT)).toEqual({ ok: false, error: "LOCKED" });
+      expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+    });
+  });
 });

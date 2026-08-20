@@ -22,6 +22,8 @@ export type VehicleVerificationRequirementDTO = {
     expiresAt: string | null;
     /** VEHICLE-LC4 — derived server-side (expiresAt has lapsed); clients need not recompute. */
     isExpired: boolean;
+    /** VEHICLE-LC5 — derived server-side: this required doc may be replaced to remediate an expired approved doc. */
+    isRemediable: boolean;
   } | null;
   capabilities: {
     canUpload: boolean;
@@ -62,6 +64,7 @@ export function toVehicleVerificationApiDTO(vehicleId: string, data: VehicleVeri
               rejectionReason: item.rejectionReason,
               expiresAt: item.expiresAt ? item.expiresAt.toISOString() : null,
               isExpired: item.isExpired,
+              isRemediable: item.isRemediable,
             }
           : null,
       capabilities: {

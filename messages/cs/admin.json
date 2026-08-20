@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "Tento dokument se od načtení změnil. Načtěte znovu a zkontrolujte.",
   "vehicleReviewErrorNotSubmitted": "Toto vozidlo již nečeká na kontrolu.",
   "vehicleReviewErrorNotReady": "Před schválením doplňte požadované dokumenty.",
-  "vehicleReviewErrorUnknown": "Něco se pokazilo. Zkuste to znovu."
+  "vehicleReviewErrorUnknown": "Něco se pokazilo. Zkuste to znovu.",
+  "vehicleReviewKindRemediation": "Opětovná kontrola dokumentu",
+  "vehicleRemediationReviewNote": "Toto vozidlo je již schváleno. Obnovený povinný dokument čeká na vaši kontrolu; jeho schválení obnoví způsobilost vozidla bez úplného opětovného ověření."
 }

@@ -70,10 +70,13 @@ export default async function AdminVehiclesPage() {
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* LC5 — explicitly flag a document re-review (an already-approved
+                          vehicle whose renewed document is awaiting review). */}
+                      {v.kind === "REMEDIATION" && <Badge variant="warning">{t("vehicleReviewKindRemediation")}</Badge>}
                       <Badge variant={complete ? "success" : "info"}>
                         {t("vehicleReviewDocProgress", { approved: v.requiredApproved, total: v.requiredTotal })}
                       </Badge>
-                      {v.submittedAt && (
+                      {v.kind === "INITIAL" && v.submittedAt && (
                         <span className="text-xs text-foreground/40">
                           {t("vehicleReviewSubmittedAtLabel")}: {formatDate(v.submittedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                         </span>

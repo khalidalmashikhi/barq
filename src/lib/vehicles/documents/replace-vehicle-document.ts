@@ -10,15 +10,24 @@ import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject }
 import { validateDocumentUpload } from "@/lib/provider/documents/document-constants";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
+import { isRequiredDocumentRemediable } from "./document-remediation";
+import { requiredAssetDocumentTypesFor } from "./asset-document-types";
 import type { AssetDocumentErrorCode } from "./asset-document-errors";
 
-// VEHICLE-LC2 — replace one of the caller's OWN vehicle documents with a new
-// immutable object, resetting it to PENDING. Policy (gate-approved): allowed only
-// while verification is editable (DRAFT/CHANGES_REQUESTED) AND the document is
-// PENDING or REJECTED. Replacing an APPROVED document is DEFERRED (returns LOCKED)
-// — that is a review-invalidation policy for a later gate. RC3-safe: the swap is
-// an atomic updateMany bound to the seen objectKey; the OLD object is removed only
-// AFTER the DB swap commits.
+// VEHICLE-LC2 / LC5 — replace one of the caller's OWN vehicle documents with a new
+// immutable object, resetting it to PENDING. Two disjoint gates decide whether a
+// replacement is allowed:
+//   • LC2 (editable verification: DRAFT/CHANGES_REQUESTED) — a PENDING or REJECTED
+//     document may be replaced; an APPROVED one stays LOCKED.
+//   • LC5 (APPROVED verification) — the NARROW expired-required-document remediation
+//     exception: only an expired-APPROVED or REJECTED REQUIRED document may be
+//     replaced (isRequiredDocumentRemediable). This NEVER touches verificationStatus
+//     or Asset.status; the replacement returns to PENDING admin review before the
+//     vehicle can recover selectability. A valid (unexpired) APPROVED document and any
+//     non-required document stay LOCKED — no arbitrary APPROVED-document editing.
+// Every other verification state (SUBMITTED/REJECTED) is fully locked.
+// RC3-safe: the swap is an atomic updateMany bound to the seen objectKey; the OLD
+// object is removed only AFTER the DB swap commits.
 
 export type ReplaceVehicleDocumentInput = {
   originalFilename: string;
@@ -48,11 +57,24 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
   // foreign / mismatched all collapse to one uniform DOCUMENT_NOT_FOUND.
   const doc = await prisma.assetDocument.findFirst({
     where: { id: documentId, assetId: vehicleId, asset: { providerId: provider.id, assetType: "VEHICLE" } },
-    select: { id: true, type: true, status: true, objectKey: true, assetId: true, asset: { select: { verificationStatus: true } } },
+    select: { id: true, type: true, status: true, expiresAt: true, objectKey: true, assetId: true, asset: { select: { verificationStatus: true } } },
   });
   if (!doc) return { ok: false, error: "DOCUMENT_NOT_FOUND" };
-  if (!isAssetVerificationEditable(doc.asset.verificationStatus)) return { ok: false, error: "LOCKED" };
-  if (doc.status === "APPROVED") return { ok: false, error: "LOCKED" }; // APPROVED replace deferred
+  // LC2 editable states: replace a PENDING/REJECTED doc (APPROVED stays LOCKED).
+  // LC5 APPROVED state: replace ONLY a remediable required doc (expired-APPROVED or
+  // REJECTED). isRequiredDocumentRemediable is evaluated ONLY in the non-editable
+  // branch, so an editable vehicle never depends on expiry/required-type.
+  const allowed = isAssetVerificationEditable(doc.asset.verificationStatus)
+    ? doc.status === "PENDING" || doc.status === "REJECTED"
+    : isRequiredDocumentRemediable({
+        verificationStatus: doc.asset.verificationStatus,
+        documentType: doc.type,
+        requiredTypes: requiredAssetDocumentTypesFor("VEHICLE"),
+        documentStatus: doc.status,
+        expiresAt: doc.expiresAt,
+        now: new Date(),
+      });
+  if (!allowed) return { ok: false, error: "LOCKED" };
 
   const validation = validateDocumentUpload({ declaredMimeType: input.declaredMimeType, sizeBytes: input.bytes.byteLength, head: new Uint8Array(input.bytes) });
   if (!validation.ok) return { ok: false, error: validation.error as AssetDocumentErrorCode };

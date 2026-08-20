@@ -11,8 +11,8 @@ const data: VehicleVerificationData = {
   submissionBlockers: [{ type: "VEHICLE_INSURANCE", reason: "MISSING" }],
   verificationReason: "Registration is blurry",
   items: [
-    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: new Date("2027-01-01T00:00:00.000Z"), isExpired: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
-    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
+    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: new Date("2027-01-01T00:00:00.000Z"), isExpired: false, isRemediable: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
+    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
   ],
 };
 
@@ -31,7 +31,7 @@ describe("toVehicleVerificationApiDTO", () => {
     const dto = toVehicleVerificationApiDTO("veh-1", data);
     const reg = dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!;
     expect(reg.required).toBe(true);
-    expect(reg.document).toEqual({ id: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: "2027-01-01T00:00:00.000Z", isExpired: false });
+    expect(reg.document).toEqual({ id: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: "2027-01-01T00:00:00.000Z", isExpired: false, isRemediable: false });
     expect(reg.capabilities).toEqual({ canUpload: false, canReplace: true, canDelete: true, canView: true });
   });
 
@@ -51,6 +51,12 @@ describe("toVehicleVerificationApiDTO", () => {
     const expired = { ...data, items: data.items.map((i) => (i.documentId ? { ...i, isExpired: true } : i)) };
     const dto = toVehicleVerificationApiDTO("veh-1", expired);
     expect(dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!.document!.isExpired).toBe(true);
+  });
+
+  it("§7 (LC5) — surfaces the derived isRemediable flag per document (server authority)", () => {
+    const remediable = { ...data, items: data.items.map((i) => (i.documentId ? { ...i, isRemediable: true } : i)) };
+    const dto = toVehicleVerificationApiDTO("veh-1", remediable);
+    expect(dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!.document!.isRemediable).toBe(true);
   });
 
   it("NEVER serializes objectKey, reviewedByAdminId, bucket, or a labelKey", () => {

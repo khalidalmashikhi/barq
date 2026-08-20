@@ -500,5 +500,6 @@
   "vehicleVerifyErrorNotReady": "Complétez les documents requis avant de soumettre.",
   "vehicleVerifyErrorInvalidState": "Ce véhicule ne peut pas être soumis dans son état actuel.",
   "vehicleDocExpiredWarning": "Ce document a expiré.",
-  "vehicleNotEligibleExpiredNote": "Ce véhicule n'est actuellement pas disponible pour les clients car un document requis a expiré."
+  "vehicleNotEligibleExpiredNote": "Ce véhicule n'est actuellement pas disponible pour les clients car un document requis a expiré.",
+  "vehicleDocRenewHint": "Téléversez un document de remplacement valide — il sera réexaminé par BARQ avant que votre véhicule soit à nouveau disponible."
 }

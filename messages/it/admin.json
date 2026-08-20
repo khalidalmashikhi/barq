@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "Questo documento è cambiato da quando lo hai caricato. Ricarica e revisiona di nuovo.",
   "vehicleReviewErrorNotSubmitted": "Questo veicolo non è più in attesa di revisione.",
   "vehicleReviewErrorNotReady": "Completa i documenti richiesti prima di approvare.",
-  "vehicleReviewErrorUnknown": "Qualcosa è andato storto. Riprova."
+  "vehicleReviewErrorUnknown": "Qualcosa è andato storto. Riprova.",
+  "vehicleReviewKindRemediation": "Riesame documento",
+  "vehicleRemediationReviewNote": "Questo veicolo è già approvato. Un documento obbligatorio rinnovato è in attesa della tua revisione; approvarlo ripristina l'idoneità del veicolo senza una nuova verifica completa."
 }

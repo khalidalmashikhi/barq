@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "تغيّر هذا المستند منذ تحميله. أعد التحميل ثم راجع مرة أخرى.",
   "vehicleReviewErrorNotSubmitted": "لم تعد هذه المركبة بانتظار المراجعة.",
   "vehicleReviewErrorNotReady": "أكمل المستندات المطلوبة قبل الموافقة.",
-  "vehicleReviewErrorUnknown": "حدث خطأ ما. الرجاء المحاولة مرة أخرى."
+  "vehicleReviewErrorUnknown": "حدث خطأ ما. الرجاء المحاولة مرة أخرى.",
+  "vehicleReviewKindRemediation": "إعادة مراجعة مستند",
+  "vehicleRemediationReviewNote": "هذه المركبة معتمدة بالفعل. مستند مطلوب مُجدَّد بانتظار مراجعتك؛ اعتماده يعيد أهلية المركبة دون إعادة تحقق كاملة."
 }

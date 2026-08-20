@@ -667,5 +667,7 @@
   "vehicleReviewErrorStaleDocument": "Этот документ изменился после загрузки. Обновите и проверьте снова.",
   "vehicleReviewErrorNotSubmitted": "Этот транспорт больше не ожидает проверки.",
   "vehicleReviewErrorNotReady": "Завершите требуемые документы перед одобрением.",
-  "vehicleReviewErrorUnknown": "Что-то пошло не так. Повторите попытку."
+  "vehicleReviewErrorUnknown": "Что-то пошло не так. Повторите попытку.",
+  "vehicleReviewKindRemediation": "Повторная проверка документа",
+  "vehicleRemediationReviewNote": "Этот автомобиль уже одобрен. Обновлённый обязательный документ ожидает вашей проверки; его одобрение восстанавливает пригодность автомобиля без полной повторной верификации."
 }
