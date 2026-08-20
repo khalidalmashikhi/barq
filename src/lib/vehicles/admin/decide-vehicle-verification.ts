@@ -6,6 +6,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { getVehicleVerificationApprovalBlockers } from "./get-vehicle-verification-approval-blockers";
+import { notifyProviderOfVehicleEvent, VEHICLE_NOTIFICATION_EVENT } from "@/lib/notifications/vehicle-notification-events";
 import type { VehicleAdminActionResult, VehicleAdminActionErrorCode } from "./vehicle-admin-errors";
 
 // VEHICLE-LC3 — the three authoritative admin decisions on a SUBMITTED vehicle's
@@ -56,6 +57,8 @@ export async function approveVehicleVerification(assetId: string): Promise<Vehic
       verificationStatus: true,
       vehicle: { select: { assetId: true } },
       documents: { select: { type: true, status: true, expiresAt: true } },
+      // Recipient for the post-commit provider notification — server-derived only.
+      provider: { select: { userId: true } },
     },
   });
   if (!asset) return { ok: false, error: "VEHICLE_NOT_FOUND" };
@@ -96,7 +99,19 @@ export async function approveVehicleVerification(assetId: string): Promise<Vehic
       );
       return true;
     });
-    return done ? { ok: true } : { ok: false, error: "NOT_SUBMITTED" };
+    if (!done) return { ok: false, error: "NOT_SUBMITTED" };
+
+    // Post-commit, fire-and-forget — only on the REAL transition. A notification
+    // failure never fails or rolls back the durable decision.
+    try {
+      await notifyProviderOfVehicleEvent(VEHICLE_NOTIFICATION_EVENT.VERIFICATION_APPROVED, {
+        providerUserId: asset.provider.userId,
+        assetId,
+      });
+    } catch (notifyError) {
+      logger.error("approveVehicleVerification.notification_failed", { assetId, message: notifyError instanceof Error ? notifyError.message : String(notifyError) });
+    }
+    return { ok: true };
   } catch (error) {
     logger.error("approveVehicleVerification.db_failed", { assetId, message: error instanceof Error ? error.message : String(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
@@ -132,7 +147,10 @@ async function transitionSubmitted(
   action: "vehicle.verification_rejected" | "vehicle.changes_requested",
   adminId: string,
 ): Promise<VehicleAdminActionResult> {
-  const asset = await prisma.asset.findFirst({ where: { id: assetId, assetType: "VEHICLE" }, select: { verificationStatus: true } });
+  const asset = await prisma.asset.findFirst({
+    where: { id: assetId, assetType: "VEHICLE" },
+    select: { verificationStatus: true, provider: { select: { userId: true } } },
+  });
   if (!asset) return { ok: false, error: "VEHICLE_NOT_FOUND" };
   if (asset.verificationStatus !== "SUBMITTED") return { ok: false, error: "NOT_SUBMITTED" };
 
@@ -164,7 +182,19 @@ async function transitionSubmitted(
       );
       return true;
     });
-    return done ? { ok: true } : { ok: false, error: "NOT_SUBMITTED" };
+    if (!done) return { ok: false, error: "NOT_SUBMITTED" };
+
+    // Post-commit, fire-and-forget — only on the REAL transition.
+    const event =
+      nextStatus === "REJECTED"
+        ? VEHICLE_NOTIFICATION_EVENT.VERIFICATION_REJECTED
+        : VEHICLE_NOTIFICATION_EVENT.CHANGES_REQUESTED;
+    try {
+      await notifyProviderOfVehicleEvent(event, { providerUserId: asset.provider.userId, assetId });
+    } catch (notifyError) {
+      logger.error("transitionSubmittedVehicle.notification_failed", { assetId, action, message: notifyError instanceof Error ? notifyError.message : String(notifyError) });
+    }
+    return { ok: true };
   } catch (error) {
     logger.error("transitionSubmittedVehicle.db_failed", { assetId, action, message: error instanceof Error ? error.message : String(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };

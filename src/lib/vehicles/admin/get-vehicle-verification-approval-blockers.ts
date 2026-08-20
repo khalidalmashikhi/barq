@@ -1,5 +1,6 @@
 import type { AssetVerificationStatus, AssetDocumentStatus } from "@prisma/client";
 import { requiredAssetDocumentTypesFor } from "@/lib/vehicles/documents/asset-document-types";
+import { isDocumentExpired } from "@/lib/vehicles/document-expiry";
 
 // VEHICLE-LC3 — the SINGLE authoritative "can an admin approve this vehicle's
 // verification?" primitive. Pure / no I/O, so the admin read model (to disable the
@@ -56,7 +57,7 @@ export function getVehicleVerificationApprovalBlockers(input: {
       blockers.push({ type, reason: "REQUIRED_DOCUMENT_MISSING" });
     } else if (doc.status !== "APPROVED") {
       blockers.push({ type, reason: "REQUIRED_DOCUMENT_NOT_APPROVED" });
-    } else if (doc.expiresAt && doc.expiresAt.getTime() <= now.getTime()) {
+    } else if (isDocumentExpired(doc.expiresAt, now)) {
       blockers.push({ type, reason: "REQUIRED_DOCUMENT_EXPIRED" });
     }
   }

@@ -20,6 +20,8 @@ export type VehicleVerificationRequirementDTO = {
     status: AssetDocumentStatus;
     rejectionReason: string | null;
     expiresAt: string | null;
+    /** VEHICLE-LC4 — derived server-side (expiresAt has lapsed); clients need not recompute. */
+    isExpired: boolean;
   } | null;
   capabilities: {
     canUpload: boolean;
@@ -59,6 +61,7 @@ export function toVehicleVerificationApiDTO(vehicleId: string, data: VehicleVeri
               status: item.status,
               rejectionReason: item.rejectionReason,
               expiresAt: item.expiresAt ? item.expiresAt.toISOString() : null,
+              isExpired: item.isExpired,
             }
           : null,
       capabilities: {

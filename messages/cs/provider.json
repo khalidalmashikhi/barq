@@ -498,5 +498,7 @@
   "vehicleDocErrorUnsupportedType": "Povoleny jsou pouze soubory PDF nebo obrázky.",
   "vehicleDocErrorSignatureMismatch": "Typ souboru neodpovídá jeho obsahu.",
   "vehicleVerifyErrorNotReady": "Před odesláním doplňte požadované dokumenty.",
-  "vehicleVerifyErrorInvalidState": "Toto vozidlo nelze v aktuálním stavu odeslat."
+  "vehicleVerifyErrorInvalidState": "Toto vozidlo nelze v aktuálním stavu odeslat.",
+  "vehicleDocExpiredWarning": "Platnost tohoto dokumentu vypršela.",
+  "vehicleNotEligibleExpiredNote": "Toto vozidlo není momentálně k dispozici zákazníkům, protože platnost požadovaného dokumentu vypršela."
 }

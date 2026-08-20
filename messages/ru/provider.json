@@ -498,5 +498,7 @@
   "vehicleDocErrorUnsupportedType": "Разрешены только файлы PDF или изображения.",
   "vehicleDocErrorSignatureMismatch": "Тип файла не соответствует его содержимому.",
   "vehicleVerifyErrorNotReady": "Завершите требуемые документы перед отправкой.",
-  "vehicleVerifyErrorInvalidState": "Этот транспорт нельзя отправить в текущем состоянии."
+  "vehicleVerifyErrorInvalidState": "Этот транспорт нельзя отправить в текущем состоянии.",
+  "vehicleDocExpiredWarning": "Срок действия этого документа истёк.",
+  "vehicleNotEligibleExpiredNote": "Этот транспорт сейчас недоступен клиентам, так как срок действия требуемого документа истёк."
 }

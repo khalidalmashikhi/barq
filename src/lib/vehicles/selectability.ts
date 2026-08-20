@@ -1,4 +1,5 @@
 import type { AssetStatus, AssetVerificationStatus, AssetDocumentStatus } from "@prisma/client";
+import { isDocumentExpired } from "./document-expiry";
 
 // VEHICLE-LC1 — the ONE domain-authoritative rule for whether a vehicle is
 // customer-selectable / public. It replaces the old status-only
@@ -56,7 +57,7 @@ export function getVehicleSelectabilityBlockers(input: VehicleSelectabilityInput
       docBlockers.add("REQUIRED_DOCUMENT_MISSING");
     } else if (doc.status !== "APPROVED") {
       docBlockers.add("REQUIRED_DOCUMENT_NOT_APPROVED");
-    } else if (doc.expiresAt !== null && doc.expiresAt.getTime() <= now.getTime()) {
+    } else if (isDocumentExpired(doc.expiresAt, now)) {
       docBlockers.add("REQUIRED_DOCUMENT_EXPIRED");
     }
   }

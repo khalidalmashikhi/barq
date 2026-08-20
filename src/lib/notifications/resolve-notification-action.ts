@@ -28,7 +28,8 @@ export type NotificationActionLabelKey =
   | "ctaBrowseWorkspace"
   | "ctaReviewChanges"
   | "ctaViewApplicationStatus"
-  | "ctaViewBooking";
+  | "ctaViewBooking"
+  | "ctaViewVehicle";
 
 export type NotificationAction = {
   /// i18n key in the "notifications" namespace (rendered by the caller's translator).
@@ -40,6 +41,7 @@ export type NotificationAction = {
 type ActionDef =
   | { labelKey: NotificationActionLabelKey; kind: "adminProviderDetail" } // interpolates a validated providerId
   | { labelKey: NotificationActionLabelKey; kind: "providerBookingDetail" } // interpolates a validated bookingId
+  | { labelKey: NotificationActionLabelKey; kind: "providerVehicleDetail" } // interpolates a validated vehicleId (assetId)
   | { labelKey: NotificationActionLabelKey; kind: "fixed"; href: string }; // no interpolation
 
 // The complete allowlist. Admin events -> the per-provider admin workspace
@@ -65,6 +67,13 @@ const ACTION_BY_EVENT: Record<string, ActionDef> = {
   // audience: resolves ONLY to the provider's own booking-detail route with a
   // strict-UUID-validated bookingId — never an admin or customer route.
   "booking.created": { labelKey: "ctaViewBooking", kind: "providerBookingDetail" },
+  // VEHICLE-LC4 — provider vehicle verification events resolve ONLY to the provider's
+  // own /provider/vehicles/[id] workspace (strict-UUID-validated assetId). Never an
+  // admin route, public vehicle page, signed document URL, or storage URL.
+  "vehicle.changes_requested": { labelKey: "ctaReviewChanges", kind: "providerVehicleDetail" },
+  "vehicle.verification_rejected": { labelKey: "ctaViewVehicle", kind: "providerVehicleDetail" },
+  "vehicle.verification_approved": { labelKey: "ctaViewVehicle", kind: "providerVehicleDetail" },
+  "vehicle.document_rejected": { labelKey: "ctaReviewDocument", kind: "providerVehicleDetail" },
 };
 
 export function resolveNotificationAction(input: {
@@ -90,6 +99,14 @@ export function resolveNotificationAction(input: {
     // wrong-typed entity yields no CTA (the notification still renders as text).
     if (entityType !== "Booking" || !entityId || !UUID_RE.test(entityId)) return null;
     return { labelKey: def.labelKey, href: `/provider/bookings/${entityId}` };
+  }
+
+  if (def.kind === "providerVehicleDetail") {
+    // Provider audience: require entityType="Vehicle" + a strict UUID before
+    // interpolating into the provider's own vehicle-detail route. Wrong-typed or
+    // malformed entity yields no CTA. Never an admin/public/storage URL.
+    if (entityType !== "Vehicle" || !entityId || !UUID_RE.test(entityId)) return null;
+    return { labelKey: def.labelKey, href: `/provider/vehicles/${entityId}` };
   }
 
   // Fixed, self-scoped provider route — no interpolation, no entity trust needed.

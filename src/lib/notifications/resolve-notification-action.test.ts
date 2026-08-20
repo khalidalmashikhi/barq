@@ -133,3 +133,40 @@ describe("resolveNotificationAction — booking.created → provider booking det
     expect(a).toBeNull();
   });
 });
+
+describe("resolveNotificationAction — VEHICLE-LC4 vehicle events", () => {
+  const UUID = "550e8400-e29b-41d4-a716-446655440000";
+  const VEHICLE_EVENTS = [
+    "vehicle.changes_requested",
+    "vehicle.verification_rejected",
+    "vehicle.verification_approved",
+    "vehicle.document_rejected",
+  ] as const;
+
+  it("every vehicle event resolves ONLY to the provider's own /provider/vehicles/[id] route", () => {
+    for (const eventType of VEHICLE_EVENTS) {
+      const a = resolveNotificationAction({ eventType, entityType: "Vehicle", entityId: UUID });
+      expect(a).not.toBeNull();
+      expect(a!.href).toBe(`/provider/vehicles/${UUID}`);
+      // Never an admin route, public page, signed URL, or storage URL.
+      expect(a!.href).not.toContain("/admin");
+      expect(a!.href).not.toMatch(/https?:|supabase|objectKey|token/i);
+    }
+  });
+
+  it("an invalid UUID entityId yields no CTA", () => {
+    expect(resolveNotificationAction({ eventType: "vehicle.changes_requested", entityType: "Vehicle", entityId: "not-a-uuid" })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "vehicle.changes_requested", entityType: "Vehicle", entityId: null })).toBeNull();
+  });
+
+  it("the wrong entityType (e.g. Provider) yields no CTA — never mis-routes", () => {
+    expect(resolveNotificationAction({ eventType: "vehicle.verification_approved", entityType: "Provider", entityId: UUID })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "vehicle.verification_approved", entityType: "Booking", entityId: UUID })).toBeNull();
+  });
+
+  it("changes_requested/document_rejected reuse existing labels; verification events use ctaViewVehicle", () => {
+    expect(resolveNotificationAction({ eventType: "vehicle.changes_requested", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaReviewChanges");
+    expect(resolveNotificationAction({ eventType: "vehicle.document_rejected", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaReviewDocument");
+    expect(resolveNotificationAction({ eventType: "vehicle.verification_approved", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaViewVehicle");
+  });
+});

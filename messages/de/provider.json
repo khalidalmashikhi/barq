@@ -498,5 +498,7 @@
   "vehicleDocErrorUnsupportedType": "Nur PDF- oder Bilddateien sind erlaubt.",
   "vehicleDocErrorSignatureMismatch": "Der Dateityp stimmt nicht mit dem Inhalt überein.",
   "vehicleVerifyErrorNotReady": "Vervollständigen Sie die erforderlichen Dokumente vor dem Einreichen.",
-  "vehicleVerifyErrorInvalidState": "Dieses Fahrzeug kann im aktuellen Status nicht eingereicht werden."
+  "vehicleVerifyErrorInvalidState": "Dieses Fahrzeug kann im aktuellen Status nicht eingereicht werden.",
+  "vehicleDocExpiredWarning": "Dieses Dokument ist abgelaufen.",
+  "vehicleNotEligibleExpiredNote": "Dieses Fahrzeug ist derzeit für Kunden nicht verfügbar, da ein erforderliches Dokument abgelaufen ist."
 }

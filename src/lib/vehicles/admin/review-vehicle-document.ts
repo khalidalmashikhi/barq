@@ -5,6 +5,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { documentVersionToken } from "@/lib/provider/documents/document-version-token";
+import { notifyProviderOfVehicleEvent, VEHICLE_NOTIFICATION_EVENT } from "@/lib/notifications/vehicle-notification-events";
 import type { VehicleAdminActionResult } from "./vehicle-admin-errors";
 
 // VEHICLE-LC3 — admin review of ONE vehicle AssetDocument: approve or reject a
@@ -47,7 +48,15 @@ export async function reviewVehicleDocument(input: {
 
   const doc = await prisma.assetDocument.findUnique({
     where: { id: input.documentId },
-    select: { id: true, type: true, status: true, objectKey: true, assetId: true },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      objectKey: true,
+      assetId: true,
+      // Recipient for the post-commit provider notification on REJECT — server-derived.
+      asset: { select: { provider: { select: { userId: true } } } },
+    },
   });
   if (!doc) return { ok: false, error: "DOCUMENT_NOT_FOUND" };
   // Only a PENDING document is reviewable; anything else means the loaded version is
@@ -95,6 +104,23 @@ export async function reviewVehicleDocument(input: {
       message: error instanceof Error ? error.message : String(error),
     });
     return { ok: false, error: "UNKNOWN_ERROR" };
+  }
+
+  // Post-commit, fire-and-forget — ONLY on a rejection (approval never notifies, to
+  // avoid noise). Reached only on a successful transition (a stale/raced review
+  // returned above and never gets here). A notification failure never fails the review.
+  if (input.decision === "REJECT") {
+    try {
+      await notifyProviderOfVehicleEvent(VEHICLE_NOTIFICATION_EVENT.DOCUMENT_REJECTED, {
+        providerUserId: doc.asset.provider.userId,
+        assetId: doc.assetId,
+      });
+    } catch (notifyError) {
+      logger.error("reviewVehicleDocument.notification_failed", {
+        documentId: doc.id,
+        message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+      });
+    }
   }
 
   return { ok: true };

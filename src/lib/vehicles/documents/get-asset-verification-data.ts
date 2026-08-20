@@ -11,6 +11,7 @@ import {
 } from "./asset-document-types";
 import { getVehicleVerificationSubmissionBlockers, type VehicleSubmissionBlocker } from "./asset-verification-submission";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
+import { isDocumentExpired } from "@/lib/vehicles/document-expiry";
 
 // VEHICLE-LC2 — the provider-private verification READ MODEL for one owned
 // vehicle. Ownership-scoped (foreign/missing → null). It answers the checklist +
@@ -26,6 +27,8 @@ export type VehicleVerificationChecklistItem = {
   status: AssetDocumentStatus | null;
   rejectionReason: string | null;
   expiresAt: Date | null;
+  /** VEHICLE-LC4 — derived (never stored): the document's expiresAt has lapsed. */
+  isExpired: boolean;
   canUpload: boolean;
   canReplace: boolean;
   canDelete: boolean;
@@ -67,6 +70,7 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
   const editable = isAssetVerificationEditable(asset.verificationStatus);
   const requiredTypes = requiredAssetDocumentTypesFor("VEHICLE");
   const byType = new Map(asset.documents.map((d) => [d.type, d]));
+  const now = new Date();
 
   const items: VehicleVerificationChecklistItem[] = requiredTypes.map((type) => {
     const doc = byType.get(type);
@@ -79,6 +83,7 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
       status: doc?.status ?? null,
       rejectionReason: doc?.rejectionReason ?? null,
       expiresAt: doc?.expiresAt ?? null,
+      isExpired: isDocumentExpired(doc?.expiresAt ?? null, now),
       canUpload: editable && !doc,
       canReplace: editable && isMutableDoc,
       canDelete: editable && isMutableDoc,

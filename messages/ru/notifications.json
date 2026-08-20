@@ -22,5 +22,6 @@
   "categorySubmitted": "Отправлено",
   "categoryDocument": "Документ",
   "categoryChanges": "Требуются изменения",
-  "ctaViewBooking": "Посмотреть бронирование"
+  "ctaViewBooking": "Посмотреть бронирование",
+  "ctaViewVehicle": "Посмотреть транспорт"
 }

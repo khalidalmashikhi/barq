@@ -9,6 +9,8 @@ import {
   getVehicleDocStatusTranslationKey,
 } from "@/lib/vehicles/presentation/vehicle-verification-status";
 import type { VehicleVerificationData } from "@/lib/vehicles/documents/get-asset-verification-data";
+import { formatDate } from "@/lib/i18n/format-date";
+import type { Locale } from "@/i18n/locales";
 
 // VEHICLE-LC2 — provider-facing Verification section on the vehicle detail page.
 // Pure presentation over the ownership-scoped read model (getVehicleVerificationData):
@@ -33,6 +35,9 @@ export async function VehicleVerificationSection({
   const base = `/api/provider/vehicles/${vehicleId}`;
   const showReason =
     data.verificationReason && (data.verificationStatus === "CHANGES_REQUESTED" || data.verificationStatus === "REJECTED");
+  // VEHICLE-LC4 — a required document past its expiry makes the vehicle not
+  // customer-eligible (computed, not a status change).
+  const hasExpiredDoc = data.items.some((item) => item.isExpired);
 
   return (
     <Card hoverLift={false}>
@@ -50,6 +55,8 @@ export async function VehicleVerificationSection({
           </Alert>
         )}
 
+        {hasExpiredDoc && <Alert variant="danger">{t("vehicleNotEligibleExpiredNote")}</Alert>}
+
         <div className="flex flex-col gap-3">
           <h3 className="text-xs font-medium uppercase tracking-wide text-foreground/40">{t("vehicleRequiredDocumentsTitle")}</h3>
           <ul className="flex flex-col divide-y divide-border">
@@ -65,6 +72,17 @@ export async function VehicleVerificationSection({
                 {item.status === "REJECTED" && item.rejectionReason && (
                   <p className="text-xs text-danger">
                     <span className="font-medium">{t("vehicleDocRejectionReasonLabel")}:</span> {item.rejectionReason}
+                  </p>
+                )}
+
+                {/* VEHICLE-LC4 — expiry is derived (never a stored status). Show the
+                    expiry date, and flag an expired document (which blocks the vehicle
+                    from being customer-eligible until the document is valid again). */}
+                {item.expiresAt && (
+                  <p className={`text-xs ${item.isExpired ? "text-danger" : "text-foreground/50"}`}>
+                    <span className="font-medium">{t("vehicleDocExpiresLabel")}:</span>{" "}
+                    {formatDate(item.expiresAt, locale as Locale, { day: "numeric", month: "long", year: "numeric" })}
+                    {item.isExpired && <> · {t("vehicleDocExpiredWarning")}</>}
                   </p>
                 )}
 

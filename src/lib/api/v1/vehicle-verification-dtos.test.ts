@@ -11,8 +11,8 @@ const data: VehicleVerificationData = {
   submissionBlockers: [{ type: "VEHICLE_INSURANCE", reason: "MISSING" }],
   verificationReason: "Registration is blurry",
   items: [
-    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: new Date("2027-01-01T00:00:00.000Z"), canUpload: false, canReplace: true, canDelete: true, canView: true },
-    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, canUpload: true, canReplace: false, canDelete: false, canView: false },
+    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: new Date("2027-01-01T00:00:00.000Z"), isExpired: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
+    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
   ],
 };
 
@@ -31,7 +31,7 @@ describe("toVehicleVerificationApiDTO", () => {
     const dto = toVehicleVerificationApiDTO("veh-1", data);
     const reg = dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!;
     expect(reg.required).toBe(true);
-    expect(reg.document).toEqual({ id: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: "2027-01-01T00:00:00.000Z" });
+    expect(reg.document).toEqual({ id: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: "2027-01-01T00:00:00.000Z", isExpired: false });
     expect(reg.capabilities).toEqual({ canUpload: false, canReplace: true, canDelete: true, canView: true });
   });
 
@@ -45,6 +45,12 @@ describe("toVehicleVerificationApiDTO", () => {
   it("null verificationSubmittedAt stays null (never an epoch string)", () => {
     const dto = toVehicleVerificationApiDTO("veh-1", { ...data, verificationSubmittedAt: null });
     expect(dto.verificationSubmittedAt).toBeNull();
+  });
+
+  it("§21 — surfaces the derived isExpired flag per document (server authority)", () => {
+    const expired = { ...data, items: data.items.map((i) => (i.documentId ? { ...i, isExpired: true } : i)) };
+    const dto = toVehicleVerificationApiDTO("veh-1", expired);
+    expect(dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!.document!.isExpired).toBe(true);
   });
 
   it("NEVER serializes objectKey, reviewedByAdminId, bucket, or a labelKey", () => {

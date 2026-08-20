@@ -498,5 +498,7 @@
   "vehicleDocErrorUnsupportedType": "Dozwolone są tylko pliki PDF lub obrazy.",
   "vehicleDocErrorSignatureMismatch": "Typ pliku nie pasuje do jego zawartości.",
   "vehicleVerifyErrorNotReady": "Uzupełnij wymagane dokumenty przed wysłaniem.",
-  "vehicleVerifyErrorInvalidState": "Tego pojazdu nie można wysłać w bieżącym stanie."
+  "vehicleVerifyErrorInvalidState": "Tego pojazdu nie można wysłać w bieżącym stanie.",
+  "vehicleDocExpiredWarning": "Ten dokument wygasł.",
+  "vehicleNotEligibleExpiredNote": "Ten pojazd nie jest obecnie dostępny dla klientów, ponieważ wymagany dokument wygasł."
 }

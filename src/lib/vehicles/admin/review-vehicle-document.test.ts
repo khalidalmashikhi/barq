@@ -11,6 +11,11 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 const recordAuditEventMock = vi.fn();
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => recordAuditEventMock(...a) }));
+const notifyMock = vi.fn();
+vi.mock("@/lib/notifications/vehicle-notification-events", () => ({
+  notifyProviderOfVehicleEvent: (...a: unknown[]) => notifyMock(...a),
+  VEHICLE_NOTIFICATION_EVENT: { DOCUMENT_REJECTED: "vehicle.document_rejected" },
+}));
 // Deterministic version token = "token:" + objectKey, so we control match/mismatch.
 vi.mock("@/lib/provider/documents/document-version-token", () => ({ documentVersionToken: (k: string) => `token:${k}` }));
 
@@ -25,7 +30,7 @@ vi.mock("@/lib/db", () => ({
 
 const { reviewVehicleDocument } = await import("./review-vehicle-document");
 
-const ownedDoc = (over: Record<string, unknown> = {}) => ({ id: "doc-1", type: "VEHICLE_REGISTRATION", status: "PENDING", objectKey: "asset-documents/a/reg/x.pdf", assetId: "asset-1", ...over });
+const ownedDoc = (over: Record<string, unknown> = {}) => ({ id: "doc-1", type: "VEHICLE_REGISTRATION", status: "PENDING", objectKey: "asset-documents/a/reg/x.pdf", assetId: "asset-1", asset: { provider: { userId: "user-1" } }, ...over });
 const TOKEN = "token:asset-documents/a/reg/x.pdf";
 
 afterEach(() => vi.clearAllMocks());
@@ -43,6 +48,8 @@ describe("reviewVehicleDocument", () => {
     const audit = recordAuditEventMock.mock.calls[0]![0];
     expect(audit).toMatchObject({ actorType: "ADMIN", actorId: "admin-9", action: "vehicle.document_approved", entityType: "Vehicle", entityId: "asset-1", newValue: { type: "VEHICLE_REGISTRATION", status: "APPROVED" } });
     expect(JSON.stringify(audit)).not.toContain("asset-documents/");
+    // §2/§18 — approving a document does NOT notify (avoids noise).
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   it("rejects a PENDING document with a reason", async () => {
@@ -53,6 +60,8 @@ describe("reviewVehicleDocument", () => {
     expect(result).toEqual({ ok: true });
     expect(txUpdateManyMock.mock.calls[0]![0].data).toMatchObject({ status: "REJECTED", rejectionReason: "Blurry scan" });
     expect(recordAuditEventMock.mock.calls[0]![0]).toMatchObject({ action: "vehicle.document_rejected", newValue: { type: "VEHICLE_REGISTRATION", status: "REJECTED", reason: "Blurry scan" } });
+    // §18 — rejection notifies the owning provider (recipient server-derived).
+    expect(notifyMock).toHaveBeenCalledWith("vehicle.document_rejected", { providerUserId: "user-1", assetId: "asset-1" });
   });
 
   it("requires a non-empty reason to reject", async () => {

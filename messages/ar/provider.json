@@ -498,5 +498,7 @@
   "vehicleDocErrorUnsupportedType": "يُسمح فقط بملفات PDF أو الصور.",
   "vehicleDocErrorSignatureMismatch": "نوع الملف لا يطابق محتواه.",
   "vehicleVerifyErrorNotReady": "أكمل المستندات المطلوبة قبل الإرسال.",
-  "vehicleVerifyErrorInvalidState": "لا يمكن إرسال هذه المركبة في حالتها الحالية."
+  "vehicleVerifyErrorInvalidState": "لا يمكن إرسال هذه المركبة في حالتها الحالية.",
+  "vehicleDocExpiredWarning": "انتهت صلاحية هذا المستند.",
+  "vehicleNotEligibleExpiredNote": "هذه المركبة غير متاحة حالياً للعملاء بسبب انتهاء صلاحية مستند مطلوب."
 }

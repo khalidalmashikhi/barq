@@ -28,6 +28,24 @@ describe("getVehicleVerificationData", () => {
     expect(assetFindFirstMock).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "asset-x", providerId: "prov-1", assetType: "VEHICLE" } }));
   });
 
+  it("§19/§27 — reports isExpired for a past-expiry doc (and false for future), never leaks objectKey", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+    assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
+      verificationStatus: "APPROVED",
+      verificationSubmittedAt: null,
+      verificationReason: null,
+      documents: [
+        { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2000-01-01T00:00:00Z") },
+        { id: "doc-ins", type: "VEHICLE_INSURANCE", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2999-01-01T00:00:00Z") },
+      ],
+    });
+    const data = await getVehicleVerificationData("asset-1");
+    expect(byType(data, "VEHICLE_REGISTRATION").isExpired).toBe(true); // past expiry
+    expect(byType(data, "VEHICLE_INSURANCE").isExpired).toBe(false); // future expiry
+    expect(JSON.stringify(data)).not.toContain("objectKey");
+  });
+
   it("builds the checklist with per-item capabilities for an editable DRAFT vehicle", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     assetFindFirstMock.mockResolvedValue({
