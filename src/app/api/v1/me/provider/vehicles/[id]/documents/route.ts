@@ -8,7 +8,7 @@ import { apiOk } from "@/lib/api/v1/respond";
 import { apiError } from "@/lib/api/v1/errors";
 import { toVehicleVerificationApiDTO } from "@/lib/api/v1/vehicle-verification-dtos";
 
-// POST /api/v1/me/provider/vehicles/{vehicleId}/documents — VEHICLE-LC2B.
+// POST /api/v1/me/provider/vehicles/{id}/documents — VEHICLE-LC2B.
 //
 // Native multipart upload of a required vehicle verification document. Thin adapter
 // over the authoritative LC2 uploadVehicleDocument() (registry-allowlisted type +
@@ -19,10 +19,10 @@ import { toVehicleVerificationApiDTO } from "@/lib/api/v1/vehicle-verification-d
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request, { params }: { params: Promise<{ vehicleId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withRequestTracing("api.v1.me.provider.vehicles.documents.upload", () =>
     withApiV1ProviderMutation(request, async ({ locale }) => {
-      const { vehicleId } = await params;
+      const { id: vehicleId } = await params;
 
       const parsed = await parseVehicleDocumentUpload(request);
       if (!parsed.ok) return apiError("INVALID_INPUT", { locale }); // malformed / non-form body

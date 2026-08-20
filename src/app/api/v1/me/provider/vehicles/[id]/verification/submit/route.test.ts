@@ -29,7 +29,7 @@ const submittedData = {
 };
 
 const req = () => new Request("http://x/api/v1/me/provider/vehicles/veh-1/verification/submit?locale=en", { method: "POST" });
-const call = () => POST(req(), { params: Promise.resolve({ vehicleId: "veh-1" }) });
+const call = () => POST(req(), { params: Promise.resolve({ id: "veh-1" }) });
 
 beforeEach(() => {
   requireProviderMock.mockReset();

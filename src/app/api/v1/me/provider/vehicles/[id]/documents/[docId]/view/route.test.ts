@@ -19,7 +19,7 @@ vi.mock("@/lib/vehicles/documents/get-vehicle-document-signed-url", () => ({
 
 const { GET } = await import("./route");
 
-const PARAMS = { params: Promise.resolve({ vehicleId: "veh-1", docId: "doc-1" }) };
+const PARAMS = { params: Promise.resolve({ id: "veh-1", docId: "doc-1" }) };
 const req = () => new Request("http://x/api/v1/me/provider/vehicles/veh-1/documents/doc-1/view?locale=en");
 
 beforeEach(() => {

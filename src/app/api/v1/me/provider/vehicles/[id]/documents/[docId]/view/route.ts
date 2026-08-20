@@ -8,7 +8,7 @@ import { withApiV1Provider } from "@/lib/api/v1/provider-auth";
 import { apiOk } from "@/lib/api/v1/respond";
 import { apiError } from "@/lib/api/v1/errors";
 
-// GET /api/v1/me/provider/vehicles/{vehicleId}/documents/{docId}/view — VEHICLE-LC2B.
+// GET /api/v1/me/provider/vehicles/{id}/documents/{docId}/view — VEHICLE-LC2B.
 //
 // Native-friendly private view: returns a SHORT-LIVED signed URL in JSON (rather than
 // a browser redirect), minted only after provider ownership + path-binding
@@ -20,10 +20,10 @@ import { apiError } from "@/lib/api/v1/errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request, { params }: { params: Promise<{ vehicleId: string; docId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
   return withRequestTracing("api.v1.me.provider.vehicles.documents.view", () =>
     withApiV1Provider(request, async ({ locale }) => {
-      const { vehicleId, docId } = await params;
+      const { id: vehicleId, docId } = await params;
       const { provider } = await requireApprovedProvider(); // throws → mapped to 401/403 by the wrapper
       const view = await getVehicleDocumentSignedUrl(vehicleId, docId, { kind: "provider", providerId: provider.id });
       if (!view) return apiError("NOT_FOUND", { locale });

@@ -7,7 +7,7 @@ import { apiOk } from "@/lib/api/v1/respond";
 import { apiError } from "@/lib/api/v1/errors";
 import { toVehicleVerificationApiDTO } from "@/lib/api/v1/vehicle-verification-dtos";
 
-// POST /api/v1/me/provider/vehicles/{vehicleId}/verification/submit — VEHICLE-LC2B.
+// POST /api/v1/me/provider/vehicles/{id}/verification/submit — VEHICLE-LC2B.
 //
 // Thin adapter over the authoritative LC2 submitVehicleVerification(): it derives the
 // provider server-side, enforces ownership, checks presence-only readiness, and does
@@ -18,10 +18,10 @@ import { toVehicleVerificationApiDTO } from "@/lib/api/v1/vehicle-verification-d
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request, { params }: { params: Promise<{ vehicleId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withRequestTracing("api.v1.me.provider.vehicles.verification.submit", () =>
     withApiV1ProviderMutation(request, async ({ locale }) => {
-      const { vehicleId } = await params;
+      const { id: vehicleId } = await params;
       const result = await submitVehicleVerification(vehicleId);
       if (!result.ok) {
         const details = result.error === "NOT_READY" ? { blockers: result.blockers } : undefined;

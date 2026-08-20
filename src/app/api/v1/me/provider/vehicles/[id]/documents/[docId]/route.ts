@@ -7,7 +7,7 @@ import { apiOk } from "@/lib/api/v1/respond";
 import { apiError } from "@/lib/api/v1/errors";
 import { toVehicleVerificationApiDTO } from "@/lib/api/v1/vehicle-verification-dtos";
 
-// DELETE /api/v1/me/provider/vehicles/{vehicleId}/documents/{docId} — VEHICLE-LC2B.
+// DELETE /api/v1/me/provider/vehicles/{id}/documents/{docId} — VEHICLE-LC2B.
 //
 // Thin adapter over the authoritative LC2 deleteVehicleDocument(vehicleId, docId),
 // which enforces provider ownership AND the hardened path-binding (document.assetId
@@ -17,10 +17,10 @@ import { toVehicleVerificationApiDTO } from "@/lib/api/v1/vehicle-verification-d
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ vehicleId: string; docId: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
   return withRequestTracing("api.v1.me.provider.vehicles.documents.delete", () =>
     withApiV1ProviderMutation(request, async ({ locale }) => {
-      const { vehicleId, docId } = await params;
+      const { id: vehicleId, docId } = await params;
       const result = await deleteVehicleDocument(vehicleId, docId);
       if (!result.ok) return vehicleDocumentErrorResponse(result.error, locale);
 

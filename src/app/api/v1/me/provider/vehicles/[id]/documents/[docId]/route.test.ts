@@ -15,7 +15,7 @@ vi.mock("@/lib/vehicles/documents/get-asset-verification-data", () => ({ getVehi
 
 const { DELETE } = await import("./route");
 
-const PARAMS = { params: Promise.resolve({ vehicleId: "veh-1", docId: "doc-1" }) };
+const PARAMS = { params: Promise.resolve({ id: "veh-1", docId: "doc-1" }) };
 const req = () => new Request("http://x/api/v1/me/provider/vehicles/veh-1/documents/doc-1?locale=en", { method: "DELETE" });
 const data = { operationalStatus: "REGISTERED", verificationStatus: "DRAFT", verificationSubmittedAt: null, editable: true, submittable: false, submissionBlockers: [], verificationReason: null, items: [] };
 

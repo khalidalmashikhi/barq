@@ -20,7 +20,7 @@ const { GET } = await import("./route");
 
 const VEHICLE = "550e8400-e29b-41d4-a716-446655440000";
 const req = () => new Request(`http://x/api/v1/me/provider/vehicles/${VEHICLE}/verification?locale=en`);
-const call = () => GET(req(), { params: Promise.resolve({ vehicleId: VEHICLE }) });
+const call = () => GET(req(), { params: Promise.resolve({ id: VEHICLE }) });
 
 // A vehicle with the registration PENDING and insurance not-yet-uploaded.
 const assetRow = {
