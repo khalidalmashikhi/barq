@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FolderTree, ToggleLeft, LayoutTemplate, Compass, Tag, CalendarClock, ClipboardList, UserRound, Star, CreditCard, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, FolderTree, ToggleLeft, LayoutTemplate, Compass, Tag, CalendarClock, ClipboardList, UserRound, Star, CreditCard, ShieldCheck, Car } from "lucide-react";
 import { getPathname } from "@/i18n/navigation";
 import type { AppNavItem } from "@/components/app-shell/app-shell";
 import type { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -23,6 +23,7 @@ export function getAdminNavItems(t: AdminTranslator, locale: Locale): AppNavItem
   return [
     { label: t("navOverview"), href: getPathname({ href: "/admin", locale }), icon: <LayoutDashboard size={18} strokeWidth={1.75} /> },
     { label: t("navProviders"), href: getPathname({ href: "/admin/providers", locale }), icon: <Users size={18} strokeWidth={1.75} /> },
+    { label: t("navVehicles"), href: getPathname({ href: "/admin/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
     { label: t("navServices"), href: getPathname({ href: "/admin/services", locale }), icon: <Compass size={18} strokeWidth={1.75} /> },
     { label: t("navPrices"), href: getPathname({ href: "/admin/prices", locale }), icon: <Tag size={18} strokeWidth={1.75} /> },
     { label: t("navAvailability"), href: getPathname({ href: "/admin/availability", locale }), icon: <CalendarClock size={18} strokeWidth={1.75} /> },
