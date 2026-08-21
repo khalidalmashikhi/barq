@@ -683,5 +683,16 @@
   "vehicleBlockerInvalidOperationalState": "المركبة ليست في حالة قابلة للتفعيل.",
   "vehicleBlockerVerificationNotApproved": "لم تتم الموافقة على التحقق.",
   "vehicleReviewErrorAlreadyActive": "هذه المركبة مفعّلة بالفعل.",
-  "vehicleReviewErrorActivationConflict": "تغيّرت حالة المركبة — أعد التحميل وحاول مرة أخرى."
+  "vehicleReviewErrorActivationConflict": "تغيّرت حالة المركبة — أعد التحميل وحاول مرة أخرى.",
+  "vehicleFourByFourReviewTitle": "قدرة الدفع الرباعي",
+  "vehicleFourByFourClaimedLabel": "مُعلن من المزوّد",
+  "vehicleFourByFourTrustedLabel": "مُتحقَّق (موثوق)",
+  "vehicleFourByFourClaimYes": "أُعلن أنه دفع رباعي",
+  "vehicleFourByFourClaimNo": "أُعلن أنه ليس دفع رباعي",
+  "vehicleFourByFourClaimUnset": "غير محدد",
+  "vehicleFourByFourVerified": "دفع رباعي مُتحقَّق",
+  "vehicleFourByFourNo": "ليست دفع رباعي",
+  "vehicleFourByFourConfirmButton": "تأكيد الدفع الرباعي",
+  "vehicleFourByFourDenyButton": "تحديد أنها ليست دفع رباعي",
+  "vehicleFourByFourReviewHint": "حدِّد قدرة الدفع الرباعي الموثوقة بناءً على دليل فعلي. لا تستنتجها من الصانع/الطراز أو تسمية SUV."
 }

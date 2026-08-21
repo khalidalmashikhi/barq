@@ -683,5 +683,16 @@
   "vehicleBlockerInvalidOperationalState": "Das Fahrzeug ist nicht in einem aktivierbaren Zustand.",
   "vehicleBlockerVerificationNotApproved": "Die Verifizierung ist nicht genehmigt.",
   "vehicleReviewErrorAlreadyActive": "Dieses Fahrzeug ist bereits aktiv.",
-  "vehicleReviewErrorActivationConflict": "Der Fahrzeugstatus hat sich geändert – neu laden und erneut versuchen."
+  "vehicleReviewErrorActivationConflict": "Der Fahrzeugstatus hat sich geändert – neu laden und erneut versuchen.",
+  "vehicleFourByFourReviewTitle": "4x4-Fähigkeit",
+  "vehicleFourByFourClaimedLabel": "Vom Anbieter angegeben",
+  "vehicleFourByFourTrustedLabel": "Bestätigt (vertrauenswürdig)",
+  "vehicleFourByFourClaimYes": "Als 4x4 angegeben",
+  "vehicleFourByFourClaimNo": "Als kein 4x4 angegeben",
+  "vehicleFourByFourClaimUnset": "Nicht festgelegt",
+  "vehicleFourByFourVerified": "4x4 bestätigt",
+  "vehicleFourByFourNo": "Kein 4x4",
+  "vehicleFourByFourConfirmButton": "4x4 bestätigen",
+  "vehicleFourByFourDenyButton": "Als kein 4x4 markieren",
+  "vehicleFourByFourReviewHint": "Legen Sie die vertrauenswürdige 4x4-Fähigkeit anhand echter Nachweise fest. Niemals aus Marke/Modell oder dem SUV-Label ableiten."
 }

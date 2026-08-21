@@ -683,5 +683,16 @@
   "vehicleBlockerInvalidOperationalState": "Транспорт не в состоянии, допускающем активацию.",
   "vehicleBlockerVerificationNotApproved": "Проверка не одобрена.",
   "vehicleReviewErrorAlreadyActive": "Этот транспорт уже активен.",
-  "vehicleReviewErrorActivationConflict": "Состояние транспорта изменилось — обновите и попробуйте снова."
+  "vehicleReviewErrorActivationConflict": "Состояние транспорта изменилось — обновите и попробуйте снова.",
+  "vehicleFourByFourReviewTitle": "Возможность 4x4",
+  "vehicleFourByFourClaimedLabel": "Заявлено поставщиком",
+  "vehicleFourByFourTrustedLabel": "Подтверждено (доверенное)",
+  "vehicleFourByFourClaimYes": "Заявлено как 4x4",
+  "vehicleFourByFourClaimNo": "Заявлено как не 4x4",
+  "vehicleFourByFourClaimUnset": "Не задано",
+  "vehicleFourByFourVerified": "4x4 подтверждён",
+  "vehicleFourByFourNo": "Не 4x4",
+  "vehicleFourByFourConfirmButton": "Подтвердить 4x4",
+  "vehicleFourByFourDenyButton": "Отметить как не 4x4",
+  "vehicleFourByFourReviewHint": "Установите доверенную возможность 4x4 на основе реальных доказательств. Никогда не выводите её из марки/модели или ярлыка SUV."
 }

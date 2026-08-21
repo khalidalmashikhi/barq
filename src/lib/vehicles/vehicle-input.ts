@@ -77,9 +77,14 @@ export const vehicleInputSchema = z
     modelYear: nullableInt(MIN_VEHICLE_YEAR, MAX_VEHICLE_YEAR),
     color: nullableText(50),
     vehicleType: z.enum(TOUR_VEHICLE_CODES),
+    // GUEST/CUSTOMER passenger capacity (excludes driver + operating guide) — TOUR-
+    // VEHICLE-CAP locked semantic. NOT total physical seats.
     passengerCapacity: z.number().int().min(1).max(MAX_VEHICLE_PASSENGER_CAPACITY),
     publicDescription: nullableText(500),
     registrationNumber,
+    // TOUR-VEHICLE-CAP — the PROVIDER's advisory 4x4 declaration only. The trusted
+    // capability (Vehicle.fourByFourVerified) is admin-only and is NEVER accepted here.
+    claimedFourByFour: z.boolean().nullable().default(null),
   })
   .strict();
 

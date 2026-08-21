@@ -35,7 +35,7 @@ describe("VehicleFormFields", () => {
   it("exposes exactly the VEHICLE-1-authorized fields", async () => {
     const names = fieldNames(await VehicleFormFields({}));
     expect(names.sort()).toEqual(
-      ["color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
+      ["claimedFourByFour", "color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
     );
   });
 

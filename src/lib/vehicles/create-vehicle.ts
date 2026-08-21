@@ -30,6 +30,7 @@ function auditPayload(value: VehicleInput): Prisma.InputJsonObject {
     passengerCapacity: value.passengerCapacity,
     publicDescription: value.publicDescription,
     hasRegistration: value.registrationNumber !== null,
+    claimedFourByFour: value.claimedFourByFour,
   };
 }
 
@@ -72,6 +73,8 @@ export async function createVehicle(rawInput: unknown): Promise<CreateVehicleRes
           passengerCapacity: value.passengerCapacity,
           publicDescription: value.publicDescription,
           registrationNumber: value.registrationNumber,
+          // Provider claim only; the trusted fourByFourVerified stays null until admin review.
+          claimedFourByFour: value.claimedFourByFour,
         },
       });
 

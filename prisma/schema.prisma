@@ -803,8 +803,22 @@ model Vehicle {
   /// String + code-registry convention (like serviceTypeKey/pricingUnit),
   /// deliberately NOT a Prisma enum so the vocabulary extends without an ALTER TYPE.
   vehicleType        String?
-  /// Required by the domain contract; positive, sanely bounded.
+  /// GUEST/CUSTOMER passenger capacity — TOUR-VEHICLE-CAP locks the semantic: the
+  /// number of CUSTOMER passengers the vehicle may carry, EXCLUDING the driver and
+  /// the provider/guide when they occupy a seat as operator (NOT total physical /
+  /// manufacturer seats). A 7-seat 4x4 driven by the provider is 6 guests. Positive,
+  /// sanely bounded. Legacy rows predate this semantic — review before TOUR use.
   passengerCapacity  Int?
+  /// TOUR-VEHICLE-CAP — the PROVIDER-declared 4x4 capability (advisory only). Never
+  /// authoritative for GUIDE_WITH_4X4 eligibility; an admin must confirm it into
+  /// `fourByFourVerified`. Null = not declared.
+  claimedFourByFour  Boolean?
+  /// TOUR-VEHICLE-CAP — the TRUSTED, admin-confirmed 4x4 capability. The ONLY
+  /// authoritative source for GUIDE_WITH_4X4 eligibility (isVehicleFourByFourCapable).
+  /// NEVER inferred from make/model/vehicleType (SUV != 4x4; a FOUR_BY_FOUR type code
+  /// is still provider-declared) and never provider-writable. Null / false → NOT
+  /// capable (fail-closed). Written only by the admin capability review.
+  fourByFourVerified Boolean?
   /// Optional short customer-facing blurb (bounded, safe plain text).
   publicDescription  String?
   /// Legacy free-form JSON from the original init schema — retained for FK/history

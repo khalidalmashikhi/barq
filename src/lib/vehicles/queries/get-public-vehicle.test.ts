@@ -43,7 +43,7 @@ describe("getPublicVehicle — fail-closed computed selectability (ACTIVE + APPR
     const dto = await getPublicVehicle("asset-1");
     expect(dto).not.toBeNull();
     expect(Object.keys(dto!).sort()).toEqual(
-      ["color", "id", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "vehicleType"].sort(),
+      ["color", "id", "isFourByFour", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "vehicleType"].sort(),
     );
     expect(JSON.stringify(dto)).not.toContain("OM 12345");
     // Never selects objectKey (query safety) — assert the select shape.

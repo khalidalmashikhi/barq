@@ -68,6 +68,9 @@ export type AdminVehicleReview = {
     passengerCapacity: number | null;
     registrationNumber: string | null; // admin-authorized private field
     publicDescription: string | null;
+    /** TOUR-VEHICLE-CAP — provider's advisory 4x4 declaration + the admin-confirmed trusted value. */
+    claimedFourByFour: boolean | null;
+    fourByFourVerified: boolean | null;
   } | null;
   items: AdminVehicleReviewItem[];
   approvalBlockers: VehicleApprovalBlocker[];
@@ -98,6 +101,8 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
           passengerCapacity: true,
           registrationNumber: true,
           publicDescription: true,
+          claimedFourByFour: true,
+          fourByFourVerified: true,
         },
       },
       documents: {

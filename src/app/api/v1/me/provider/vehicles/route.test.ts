@@ -116,7 +116,7 @@ describe("POST /api/v1/me/provider/vehicles", () => {
     );
     const arg = createVehicleMock.mock.calls[0]![0] as Record<string, unknown>;
     expect(Object.keys(arg).sort()).toEqual(
-      ["color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
+      ["claimedFourByFour", "color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
     );
     expect(arg.providerId).toBeUndefined();
     expect(arg.assetType).toBeUndefined();

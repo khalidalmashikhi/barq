@@ -19,6 +19,13 @@ function asNumeric(value: FormDataEntryValue | null): number | string | undefine
   return Number.isFinite(n) ? n : value;
 }
 
+// A checkbox submits its value only when checked; absent → false. TOUR-VEHICLE-CAP:
+// this is the PROVIDER's advisory 4x4 claim only — the trusted capability
+// (fourByFourVerified) is admin-only and is never read from provider input.
+function asChecked(value: FormDataEntryValue | null): boolean {
+  return value === "true";
+}
+
 export function formDataToVehicleInput(formData: FormData) {
   return {
     make: asText(formData.get("make")),
@@ -29,5 +36,6 @@ export function formDataToVehicleInput(formData: FormData) {
     passengerCapacity: asNumeric(formData.get("passengerCapacity")),
     publicDescription: asText(formData.get("publicDescription")),
     registrationNumber: asText(formData.get("registrationNumber")),
+    claimedFourByFour: asChecked(formData.get("claimedFourByFour")),
   };
 }

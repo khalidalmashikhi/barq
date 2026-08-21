@@ -683,5 +683,16 @@
   "vehicleBlockerInvalidOperationalState": "Le véhicule n'est pas dans un état activable.",
   "vehicleBlockerVerificationNotApproved": "La vérification n'est pas approuvée.",
   "vehicleReviewErrorAlreadyActive": "Ce véhicule est déjà actif.",
-  "vehicleReviewErrorActivationConflict": "L'état du véhicule a changé — rechargez et réessayez."
+  "vehicleReviewErrorActivationConflict": "L'état du véhicule a changé — rechargez et réessayez.",
+  "vehicleFourByFourReviewTitle": "Capacité 4x4",
+  "vehicleFourByFourClaimedLabel": "Déclaré par le prestataire",
+  "vehicleFourByFourTrustedLabel": "Vérifié (de confiance)",
+  "vehicleFourByFourClaimYes": "Déclaré 4x4",
+  "vehicleFourByFourClaimNo": "Déclaré non 4x4",
+  "vehicleFourByFourClaimUnset": "Non défini",
+  "vehicleFourByFourVerified": "4x4 vérifié",
+  "vehicleFourByFourNo": "Pas un 4x4",
+  "vehicleFourByFourConfirmButton": "Confirmer 4x4",
+  "vehicleFourByFourDenyButton": "Marquer non 4x4",
+  "vehicleFourByFourReviewHint": "Définissez la capacité 4x4 de confiance à partir de preuves réelles. Ne la déduisez jamais de la marque/du modèle ou de l'étiquette SUV."
 }

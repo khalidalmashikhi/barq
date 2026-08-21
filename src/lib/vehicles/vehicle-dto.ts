@@ -1,4 +1,5 @@
 import type { AssetStatus } from "@prisma/client";
+import { isVehicleFourByFourCapable } from "./capability";
 
 // VEHICLE-1 — the explicit public/private projection boundary for a Vehicle.
 //
@@ -19,6 +20,8 @@ export type VehicleWithAsset = {
   passengerCapacity: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
+  claimedFourByFour: boolean | null;
+  fourByFourVerified: boolean | null;
   createdAt: Date;
   updatedAt: Date;
   asset: { status: AssetStatus; providerId: string };
@@ -34,8 +37,11 @@ export type PublicVehicleDTO = {
   modelYear: number | null;
   color: string | null;
   vehicleType: string | null;
+  /** GUEST/customer passenger capacity (excludes driver + operating guide) — TOUR-VEHICLE-CAP. */
   passengerCapacity: number | null;
   publicDescription: string | null;
+  /** TOUR-VEHICLE-CAP — customer-safe TRUSTED 4x4 capability (admin-confirmed only; never the provider claim). */
+  isFourByFour: boolean;
 };
 
 export function toPublicVehicle(row: VehicleWithAsset): PublicVehicleDTO {
@@ -48,6 +54,8 @@ export function toPublicVehicle(row: VehicleWithAsset): PublicVehicleDTO {
     vehicleType: row.vehicleType,
     passengerCapacity: row.passengerCapacity,
     publicDescription: row.publicDescription,
+    // Derived from the trusted flag ONLY — never the provider claim, never inferred.
+    isFourByFour: isVehicleFourByFourCapable(row),
   };
 }
 
@@ -58,6 +66,8 @@ export function toPublicVehicle(row: VehicleWithAsset): PublicVehicleDTO {
 export type ProviderVehicleDTO = PublicVehicleDTO & {
   registrationNumber: string | null;
   status: AssetStatus;
+  /** TOUR-VEHICLE-CAP — the provider's own ADVISORY 4x4 declaration (distinct from the trusted isFourByFour). */
+  claimedFourByFour: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -67,6 +77,7 @@ export function toProviderVehicle(row: VehicleWithAsset): ProviderVehicleDTO {
     ...toPublicVehicle(row),
     registrationNumber: row.registrationNumber,
     status: row.asset.status,
+    claimedFourByFour: row.claimedFourByFour,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

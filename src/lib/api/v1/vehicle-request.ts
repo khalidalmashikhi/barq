@@ -15,5 +15,8 @@ export function pickVehicleInput(body: Record<string, unknown>) {
     passengerCapacity: body.passengerCapacity,
     publicDescription: body.publicDescription,
     registrationNumber: body.registrationNumber,
+    // TOUR-VEHICLE-CAP — provider's advisory 4x4 claim only. The trusted
+    // fourByFourVerified is admin-only and is deliberately NOT accepted here.
+    claimedFourByFour: body.claimedFourByFour,
   };
 }

@@ -504,5 +504,12 @@
   "vehicleDocRenewHint": "Upload a valid replacement — it returns to BARQ review before your vehicle is available again.",
   "vehicleDocClaimedExpiryLabel": "Claimed expiry",
   "vehicleDocClaimedExpiryPending": "pending BARQ verification",
-  "vehicleDocClaimedExpiryHint": "Optionally enter the document's expiry date. BARQ verifies it before it takes effect."
+  "vehicleDocClaimedExpiryHint": "Optionally enter the document's expiry date. BARQ verifies it before it takes effect.",
+  "vehiclePassengerCapacityHint": "Guests only — excludes the driver",
+  "vehicleClaimedFourByFourLabel": "This is a 4x4 (four-wheel-drive) vehicle",
+  "vehicleClaimedFourByFourHint": "Your declaration — BARQ verifies it before it applies to 4x4 tours.",
+  "vehicleFourByFourLabel": "4x4 capability",
+  "vehicleFourByFourVerified": "Verified 4x4",
+  "vehicleFourByFourClaimedPending": "Declared — pending BARQ verification",
+  "vehicleFourByFourNo": "Not 4x4"
 }

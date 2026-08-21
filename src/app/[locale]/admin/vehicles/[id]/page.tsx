@@ -11,6 +11,7 @@ import {
   requestVehicleChanges,
 } from "@/lib/vehicles/admin/decide-vehicle-verification";
 import { activateVehicle } from "@/lib/vehicles/admin/activate-vehicle";
+import { verifyVehicleFourByFour } from "@/lib/vehicles/admin/verify-vehicle-four-by-four";
 import { isVehicleAdminActionErrorCode, getVehicleAdminErrorTranslationKey } from "@/lib/vehicles/admin/vehicle-admin-errors";
 import { getAuditEventsForEntity, type AuditEventItem } from "@/lib/admin/get-audit-events-for-entity";
 import { AuditHistory } from "@/components/admin/audit-history";
@@ -259,6 +260,54 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
             </dd>
           </div>
         </div>
+      </Card>
+
+      {/* TOUR-VEHICLE-CAP — 4x4 capability review. The provider's declaration is
+          advisory; the admin establishes the trusted `fourByFourVerified` used by
+          GUIDE_WITH_4X4 eligibility. Never inferred from make/model/vehicleType. */}
+      <Card hoverLift={false}>
+        <h2 className="text-sm font-semibold text-foreground">{t("vehicleFourByFourReviewTitle")}</h2>
+        <p className="mt-2 text-sm text-foreground/70">
+          <span className="font-medium">{t("vehicleFourByFourClaimedLabel")}:</span>{" "}
+          {review.vehicle?.claimedFourByFour === true
+            ? t("vehicleFourByFourClaimYes")
+            : review.vehicle?.claimedFourByFour === false
+              ? t("vehicleFourByFourClaimNo")
+              : t("vehicleFourByFourClaimUnset")}
+        </p>
+        <p className="mt-0.5 text-sm text-foreground/70">
+          <span className="font-medium">{t("vehicleFourByFourTrustedLabel")}:</span>{" "}
+          {review.vehicle?.fourByFourVerified === true
+            ? t("vehicleFourByFourVerified")
+            : review.vehicle?.fourByFourVerified === false
+              ? t("vehicleFourByFourNo")
+              : t("vehicleFourByFourClaimUnset")}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <form
+            action={async () => {
+              "use server";
+              const result = await verifyVehicleFourByFour(id, true);
+              redirect({ href: result.ok ? `/admin/vehicles/${id}?notice=1` : `/admin/vehicles/${id}?error=${result.error}`, locale });
+            }}
+          >
+            <SubmitButton className="rounded-full border border-success/40 px-4 py-2 text-sm font-medium text-success transition-colors hover:bg-success/5 disabled:opacity-50">
+              {t("vehicleFourByFourConfirmButton")}
+            </SubmitButton>
+          </form>
+          <form
+            action={async () => {
+              "use server";
+              const result = await verifyVehicleFourByFour(id, false);
+              redirect({ href: result.ok ? `/admin/vehicles/${id}?notice=1` : `/admin/vehicles/${id}?error=${result.error}`, locale });
+            }}
+          >
+            <SubmitButton className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/20 disabled:opacity-50">
+              {t("vehicleFourByFourDenyButton")}
+            </SubmitButton>
+          </form>
+        </div>
+        <p className="mt-2 text-[11px] text-foreground/40">{t("vehicleFourByFourReviewHint")}</p>
       </Card>
 
       {/* Verification documents — REVIEW-FIRST, before the overall decision. */}

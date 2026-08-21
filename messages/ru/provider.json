@@ -504,5 +504,12 @@
   "vehicleDocRenewHint": "Загрузите действующий заменяющий документ — он пройдёт повторную проверку BARQ, прежде чем ваш автомобиль снова станет доступен.",
   "vehicleDocClaimedExpiryLabel": "Заявленный срок действия",
   "vehicleDocClaimedExpiryPending": "ожидает проверки BARQ",
-  "vehicleDocClaimedExpiryHint": "При желании укажите срок действия документа. BARQ проверит его, прежде чем он вступит в силу."
+  "vehicleDocClaimedExpiryHint": "При желании укажите срок действия документа. BARQ проверит его, прежде чем он вступит в силу.",
+  "vehiclePassengerCapacityHint": "Только гости — без водителя",
+  "vehicleClaimedFourByFourLabel": "Это полноприводный автомобиль (4x4)",
+  "vehicleClaimedFourByFourHint": "Ваше заявление — BARQ проверит его, прежде чем оно будет применяться к турам 4x4.",
+  "vehicleFourByFourLabel": "Возможность 4x4",
+  "vehicleFourByFourVerified": "4x4 подтверждён",
+  "vehicleFourByFourClaimedPending": "Заявлено — ожидает проверки BARQ",
+  "vehicleFourByFourNo": "Не 4x4"
 }

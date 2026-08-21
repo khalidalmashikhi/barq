@@ -504,5 +504,12 @@
   "vehicleDocRenewHint": "Nahrajte platný náhradní dokument — před opětovnou dostupností vozidla jej znovu zkontroluje BARQ.",
   "vehicleDocClaimedExpiryLabel": "Uvedená platnost",
   "vehicleDocClaimedExpiryPending": "čeká na ověření BARQ",
-  "vehicleDocClaimedExpiryHint": "Volitelně zadejte datum platnosti dokumentu. BARQ jej ověří, než začne platit."
+  "vehicleDocClaimedExpiryHint": "Volitelně zadejte datum platnosti dokumentu. BARQ jej ověří, než začne platit.",
+  "vehiclePassengerCapacityHint": "Pouze hosté — bez řidiče",
+  "vehicleClaimedFourByFourLabel": "Toto je vozidlo 4x4 (pohon všech kol)",
+  "vehicleClaimedFourByFourHint": "Vaše prohlášení — BARQ jej ověří, než začne platit pro zájezdy 4x4.",
+  "vehicleFourByFourLabel": "Schopnost 4x4",
+  "vehicleFourByFourVerified": "4x4 ověřeno",
+  "vehicleFourByFourClaimedPending": "Uvedeno — čeká na ověření BARQ",
+  "vehicleFourByFourNo": "Není 4x4"
 }

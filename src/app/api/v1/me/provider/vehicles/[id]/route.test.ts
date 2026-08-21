@@ -88,7 +88,7 @@ describe("PATCH /api/v1/me/provider/vehicles/{id}", () => {
     expect(arg.assetType).toBeUndefined();
     expect(arg.verificationStatus).toBeUndefined();
     expect(Object.keys(arg).sort()).toEqual(
-      ["color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
+      ["claimedFourByFour", "color", "make", "model", "modelYear", "passengerCapacity", "publicDescription", "registrationNumber", "vehicleType"].sort(),
     );
   });
 

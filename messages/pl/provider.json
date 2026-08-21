@@ -504,5 +504,12 @@
   "vehicleDocRenewHint": "Prześlij ważny dokument zastępczy — zostanie ponownie sprawdzony przez BARQ, zanim pojazd znów będzie dostępny.",
   "vehicleDocClaimedExpiryLabel": "Deklarowana data ważności",
   "vehicleDocClaimedExpiryPending": "oczekuje na weryfikację BARQ",
-  "vehicleDocClaimedExpiryHint": "Opcjonalnie podaj datę ważności dokumentu. BARQ zweryfikuje ją, zanim zacznie obowiązywać."
+  "vehicleDocClaimedExpiryHint": "Opcjonalnie podaj datę ważności dokumentu. BARQ zweryfikuje ją, zanim zacznie obowiązywać.",
+  "vehiclePassengerCapacityHint": "Tylko goście — bez kierowcy",
+  "vehicleClaimedFourByFourLabel": "To pojazd 4x4 (napęd na cztery koła)",
+  "vehicleClaimedFourByFourHint": "Twoja deklaracja — BARQ weryfikuje ją, zanim zacznie obowiązywać dla wycieczek 4x4.",
+  "vehicleFourByFourLabel": "Zdolność 4x4",
+  "vehicleFourByFourVerified": "4x4 zweryfikowane",
+  "vehicleFourByFourClaimedPending": "Zadeklarowano — oczekuje na weryfikację BARQ",
+  "vehicleFourByFourNo": "Nie 4x4"
 }

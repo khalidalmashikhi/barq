@@ -683,5 +683,16 @@
   "vehicleBlockerInvalidOperationalState": "Vozidlo není ve stavu umožňujícím aktivaci.",
   "vehicleBlockerVerificationNotApproved": "Ověření není schváleno.",
   "vehicleReviewErrorAlreadyActive": "Toto vozidlo je již aktivní.",
-  "vehicleReviewErrorActivationConflict": "Stav vozidla se změnil — načtěte znovu a zkuste to znovu."
+  "vehicleReviewErrorActivationConflict": "Stav vozidla se změnil — načtěte znovu a zkuste to znovu.",
+  "vehicleFourByFourReviewTitle": "Schopnost 4x4",
+  "vehicleFourByFourClaimedLabel": "Uvedeno poskytovatelem",
+  "vehicleFourByFourTrustedLabel": "Ověřeno (důvěryhodné)",
+  "vehicleFourByFourClaimYes": "Uvedeno jako 4x4",
+  "vehicleFourByFourClaimNo": "Uvedeno jako ne 4x4",
+  "vehicleFourByFourClaimUnset": "Nenastaveno",
+  "vehicleFourByFourVerified": "4x4 ověřeno",
+  "vehicleFourByFourNo": "Není 4x4",
+  "vehicleFourByFourConfirmButton": "Potvrdit 4x4",
+  "vehicleFourByFourDenyButton": "Označit jako ne 4x4",
+  "vehicleFourByFourReviewHint": "Nastavte důvěryhodnou schopnost 4x4 na základě skutečných důkazů. Nikdy ji neodvozujte ze značky/modelu ani z označení SUV."
 }

@@ -504,5 +504,12 @@
   "vehicleDocRenewHint": "ارفع مستنداً سارياً بديلاً — سيخضع لمراجعة برق قبل أن تصبح مركبتك متاحة مجدداً.",
   "vehicleDocClaimedExpiryLabel": "انتهاء الصلاحية المُعلن",
   "vehicleDocClaimedExpiryPending": "بانتظار تحقق برق",
-  "vehicleDocClaimedExpiryHint": "أدخل تاريخ انتهاء صلاحية المستند اختيارياً. تتحقق برق منه قبل أن يصبح ساري المفعول."
+  "vehicleDocClaimedExpiryHint": "أدخل تاريخ انتهاء صلاحية المستند اختيارياً. تتحقق برق منه قبل أن يصبح ساري المفعول.",
+  "vehiclePassengerCapacityHint": "الركاب فقط — لا يشمل السائق",
+  "vehicleClaimedFourByFourLabel": "هذه مركبة دفع رباعي (4x4)",
+  "vehicleClaimedFourByFourHint": "إقرارك — تتحقق برق منه قبل أن يُعتمد لجولات الدفع الرباعي.",
+  "vehicleFourByFourLabel": "قدرة الدفع الرباعي",
+  "vehicleFourByFourVerified": "دفع رباعي مُتحقَّق",
+  "vehicleFourByFourClaimedPending": "مُعلن — بانتظار تحقق برق",
+  "vehicleFourByFourNo": "ليست دفع رباعي"
 }

@@ -26,6 +26,7 @@ function auditPayload(value: {
   passengerCapacity: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
+  claimedFourByFour: boolean | null;
 }): Prisma.InputJsonObject {
   return {
     make: value.make,
@@ -36,6 +37,7 @@ function auditPayload(value: {
     passengerCapacity: value.passengerCapacity,
     publicDescription: value.publicDescription,
     hasRegistration: value.registrationNumber !== null,
+    claimedFourByFour: value.claimedFourByFour,
   };
 }
 
@@ -84,6 +86,9 @@ export async function updateVehicle(assetId: string, rawInput: unknown): Promise
           passengerCapacity: value.passengerCapacity,
           publicDescription: value.publicDescription,
           registrationNumber: value.registrationNumber,
+          // Provider claim only. fourByFourVerified is deliberately ABSENT here — the
+          // trusted capability is admin-controlled and a provider edit never changes it.
+          claimedFourByFour: value.claimedFourByFour,
         },
       });
 

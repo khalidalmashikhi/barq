@@ -21,6 +21,7 @@ export type VehicleFieldDefaults = {
   passengerCapacity?: number | null;
   registrationNumber?: string | null;
   publicDescription?: string | null;
+  claimedFourByFour?: boolean | null;
 };
 
 function labelSpan(text: string, hint?: string) {
@@ -80,10 +81,18 @@ export async function VehicleFormFields({ defaults }: { defaults?: VehicleFieldD
             </select>
           </label>
           <label className="flex flex-col gap-1.5">
-            {labelSpan(t("vehiclePassengerCapacityLabel"))}
+            {labelSpan(t("vehiclePassengerCapacityLabel"), t("vehiclePassengerCapacityHint"))}
             <input type="number" name="passengerCapacity" required min={1} max={100} step={1} defaultValue={defaults?.passengerCapacity ?? ""} className={INPUT_CLASS} />
           </label>
         </div>
+        {/* TOUR-VEHICLE-CAP — provider's advisory 4x4 declaration (subject to BARQ verification). */}
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="claimedFourByFour" value="true" defaultChecked={defaults?.claimedFourByFour === true} className="mt-1" />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
+            <span className="text-[0.7rem] text-foreground/40">{t("vehicleClaimedFourByFourHint")}</span>
+          </span>
+        </label>
       </fieldset>
 
       {/* SECTION C — Registration (PRIVATE) */}

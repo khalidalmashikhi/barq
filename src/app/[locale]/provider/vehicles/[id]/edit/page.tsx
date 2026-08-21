@@ -75,6 +75,7 @@ export default async function EditVehiclePage({ params, searchParams }: Props) {
               passengerCapacity: vehicle.passengerCapacity,
               registrationNumber: vehicle.registrationNumber,
               publicDescription: vehicle.publicDescription,
+              claimedFourByFour: vehicle.claimedFourByFour,
             }}
           />
 
