@@ -16,8 +16,15 @@ export const VEHICLE_ADMIN_ERROR_CODES = [
   // The vehicle is not in SUBMITTED state (a decision only applies to SUBMITTED).
   "NOT_SUBMITTED",
   // Approval attempted while approval blockers remain (missing/unapproved/expired
-  // required documents, invalid vehicle data, or wrong verification state).
+  // required documents, invalid vehicle data, or wrong verification state). Reused by
+  // LC7 activation for any activation blocker (verification not approved, document not
+  // ready, invalid operational state).
   "NOT_READY",
+  // VEHICLE-LC7 — activation attempted on a vehicle already operationally ACTIVE.
+  "ALREADY_ACTIVE",
+  // VEHICLE-LC7 — the vehicle changed operational/verification state between the
+  // admin's load and the guarded activation write (optimistic transition lost the race).
+  "ACTIVATION_CONFLICT",
   "UNKNOWN_ERROR",
 ] as const;
 
@@ -38,6 +45,8 @@ const TRANSLATION_KEYS = {
   STALE_DOCUMENT: "vehicleReviewErrorStaleDocument",
   NOT_SUBMITTED: "vehicleReviewErrorNotSubmitted",
   NOT_READY: "vehicleReviewErrorNotReady",
+  ALREADY_ACTIVE: "vehicleReviewErrorAlreadyActive",
+  ACTIVATION_CONFLICT: "vehicleReviewErrorActivationConflict",
   UNKNOWN_ERROR: "vehicleReviewErrorUnknown",
 } as const satisfies Record<VehicleAdminActionErrorCode, string>;
 

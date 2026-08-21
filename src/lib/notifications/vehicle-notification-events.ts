@@ -24,6 +24,8 @@ export const VEHICLE_NOTIFICATION_EVENT = {
   VERIFICATION_REJECTED: "vehicle.verification_rejected",
   VERIFICATION_APPROVED: "vehicle.verification_approved",
   DOCUMENT_REJECTED: "vehicle.document_rejected",
+  // VEHICLE-LC7 — the vehicle was operationally ACTIVATED by an admin.
+  ACTIVATED: "vehicle.activated",
 } as const;
 
 export type VehicleNotificationEventType = (typeof VEHICLE_NOTIFICATION_EVENT)[keyof typeof VEHICLE_NOTIFICATION_EVENT];
@@ -74,6 +76,21 @@ const EVENT_DEFS: Record<VehicleNotificationEventType, EventDef> = {
       fr: "La vérification de votre véhicule a été approuvée.",
       cs: "Ověření vašeho vozidla bylo schváleno.",
       ru: "Проверка вашего транспорта одобрена.",
+    },
+  },
+  "vehicle.activated": {
+    kind: "VEHICLE_ACTIVATED",
+    // Operational activation only. Deliberately does NOT promise booking availability
+    // (customer-side consumption is out of scope) — just that the vehicle is now active.
+    messages: {
+      ar: "تم تفعيل مركبتك في برق.",
+      en: "Your vehicle has been activated in BARQ.",
+      de: "Ihr Fahrzeug wurde in BARQ aktiviert.",
+      it: "Il tuo veicolo è stato attivato in BARQ.",
+      pl: "Twój pojazd został aktywowany w BARQ.",
+      fr: "Votre véhicule a été activé dans BARQ.",
+      cs: "Vaše vozidlo bylo aktivováno v BARQ.",
+      ru: "Ваш транспорт активирован в BARQ.",
     },
   },
   "vehicle.document_rejected": {

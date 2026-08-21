@@ -10,6 +10,7 @@ import {
   rejectVehicleVerification,
   requestVehicleChanges,
 } from "@/lib/vehicles/admin/decide-vehicle-verification";
+import { activateVehicle } from "@/lib/vehicles/admin/activate-vehicle";
 import { isVehicleAdminActionErrorCode, getVehicleAdminErrorTranslationKey } from "@/lib/vehicles/admin/vehicle-admin-errors";
 import { getAuditEventsForEntity, type AuditEventItem } from "@/lib/admin/get-audit-events-for-entity";
 import { AuditHistory } from "@/components/admin/audit-history";
@@ -27,13 +28,15 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
 
-// VEHICLE-LC3 — Admin vehicle verification REVIEW workspace. Review-first: summary
-// → two-axis status → document review (View + per-document Approve/Reject) →
-// overall decision (Request changes / Reject / Approve verification). There is NO
-// Activate / deactivate / maintenance control here: approving verification NEVER
-// makes the vehicle operationally ACTIVE (a separate, later gate). `t` is the admin
-// namespace; `tv` reuses the provider namespace for the shared vehicle status /
-// field / document-type labels (single source, no duplication).
+// VEHICLE-LC3 / LC7 — Admin vehicle verification REVIEW + operational-activation
+// workspace. Review-first: summary → two-axis status → document review (View +
+// per-document Approve/Reject) → overall verification decision (Request changes /
+// Reject / Approve). VEHICLE-LC7 adds a SEPARATE operational activation: only once
+// verification is APPROVED and the vehicle is REGISTERED with activation blockers
+// clear does an Activate control appear (REGISTERED → ACTIVE, status-only). Approving
+// verification still NEVER auto-activates; there is still NO deactivate/maintenance
+// control (no such lifecycle exists yet). `t` is the admin namespace; `tv` reuses the
+// provider namespace for the shared vehicle status / field / document-type labels.
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -51,6 +54,15 @@ const BLOCKER_LABEL_KEY = {
   REQUIRED_DOCUMENT_EXPIRED: "vehicleBlockerDocExpired",
   INVALID_VEHICLE_DATA: "vehicleBlockerInvalidData",
   INVALID_VERIFICATION_STATE: "vehicleBlockerInvalidState",
+} as const;
+// VEHICLE-LC7 — activation blocker → safe admin label (reuses the shared doc/data keys).
+const ACTIVATION_BLOCKER_LABEL_KEY = {
+  INVALID_OPERATIONAL_STATE: "vehicleBlockerInvalidOperationalState",
+  VERIFICATION_NOT_APPROVED: "vehicleBlockerVerificationNotApproved",
+  REQUIRED_DOCUMENT_MISSING: "vehicleBlockerDocMissing",
+  REQUIRED_DOCUMENT_NOT_APPROVED: "vehicleBlockerDocNotApproved",
+  REQUIRED_DOCUMENT_EXPIRED: "vehicleBlockerDocExpired",
+  INVALID_VEHICLE_DATA: "vehicleBlockerInvalidData",
 } as const;
 
 function formatBytes(n: number): string {
@@ -149,8 +161,53 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
       {docNotice && <Alert variant="success">{t("documentReviewSaved")}</Alert>}
       {docErrorMessage && <Alert variant="danger">{docErrorMessage}</Alert>}
 
-      {review.verificationStatus === "APPROVED" && (
-        <Alert variant="info">{t("vehicleApprovedNotLiveNote")}</Alert>
+      {/* VEHICLE-LC7 — operational activation is a SEPARATE admin decision from
+          verification approval. It appears only once verification is APPROVED, and
+          only for a REGISTERED vehicle whose activation blockers are clear. It writes
+          ONLY Asset.status (REGISTERED → ACTIVE); it never re-approves verification. */}
+      {review.verificationStatus === "APPROVED" && review.operationalStatus === "ACTIVE" && (
+        <Alert variant="success">{t("vehicleOperationalActiveNote")}</Alert>
+      )}
+
+      {review.verificationStatus === "APPROVED" && review.operationalStatus === "REGISTERED" && (
+        <Card hoverLift={false}>
+          <h2 className="text-sm font-semibold text-foreground">{t("vehicleActivationTitle")}</h2>
+          <Alert variant="info" className="mt-3">{t("vehicleApprovedNotLiveNote")}</Alert>
+          {review.activationBlockers.length > 0 ? (
+            <Alert variant="warning" title={t("vehicleActivationBlockedTitle")} className="mt-3">
+              <ul className="mt-2 flex flex-col gap-1 text-sm">
+                {review.activationBlockers.map((b, i) => (
+                  <li key={`${b.reason}-${b.type}-${i}`}>
+                    {b.type && isValidAssetDocumentTypeKey(b.type) ? (
+                      <>
+                        <span className="font-medium">{tv(ASSET_DOCUMENT_TYPE_LABEL_KEYS[b.type])}</span>
+                        {" — "}
+                      </>
+                    ) : null}
+                    {t(ACTIVATION_BLOCKER_LABEL_KEY[b.reason])}
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          ) : (
+            <>
+              <Alert variant="success" title={t("vehicleActivationReadyTitle")} className="mt-3" />
+              <p className="mt-2 text-xs text-foreground/50">{t("vehicleActivationHint")}</p>
+              <form
+                action={async () => {
+                  "use server";
+                  const result = await activateVehicle(id);
+                  redirect({ href: result.ok ? `/admin/vehicles/${id}?notice=1` : `/admin/vehicles/${id}?error=${result.error}`, locale });
+                }}
+                className="mt-3"
+              >
+                <SubmitButton className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                  {t("vehicleActivateButton")}
+                </SubmitButton>
+              </form>
+            </>
+          )}
+        </Card>
       )}
 
       {hasRemediationDoc && <Alert variant="warning">{t("vehicleRemediationReviewNote")}</Alert>}

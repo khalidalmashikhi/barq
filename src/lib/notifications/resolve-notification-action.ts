@@ -74,6 +74,8 @@ const ACTION_BY_EVENT: Record<string, ActionDef> = {
   "vehicle.verification_rejected": { labelKey: "ctaViewVehicle", kind: "providerVehicleDetail" },
   "vehicle.verification_approved": { labelKey: "ctaViewVehicle", kind: "providerVehicleDetail" },
   "vehicle.document_rejected": { labelKey: "ctaReviewDocument", kind: "providerVehicleDetail" },
+  // VEHICLE-LC7 — operational activation resolves to the provider's own vehicle workspace.
+  "vehicle.activated": { labelKey: "ctaViewVehicle", kind: "providerVehicleDetail" },
 };
 
 export function resolveNotificationAction(input: {

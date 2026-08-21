@@ -673,5 +673,15 @@
   "documentClaimedExpiryLabel": "Vom Anbieter angegebenes Ablaufdatum",
   "documentTrustedExpiryLabel": "Bestätigtes Ablaufdatum",
   "documentConfirmExpiryLabel": "Ablaufdatum bestätigen",
-  "documentConfirmExpiryHint": "Dieses vom Administrator bestätigte Datum wird zum maßgeblichen Ablaufdatum des Dokuments (gültig bis zum Ende dieses Tages). Für kein Ablaufdatum leer lassen."
+  "documentConfirmExpiryHint": "Dieses vom Administrator bestätigte Datum wird zum maßgeblichen Ablaufdatum des Dokuments (gültig bis zum Ende dieses Tages). Für kein Ablaufdatum leer lassen.",
+  "vehicleActivationTitle": "Operative Aktivierung",
+  "vehicleActivateButton": "Fahrzeug aktivieren",
+  "vehicleActivationBlockedTitle": "Aktivierung noch nicht möglich",
+  "vehicleActivationReadyTitle": "Bereit zur Aktivierung",
+  "vehicleActivationHint": "Die Aktivierung setzt das Fahrzeug operativ auf aktiv. Die Verfügbarkeit für Kunden hängt weiterhin davon ab, dass das Fahrzeug geeignet bleibt (z. B. gültige Pflichtdokumente).",
+  "vehicleOperationalActiveNote": "Dieses Fahrzeug ist operativ aktiv.",
+  "vehicleBlockerInvalidOperationalState": "Das Fahrzeug ist nicht in einem aktivierbaren Zustand.",
+  "vehicleBlockerVerificationNotApproved": "Die Verifizierung ist nicht genehmigt.",
+  "vehicleReviewErrorAlreadyActive": "Dieses Fahrzeug ist bereits aktiv.",
+  "vehicleReviewErrorActivationConflict": "Der Fahrzeugstatus hat sich geändert – neu laden und erneut versuchen."
 }

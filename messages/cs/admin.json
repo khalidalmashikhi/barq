@@ -673,5 +673,15 @@
   "documentClaimedExpiryLabel": "Platnost uvedená poskytovatelem",
   "documentTrustedExpiryLabel": "Potvrzená platnost",
   "documentConfirmExpiryLabel": "Potvrďte datum platnosti",
-  "documentConfirmExpiryHint": "Toto datum potvrzené administrátorem se stává závaznou platností dokumentu (platí do konce daného dne). Ponechte prázdné, pokud platnost není."
+  "documentConfirmExpiryHint": "Toto datum potvrzené administrátorem se stává závaznou platností dokumentu (platí do konce daného dne). Ponechte prázdné, pokud platnost není.",
+  "vehicleActivationTitle": "Provozní aktivace",
+  "vehicleActivateButton": "Aktivovat vozidlo",
+  "vehicleActivationBlockedTitle": "Zatím nelze aktivovat",
+  "vehicleActivationReadyTitle": "Připraveno k aktivaci",
+  "vehicleActivationHint": "Aktivace nastaví vozidlo jako provozně aktivní. Dostupnost pro zákazníky nadále závisí na tom, že vozidlo zůstane způsobilé (např. platné povinné dokumenty).",
+  "vehicleOperationalActiveNote": "Toto vozidlo je provozně aktivní.",
+  "vehicleBlockerInvalidOperationalState": "Vozidlo není ve stavu umožňujícím aktivaci.",
+  "vehicleBlockerVerificationNotApproved": "Ověření není schváleno.",
+  "vehicleReviewErrorAlreadyActive": "Toto vozidlo je již aktivní.",
+  "vehicleReviewErrorActivationConflict": "Stav vozidla se změnil — načtěte znovu a zkuste to znovu."
 }

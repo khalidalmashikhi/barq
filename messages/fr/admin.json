@@ -673,5 +673,15 @@
   "documentClaimedExpiryLabel": "Expiration déclarée par le prestataire",
   "documentTrustedExpiryLabel": "Expiration confirmée",
   "documentConfirmExpiryLabel": "Confirmer la date d'expiration",
-  "documentConfirmExpiryHint": "Cette date confirmée par l'administrateur devient l'expiration officielle du document (valable jusqu'à ce jour). Laissez vide pour aucune expiration."
+  "documentConfirmExpiryHint": "Cette date confirmée par l'administrateur devient l'expiration officielle du document (valable jusqu'à ce jour). Laissez vide pour aucune expiration.",
+  "vehicleActivationTitle": "Activation opérationnelle",
+  "vehicleActivateButton": "Activer le véhicule",
+  "vehicleActivationBlockedTitle": "Activation impossible pour le moment",
+  "vehicleActivationReadyTitle": "Prêt à activer",
+  "vehicleActivationHint": "L'activation rend le véhicule opérationnellement actif. La disponibilité pour les clients dépend toujours du maintien de l'éligibilité du véhicule (par ex. documents requis valides).",
+  "vehicleOperationalActiveNote": "Ce véhicule est opérationnellement actif.",
+  "vehicleBlockerInvalidOperationalState": "Le véhicule n'est pas dans un état activable.",
+  "vehicleBlockerVerificationNotApproved": "La vérification n'est pas approuvée.",
+  "vehicleReviewErrorAlreadyActive": "Ce véhicule est déjà actif.",
+  "vehicleReviewErrorActivationConflict": "L'état du véhicule a changé — rechargez et réessayez."
 }

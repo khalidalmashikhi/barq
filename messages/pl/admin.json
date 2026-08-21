@@ -673,5 +673,15 @@
   "documentClaimedExpiryLabel": "Data ważności podana przez dostawcę",
   "documentTrustedExpiryLabel": "Potwierdzona data ważności",
   "documentConfirmExpiryLabel": "Potwierdź datę ważności",
-  "documentConfirmExpiryHint": "Ta data potwierdzona przez administratora staje się wiążącą datą ważności dokumentu (ważny do końca tego dnia). Pozostaw puste, aby brak daty ważności."
+  "documentConfirmExpiryHint": "Ta data potwierdzona przez administratora staje się wiążącą datą ważności dokumentu (ważny do końca tego dnia). Pozostaw puste, aby brak daty ważności.",
+  "vehicleActivationTitle": "Aktywacja operacyjna",
+  "vehicleActivateButton": "Aktywuj pojazd",
+  "vehicleActivationBlockedTitle": "Nie można jeszcze aktywować",
+  "vehicleActivationReadyTitle": "Gotowy do aktywacji",
+  "vehicleActivationHint": "Aktywacja sprawia, że pojazd jest operacyjnie aktywny. Dostępność dla klientów nadal zależy od tego, czy pojazd pozostaje kwalifikowalny (np. ważne wymagane dokumenty).",
+  "vehicleOperationalActiveNote": "Ten pojazd jest operacyjnie aktywny.",
+  "vehicleBlockerInvalidOperationalState": "Pojazd nie jest w stanie umożliwiającym aktywację.",
+  "vehicleBlockerVerificationNotApproved": "Weryfikacja nie została zatwierdzona.",
+  "vehicleReviewErrorAlreadyActive": "Ten pojazd jest już aktywny.",
+  "vehicleReviewErrorActivationConflict": "Stan pojazdu się zmienił — odśwież i spróbuj ponownie."
 }

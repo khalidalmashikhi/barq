@@ -141,6 +141,7 @@ describe("resolveNotificationAction — VEHICLE-LC4 vehicle events", () => {
     "vehicle.verification_rejected",
     "vehicle.verification_approved",
     "vehicle.document_rejected",
+    "vehicle.activated", // VEHICLE-LC7
   ] as const;
 
   it("every vehicle event resolves ONLY to the provider's own /provider/vehicles/[id] route", () => {
@@ -168,5 +169,6 @@ describe("resolveNotificationAction — VEHICLE-LC4 vehicle events", () => {
     expect(resolveNotificationAction({ eventType: "vehicle.changes_requested", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaReviewChanges");
     expect(resolveNotificationAction({ eventType: "vehicle.document_rejected", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaReviewDocument");
     expect(resolveNotificationAction({ eventType: "vehicle.verification_approved", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaViewVehicle");
+    expect(resolveNotificationAction({ eventType: "vehicle.activated", entityType: "Vehicle", entityId: UUID })!.labelKey).toBe("ctaViewVehicle"); // LC7
   });
 });

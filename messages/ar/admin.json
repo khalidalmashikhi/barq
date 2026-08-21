@@ -673,5 +673,15 @@
   "documentClaimedExpiryLabel": "انتهاء الصلاحية المُعلن من المزوّد",
   "documentTrustedExpiryLabel": "انتهاء الصلاحية المؤكَّد",
   "documentConfirmExpiryLabel": "تأكيد تاريخ انتهاء الصلاحية",
-  "documentConfirmExpiryHint": "يصبح هذا التاريخ المؤكَّد من المشرف تاريخ انتهاء الصلاحية المعتمد للمستند (ساري حتى نهاية ذلك اليوم). اتركه فارغاً لعدم وجود انتهاء صلاحية."
+  "documentConfirmExpiryHint": "يصبح هذا التاريخ المؤكَّد من المشرف تاريخ انتهاء الصلاحية المعتمد للمستند (ساري حتى نهاية ذلك اليوم). اتركه فارغاً لعدم وجود انتهاء صلاحية.",
+  "vehicleActivationTitle": "التفعيل التشغيلي",
+  "vehicleActivateButton": "تفعيل المركبة",
+  "vehicleActivationBlockedTitle": "لا يمكن التفعيل بعد",
+  "vehicleActivationReadyTitle": "جاهزة للتفعيل",
+  "vehicleActivationHint": "يجعل التفعيل المركبة نشطة تشغيليًا. يظل توفرها للعملاء مشروطًا ببقائها مؤهّلة (مثل بقاء المستندات المطلوبة سارية).",
+  "vehicleOperationalActiveNote": "هذه المركبة نشطة تشغيليًا.",
+  "vehicleBlockerInvalidOperationalState": "المركبة ليست في حالة قابلة للتفعيل.",
+  "vehicleBlockerVerificationNotApproved": "لم تتم الموافقة على التحقق.",
+  "vehicleReviewErrorAlreadyActive": "هذه المركبة مفعّلة بالفعل.",
+  "vehicleReviewErrorActivationConflict": "تغيّرت حالة المركبة — أعد التحميل وحاول مرة أخرى."
 }

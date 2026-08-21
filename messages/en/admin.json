@@ -673,5 +673,15 @@
   "documentClaimedExpiryLabel": "Provider-claimed expiry",
   "documentTrustedExpiryLabel": "Confirmed expiry",
   "documentConfirmExpiryLabel": "Confirm expiry date",
-  "documentConfirmExpiryHint": "This admin-confirmed date becomes the document's authoritative expiry (valid through that day). Leave blank for no expiry."
+  "documentConfirmExpiryHint": "This admin-confirmed date becomes the document's authoritative expiry (valid through that day). Leave blank for no expiry.",
+  "vehicleActivationTitle": "Operational activation",
+  "vehicleActivateButton": "Activate vehicle",
+  "vehicleActivationBlockedTitle": "Cannot activate yet",
+  "vehicleActivationReadyTitle": "Ready to activate",
+  "vehicleActivationHint": "Activation makes the vehicle operationally active. Customer availability still depends on the vehicle staying eligible (e.g. required documents remaining valid).",
+  "vehicleOperationalActiveNote": "This vehicle is operationally active.",
+  "vehicleBlockerInvalidOperationalState": "Vehicle is not in an activatable state.",
+  "vehicleBlockerVerificationNotApproved": "Verification is not approved.",
+  "vehicleReviewErrorAlreadyActive": "This vehicle is already active.",
+  "vehicleReviewErrorActivationConflict": "The vehicle changed state — reload and try again."
 }

@@ -15,6 +15,7 @@ import {
   getVehicleVerificationApprovalBlockers,
   type VehicleApprovalBlocker,
 } from "./get-vehicle-verification-approval-blockers";
+import { getVehicleActivationBlockers, type VehicleActivationBlocker } from "./get-vehicle-activation-blockers";
 
 // VEHICLE-LC3 — the admin review DETAIL read model for one vehicle (ANY provider's;
 // admin is globally authorized). requireAdmin()-gated. Surfaces the two axes
@@ -70,6 +71,8 @@ export type AdminVehicleReview = {
   } | null;
   items: AdminVehicleReviewItem[];
   approvalBlockers: VehicleApprovalBlocker[];
+  /** VEHICLE-LC7 — operational-activation readiness (REGISTERED + APPROVED + docs valid). */
+  activationBlockers: VehicleActivationBlocker[];
 };
 
 export async function getAdminVehicleReview(assetId: string): Promise<AdminVehicleReview | null> {
@@ -161,6 +164,13 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
     documents: asset.documents.map((d) => ({ type: d.type, status: d.status, expiresAt: d.expiresAt })),
   });
 
+  const activationBlockers = getVehicleActivationBlockers({
+    operationalStatus: asset.status,
+    verificationStatus: asset.verificationStatus,
+    hasVehicleData: asset.vehicle !== null,
+    documents: asset.documents.map((d) => ({ type: d.type, status: d.status, expiresAt: d.expiresAt })),
+  });
+
   return {
     id: assetId,
     operationalStatus: asset.status,
@@ -172,5 +182,6 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
     vehicle: asset.vehicle,
     items,
     approvalBlockers,
+    activationBlockers,
   };
 }

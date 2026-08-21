@@ -80,6 +80,28 @@ describe("getAdminVehicleReview", () => {
     expect(reg.trustedExpiryDate).toBe("2027-05-31"); // derived back from the trusted instant
   });
 
+  it("§LC7 — activationBlockers: empty for REGISTERED+APPROVED+ready; flags VERIFICATION_NOT_APPROVED otherwise", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "a1" } });
+    // Not-yet-approved (SUBMITTED, reg PENDING) → activation blocked.
+    findFirstMock.mockResolvedValue(assetRow());
+    let review = await getAdminVehicleReview("asset-1");
+    expect(review!.activationBlockers.map((b) => b.reason)).toContain("VERIFICATION_NOT_APPROVED");
+
+    // REGISTERED + APPROVED + both required docs APPROVED & unexpired → ready to activate.
+    findFirstMock.mockResolvedValue(
+      assetRow({
+        status: "REGISTERED",
+        verificationStatus: "APPROVED",
+        documents: [
+          { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "APPROVED", rejectionReason: null, expiresAt: null, originalFilename: "reg.pdf", mimeType: "application/pdf", sizeBytes: 100, createdAt: new Date(), reviewedAt: new Date(), objectKey: "asset-documents/asset-1/reg/x.pdf" },
+          { id: "doc-ins", type: "VEHICLE_INSURANCE", status: "APPROVED", rejectionReason: null, expiresAt: null, originalFilename: "ins.pdf", mimeType: "application/pdf", sizeBytes: 100, createdAt: new Date(), reviewedAt: new Date(), objectKey: "asset-documents/asset-1/ins/x.pdf" },
+        ],
+      }),
+    );
+    review = await getAdminVehicleReview("asset-1");
+    expect(review!.activationBlockers).toEqual([]);
+  });
+
   it("surfaces approval blockers (registration PENDING + insurance missing)", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "a1" } });
     findFirstMock.mockResolvedValue(assetRow());
