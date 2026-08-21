@@ -828,6 +828,10 @@ model Vehicle {
   updatedAt          DateTime @updatedAt @db.Timestamptz(6)
 
   bookings Booking[]
+  /// TOUR-VEHICLE-1 — the tour services this vehicle is CONFIGURED as available for
+  /// (relational pool). Deletion of a pooled vehicle is RESTRICTED at the FK, so a
+  /// configured tour never silently loses its vehicle.
+  tourServiceVehicles TourServiceVehicle[]
 
   @@map("vehicles")
 }
@@ -992,6 +996,10 @@ model Service {
   prices       Price[]
   bookings     Booking[]
   mediaAssets  MediaAsset[]
+  /// TOUR-VEHICLE-1 — the relational pool of eligible provider vehicles configured
+  /// for this (tour) service. Cascades on service deletion (pool config is
+  /// meaningless without its service).
+  tourServiceVehicles TourServiceVehicle[]
 
   @@index([providerId])
   @@index([status])
@@ -1038,6 +1046,39 @@ model Experience {
   updatedAt      DateTime @updatedAt @db.Timestamptz(6)
 
   @@map("experiences")
+}
+
+/// TOUR-VEHICLE-1 — the relational pool of a TOUR Service's ELIGIBLE, provider-owned
+/// Vehicles (HYBRID architecture, TOUR-VEHICLE-ARCH). A row means "this provider
+/// vehicle is CONFIGURED as available for this tour service"; it is NOT a permanent
+/// eligibility certificate — live eligibility (operational ACTIVE + verification
+/// APPROVED + required docs valid + package 4x4/capacity rules) is recomputed on read
+/// by getVehicleAssignmentBlockers, so a pooled vehicle that later lapses shows as
+/// "configured but currently unavailable" rather than being silently dropped.
+///
+/// The authoritative ACTUAL vehicle for a booking is Booking.vehicleId (a later gate),
+/// NEVER stored inside guidingContent JSON. Ownership integrity: both the Service and
+/// the Vehicle belong to a Provider; the domain layer enforces they share the SAME
+/// provider before any row is written (no cross-provider pooling). Vehicle ownership
+/// granting a pool row confers ZERO ProviderCategory permission.
+///
+/// Additive / legacy-safe: existing services start with ZERO rows. Composite PK makes
+/// a (service, vehicle) pairing unique, so a duplicate add is a DB no-op.
+model TourServiceVehicle {
+  serviceId String   @db.Uuid
+  vehicleId String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  /// Service deletion cascades its pool configuration.
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  /// A pooled vehicle must NOT silently vanish from a configured tour — deletion is
+  /// RESTRICTED (vehicle deletion is not implemented in the app today; this keeps the
+  /// invariant if it ever is). Vehicle's PK is assetId (shared-PK CTI with Asset).
+  vehicle Vehicle @relation(fields: [vehicleId], references: [assetId], onDelete: Restrict)
+
+  @@id([serviceId, vehicleId])
+  @@index([vehicleId])
+  @@map("tour_service_vehicles")
 }
 
 // =============================================================================
