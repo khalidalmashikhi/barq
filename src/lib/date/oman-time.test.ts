@@ -118,4 +118,17 @@ describe("omanValidThroughDateToExpiryInstant — trusted expiry boundary", () =
       expect(omanValidThroughDateOfInstant(instant)).toBe(d);
     }
   });
+
+  // QA-D1 — the trusted-expiry INSTANT maps back to the valid-through DATE, never the
+  // next day. The stored instant is the EXCLUSIVE next-Oman-midnight boundary, so the
+  // valid-through day is the one that ends at that boundary (2027-05-31T20:00:00Z is
+  // Oman 2027-06-01 00:00, whose document is valid THROUGH 2027-05-31 — not June 1).
+  it("QA-D1 — omanValidThroughDateOfInstant returns the valid-through day, not the boundary day", () => {
+    // The stored instant is the EXCLUSIVE next-Oman-midnight boundary = <valid-through>T20:00:00Z
+    // (Oman is +04:00). The valid-through day is the date of that instant, never the next day.
+    expect(omanValidThroughDateOfInstant(new Date("2027-05-31T20:00:00.000Z"))).toBe("2027-05-31"); // not 2027-06-01
+    expect(omanValidThroughDateOfInstant(new Date("2027-01-31T20:00:00.000Z"))).toBe("2027-01-31"); // month boundary, not Feb 1
+    expect(omanValidThroughDateOfInstant(new Date("2027-12-31T20:00:00.000Z"))).toBe("2027-12-31"); // year boundary, not Jan 1
+    expect(omanValidThroughDateOfInstant(new Date("2028-02-29T20:00:00.000Z"))).toBe("2028-02-29"); // leap day, not Mar 1
+  });
 });

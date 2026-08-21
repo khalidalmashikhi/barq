@@ -48,8 +48,8 @@ const base: VehicleVerificationData = {
   submissionBlockers: [{ type: "VEHICLE_INSURANCE", reason: "MISSING" }],
   verificationReason: null,
   items: [
-    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-reg", status: "PENDING", rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
-    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
+    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-reg", status: "PENDING", rejectionReason: null, expiresAt: null, validThroughDate: null, isExpired: false, isRemediable: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
+    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: null, status: null, rejectionReason: null, expiresAt: null, validThroughDate: null, isExpired: false, isRemediable: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
   ],
 };
 
@@ -103,9 +103,9 @@ describe("VehicleVerificationSection", () => {
       submittable: false,
       items: [
         // Expired approved required doc — remediable: replace only.
-        { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-reg", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2000-01-01T00:00:00Z"), isExpired: true, isRemediable: true, canUpload: false, canReplace: true, canDelete: false, canView: true },
+        { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-reg", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2000-01-01T00:00:00Z"), validThroughDate: "2000-01-01", isExpired: true, isRemediable: true, canUpload: false, canReplace: true, canDelete: false, canView: true },
         // Valid approved required doc — fully locked.
-        { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-ins", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2999-01-01T00:00:00Z"), isExpired: false, isRemediable: false, canUpload: false, canReplace: false, canDelete: false, canView: true },
+        { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-ins", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2999-01-01T00:00:00Z"), validThroughDate: "2999-01-01", isExpired: false, isRemediable: false, canUpload: false, canReplace: false, canDelete: false, canView: true },
       ],
     };
     const el = await VehicleVerificationSection({ vehicleId: "veh-1", locale: "en", data: remediation });
@@ -118,6 +118,23 @@ describe("VehicleVerificationSection", () => {
     expect(a).not.toContain("/api/provider/vehicles/veh-1/verification/submit"); // not editable → no submit
     expect(strings(el)).toContain("vehicleDocRenewHint");
     expect(strings(el)).toContain("vehicleNotEligibleExpiredNote"); // section-level not-eligible note
+  });
+
+  it("QA-D1 — renders the trusted expiry as the valid-through DATE (31 May 2027), never the boundary day (June 1)", async () => {
+    const approved: VehicleVerificationData = {
+      ...base,
+      verificationStatus: "APPROVED",
+      editable: false,
+      items: [
+        // Trusted instant = Oman 2027-06-01 00:00; valid THROUGH 2027-05-31.
+        { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-reg", status: "APPROVED", rejectionReason: null, expiresAt: new Date("2027-05-31T20:00:00.000Z"), validThroughDate: "2027-05-31", isExpired: false, isRemediable: false, canUpload: false, canReplace: false, canDelete: false, canView: true },
+        { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-ins", status: "APPROVED", rejectionReason: null, expiresAt: null, validThroughDate: null, isExpired: false, isRemediable: false, canUpload: false, canReplace: false, canDelete: false, canView: true },
+      ],
+    };
+    const el = await VehicleVerificationSection({ vehicleId: "veh-1", locale: "en", data: approved });
+    const joined = strings(el).join(" ");
+    expect(joined).toContain("May 31, 2027"); // valid-through date, Oman-localized
+    expect(joined).not.toContain("June"); // NOT the exclusive next-midnight boundary day
   });
 
   it("surfaces the admin reason for a CHANGES_REQUESTED vehicle", async () => {

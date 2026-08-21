@@ -25,6 +25,8 @@ export type VehicleVerificationRequirementDTO = {
     claimedExpiryDate: string | null;
     /** TRUSTED expiry instant (admin-confirmed), ISO-8601; the only value that affects eligibility. */
     expiresAt: string | null;
+    /** QA-D1 — the trusted expiry as the Oman "valid through" DATE ("YYYY-MM-DD"); display THIS, not the raw instant. */
+    validThroughDate: string | null;
     /** VEHICLE-LC4 — derived server-side (trusted expiresAt has lapsed); clients need not recompute. */
     isExpired: boolean;
     /** VEHICLE-LC5 — derived server-side: this required doc may be replaced to remediate an expired approved doc. */
@@ -70,6 +72,7 @@ export function toVehicleVerificationApiDTO(vehicleId: string, data: VehicleVeri
               rejectionReason: item.rejectionReason,
               claimedExpiryDate: item.claimedExpiryDate,
               expiresAt: item.expiresAt ? item.expiresAt.toISOString() : null,
+              validThroughDate: item.validThroughDate,
               isExpired: item.isExpired,
               isRemediable: item.isRemediable,
             }

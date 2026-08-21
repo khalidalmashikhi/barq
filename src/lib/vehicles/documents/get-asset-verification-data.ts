@@ -14,6 +14,7 @@ import { getVehicleVerificationSubmissionBlockers, type VehicleSubmissionBlocker
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
 import { isRequiredDocumentRemediable } from "./document-remediation";
 import { isDocumentExpired } from "@/lib/vehicles/document-expiry";
+import { omanValidThroughDateOfInstant } from "@/lib/date/oman-time";
 
 // VEHICLE-LC2 — the provider-private verification READ MODEL for one owned
 // vehicle. Ownership-scoped (foreign/missing → null). It answers the checklist +
@@ -34,6 +35,15 @@ export type VehicleVerificationChecklistItem = {
   claimedExpiryDate: string | null;
   /** TRUSTED expiry instant (admin-confirmed); the only value selectability/LC5 consult. */
   expiresAt: Date | null;
+  /**
+   * QA-D1 — the trusted expiry rendered as the Oman "valid through" DATE ("YYYY-MM-DD"),
+   * derived from the exclusive next-Oman-midnight `expiresAt` instant via the single
+   * authority omanValidThroughDateOfInstant. Present iff `expiresAt` is set. Display this,
+   * NOT the raw instant: a doc stored as 2027-05-31T20:00:00Z (Oman 2027-06-01 00:00) is
+   * valid THROUGH 2027-05-31 — formatting the instant directly would wrongly show June 1.
+   * Mirrors the admin read model's `trustedExpiryDate`, so both surfaces agree.
+   */
+  validThroughDate: string | null;
   /** VEHICLE-LC4 — derived (never stored): the trusted expiresAt has lapsed. */
   isExpired: boolean;
   /**
@@ -112,6 +122,7 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
       supportsExpiry: assetDocumentTypeSupportsExpiry(type),
       claimedExpiryDate: doc?.claimedExpiryDate ?? null,
       expiresAt: doc?.expiresAt ?? null,
+      validThroughDate: doc?.expiresAt ? omanValidThroughDateOfInstant(doc.expiresAt) : null,
       isExpired: isDocumentExpired(doc?.expiresAt ?? null, now),
       isRemediable: remediable,
       canUpload: editable && !doc,

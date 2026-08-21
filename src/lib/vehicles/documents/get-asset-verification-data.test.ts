@@ -87,7 +87,29 @@ describe("getVehicleVerificationData", () => {
     expect(reg.supportsExpiry).toBe(true);
     expect(reg.claimedExpiryDate).toBe("2027-05-31"); // advisory
     expect(reg.expiresAt).toBeNull(); // trusted — not written by the provider claim
+    expect(reg.validThroughDate).toBeNull(); // no trusted expiry ⇒ no valid-through date
     expect(reg.isExpired).toBe(false);
+  });
+
+  it("§QA-D1 — derives validThroughDate from the trusted expiry instant (the valid-through day, not the boundary day)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+    assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
+      verificationStatus: "APPROVED",
+      verificationSubmittedAt: null,
+      verificationReason: null,
+      documents: [
+        // Trusted instant = Oman 2027-06-01 00:00; the document is valid THROUGH 2027-05-31.
+        { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "APPROVED", rejectionReason: null, claimedExpiryDate: "2027-05-31", expiresAt: new Date("2027-05-31T20:00:00.000Z") },
+        { id: "doc-ins", type: "VEHICLE_INSURANCE", status: "APPROVED", rejectionReason: null, claimedExpiryDate: null, expiresAt: null },
+      ],
+    });
+    const data = await getVehicleVerificationData("asset-1");
+    const reg = byType(data, "VEHICLE_REGISTRATION");
+    expect(reg.validThroughDate).toBe("2027-05-31"); // NOT "2027-06-01"
+    expect(reg.expiresAt?.toISOString()).toBe("2027-05-31T20:00:00.000Z"); // raw trusted instant unchanged
+    // No trusted expiry ⇒ null valid-through (no fabricated date).
+    expect(byType(data, "VEHICLE_INSURANCE").validThroughDate).toBeNull();
   });
 
   it("builds the checklist with per-item capabilities for an editable DRAFT vehicle", async () => {

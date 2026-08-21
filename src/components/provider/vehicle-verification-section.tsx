@@ -75,13 +75,17 @@ export async function VehicleVerificationSection({
                   </p>
                 )}
 
-                {/* VEHICLE-LC4 — expiry is derived (never a stored status). Show the
-                    expiry date, and flag an expired document (which blocks the vehicle
-                    from being customer-eligible until the document is valid again). */}
-                {item.expiresAt && (
+                {/* VEHICLE-LC4 / QA-D1 — expiry is derived (never a stored status). Show the
+                    "valid through" business DATE (not the raw exclusive next-Oman-midnight
+                    instant, which would render one day late), and flag an expired document
+                    (which blocks the vehicle from being customer-eligible until valid again).
+                    validThroughDate is a plain "YYYY-MM-DD"; render at Oman midnight-UTC so
+                    localized formatting keeps that exact calendar day (00:00Z stays same day
+                    in Asia/Muscat), matching the admin surface. */}
+                {item.validThroughDate && (
                   <p className={`text-xs ${item.isExpired ? "text-danger" : "text-foreground/50"}`}>
                     <span className="font-medium">{t("vehicleDocExpiresLabel")}:</span>{" "}
-                    {formatDate(item.expiresAt, locale as Locale, { day: "numeric", month: "long", year: "numeric" })}
+                    {formatDate(new Date(`${item.validThroughDate}T00:00:00.000Z`), locale as Locale, { day: "numeric", month: "long", year: "numeric" })}
                     {item.isExpired && <> · {t("vehicleDocExpiredWarning")}</>}
                   </p>
                 )}
