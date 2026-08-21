@@ -12,6 +12,7 @@ import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-d
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
 import { isRequiredDocumentRemediable } from "./document-remediation";
 import { requiredAssetDocumentTypesFor } from "./asset-document-types";
+import { parseClaimedExpiryDate } from "./document-expiry-claim";
 import type { AssetDocumentErrorCode } from "./asset-document-errors";
 
 // VEHICLE-LC2 / LC5 — replace one of the caller's OWN vehicle documents with a new
@@ -33,6 +34,8 @@ export type ReplaceVehicleDocumentInput = {
   originalFilename: string;
   declaredMimeType: string;
   bytes: ArrayBuffer;
+  /** VEHICLE-LC6 — OPTIONAL provider-claimed expiry date ("YYYY-MM-DD", advisory). */
+  claimedExpiryDate?: string | null;
 };
 
 export type ReplaceVehicleDocumentResult = { ok: true } | { ok: false; error: AssetDocumentErrorCode };
@@ -76,6 +79,10 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
       });
   if (!allowed) return { ok: false, error: "LOCKED" };
 
+  // OPTIONAL provider-claimed expiry date — advisory only (never the trusted expiresAt).
+  const claim = parseClaimedExpiryDate(doc.type, input.claimedExpiryDate);
+  if (!claim.ok) return { ok: false, error: "INVALID_INPUT" };
+
   const validation = validateDocumentUpload({ declaredMimeType: input.declaredMimeType, sizeBytes: input.bytes.byteLength, head: new Uint8Array(input.bytes) });
   if (!validation.ok) return { ok: false, error: validation.error as AssetDocumentErrorCode };
   if (!isDocumentStorageConfigured()) return { ok: false, error: "STORAGE_NOT_CONFIGURED" };
@@ -102,6 +109,12 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
           originalFilename: sanitizeOriginalFilename(input.originalFilename),
           mimeType: validation.mimeType,
           sizeBytes: input.bytes.byteLength,
+          // VEHICLE-LC6 stale-trust safety: a replacement carries only the NEW advisory
+          // claim, and the OLD trusted expiry is CLEARED — the replacement has no
+          // authoritative expiry until an admin re-confirms it at approval. (Selectability
+          // already fails on the PENDING status; this keeps the data model unambiguous.)
+          claimedExpiryDate: claim.value,
+          expiresAt: null,
         },
       });
       if (updated.count === 0) throw new StaleReplacement();

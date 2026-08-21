@@ -130,3 +130,47 @@ export function omanDateKey(instant: Date): string {
 export function isOmanToday(instant: Date, now: Date = new Date()): boolean {
   return omanDateKey(instant) === omanDateKey(now);
 }
+
+const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * VEHICLE-LC6 — the trusted-expiry BOUNDARY for a document whose validity is
+ * stated as an Oman calendar DATE.
+ *
+ * A document "valid through 2027-05-31" stays valid for the WHOLE of that Oman
+ * day and expires at the FIRST instant of the following Oman day
+ * (2027-06-01 00:00 Asia/Muscat), returned as the UTC instant to store in
+ * AssetDocument.expiresAt. This composes with isDocumentExpired (expiresAt <= now):
+ * at 2027-05-31 23:59 Oman the document is still valid; at 2027-06-01 00:00 Oman
+ * it is expired. Returns null for a malformed/impossible date (e.g. 2027-02-30).
+ * Runtime-timezone-independent (delegates to omanLocalToUtc).
+ */
+export function omanValidThroughDateToExpiryInstant(ymd: string): Date | null {
+  const m = DATE_ONLY_RE.exec(ymd.trim());
+  if (!m) return null;
+  const Y = Number(m[1]);
+  const Mo = Number(m[2]);
+  const D = Number(m[3]);
+  // Reject a rolled-over/impossible date (Feb 30 → Mar 2 ⇒ getUTCDate() !== D).
+  const probe = new Date(Date.UTC(Y, Mo - 1, D));
+  if (probe.getUTCFullYear() !== Y || probe.getUTCMonth() !== Mo - 1 || probe.getUTCDate() !== D) return null;
+  // The exclusive end = the NEXT Oman calendar day at 00:00. Date.UTC rolls month /
+  // year boundaries over safely (Dec 31 → Jan 1, Feb 28 → Mar 1, etc.).
+  const next = new Date(Date.UTC(Y, Mo - 1, D + 1));
+  const y = next.getUTCFullYear();
+  const mo = String(next.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(next.getUTCDate()).padStart(2, "0");
+  return omanLocalToUtc(`${y}-${mo}-${d}T00:00`);
+}
+
+/**
+ * VEHICLE-LC6 — the inverse of {@link omanValidThroughDateToExpiryInstant}: the
+ * Oman "valid through" calendar date ("YYYY-MM-DD") for a stored trusted-expiry
+ * INSTANT. Because the instant is the exclusive next-Oman-midnight boundary, the
+ * last valid moment is one millisecond earlier, and its Oman calendar day is the
+ * valid-through date. Used to prefill the admin's date field from an existing
+ * expiresAt. Round-trips with the forward helper.
+ */
+export function omanValidThroughDateOfInstant(expiresAtExclusive: Date): string {
+  return omanDateKey(new Date(expiresAtExclusive.getTime() - 1));
+}

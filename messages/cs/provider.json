@@ -501,5 +501,8 @@
   "vehicleVerifyErrorInvalidState": "Toto vozidlo nelze v aktuálním stavu odeslat.",
   "vehicleDocExpiredWarning": "Platnost tohoto dokumentu vypršela.",
   "vehicleNotEligibleExpiredNote": "Toto vozidlo není momentálně k dispozici zákazníkům, protože platnost požadovaného dokumentu vypršela.",
-  "vehicleDocRenewHint": "Nahrajte platný náhradní dokument — před opětovnou dostupností vozidla jej znovu zkontroluje BARQ."
+  "vehicleDocRenewHint": "Nahrajte platný náhradní dokument — před opětovnou dostupností vozidla jej znovu zkontroluje BARQ.",
+  "vehicleDocClaimedExpiryLabel": "Uvedená platnost",
+  "vehicleDocClaimedExpiryPending": "čeká na ověření BARQ",
+  "vehicleDocClaimedExpiryHint": "Volitelně zadejte datum platnosti dokumentu. BARQ jej ověří, než začne platit."
 }

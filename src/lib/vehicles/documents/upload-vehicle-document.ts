@@ -12,6 +12,7 @@ import { validateDocumentUpload } from "@/lib/provider/documents/document-consta
 import { isValidAssetDocumentTypeKey } from "./asset-document-types";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
+import { parseClaimedExpiryDate } from "./document-expiry-claim";
 import type { AssetDocumentErrorCode } from "./asset-document-errors";
 
 // VEHICLE-LC2 — upload a NEW private verification document for one of the caller's
@@ -27,6 +28,8 @@ export type UploadVehicleDocumentInput = {
   originalFilename: string;
   declaredMimeType: string;
   bytes: ArrayBuffer;
+  /** VEHICLE-LC6 — OPTIONAL provider-claimed expiry date ("YYYY-MM-DD", advisory). */
+  claimedExpiryDate?: string | null;
 };
 
 export type UploadVehicleDocumentResult = { ok: true; documentId: string } | { ok: false; error: AssetDocumentErrorCode };
@@ -35,6 +38,9 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
   if (!isValidUuid(assetId)) return { ok: false, error: "INVALID_INPUT" };
   // Governed type only — a client can never invent an arbitrary document type.
   if (!isValidAssetDocumentTypeKey(input.type)) return { ok: false, error: "INVALID_INPUT" };
+  // OPTIONAL provider-claimed expiry date — advisory only (never the trusted expiresAt).
+  const claim = parseClaimedExpiryDate(input.type, input.claimedExpiryDate);
+  if (!claim.ok) return { ok: false, error: "INVALID_INPUT" };
 
   let provider;
   try {
@@ -91,6 +97,8 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
           mimeType: validation.mimeType,
           sizeBytes: input.bytes.byteLength,
           status: "PENDING",
+          // Advisory provider claim only; expiresAt (trusted) stays null until an admin confirms it.
+          claimedExpiryDate: claim.value,
         },
       });
       await recordAuditEvent(

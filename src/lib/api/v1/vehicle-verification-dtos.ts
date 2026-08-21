@@ -15,12 +15,17 @@ import type { VehicleVerificationData } from "@/lib/vehicles/documents/get-asset
 export type VehicleVerificationRequirementDTO = {
   key: string;
   required: boolean;
+  /** VEHICLE-LC6 — whether this requirement carries a meaningful expiry date (drives the claim field). */
+  supportsExpiry: boolean;
   document: {
     id: string;
     status: AssetDocumentStatus;
     rejectionReason: string | null;
+    /** VEHICLE-LC6 — the provider's ADVISORY claimed expiry date ("YYYY-MM-DD"); never trusted. */
+    claimedExpiryDate: string | null;
+    /** TRUSTED expiry instant (admin-confirmed), ISO-8601; the only value that affects eligibility. */
     expiresAt: string | null;
-    /** VEHICLE-LC4 — derived server-side (expiresAt has lapsed); clients need not recompute. */
+    /** VEHICLE-LC4 — derived server-side (trusted expiresAt has lapsed); clients need not recompute. */
     isExpired: boolean;
     /** VEHICLE-LC5 — derived server-side: this required doc may be replaced to remediate an expired approved doc. */
     isRemediable: boolean;
@@ -56,12 +61,14 @@ export function toVehicleVerificationApiDTO(vehicleId: string, data: VehicleVeri
     requirements: data.items.map((item) => ({
       key: item.type,
       required: item.required,
+      supportsExpiry: item.supportsExpiry,
       document:
         item.documentId && item.status
           ? {
               id: item.documentId,
               status: item.status,
               rejectionReason: item.rejectionReason,
+              claimedExpiryDate: item.claimedExpiryDate,
               expiresAt: item.expiresAt ? item.expiresAt.toISOString() : null,
               isExpired: item.isExpired,
               isRemediable: item.isRemediable,

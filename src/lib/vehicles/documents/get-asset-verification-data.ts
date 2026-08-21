@@ -6,6 +6,7 @@ import { isValidUuid } from "@/lib/uuid";
 import {
   requiredAssetDocumentTypesFor,
   ASSET_DOCUMENT_TYPE_LABEL_KEYS,
+  assetDocumentTypeSupportsExpiry,
   type AssetDocumentTypeKey,
   type AssetDocumentLabelKey,
 } from "./asset-document-types";
@@ -27,8 +28,13 @@ export type VehicleVerificationChecklistItem = {
   documentId: string | null;
   status: AssetDocumentStatus | null;
   rejectionReason: string | null;
+  /** VEHICLE-LC6 — whether this document type carries a meaningful expiry date. */
+  supportsExpiry: boolean;
+  /** VEHICLE-LC6 — the provider's ADVISORY claimed expiry date ("YYYY-MM-DD"); never trusted. */
+  claimedExpiryDate: string | null;
+  /** TRUSTED expiry instant (admin-confirmed); the only value selectability/LC5 consult. */
   expiresAt: Date | null;
-  /** VEHICLE-LC4 — derived (never stored): the document's expiresAt has lapsed. */
+  /** VEHICLE-LC4 — derived (never stored): the trusted expiresAt has lapsed. */
   isExpired: boolean;
   /**
    * VEHICLE-LC5 — derived (never stored): this required document may be self-remediated
@@ -70,7 +76,7 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
       verificationSubmittedAt: true,
       verificationReason: true,
       // Deliberately NO objectKey.
-      documents: { select: { id: true, type: true, status: true, rejectionReason: true, expiresAt: true } },
+      documents: { select: { id: true, type: true, status: true, rejectionReason: true, claimedExpiryDate: true, expiresAt: true } },
     },
   });
   if (!asset) return null;
@@ -103,6 +109,8 @@ export async function getVehicleVerificationData(assetId: string): Promise<Vehic
       documentId: doc?.id ?? null,
       status: doc?.status ?? null,
       rejectionReason: doc?.rejectionReason ?? null,
+      supportsExpiry: assetDocumentTypeSupportsExpiry(type),
+      claimedExpiryDate: doc?.claimedExpiryDate ?? null,
       expiresAt: doc?.expiresAt ?? null,
       isExpired: isDocumentExpired(doc?.expiresAt ?? null, now),
       isRemediable: remediable,

@@ -501,5 +501,8 @@
   "vehicleVerifyErrorInvalidState": "This vehicle can't be submitted in its current state.",
   "vehicleDocExpiredWarning": "This document has expired.",
   "vehicleNotEligibleExpiredNote": "This vehicle isn't currently available to customers because a required document has expired.",
-  "vehicleDocRenewHint": "Upload a valid replacement — it returns to BARQ review before your vehicle is available again."
+  "vehicleDocRenewHint": "Upload a valid replacement — it returns to BARQ review before your vehicle is available again.",
+  "vehicleDocClaimedExpiryLabel": "Claimed expiry",
+  "vehicleDocClaimedExpiryPending": "pending BARQ verification",
+  "vehicleDocClaimedExpiryHint": "Optionally enter the document's expiry date. BARQ verifies it before it takes effect."
 }

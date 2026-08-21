@@ -29,11 +29,13 @@ export async function POST(request: Request, ctx: { params: Promise<{ vehicleId:
       if (typeof type !== "string") return NextResponse.redirect(dest("?docError=INVALID_INPUT"), 303);
       if (!(file instanceof File) || file.size === 0) return NextResponse.redirect(dest("?docError=EMPTY_FILE"), 303);
 
+      const claimedExpiryDate = formData.get("claimedExpiryDate");
       const result = await uploadVehicleDocument(vehicleId, {
         type,
         originalFilename: file.name,
         declaredMimeType: file.type,
         bytes: await file.arrayBuffer(),
+        claimedExpiryDate: typeof claimedExpiryDate === "string" ? claimedExpiryDate : null,
       });
       return NextResponse.redirect(dest(result.ok ? "?docNotice=uploaded" : `?docError=${result.error}`), 303);
     } catch (error) {

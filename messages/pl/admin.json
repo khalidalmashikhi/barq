@@ -669,5 +669,9 @@
   "vehicleReviewErrorNotReady": "Uzupełnij wymagane dokumenty przed zatwierdzeniem.",
   "vehicleReviewErrorUnknown": "Coś poszło nie tak. Spróbuj ponownie.",
   "vehicleReviewKindRemediation": "Ponowna weryfikacja dokumentu",
-  "vehicleRemediationReviewNote": "Ten pojazd jest już zatwierdzony. Odnowiony wymagany dokument oczekuje na Twoją weryfikację; jego zatwierdzenie przywraca kwalifikowalność pojazdu bez pełnej ponownej weryfikacji."
+  "vehicleRemediationReviewNote": "Ten pojazd jest już zatwierdzony. Odnowiony wymagany dokument oczekuje na Twoją weryfikację; jego zatwierdzenie przywraca kwalifikowalność pojazdu bez pełnej ponownej weryfikacji.",
+  "documentClaimedExpiryLabel": "Data ważności podana przez dostawcę",
+  "documentTrustedExpiryLabel": "Potwierdzona data ważności",
+  "documentConfirmExpiryLabel": "Potwierdź datę ważności",
+  "documentConfirmExpiryHint": "Ta data potwierdzona przez administratora staje się wiążącą datą ważności dokumentu (ważny do końca tego dnia). Pozostaw puste, aby brak daty ważności."
 }

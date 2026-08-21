@@ -669,5 +669,9 @@
   "vehicleReviewErrorNotReady": "Complétez les documents requis avant d'approuver.",
   "vehicleReviewErrorUnknown": "Une erreur s'est produite. Veuillez réessayer.",
   "vehicleReviewKindRemediation": "Réexamen de document",
-  "vehicleRemediationReviewNote": "Ce véhicule est déjà approuvé. Un document requis renouvelé attend votre examen ; son approbation rétablit l'éligibilité du véhicule sans nouvelle vérification complète."
+  "vehicleRemediationReviewNote": "Ce véhicule est déjà approuvé. Un document requis renouvelé attend votre examen ; son approbation rétablit l'éligibilité du véhicule sans nouvelle vérification complète.",
+  "documentClaimedExpiryLabel": "Expiration déclarée par le prestataire",
+  "documentTrustedExpiryLabel": "Expiration confirmée",
+  "documentConfirmExpiryLabel": "Confirmer la date d'expiration",
+  "documentConfirmExpiryHint": "Cette date confirmée par l'administrateur devient l'expiration officielle du document (valable jusqu'à ce jour). Laissez vide pour aucune expiration."
 }

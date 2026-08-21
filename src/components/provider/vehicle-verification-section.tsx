@@ -86,6 +86,15 @@ export async function VehicleVerificationSection({
                   </p>
                 )}
 
+                {/* VEHICLE-LC6 — the provider's ADVISORY claimed expiry, shown while it is
+                    not yet the trusted value (an admin confirms it at approval). */}
+                {item.supportsExpiry && item.claimedExpiryDate && item.status !== "APPROVED" && (
+                  <p className="text-xs text-foreground/50">
+                    <span className="font-medium">{t("vehicleDocClaimedExpiryLabel")}:</span> {item.claimedExpiryDate}{" "}
+                    · {t("vehicleDocClaimedExpiryPending")}
+                  </p>
+                )}
+
                 {/* VEHICLE-LC5 — an already-approved vehicle whose required document has
                     expired (or whose renewal was rejected) may replace JUST that document;
                     it returns to BARQ review before the vehicle is customer-eligible again. */}
@@ -115,6 +124,14 @@ export async function VehicleVerificationSection({
                         aria-label={t("vehicleDocUploadButton")}
                         className="text-xs file:mr-2 file:rounded-full file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-xs file:font-medium"
                       />
+                      {item.supportsExpiry && (
+                        <input
+                          type="date"
+                          name="claimedExpiryDate"
+                          aria-label={t("vehicleDocClaimedExpiryLabel")}
+                          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                        />
+                      )}
                       <button
                         type="submit"
                         className="inline-flex min-h-9 items-center rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
@@ -140,6 +157,15 @@ export async function VehicleVerificationSection({
                         aria-label={t("vehicleDocReplaceButton")}
                         className="text-xs file:mr-2 file:rounded-full file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-xs file:font-medium"
                       />
+                      {item.supportsExpiry && (
+                        <input
+                          type="date"
+                          name="claimedExpiryDate"
+                          defaultValue={item.claimedExpiryDate ?? ""}
+                          aria-label={t("vehicleDocClaimedExpiryLabel")}
+                          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                        />
+                      )}
                       <button
                         type="submit"
                         className="inline-flex min-h-9 items-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground hover:bg-foreground/5"
@@ -163,6 +189,9 @@ export async function VehicleVerificationSection({
                 </div>
 
                 {item.canUpload && <p className="text-[11px] text-foreground/40">{t("vehicleDocFileHint")}</p>}
+                {item.supportsExpiry && (item.canUpload || item.canReplace) && (
+                  <p className="text-[11px] text-foreground/40">{t("vehicleDocClaimedExpiryHint")}</p>
+                )}
               </li>
             ))}
           </ul>

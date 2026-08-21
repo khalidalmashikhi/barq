@@ -749,10 +749,17 @@ model AssetDocument {
   reviewedAt        DateTime?           @db.Timestamptz(6)
   reviewedByAdminId String?             @db.Uuid
   reviewedByAdmin   Admin?              @relation("AssetDocumentReviewedBy", fields: [reviewedByAdminId], references: [id])
-  /// Optional expiry (e.g. insurance). Selectability is COMPUTED against this — an
-  /// expired required document makes the asset non-selectable WITHOUT rewriting the
-  /// stored verification approval (no cron, no status churn).
+  /// TRUSTED expiry instant (e.g. insurance). Selectability is COMPUTED against this
+  /// — an expired required document makes the asset non-selectable WITHOUT rewriting
+  /// the stored verification approval (no cron, no status churn). VEHICLE-LC6: written
+  /// ONLY by an admin at approval, from a confirmed Oman "valid-through" date; a
+  /// provider can never write it directly.
   expiresAt         DateTime?           @db.Timestamptz(6)
+  /// VEHICLE-LC6 — the provider-CLAIMED expiry date ("YYYY-MM-DD", Oman calendar),
+  /// ADVISORY only. Never consumed by isDocumentExpired / selectability / LC4 / LC5;
+  /// it exists so an admin can see (and correct) what the provider stated before
+  /// confirming it into the trusted `expiresAt`. Nullable / additive / legacy-safe.
+  claimedExpiryDate String?
   createdAt         DateTime            @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
 

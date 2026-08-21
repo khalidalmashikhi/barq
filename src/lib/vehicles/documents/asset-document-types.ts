@@ -42,3 +42,16 @@ const REQUIRED_BY_ASSET_TYPE: Record<AssetType, readonly AssetDocumentTypeKey[]>
 export function requiredAssetDocumentTypesFor(assetType: AssetType): AssetDocumentTypeKey[] {
   return [...(REQUIRED_BY_ASSET_TYPE[assetType] ?? [])];
 }
+
+// VEHICLE-LC6 — the CODE-OWNED policy for which document types carry a meaningful
+// EXPIRY date (a provider may claim one; an admin confirms it into the trusted
+// AssetDocument.expiresAt at approval). Centralized here — the single place the UI,
+// routes, provider claim, and admin confirmation consult — so the "does this type
+// expire?" decision is never scattered as ad-hoc per-type checks. A type NOT in this
+// set never captures or requires an expiry (its trusted expiresAt stays null).
+// Registration and insurance both lapse in Oman; both expire.
+const EXPIRING_ASSET_DOCUMENT_TYPES = new Set<AssetDocumentTypeKey>(["VEHICLE_REGISTRATION", "VEHICLE_INSURANCE"]);
+
+export function assetDocumentTypeSupportsExpiry(type: string): boolean {
+  return isValidAssetDocumentTypeKey(type) && EXPIRING_ASSET_DOCUMENT_TYPES.has(type);
+}

@@ -22,10 +22,12 @@ export async function POST(request: Request, ctx: { params: Promise<{ vehicleId:
       const file = formData.get("file");
       if (!(file instanceof File) || file.size === 0) return NextResponse.redirect(dest("?docError=EMPTY_FILE"), 303);
 
+      const claimedExpiryDate = formData.get("claimedExpiryDate");
       const result = await replaceVehicleDocument(vehicleId, docId, {
         originalFilename: file.name,
         declaredMimeType: file.type,
         bytes: await file.arrayBuffer(),
+        claimedExpiryDate: typeof claimedExpiryDate === "string" ? claimedExpiryDate : null,
       });
       return NextResponse.redirect(dest(result.ok ? "?docNotice=replaced" : `?docError=${result.error}`), 303);
     } catch (error) {

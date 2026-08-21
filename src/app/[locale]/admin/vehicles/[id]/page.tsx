@@ -250,6 +250,18 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                       </div>
                     )}
 
+                    {/* VEHICLE-LC6 — the provider's ADVISORY claimed expiry (never trusted). */}
+                    {doc.supportsExpiry && doc.claimedExpiryDate && (
+                      <p className="mt-2 text-xs text-foreground/50">
+                        <span className="font-medium">{t("documentClaimedExpiryLabel")}:</span> {doc.claimedExpiryDate}
+                      </p>
+                    )}
+                    {doc.supportsExpiry && doc.trustedExpiryDate && (
+                      <p className="mt-0.5 text-xs text-foreground/50">
+                        <span className="font-medium">{t("documentTrustedExpiryLabel")}:</span> {doc.trustedExpiryDate}
+                      </p>
+                    )}
+
                     <div className="mt-3 flex flex-wrap items-start gap-3">
                       <a
                         href={`/api/provider/vehicles/${id}/documents/${doc.id}/view`}
@@ -261,14 +273,35 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                         {t("documentViewButton")}
                       </a>
 
+                      {/* Approve — for an expiring type the admin CONFIRMS the trusted
+                          date (prefilled from the claim / any existing trusted value)
+                          before approval writes AssetDocument.expiresAt. */}
                       {doc.status === "PENDING" && (
                         <form
-                          action={async () => {
+                          action={async (formData: FormData) => {
                             "use server";
-                            const result = await reviewVehicleDocument({ documentId: doc.id, expectedVersionToken: doc.versionToken, decision: "APPROVE" });
+                            const confirmed = formData.get("confirmedExpiryDate");
+                            const result = await reviewVehicleDocument({
+                              documentId: doc.id,
+                              expectedVersionToken: doc.versionToken,
+                              decision: "APPROVE",
+                              confirmedExpiryDate: typeof confirmed === "string" ? confirmed : null,
+                            });
                             redirect({ href: result.ok ? `/admin/vehicles/${id}?docNotice=1` : `/admin/vehicles/${id}?docError=${result.error}`, locale });
                           }}
+                          className="flex flex-wrap items-end gap-2"
                         >
+                          {doc.supportsExpiry && (
+                            <label className="flex flex-col gap-1 text-xs font-medium text-foreground/50">
+                              {t("documentConfirmExpiryLabel")}
+                              <input
+                                type="date"
+                                name="confirmedExpiryDate"
+                                defaultValue={doc.trustedExpiryDate ?? doc.claimedExpiryDate ?? ""}
+                                className="rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              />
+                            </label>
+                          )}
                           <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
                             <Check size={14} strokeWidth={1.75} />
                             {t("documentApproveButton")}
@@ -276,6 +309,10 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                         </form>
                       )}
                     </div>
+
+                    {doc.status === "PENDING" && doc.supportsExpiry && (
+                      <p className="mt-1 text-[11px] text-foreground/40">{t("documentConfirmExpiryHint")}</p>
+                    )}
 
                     {doc.status === "PENDING" && (
                       <form

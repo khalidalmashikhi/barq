@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { omanLocalToUtc, utcToOmanDatetimeLocal, omanDateKey, isOmanToday } from "./oman-time";
+import {
+  omanLocalToUtc,
+  utcToOmanDatetimeLocal,
+  omanDateKey,
+  isOmanToday,
+  omanValidThroughDateToExpiryInstant,
+  omanValidThroughDateOfInstant,
+} from "./oman-time";
 
 // These assertions are FIXED UTC values. Asia/Muscat is UTC+04:00 (no DST), so an
 // Oman wall-clock of 09:00 is 05:00Z. The assertions therefore hold regardless of
@@ -70,5 +77,45 @@ describe("omanDateKey / isOmanToday — Oman calendar day (req. 4)", () => {
     const differentOmanDay = new Date("2026-08-20T19:59:00.000Z"); // Oman Aug 20 23:59
     expect(isOmanToday(sameOmanDay, now)).toBe(true);
     expect(isOmanToday(differentOmanDay, now)).toBe(false);
+  });
+});
+
+// VEHICLE-LC6 — a "valid through" Oman calendar date maps to the EXCLUSIVE next-Oman-
+// midnight instant (UTC). Asia/Muscat = UTC+04:00, so Oman 2027-06-01 00:00 = 2027-05-
+// 31 20:00Z. Fixed-UTC expectations are themselves the runtime-timezone-independence
+// proof (§5 date semantics, deterministic UTC conversion).
+describe("omanValidThroughDateToExpiryInstant — trusted expiry boundary", () => {
+  it("valid THROUGH 2027-05-31 ⇒ expires at Oman 2027-06-01 00:00 = 2027-05-31T20:00:00Z", () => {
+    expect(omanValidThroughDateToExpiryInstant("2027-05-31")!.toISOString()).toBe("2027-05-31T20:00:00.000Z");
+  });
+
+  it("the document is still valid the whole stated day, expired at the boundary instant", () => {
+    const expiry = omanValidThroughDateToExpiryInstant("2027-05-31")!;
+    const lastValidOmanMoment = new Date("2027-05-31T19:59:59.999Z"); // 2027-05-31 23:59:59.999 Oman
+    expect(lastValidOmanMoment.getTime() < expiry.getTime()).toBe(true); // still valid
+    expect(expiry.getTime() <= expiry.getTime()).toBe(true); // isDocumentExpired uses <= now ⇒ expired AT the boundary
+  });
+
+  it("rolls month/year boundaries over correctly (Dec 31 → next Jan 1 Oman midnight)", () => {
+    expect(omanValidThroughDateToExpiryInstant("2027-12-31")!.toISOString()).toBe("2027-12-31T20:00:00.000Z");
+  });
+
+  it("handles a leap day (2028-02-29 valid-through ⇒ Mar 1 Oman midnight)", () => {
+    expect(omanValidThroughDateToExpiryInstant("2028-02-29")!.toISOString()).toBe("2028-02-29T20:00:00.000Z");
+  });
+
+  it("rejects malformed / impossible dates", () => {
+    expect(omanValidThroughDateToExpiryInstant("2027-13-01")).toBeNull();
+    expect(omanValidThroughDateToExpiryInstant("2027-02-30")).toBeNull();
+    expect(omanValidThroughDateToExpiryInstant("2027-5-31")).toBeNull();
+    expect(omanValidThroughDateToExpiryInstant("not-a-date")).toBeNull();
+    expect(omanValidThroughDateToExpiryInstant("")).toBeNull();
+  });
+
+  it("round-trips through omanValidThroughDateOfInstant (instant → valid-through date)", () => {
+    for (const d of ["2027-05-31", "2027-12-31", "2028-02-29", "2027-01-01"]) {
+      const instant = omanValidThroughDateToExpiryInstant(d)!;
+      expect(omanValidThroughDateOfInstant(instant)).toBe(d);
+    }
   });
 });

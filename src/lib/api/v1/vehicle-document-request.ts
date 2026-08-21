@@ -17,6 +17,8 @@ export type ParsedVehicleDocumentUpload =
       type: string | null;
       /** The uploaded binary, or null if no non-empty `file` part was present. */
       file: { originalFilename: string; declaredMimeType: string; bytes: ArrayBuffer } | null;
+      /** VEHICLE-LC6 — OPTIONAL provider-claimed expiry date ("YYYY-MM-DD"); validated by the domain. */
+      claimedExpiryDate: string | null;
     };
 
 export async function parseVehicleDocumentUpload(request: Request): Promise<ParsedVehicleDocumentUpload> {
@@ -36,5 +38,8 @@ export async function parseVehicleDocumentUpload(request: Request): Promise<Pars
       ? { originalFilename: fileRaw.name, declaredMimeType: fileRaw.type, bytes: await fileRaw.arrayBuffer() }
       : null;
 
-  return { ok: true, type, file };
+  const claimRaw = formData.get("claimedExpiryDate");
+  const claimedExpiryDate = typeof claimRaw === "string" && claimRaw.length > 0 ? claimRaw : null;
+
+  return { ok: true, type, file, claimedExpiryDate };
 }

@@ -669,5 +669,9 @@
   "vehicleReviewErrorNotReady": "Completa i documenti richiesti prima di approvare.",
   "vehicleReviewErrorUnknown": "Qualcosa è andato storto. Riprova.",
   "vehicleReviewKindRemediation": "Riesame documento",
-  "vehicleRemediationReviewNote": "Questo veicolo è già approvato. Un documento obbligatorio rinnovato è in attesa della tua revisione; approvarlo ripristina l'idoneità del veicolo senza una nuova verifica completa."
+  "vehicleRemediationReviewNote": "Questo veicolo è già approvato. Un documento obbligatorio rinnovato è in attesa della tua revisione; approvarlo ripristina l'idoneità del veicolo senza una nuova verifica completa.",
+  "documentClaimedExpiryLabel": "Scadenza dichiarata dal fornitore",
+  "documentTrustedExpiryLabel": "Scadenza confermata",
+  "documentConfirmExpiryLabel": "Conferma data di scadenza",
+  "documentConfirmExpiryHint": "Questa data confermata dall'amministratore diventa la scadenza autorevole del documento (valida fino a quel giorno). Lascia vuoto per nessuna scadenza."
 }

@@ -11,8 +11,8 @@ const data: VehicleVerificationData = {
   submissionBlockers: [{ type: "VEHICLE_INSURANCE", reason: "MISSING" }],
   verificationReason: "Registration is blurry",
   items: [
-    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, documentId: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: new Date("2027-01-01T00:00:00.000Z"), isExpired: false, isRemediable: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
-    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
+    { type: "VEHICLE_REGISTRATION", labelKey: "assetDocumentTypeVehicleRegistration", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: new Date("2027-01-01T00:00:00.000Z"), isExpired: false, isRemediable: false, canUpload: false, canReplace: true, canDelete: true, canView: true },
+    { type: "VEHICLE_INSURANCE", labelKey: "assetDocumentTypeVehicleInsurance", required: true, supportsExpiry: true, claimedExpiryDate: null, documentId: null, status: null, rejectionReason: null, expiresAt: null, isExpired: false, isRemediable: false, canUpload: true, canReplace: false, canDelete: false, canView: false },
   ],
 };
 
@@ -31,7 +31,9 @@ describe("toVehicleVerificationApiDTO", () => {
     const dto = toVehicleVerificationApiDTO("veh-1", data);
     const reg = dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!;
     expect(reg.required).toBe(true);
-    expect(reg.document).toEqual({ id: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", expiresAt: "2027-01-01T00:00:00.000Z", isExpired: false, isRemediable: false });
+    expect(reg.document).toEqual({ id: "doc-reg", status: "REJECTED", rejectionReason: "Unreadable", claimedExpiryDate: null, expiresAt: "2027-01-01T00:00:00.000Z", isExpired: false, isRemediable: false });
+    expect(reg.required).toBe(true);
+    expect(reg.supportsExpiry).toBe(true); // LC6 — requirement-level expiry policy
     expect(reg.capabilities).toEqual({ canUpload: false, canReplace: true, canDelete: true, canView: true });
   });
 
@@ -57,6 +59,15 @@ describe("toVehicleVerificationApiDTO", () => {
     const remediable = { ...data, items: data.items.map((i) => (i.documentId ? { ...i, isRemediable: true } : i)) };
     const dto = toVehicleVerificationApiDTO("veh-1", remediable);
     expect(dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!.document!.isRemediable).toBe(true);
+  });
+
+  it("§LC6 — surfaces the provider-claimed expiry date (advisory) + requirement supportsExpiry, distinct from trusted expiresAt", () => {
+    const claimed = { ...data, items: data.items.map((i) => (i.documentId ? { ...i, claimedExpiryDate: "2027-05-31" } : i)) };
+    const dto = toVehicleVerificationApiDTO("veh-1", claimed);
+    const reg = dto.requirements.find((r) => r.key === "VEHICLE_REGISTRATION")!;
+    expect(reg.supportsExpiry).toBe(true);
+    expect(reg.document!.claimedExpiryDate).toBe("2027-05-31"); // advisory
+    expect(reg.document!.expiresAt).toBe("2027-01-01T00:00:00.000Z"); // trusted (unchanged by the claim)
   });
 
   it("NEVER serializes objectKey, reviewedByAdminId, bucket, or a labelKey", () => {

@@ -97,6 +97,51 @@ describe("reviewVehicleDocument", () => {
     expect(recordAuditEventMock).not.toHaveBeenCalled();
   });
 
+  // VEHICLE-LC6 — admin approval is the SOLE writer of the trusted expiresAt.
+  describe("LC6 trusted expiry capture", () => {
+    it("APPROVE with a confirmed date writes the trusted expiresAt (next Oman midnight) + audits a safe instant", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-9" } });
+      findUniqueMock.mockResolvedValue(ownedDoc());
+      txUpdateManyMock.mockResolvedValue({ count: 1 });
+      const result = await reviewVehicleDocument({ documentId: "doc-1", expectedVersionToken: TOKEN, decision: "APPROVE", confirmedExpiryDate: "2027-05-31" });
+      expect(result).toEqual({ ok: true });
+      const data = txUpdateManyMock.mock.calls[0]![0].data;
+      expect((data.expiresAt as Date).toISOString()).toBe("2027-05-31T20:00:00.000Z"); // Oman 2027-06-01 00:00
+      expect(recordAuditEventMock.mock.calls[0]![0].newValue).toMatchObject({ status: "APPROVED", expiresAt: "2027-05-31T20:00:00.000Z" });
+    });
+
+    it("APPROVE with NO confirmed date clears/leaves the trusted expiry null", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-9" } });
+      findUniqueMock.mockResolvedValue(ownedDoc());
+      txUpdateManyMock.mockResolvedValue({ count: 1 });
+      await reviewVehicleDocument({ documentId: "doc-1", expectedVersionToken: TOKEN, decision: "APPROVE" });
+      expect(txUpdateManyMock.mock.calls[0]![0].data.expiresAt).toBeNull();
+    });
+
+    it("APPROVE ignores a confirmed date for a NON-expiring document type (expiresAt stays null)", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-9" } });
+      findUniqueMock.mockResolvedValue(ownedDoc({ type: "SOME_OTHER_DOC" }));
+      txUpdateManyMock.mockResolvedValue({ count: 1 });
+      await reviewVehicleDocument({ documentId: "doc-1", expectedVersionToken: TOKEN, decision: "APPROVE", confirmedExpiryDate: "2027-05-31" });
+      expect(txUpdateManyMock.mock.calls[0]![0].data.expiresAt).toBeNull();
+    });
+
+    it("APPROVE with a MALFORMED confirmed date fails the whole approval (INVALID_INPUT, no write)", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-9" } });
+      findUniqueMock.mockResolvedValue(ownedDoc());
+      expect(await reviewVehicleDocument({ documentId: "doc-1", expectedVersionToken: TOKEN, decision: "APPROVE", confirmedExpiryDate: "2027-02-30" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(txUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("REJECT NEVER establishes a trusted expiry (no expiresAt in the write) even if a date is passed", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-9" } });
+      findUniqueMock.mockResolvedValue(ownedDoc());
+      txUpdateManyMock.mockResolvedValue({ count: 1 });
+      await reviewVehicleDocument({ documentId: "doc-1", expectedVersionToken: TOKEN, decision: "REJECT", reason: "Blurry", confirmedExpiryDate: "2027-05-31" });
+      expect(txUpdateManyMock.mock.calls[0]![0].data).not.toHaveProperty("expiresAt");
+    });
+  });
+
   it("maps a non-admin (ForbiddenError) to NO_ADMIN_PROFILE", async () => {
     const { ForbiddenError } = await import("@/lib/auth");
     requireAdminMock.mockRejectedValue(new (ForbiddenError as new () => Error)());

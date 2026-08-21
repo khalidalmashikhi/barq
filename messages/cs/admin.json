@@ -669,5 +669,9 @@
   "vehicleReviewErrorNotReady": "Před schválením doplňte požadované dokumenty.",
   "vehicleReviewErrorUnknown": "Něco se pokazilo. Zkuste to znovu.",
   "vehicleReviewKindRemediation": "Opětovná kontrola dokumentu",
-  "vehicleRemediationReviewNote": "Toto vozidlo je již schváleno. Obnovený povinný dokument čeká na vaši kontrolu; jeho schválení obnoví způsobilost vozidla bez úplného opětovného ověření."
+  "vehicleRemediationReviewNote": "Toto vozidlo je již schváleno. Obnovený povinný dokument čeká na vaši kontrolu; jeho schválení obnoví způsobilost vozidla bez úplného opětovného ověření.",
+  "documentClaimedExpiryLabel": "Platnost uvedená poskytovatelem",
+  "documentTrustedExpiryLabel": "Potvrzená platnost",
+  "documentConfirmExpiryLabel": "Potvrďte datum platnosti",
+  "documentConfirmExpiryHint": "Toto datum potvrzené administrátorem se stává závaznou platností dokumentu (platí do konce daného dne). Ponechte prázdné, pokud platnost není."
 }

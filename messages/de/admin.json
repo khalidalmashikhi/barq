@@ -669,5 +669,9 @@
   "vehicleReviewErrorNotReady": "Vervollständigen Sie die erforderlichen Dokumente vor der Genehmigung.",
   "vehicleReviewErrorUnknown": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
   "vehicleReviewKindRemediation": "Dokument-Nachprüfung",
-  "vehicleRemediationReviewNote": "Dieses Fahrzeug ist bereits genehmigt. Ein erneuertes Pflichtdokument wartet auf Ihre Prüfung; die Genehmigung stellt die Eignung des Fahrzeugs ohne vollständige Neuprüfung wieder her."
+  "vehicleRemediationReviewNote": "Dieses Fahrzeug ist bereits genehmigt. Ein erneuertes Pflichtdokument wartet auf Ihre Prüfung; die Genehmigung stellt die Eignung des Fahrzeugs ohne vollständige Neuprüfung wieder her.",
+  "documentClaimedExpiryLabel": "Vom Anbieter angegebenes Ablaufdatum",
+  "documentTrustedExpiryLabel": "Bestätigtes Ablaufdatum",
+  "documentConfirmExpiryLabel": "Ablaufdatum bestätigen",
+  "documentConfirmExpiryHint": "Dieses vom Administrator bestätigte Datum wird zum maßgeblichen Ablaufdatum des Dokuments (gültig bis zum Ende dieses Tages). Für kein Ablaufdatum leer lassen."
 }

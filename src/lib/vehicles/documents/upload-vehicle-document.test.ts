@@ -66,12 +66,27 @@ afterEach(() => {
 });
 
 describe("uploadVehicleDocument", () => {
+  it("VEHICLE-LC6 — stores a valid provider CLAIM but NEVER writes the trusted expiresAt", async () => {
+    happy();
+    expect(await uploadVehicleDocument("asset-1", { ...INPUT, claimedExpiryDate: "2027-05-31" })).toEqual({ ok: true, documentId: "doc-1" });
+    const data = txDocCreateMock.mock.calls[0]![0].data;
+    expect(data.claimedExpiryDate).toBe("2027-05-31"); // advisory claim stored
+    expect(data).not.toHaveProperty("expiresAt"); // provider can NEVER set the trusted value
+  });
+
+  it("VEHICLE-LC6 — rejects a malformed claim as INVALID_INPUT before any storage/DB write", async () => {
+    happy();
+    expect(await uploadVehicleDocument("asset-1", { ...INPUT, claimedExpiryDate: "2027-02-30" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+    expect(txDocCreateMock).not.toHaveBeenCalled();
+  });
+
   it("uploads a PENDING doc for an owned editable vehicle and audits type+status only", async () => {
     happy();
     const result = await uploadVehicleDocument("asset-1", INPUT);
     expect(result).toEqual({ ok: true, documentId: "doc-1" });
     expect(uploadPrivateObjectMock).toHaveBeenCalledOnce();
-    expect(txDocCreateMock).toHaveBeenCalledWith({ data: expect.objectContaining({ assetId: "asset-1", type: "VEHICLE_REGISTRATION", status: "PENDING" }) });
+    expect(txDocCreateMock).toHaveBeenCalledWith({ data: expect.objectContaining({ assetId: "asset-1", type: "VEHICLE_REGISTRATION", status: "PENDING", claimedExpiryDate: null }) });
     const audit = recordAuditEventMock.mock.calls[0]![0];
     expect(audit).toMatchObject({ action: "vehicle.document_uploaded", entityType: "Vehicle", entityId: "asset-1", newValue: { type: "VEHICLE_REGISTRATION", status: "PENDING" } });
     // Privacy: audit never carries the objectKey, filename, or file bytes.

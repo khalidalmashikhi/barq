@@ -7,8 +7,10 @@ import { documentVersionToken } from "@/lib/provider/documents/document-version-
 import {
   requiredAssetDocumentTypesFor,
   ASSET_DOCUMENT_TYPE_LABEL_KEYS,
+  assetDocumentTypeSupportsExpiry,
   type AssetDocumentLabelKey,
 } from "@/lib/vehicles/documents/asset-document-types";
+import { omanValidThroughDateOfInstant } from "@/lib/date/oman-time";
 import {
   getVehicleVerificationApprovalBlockers,
   type VehicleApprovalBlocker,
@@ -25,7 +27,14 @@ export type AdminVehicleReviewDocument = {
   id: string;
   status: AssetDocumentStatus;
   rejectionReason: string | null;
+  /** VEHICLE-LC6 — whether this document type carries a meaningful expiry date. */
+  supportsExpiry: boolean;
+  /** VEHICLE-LC6 — the provider's ADVISORY claimed expiry date ("YYYY-MM-DD") to verify. */
+  claimedExpiryDate: string | null;
+  /** TRUSTED expiry instant (admin-confirmed), if already set. */
   expiresAt: Date | null;
+  /** VEHICLE-LC6 — the trusted expiry rendered as the Oman "valid through" date, to prefill the field. */
+  trustedExpiryDate: string | null;
   originalFilename: string;
   mimeType: string;
   sizeBytes: number;
@@ -94,6 +103,7 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
           type: true,
           status: true,
           rejectionReason: true,
+          claimedExpiryDate: true,
           expiresAt: true,
           originalFilename: true,
           mimeType: true,
@@ -111,7 +121,10 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
     id: d.id,
     status: d.status,
     rejectionReason: d.rejectionReason,
+    supportsExpiry: assetDocumentTypeSupportsExpiry(d.type),
+    claimedExpiryDate: d.claimedExpiryDate,
     expiresAt: d.expiresAt,
+    trustedExpiryDate: d.expiresAt ? omanValidThroughDateOfInstant(d.expiresAt) : null,
     originalFilename: d.originalFilename,
     mimeType: d.mimeType,
     sizeBytes: d.sizeBytes,

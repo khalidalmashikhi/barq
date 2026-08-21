@@ -71,6 +71,25 @@ describe("getVehicleVerificationData", () => {
     expect(ins).toMatchObject({ isExpired: false, isRemediable: false, canReplace: false, canUpload: false, canDelete: false });
   });
 
+  it("§LC6 — surfaces supportsExpiry + the provider's advisory claimedExpiryDate (distinct from trusted expiresAt)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+    assetFindFirstMock.mockResolvedValue({
+      status: "REGISTERED",
+      verificationStatus: "DRAFT",
+      verificationSubmittedAt: null,
+      verificationReason: null,
+      documents: [
+        { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "PENDING", rejectionReason: null, claimedExpiryDate: "2027-05-31", expiresAt: null },
+      ],
+    });
+    const data = await getVehicleVerificationData("asset-1");
+    const reg = byType(data, "VEHICLE_REGISTRATION");
+    expect(reg.supportsExpiry).toBe(true);
+    expect(reg.claimedExpiryDate).toBe("2027-05-31"); // advisory
+    expect(reg.expiresAt).toBeNull(); // trusted — not written by the provider claim
+    expect(reg.isExpired).toBe(false);
+  });
+
   it("builds the checklist with per-item capabilities for an editable DRAFT vehicle", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     assetFindFirstMock.mockResolvedValue({

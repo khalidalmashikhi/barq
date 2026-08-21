@@ -51,6 +51,35 @@ describe("getAdminVehicleReview", () => {
     expect(JSON.stringify(review)).not.toContain("asset-documents/");
   });
 
+  it("§LC6 — surfaces supportsExpiry, the provider's claimed date, and the trusted date derived from expiresAt", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "a1" } });
+    findFirstMock.mockResolvedValue(
+      assetRow({
+        documents: [
+          {
+            id: "doc-reg",
+            type: "VEHICLE_REGISTRATION",
+            status: "APPROVED",
+            rejectionReason: null,
+            claimedExpiryDate: "2027-05-31",
+            expiresAt: new Date("2027-05-31T20:00:00.000Z"), // Oman 2027-06-01 00:00 boundary
+            originalFilename: "reg.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 100,
+            createdAt: new Date(),
+            reviewedAt: null,
+            objectKey: "asset-documents/asset-1/reg/x.pdf",
+          },
+        ],
+      }),
+    );
+    const review = await getAdminVehicleReview("asset-1");
+    const reg = review!.items.find((i) => i.type === "VEHICLE_REGISTRATION")!.document!;
+    expect(reg.supportsExpiry).toBe(true);
+    expect(reg.claimedExpiryDate).toBe("2027-05-31"); // advisory claim to verify
+    expect(reg.trustedExpiryDate).toBe("2027-05-31"); // derived back from the trusted instant
+  });
+
   it("surfaces approval blockers (registration PENDING + insurance missing)", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "a1" } });
     findFirstMock.mockResolvedValue(assetRow());

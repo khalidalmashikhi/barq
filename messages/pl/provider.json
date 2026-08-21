@@ -501,5 +501,8 @@
   "vehicleVerifyErrorInvalidState": "Tego pojazdu nie można wysłać w bieżącym stanie.",
   "vehicleDocExpiredWarning": "Ten dokument wygasł.",
   "vehicleNotEligibleExpiredNote": "Ten pojazd nie jest obecnie dostępny dla klientów, ponieważ wymagany dokument wygasł.",
-  "vehicleDocRenewHint": "Prześlij ważny dokument zastępczy — zostanie ponownie sprawdzony przez BARQ, zanim pojazd znów będzie dostępny."
+  "vehicleDocRenewHint": "Prześlij ważny dokument zastępczy — zostanie ponownie sprawdzony przez BARQ, zanim pojazd znów będzie dostępny.",
+  "vehicleDocClaimedExpiryLabel": "Deklarowana data ważności",
+  "vehicleDocClaimedExpiryPending": "oczekuje na weryfikację BARQ",
+  "vehicleDocClaimedExpiryHint": "Opcjonalnie podaj datę ważności dokumentu. BARQ zweryfikuje ją, zanim zacznie obowiązywać."
 }

@@ -128,6 +128,26 @@ describe("replaceVehicleDocument", () => {
     expect(removePrivateObjectMock).not.toHaveBeenCalledWith(ownedDoc().objectKey);
   });
 
+  // VEHICLE-LC6 — provider claim + stale-trust clearing on replacement.
+  describe("LC6 expiry capture", () => {
+    it("stores the NEW provider claim and CLEARS the old trusted expiresAt (stale-trust safety)", async () => {
+      happy();
+      const result = await replaceVehicleDocument(VEHICLE, "doc-1", { ...INPUT, claimedExpiryDate: "2027-05-31" });
+      expect(result).toEqual({ ok: true });
+      const data = txUpdateManyMock.mock.calls[0]![0].data;
+      expect(data.claimedExpiryDate).toBe("2027-05-31"); // new advisory claim
+      expect(data.expiresAt).toBeNull(); // trusted expiry cleared until admin re-confirms
+      expect(data.status).toBe("PENDING");
+    });
+
+    it("rejects a malformed claim as INVALID_INPUT before any storage/DB write", async () => {
+      happy();
+      expect(await replaceVehicleDocument(VEHICLE, "doc-1", { ...INPUT, claimedExpiryDate: "2027-02-30" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+      expect(txUpdateManyMock).not.toHaveBeenCalled();
+    });
+  });
+
   // VEHICLE-LC5 — the narrow expired-required-document remediation exception.
   describe("LC5 remediation (APPROVED verification)", () => {
     const PAST = new Date("2000-01-01T00:00:00Z");

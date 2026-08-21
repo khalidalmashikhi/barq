@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!parsed.ok) return apiError("INVALID_INPUT", { locale });
       if (!parsed.file) return apiError("INVALID_INPUT", { locale, details: { reason: "EMPTY_FILE" } });
 
-      const result = await replaceVehicleDocument(vehicleId, docId, parsed.file);
+      const result = await replaceVehicleDocument(vehicleId, docId, { ...parsed.file, claimedExpiryDate: parsed.claimedExpiryDate });
       if (!result.ok) return vehicleDocumentErrorResponse(result.error, locale);
 
       const data = await getVehicleVerificationData(vehicleId);

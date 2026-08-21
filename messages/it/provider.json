@@ -501,5 +501,8 @@
   "vehicleVerifyErrorInvalidState": "Questo veicolo non può essere inviato nel suo stato attuale.",
   "vehicleDocExpiredWarning": "Questo documento è scaduto.",
   "vehicleNotEligibleExpiredNote": "Questo veicolo non è attualmente disponibile per i clienti perché un documento richiesto è scaduto.",
-  "vehicleDocRenewHint": "Carica un documento sostitutivo valido: verrà riesaminato da BARQ prima che il veicolo torni disponibile."
+  "vehicleDocRenewHint": "Carica un documento sostitutivo valido: verrà riesaminato da BARQ prima che il veicolo torni disponibile.",
+  "vehicleDocClaimedExpiryLabel": "Scadenza dichiarata",
+  "vehicleDocClaimedExpiryPending": "in attesa di verifica BARQ",
+  "vehicleDocClaimedExpiryHint": "Inserisci facoltativamente la data di scadenza del documento. BARQ la verifica prima che diventi effettiva."
 }

@@ -669,5 +669,9 @@
   "vehicleReviewErrorNotReady": "Complete the required documents before approving.",
   "vehicleReviewErrorUnknown": "Something went wrong. Please try again.",
   "vehicleReviewKindRemediation": "Document re-review",
-  "vehicleRemediationReviewNote": "This vehicle is already approved. A renewed required document is awaiting your review; approving it restores the vehicle's eligibility without a full re-verification."
+  "vehicleRemediationReviewNote": "This vehicle is already approved. A renewed required document is awaiting your review; approving it restores the vehicle's eligibility without a full re-verification.",
+  "documentClaimedExpiryLabel": "Provider-claimed expiry",
+  "documentTrustedExpiryLabel": "Confirmed expiry",
+  "documentConfirmExpiryLabel": "Confirm expiry date",
+  "documentConfirmExpiryHint": "This admin-confirmed date becomes the document's authoritative expiry (valid through that day). Leave blank for no expiry."
 }
