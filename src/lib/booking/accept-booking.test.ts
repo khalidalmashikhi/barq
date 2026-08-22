@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ConcurrentBookingModificationError } from "@/lib/booking/lifecycle/errors";
 
 // Phase 2.11 (Checkout Foundation) — regression tests for
 // acceptBooking(), covering the newly-wired commission snapshot
@@ -81,6 +82,14 @@ vi.mock("@/lib/booking/lifecycle", () => ({
   dispatchLifecycleHook: (...args: unknown[]) => dispatchLifecycleHookMock(...args),
 }));
 
+// BOOKING-VEHICLE-1 — the vehicle-assignment resolver is its own unit (see
+// vehicle-assignment-on-accept.test.ts for its matrix). Here it is mocked; the default
+// (set in beforeEach) is the no-vehicle path, so every pre-existing test is unchanged.
+const resolveVehicleAssignmentMock = vi.fn();
+vi.mock("@/lib/booking/vehicle-assignment-on-accept", () => ({
+  resolveVehicleAssignmentForAcceptance: (...args: unknown[]) => resolveVehicleAssignmentMock(...args),
+}));
+
 const bookingFindUniqueMock = vi.fn();
 const commissionFindFirstMock = vi.fn();
 const bookingUpdateMock = vi.fn();
@@ -103,6 +112,12 @@ vi.mock("@/lib/db", () => ({
 const { acceptBooking } = await import("./accept-booking");
 
 const BOOKING_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
+const VEHICLE_ID = "019f4e4e-9000-7052-b15e-b79b5ccb1aaa";
+
+beforeEach(() => {
+  // Default: no vehicle involved (non-tour / GUIDE_ONLY) — the pre-existing behavior.
+  resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: null });
+});
 
 afterEach(() => {
   requireProviderMock.mockReset();
@@ -113,6 +128,7 @@ afterEach(() => {
   commissionFindFirstMock.mockReset();
   bookingUpdateMock.mockReset();
   paymentCreateMock.mockReset();
+  resolveVehicleAssignmentMock.mockReset();
   stripeCreateMock.mockReset();
   delete process.env.PAYMENT_PROVIDER;
   delete process.env.STRIPE_SECRET_KEY;
@@ -281,5 +297,107 @@ describe("acceptBooking", () => {
 
     expect(result).toEqual({ ok: true });
     expect(paymentCreateMock).not.toHaveBeenCalled();
+  });
+
+  // --- BOOKING-VEHICLE-1 ------------------------------------------------------
+
+  it("writes the provider's chosen vehicle in the SAME transaction as CONFIRMED", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      serviceId: "service-1",
+      seats: 4,
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: { toString: () => "15" },
+      priceSnapshotCurrency: "OMR",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    // Both the pre-check and the in-transaction re-check resolve to the chosen vehicle.
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID });
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null); // isolate the vehicle write from the commission write
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID);
+
+    expect(result).toEqual({ ok: true });
+    // The chosen vehicle + the booking's own serviceId/seats reached the resolver (server-derived).
+    expect(resolveVehicleAssignmentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceId: "service-1", providerId: "provider-1", seats: 4, vehicleId: VEHICLE_ID })
+    );
+    expect(bookingUpdateMock).toHaveBeenCalledWith({ where: { id: BOOKING_ID }, data: { vehicleId: VEHICLE_ID } });
+    expect(dispatchLifecycleHookMock).toHaveBeenCalled();
+  });
+
+  it("returns the assignment error and never initiates payment or transitions when the vehicle is invalid", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      serviceId: "service-1",
+      seats: 4,
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: { toString: () => "15" },
+      priceSnapshotCurrency: "OMR",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: false, error: "VEHICLE_REQUIRED" });
+
+    const result = await acceptBooking(BOOKING_ID);
+
+    expect(result).toEqual({ ok: false, error: "VEHICLE_REQUIRED" });
+    // Rejected BEFORE any transaction / payment — no half-applied state.
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+    expect(paymentCreateMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+  });
+
+  it("aborts acceptance when the vehicle becomes ineligible between the pre-check and the transaction", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      serviceId: "service-1",
+      seats: 4,
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: { toString: () => "15" },
+      priceSnapshotCurrency: "OMR",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    // Pre-check passes, in-transaction re-check fails (a doc expired / vehicle deactivated).
+    resolveVehicleAssignmentMock
+      .mockResolvedValueOnce({ ok: true, vehicleId: VEHICLE_ID })
+      .mockResolvedValueOnce({ ok: false, error: "VEHICLE_NOT_ELIGIBLE" });
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null);
+    paymentCreateMock.mockResolvedValue({});
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID);
+
+    expect(result).toEqual({ ok: false, error: "VEHICLE_NOT_ELIGIBLE" });
+    // The transaction threw → the lifecycle hook (post-commit) never fired.
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a concurrent modification inside the guarded transition to BOOKING_STATE_CONFLICT", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      serviceId: "service-1",
+      seats: 1,
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: { toString: () => "15" },
+      priceSnapshotCurrency: "OMR",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    transitionBookingMock.mockRejectedValue(new ConcurrentBookingModificationError(BOOKING_ID));
+
+    const result = await acceptBooking(BOOKING_ID);
+
+    expect(result).toEqual({ ok: false, error: "BOOKING_STATE_CONFLICT" });
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
   });
 });

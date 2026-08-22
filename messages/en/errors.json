@@ -18,5 +18,10 @@
   "alreadyReviewed": "You've already submitted a review for this booking",
   "invalidRating": "Please select a rating between 1 and 5",
   "invalidContent": "Please write a short review before submitting",
-  "rateLimited": "You're making requests too quickly. Please wait a moment and try again."
+  "rateLimited": "You're making requests too quickly. Please wait a moment and try again.",
+  "vehicleRequired": "Select a vehicle to accept this booking",
+  "vehicleNotInServicePool": "This vehicle isn't part of this tour's vehicle pool",
+  "vehicleNotEligible": "This vehicle isn't currently eligible for this tour",
+  "vehicleCapacityInsufficient": "This vehicle can't carry the number of guests on this booking",
+  "bookingStateConflict": "This booking was just updated. Please try again"
 }

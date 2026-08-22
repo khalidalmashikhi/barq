@@ -79,6 +79,13 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   BOOKING_NOT_PENDING: "BOOKING_NOT_ACTIONABLE",
   BOOKING_NOT_STARTABLE: "BOOKING_NOT_ACTIONABLE",
   BOOKING_NOT_COMPLETABLE: "BOOKING_NOT_ACTIONABLE",
+  // BOOKING-VEHICLE-1 — provider acceptance vehicle-assignment outcomes (422 unprocessable),
+  // except the concurrent race which is the existing 409 CONCURRENT_MODIFICATION.
+  VEHICLE_REQUIRED: "VEHICLE_REQUIRED",
+  VEHICLE_NOT_IN_SERVICE_POOL: "VEHICLE_NOT_IN_SERVICE_POOL",
+  VEHICLE_NOT_ELIGIBLE: "TOUR_VEHICLE_NOT_ELIGIBLE",
+  VEHICLE_CAPACITY_INSUFFICIENT: "VEHICLE_CAPACITY_INSUFFICIENT",
+  BOOKING_STATE_CONFLICT: "CONCURRENT_MODIFICATION",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
   // Not reachable from provider accept/reject/start/complete — treated as
   // unexpected internal conditions rather than normal rejections.

@@ -6,10 +6,29 @@ import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/aut
 import { isValidUuid } from "@/lib/uuid";
 import { canAcceptBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+// Imported from the concrete errors module (NOT the lifecycle barrel) so the class
+// identity survives tests that mock "@/lib/booking/lifecycle" — the instanceof check below
+// must compare against the SAME class transitionBooking() actually throws.
+import { ConcurrentBookingModificationError } from "@/lib/booking/lifecycle/errors";
 import { calculateCommissionAmount } from "@/lib/booking/calculate-commission";
 import { getPaymentGatewayProvider } from "@/lib/payments/gateway/get-payment-gateway-provider";
+import {
+  resolveVehicleAssignmentForAcceptance,
+  type VehicleAssignmentError,
+} from "@/lib/booking/vehicle-assignment-on-accept";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
+
+// BOOKING-VEHICLE-1 — thrown ONLY inside the acceptance transaction to abort it when the
+// in-transaction eligibility re-check fails (a vehicle that was eligible at the pre-check
+// became ineligible before commit). Carries the exact code back to the caller's catch so
+// nothing is left half-applied (no CONFIRMED status, no Payment row, no vehicle write).
+class VehicleAssignmentAbortError extends Error {
+  constructor(readonly code: VehicleAssignmentError) {
+    super(`vehicle assignment aborted: ${code}`);
+    this.name = "VehicleAssignmentAbortError";
+  }
+}
 
 // Accept booking — Phase 4.1 ("Complete the Booking Lifecycle").
 // Mirrors cancel-booking.ts's exact shape: "use server", UUID
@@ -86,7 +105,13 @@ import type { BookingActionErrorCode } from "./booking-action-errors";
 
 export type AcceptBookingResult = { ok: true } | { ok: false; error: BookingActionErrorCode };
 
-export async function acceptBooking(bookingId: string): Promise<AcceptBookingResult> {
+// BOOKING-VEHICLE-1: `vehicleId` is the vehicle the PROVIDER selected to commit to this
+// booking. It is REQUIRED for transport tour packages (GUIDE_WITH_TRANSPORT /
+// GUIDE_WITH_4X4), optional for PRIVATE_CUSTOM_TOUR, and ignored for GUIDE_ONLY / non-tour
+// services (where Booking.vehicleId stays null). Provider identity is always server-derived;
+// the vehicle is validated against the service's pool + live eligibility + the booking's
+// party — never trusted from the client beyond being an id the provider chose.
+export async function acceptBooking(bookingId: string, vehicleId?: string | null): Promise<AcceptBookingResult> {
   if (!isValidUuid(bookingId)) {
     return { ok: false, error: "INVALID_INPUT" };
   }
@@ -116,6 +141,20 @@ export async function acceptBooking(bookingId: string): Promise<AcceptBookingRes
 
     if (!canAcceptBooking(booking.status)) {
       return { ok: false, error: "BOOKING_NOT_PENDING" };
+    }
+
+    // BOOKING-VEHICLE-1 — resolve the vehicle assignment BEFORE payment initiation, so an
+    // invalid/ineligible vehicle never creates a gateway intent (§7). Non-tour / GUIDE_ONLY
+    // resolve to { vehicleId: null } and leave acceptance byte-for-byte unchanged.
+    const assignment = await resolveVehicleAssignmentForAcceptance({
+      db: prisma,
+      serviceId: booking.serviceId,
+      providerId: provider.id,
+      seats: booking.seats,
+      vehicleId: vehicleId ?? null,
+    });
+    if (!assignment.ok) {
+      return { ok: false, error: assignment.error };
     }
 
     // Obtain the gateway and consume its result — this action no longer
@@ -164,6 +203,25 @@ export async function acceptBooking(bookingId: string): Promise<AcceptBookingRes
         });
       }
 
+      // BOOKING-VEHICLE-1 — persist the committed vehicle in the SAME transaction as
+      // CONFIRMED, re-checking eligibility INSIDE the tx first (TOCTOU: a vehicle eligible
+      // at the pre-check may have expired/deactivated before commit). Only runs when a
+      // vehicle is actually being assigned; the no-vehicle path is entirely unchanged. A
+      // failed re-check throws, rolling back the transition + commission + payment together.
+      if (assignment.vehicleId !== null) {
+        const revalidated = await resolveVehicleAssignmentForAcceptance({
+          db: tx,
+          serviceId: booking.serviceId,
+          providerId: provider.id,
+          seats: booking.seats,
+          vehicleId: assignment.vehicleId,
+        });
+        if (!revalidated.ok) throw new VehicleAssignmentAbortError(revalidated.error);
+        if (revalidated.vehicleId !== null) {
+          await tx.booking.update({ where: { id: booking.id }, data: { vehicleId: revalidated.vehicleId } });
+        }
+      }
+
       return ctx;
     });
 
@@ -174,6 +232,18 @@ export async function acceptBooking(bookingId: string): Promise<AcceptBookingRes
 
     return { ok: true };
   } catch (error) {
+    // BOOKING-VEHICLE-1 — the in-transaction vehicle re-check failed: return its exact
+    // code. The whole transaction rolled back, so the booking is still PENDING_PROVIDER,
+    // vehicleId is still null, and no Payment/commission was written.
+    if (error instanceof VehicleAssignmentAbortError) {
+      return { ok: false, error: error.code };
+    }
+    // A genuine concurrent-modification race inside transitionBooking()'s guarded write —
+    // the booking left PENDING_PROVIDER between our read and our write. Distinct from
+    // BOOKING_NOT_PENDING (the up-front check); the client re-reads the booking's status.
+    if (error instanceof ConcurrentBookingModificationError) {
+      return { ok: false, error: "BOOKING_STATE_CONFLICT" };
+    }
     // Genuinely unexpected — never expose Prisma/internal exception
     // details to the client; log server-side only and return the
     // generic code, matching cancel-booking.ts/create-booking.ts.

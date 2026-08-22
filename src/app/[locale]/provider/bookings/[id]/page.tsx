@@ -3,6 +3,8 @@ import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight, CreditCard } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderBookingDetail } from "@/lib/provider/queries/get-provider-booking-detail";
+import { getBookingAcceptanceVehicleOptions } from "@/lib/provider/queries/get-booking-acceptance-vehicles";
+import { BookingAcceptanceVehiclePicker } from "@/components/bookings/booking-acceptance-vehicle-picker";
 import { getBookingTimeline } from "@/lib/booking/lifecycle/get-booking-timeline";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { acceptBooking } from "@/lib/booking/accept-booking";
@@ -83,6 +85,13 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
   const canStart = canStartBooking(booking.status);
   const canComplete = canCompleteBooking(booking.status);
 
+  // BOOKING-VEHICLE-1 — the provider chooses the vehicle at acceptance for a transport tour.
+  // null for non-tour / GUIDE_ONLY (no selector — acceptance is unchanged). When a vehicle
+  // is REQUIRED but none is currently eligible, Accept is withheld (never auto-reject, §10).
+  const vehicleOptions = needsAction ? await getBookingAcceptanceVehicleOptions(booking.id) : null;
+  const hasEligibleVehicle = vehicleOptions ? vehicleOptions.candidates.some((c) => c.eligible) : false;
+  const blockAccept = (vehicleOptions?.vehicleRequired ?? false) && !hasEligibleVehicle;
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
       <Link
@@ -147,20 +156,31 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
 
       {(needsAction || canStart || canComplete) && (
         <Card hoverLift={false}>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-4">
             {needsAction && (
-              <>
-                <form
-                  action={async () => {
-                    "use server";
-                    const result = await acceptBooking(booking.id);
-                    redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
-                  }}
-                >
-                  <SubmitButton className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
-                    {t("acceptBookingButton")}
-                  </SubmitButton>
-                </form>
+              <div className="flex flex-col gap-4">
+                {/* Vehicle required but none currently eligible — show the reasons, withhold Accept. */}
+                {blockAccept && vehicleOptions && <BookingAcceptanceVehiclePicker options={vehicleOptions} />}
+
+                {!blockAccept && (
+                  <form
+                    action={async (formData: FormData) => {
+                      "use server";
+                      // The provider's chosen vehicle (radio) — validated server-side by acceptBooking.
+                      const raw = formData.get("vehicleId");
+                      const vehicleId = typeof raw === "string" && raw.length > 0 ? raw : null;
+                      const result = await acceptBooking(booking.id, vehicleId);
+                      redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
+                    }}
+                    className="flex flex-col gap-3"
+                  >
+                    {vehicleOptions && <BookingAcceptanceVehiclePicker options={vehicleOptions} />}
+                    <SubmitButton className="w-fit rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
+                      {t("acceptBookingButton")}
+                    </SubmitButton>
+                  </form>
+                )}
+
                 <form
                   action={async (formData: FormData) => {
                     "use server";
@@ -169,7 +189,7 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
                     const result = await rejectBooking(booking.id, reason);
                     redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
                   }}
-                  className="flex flex-1 flex-wrap items-center gap-2"
+                  className="flex flex-wrap items-center gap-2"
                 >
                   <input
                     type="text"
@@ -182,33 +202,37 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
                     {t("rejectBookingButton")}
                   </SubmitButton>
                 </form>
-              </>
+              </div>
             )}
-            {canStart && (
-              <form
-                action={async () => {
-                  "use server";
-                  const result = await startBooking(booking.id);
-                  redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
-                }}
-              >
-                <SubmitButton className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
-                  {t("startBookingButton")}
-                </SubmitButton>
-              </form>
-            )}
-            {canComplete && (
-              <form
-                action={async () => {
-                  "use server";
-                  const result = await completeBooking(booking.id);
-                  redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
-                }}
-              >
-                <SubmitButton className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
-                  {t("completeBookingButton")}
-                </SubmitButton>
-              </form>
+            {(canStart || canComplete) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {canStart && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      const result = await startBooking(booking.id);
+                      redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
+                    }}
+                  >
+                    <SubmitButton className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
+                      {t("startBookingButton")}
+                    </SubmitButton>
+                  </form>
+                )}
+                {canComplete && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      const result = await completeBooking(booking.id);
+                      redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
+                    }}
+                  >
+                    <SubmitButton className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
+                      {t("completeBookingButton")}
+                    </SubmitButton>
+                  </form>
+                )}
+              </div>
             )}
           </div>
         </Card>

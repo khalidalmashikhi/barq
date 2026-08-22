@@ -546,5 +546,8 @@
   "tourVehiclePoolErrorVehicleNotFound": "Vehicle not found.",
   "tourVehiclePoolErrorVehicleNotEligible": "This vehicle isn't currently eligible for this tour.",
   "tourVehiclePoolErrorUnknown": "Something went wrong, please try again.",
-  "serviceErrorTourVehiclePoolRequired": "Add at least one eligible vehicle to this tour before you can publish it."
+  "serviceErrorTourVehiclePoolRequired": "Add at least one eligible vehicle to this tour before you can publish it.",
+  "acceptVehicleSelectHeading": "Select a vehicle",
+  "acceptVehicleRequiredHint": "A vehicle is required to accept this booking.",
+  "acceptVehicleNoneEligible": "No eligible vehicles are available. Add or verify a vehicle before accepting."
 }

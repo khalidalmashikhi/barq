@@ -102,6 +102,25 @@ describe("createBooking", () => {
     expect(dispatchLifecycleHookMock).toHaveBeenCalledWith({ hook: "context" });
   });
 
+  it("BOOKING-VEHICLE-1 — a customer can NEVER set the vehicle: a client vehicleId field is ignored", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+
+    // Hostile input: a client tries to pre-assign a vehicle at booking creation.
+    const result = await createBooking(
+      formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, vehicleId: "019f4e4e-9000-7052-b15e-b79b5ccb1aaa" })
+    );
+
+    expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+    // The persisted booking data carries NO vehicleId — assignment is a provider-acceptance
+    // concern only; Booking.vehicleId stays null while PENDING_PROVIDER.
+    const createArg = bookingCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(createArg.data).not.toHaveProperty("vehicleId");
+  });
+
   describe("provider deactivation enforcement (Production Blocker fix)", () => {
     it("queries the service with the provider APPROVED+visible gate, not just Service.status", async () => {
       requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });

@@ -33,6 +33,13 @@ const CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   BOOKING_NOT_PENDING: "INTERNAL_ERROR",
   BOOKING_NOT_STARTABLE: "INTERNAL_ERROR",
   BOOKING_NOT_COMPLETABLE: "INTERNAL_ERROR",
+  // BOOKING-VEHICLE-1 — provider-acceptance-only outcomes; never reachable from the
+  // customer create/cancel endpoints, so any occurrence here is an unexpected internal.
+  VEHICLE_REQUIRED: "INTERNAL_ERROR",
+  VEHICLE_NOT_IN_SERVICE_POOL: "INTERNAL_ERROR",
+  VEHICLE_NOT_ELIGIBLE: "INTERNAL_ERROR",
+  VEHICLE_CAPACITY_INSUFFICIENT: "INTERNAL_ERROR",
+  BOOKING_STATE_CONFLICT: "INTERNAL_ERROR",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
 };
 

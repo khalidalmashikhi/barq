@@ -546,5 +546,8 @@
   "tourVehiclePoolErrorVehicleNotFound": "المركبة غير موجودة.",
   "tourVehiclePoolErrorVehicleNotEligible": "هذه المركبة غير مؤهلة حالياً لهذه الجولة.",
   "tourVehiclePoolErrorUnknown": "حدث خطأ ما، الرجاء المحاولة مرة أخرى.",
-  "serviceErrorTourVehiclePoolRequired": "أضف مركبة مؤهلة واحدة على الأقل إلى هذه الجولة قبل نشرها."
+  "serviceErrorTourVehiclePoolRequired": "أضف مركبة مؤهلة واحدة على الأقل إلى هذه الجولة قبل نشرها.",
+  "acceptVehicleSelectHeading": "اختر مركبة",
+  "acceptVehicleRequiredHint": "يلزم اختيار مركبة لقبول هذا الحجز.",
+  "acceptVehicleNoneEligible": "لا توجد مركبات مؤهلة متاحة. أضف مركبة أو استكمل التحقق منها قبل القبول."
 }

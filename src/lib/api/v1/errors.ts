@@ -55,6 +55,15 @@ export type ApiErrorCode =
   // — not ACTIVE/APPROVED, a required doc invalid, not trusted-4x4, or too small (422).
   | "TOUR_SERVICE_NOT_ELIGIBLE"
   | "TOUR_VEHICLE_NOT_ELIGIBLE"
+  // BOOKING-VEHICLE-1 — provider acceptance vehicle-assignment outcomes carried onto the
+  // wire (mapped in provider-mutation-errors.ts). A transport tour package needs a vehicle
+  // (VEHICLE_REQUIRED, 422); the vehicle must be in the service pool (VEHICLE_NOT_IN_SERVICE_POOL,
+  // 422 — also the uniform outcome for a foreign vehicle); it must carry the booking's party
+  // (VEHICLE_CAPACITY_INSUFFICIENT, 422). "Not currently eligible" reuses TOUR_VEHICLE_NOT_ELIGIBLE;
+  // a concurrent state change reuses CONCURRENT_MODIFICATION.
+  | "VEHICLE_REQUIRED"
+  | "VEHICLE_NOT_IN_SERVICE_POOL"
+  | "VEHICLE_CAPACITY_INSUFFICIENT"
   | "CAPACITY_BELOW_BOOKED"
   | "SLOT_HAS_BOOKINGS"
   // VEHICLE-1B (Provider Vehicle API) — a vehicle with this registration number
@@ -108,6 +117,9 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   TOUR_TEMPLATE_INVALID: 422,
   TOUR_SERVICE_NOT_ELIGIBLE: 422,
   TOUR_VEHICLE_NOT_ELIGIBLE: 422,
+  VEHICLE_REQUIRED: 422,
+  VEHICLE_NOT_IN_SERVICE_POOL: 422,
+  VEHICLE_CAPACITY_INSUFFICIENT: 422,
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
   DUPLICATE_REGISTRATION: 409,
@@ -190,6 +202,18 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   TOUR_VEHICLE_NOT_ELIGIBLE: {
     en: "This vehicle isn't currently eligible for this tour.",
     ar: "هذه المركبة غير مؤهلة حالياً لهذه الجولة.",
+  },
+  VEHICLE_REQUIRED: {
+    en: "Select a vehicle to accept this booking.",
+    ar: "اختر مركبة لقبول هذا الحجز.",
+  },
+  VEHICLE_NOT_IN_SERVICE_POOL: {
+    en: "This vehicle isn't part of this tour's vehicle pool.",
+    ar: "هذه المركبة ليست ضمن مجموعة مركبات هذه الجولة.",
+  },
+  VEHICLE_CAPACITY_INSUFFICIENT: {
+    en: "This vehicle can't carry the number of guests on this booking.",
+    ar: "لا تتسع هذه المركبة لعدد ضيوف هذا الحجز.",
   },
   CAPACITY_BELOW_BOOKED: {
     en: "Capacity can't be set below the number of seats already booked.",

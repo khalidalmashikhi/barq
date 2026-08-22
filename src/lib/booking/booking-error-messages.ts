@@ -32,6 +32,11 @@ const BOOKING_ERROR_TRANSLATION_KEYS = {
   BOOKING_NOT_PENDING: "bookingNotPending",
   BOOKING_NOT_STARTABLE: "bookingNotStartable",
   BOOKING_NOT_COMPLETABLE: "bookingNotCompletable",
+  VEHICLE_REQUIRED: "vehicleRequired",
+  VEHICLE_NOT_IN_SERVICE_POOL: "vehicleNotInServicePool",
+  VEHICLE_NOT_ELIGIBLE: "vehicleNotEligible",
+  VEHICLE_CAPACITY_INSUFFICIENT: "vehicleCapacityInsufficient",
+  BOOKING_STATE_CONFLICT: "bookingStateConflict",
   RATE_LIMITED: "rateLimited",
   UNKNOWN_ERROR: "unknownError",
 } as const satisfies Record<BookingActionErrorCode, string>;

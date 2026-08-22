@@ -64,8 +64,8 @@ describe("POST /api/v1/me/provider/bookings/{id}/accept", () => {
     const res = await acceptPOST(post(), params());
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    // IDOR: the only argument is the id from the URL — no client providerId path exists.
-    expect(acceptMock).toHaveBeenCalledWith("b1");
+    // IDOR: the id comes from the URL (never a client providerId); with no body, vehicleId is undefined.
+    expect(acceptMock).toHaveBeenCalledWith("b1", undefined);
     expect(detailMock).toHaveBeenCalledWith("b1", "en");
     const body = await res.json();
     expect(body).toEqual({
@@ -88,7 +88,7 @@ describe("POST /api/v1/me/provider/bookings/{id}/accept", () => {
     const res = await acceptPOST(post(), params("someone-elses-id"));
     expect(res.status).toBe(404);
     expect((await res.json()).error.code).toBe("NOT_FOUND");
-    expect(acceptMock).toHaveBeenCalledWith("someone-elses-id");
+    expect(acceptMock).toHaveBeenCalledWith("someone-elses-id", undefined);
     expect(detailMock).not.toHaveBeenCalled();
   });
 
@@ -97,6 +97,33 @@ describe("POST /api/v1/me/provider/bookings/{id}/accept", () => {
     const res = await acceptPOST(post(), params());
     expect(res.status).toBe(409);
     expect((await res.json()).error.code).toBe("BOOKING_NOT_ACTIONABLE");
+  });
+
+  // BOOKING-VEHICLE-1 — the provider's vehicle choice rides in the body and its outcomes map.
+  it("passes the body vehicleId through to acceptBooking", async () => {
+    acceptMock.mockResolvedValue({ ok: true });
+    detailMock.mockResolvedValue(DETAIL);
+    await acceptPOST(post({ vehicleId: "veh-1" }), params());
+    expect(acceptMock).toHaveBeenCalledWith("b1", "veh-1");
+  });
+
+  it("maps vehicle-assignment outcomes onto the wire (422 / 409)", async () => {
+    const cases: Array<[string, number, string]> = [
+      ["VEHICLE_REQUIRED", 422, "VEHICLE_REQUIRED"],
+      ["VEHICLE_NOT_IN_SERVICE_POOL", 422, "VEHICLE_NOT_IN_SERVICE_POOL"],
+      ["VEHICLE_NOT_ELIGIBLE", 422, "TOUR_VEHICLE_NOT_ELIGIBLE"],
+      ["VEHICLE_CAPACITY_INSUFFICIENT", 422, "VEHICLE_CAPACITY_INSUFFICIENT"],
+      ["BOOKING_STATE_CONFLICT", 409, "CONCURRENT_MODIFICATION"],
+    ];
+    for (const [error, status, wire] of cases) {
+      acceptMock.mockReset();
+      detailMock.mockReset();
+      acceptMock.mockResolvedValue({ ok: false, error });
+      const res = await acceptPOST(post({ vehicleId: "veh-1" }), params());
+      expect(res.status).toBe(status);
+      expect((await res.json()).error.code).toBe(wire);
+      expect(detailMock).not.toHaveBeenCalled();
+    }
   });
 });
 

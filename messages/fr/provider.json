@@ -546,5 +546,8 @@
   "tourVehiclePoolErrorVehicleNotFound": "Véhicule introuvable.",
   "tourVehiclePoolErrorVehicleNotEligible": "Ce véhicule n'est pas actuellement éligible pour ce circuit.",
   "tourVehiclePoolErrorUnknown": "Une erreur s'est produite, veuillez réessayer.",
-  "serviceErrorTourVehiclePoolRequired": "Ajoutez au moins un véhicule éligible à ce circuit avant de pouvoir le publier."
+  "serviceErrorTourVehiclePoolRequired": "Ajoutez au moins un véhicule éligible à ce circuit avant de pouvoir le publier.",
+  "acceptVehicleSelectHeading": "Sélectionner un véhicule",
+  "acceptVehicleRequiredHint": "Un véhicule est requis pour accepter cette réservation.",
+  "acceptVehicleNoneEligible": "Aucun véhicule éligible n'est disponible. Ajoutez ou vérifiez un véhicule avant d'accepter."
 }

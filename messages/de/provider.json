@@ -546,5 +546,8 @@
   "tourVehiclePoolErrorVehicleNotFound": "Fahrzeug nicht gefunden.",
   "tourVehiclePoolErrorVehicleNotEligible": "Dieses Fahrzeug ist derzeit nicht für diese Tour geeignet.",
   "tourVehiclePoolErrorUnknown": "Etwas ist schiefgelaufen, bitte versuchen Sie es erneut.",
-  "serviceErrorTourVehiclePoolRequired": "Fügen Sie mindestens ein geeignetes Fahrzeug zu dieser Tour hinzu, bevor Sie sie veröffentlichen."
+  "serviceErrorTourVehiclePoolRequired": "Fügen Sie mindestens ein geeignetes Fahrzeug zu dieser Tour hinzu, bevor Sie sie veröffentlichen.",
+  "acceptVehicleSelectHeading": "Fahrzeug auswählen",
+  "acceptVehicleRequiredHint": "Zum Annehmen dieser Buchung ist ein Fahrzeug erforderlich.",
+  "acceptVehicleNoneEligible": "Keine geeigneten Fahrzeuge verfügbar. Fügen Sie vor dem Annehmen ein Fahrzeug hinzu oder verifizieren Sie es."
 }

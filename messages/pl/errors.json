@@ -18,5 +18,10 @@
   "alreadyReviewed": "Już przesłałeś opinię dla tej rezerwacji",
   "invalidRating": "Wybierz ocenę od 1 do 5",
   "invalidContent": "Napisz krótką opinię przed wysłaniem",
-  "rateLimited": "Wysyłasz żądania zbyt szybko. Poczekaj chwilę i spróbuj ponownie."
+  "rateLimited": "Wysyłasz żądania zbyt szybko. Poczekaj chwilę i spróbuj ponownie.",
+  "vehicleRequired": "Wybierz pojazd, aby zaakceptować tę rezerwację",
+  "vehicleNotInServicePool": "Ten pojazd nie należy do puli pojazdów tej wycieczki",
+  "vehicleNotEligible": "Ten pojazd nie kwalifikuje się obecnie do tej wycieczki",
+  "vehicleCapacityInsufficient": "Ten pojazd nie pomieści liczby gości w tej rezerwacji",
+  "bookingStateConflict": "Ta rezerwacja została właśnie zaktualizowana. Spróbuj ponownie"
 }

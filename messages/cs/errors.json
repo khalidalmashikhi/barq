@@ -18,5 +18,10 @@
   "alreadyReviewed": "Tuto rezervaci jste již ohodnotili",
   "invalidRating": "Vyberte prosím hodnocení od 1 do 5",
   "invalidContent": "Před odesláním prosím napište krátkou recenzi",
-  "rateLimited": "Odesíláte požadavky příliš rychle. Počkejte chvíli a zkuste to znovu."
+  "rateLimited": "Odesíláte požadavky příliš rychle. Počkejte chvíli a zkuste to znovu.",
+  "vehicleRequired": "Vyberte vozidlo pro přijetí této rezervace",
+  "vehicleNotInServicePool": "Toto vozidlo není součástí vozového parku této prohlídky",
+  "vehicleNotEligible": "Toto vozidlo aktuálně není způsobilé pro tuto prohlídku",
+  "vehicleCapacityInsufficient": "Toto vozidlo nepojme počet hostů této rezervace",
+  "bookingStateConflict": "Tato rezervace byla právě aktualizována. Zkuste to znovu"
 }

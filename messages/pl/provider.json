@@ -546,5 +546,8 @@
   "tourVehiclePoolErrorVehicleNotFound": "Nie znaleziono pojazdu.",
   "tourVehiclePoolErrorVehicleNotEligible": "Ten pojazd nie kwalifikuje się obecnie do tej wycieczki.",
   "tourVehiclePoolErrorUnknown": "Coś poszło nie tak, spróbuj ponownie.",
-  "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz."
+  "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz.",
+  "acceptVehicleSelectHeading": "Wybierz pojazd",
+  "acceptVehicleRequiredHint": "Do zaakceptowania tej rezerwacji wymagany jest pojazd.",
+  "acceptVehicleNoneEligible": "Brak dostępnych kwalifikujących się pojazdów. Dodaj lub zweryfikuj pojazd przed zaakceptowaniem."
 }

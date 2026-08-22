@@ -18,5 +18,10 @@
   "alreadyReviewed": "Hai già inviato una recensione per questa prenotazione",
   "invalidRating": "Seleziona una valutazione tra 1 e 5",
   "invalidContent": "Scrivi una breve recensione prima di inviare",
-  "rateLimited": "Stai inviando richieste troppo velocemente. Attendi un momento e riprova."
+  "rateLimited": "Stai inviando richieste troppo velocemente. Attendi un momento e riprova.",
+  "vehicleRequired": "Seleziona un veicolo per accettare questa prenotazione",
+  "vehicleNotInServicePool": "Questo veicolo non fa parte del parco veicoli di questo tour",
+  "vehicleNotEligible": "Questo veicolo non è attualmente idoneo per questo tour",
+  "vehicleCapacityInsufficient": "Questo veicolo non può trasportare il numero di ospiti di questa prenotazione",
+  "bookingStateConflict": "Questa prenotazione è stata appena aggiornata. Riprova"
 }

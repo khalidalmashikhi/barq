@@ -31,6 +31,18 @@ export type BookingActionErrorCode =
   | "BOOKING_NOT_PENDING"
   | "BOOKING_NOT_STARTABLE"
   | "BOOKING_NOT_COMPLETABLE"
+  // BOOKING-VEHICLE-1 — provider acceptance vehicle-assignment outcomes. A transport
+  // tour package requires a vehicle (VEHICLE_REQUIRED); the supplied vehicle must be in
+  // this service's pool (VEHICLE_NOT_IN_SERVICE_POOL — also the uniform, non-enumerable
+  // outcome for a foreign vehicle), currently eligible (VEHICLE_NOT_ELIGIBLE), and able to
+  // carry the booking's party (VEHICLE_CAPACITY_INSUFFICIENT). BOOKING_STATE_CONFLICT is a
+  // genuine concurrent-modification race (the booking left PENDING_PROVIDER between our read
+  // and our guarded write) — distinct from BOOKING_NOT_PENDING, which is the up-front check.
+  | "VEHICLE_REQUIRED"
+  | "VEHICLE_NOT_IN_SERVICE_POOL"
+  | "VEHICLE_NOT_ELIGIBLE"
+  | "VEHICLE_CAPACITY_INSUFFICIENT"
+  | "BOOKING_STATE_CONFLICT"
   | "RATE_LIMITED"
   | "UNKNOWN_ERROR";
 
@@ -48,6 +60,11 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "BOOKING_NOT_PENDING",
   "BOOKING_NOT_STARTABLE",
   "BOOKING_NOT_COMPLETABLE",
+  "VEHICLE_REQUIRED",
+  "VEHICLE_NOT_IN_SERVICE_POOL",
+  "VEHICLE_NOT_ELIGIBLE",
+  "VEHICLE_CAPACITY_INSUFFICIENT",
+  "BOOKING_STATE_CONFLICT",
   "RATE_LIMITED",
   "UNKNOWN_ERROR",
 ];

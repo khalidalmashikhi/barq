@@ -77,6 +77,12 @@ describe("providerBookingErrorResponse", () => {
     expect(await read(providerBookingErrorResponse("UNKNOWN_ERROR", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
     // A customer-only code that can't occur on these endpoints → unexpected internal.
     expect(await read(providerBookingErrorResponse("SLOT_FULL", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
+    // BOOKING-VEHICLE-1 — acceptance vehicle-assignment outcomes (422), plus the concurrent race (409).
+    expect(await read(providerBookingErrorResponse("VEHICLE_REQUIRED", "en"))).toMatchObject({ status: 422, code: "VEHICLE_REQUIRED" });
+    expect(await read(providerBookingErrorResponse("VEHICLE_NOT_IN_SERVICE_POOL", "en"))).toMatchObject({ status: 422, code: "VEHICLE_NOT_IN_SERVICE_POOL" });
+    expect(await read(providerBookingErrorResponse("VEHICLE_NOT_ELIGIBLE", "en"))).toMatchObject({ status: 422, code: "TOUR_VEHICLE_NOT_ELIGIBLE" });
+    expect(await read(providerBookingErrorResponse("VEHICLE_CAPACITY_INSUFFICIENT", "en"))).toMatchObject({ status: 422, code: "VEHICLE_CAPACITY_INSUFFICIENT" });
+    expect(await read(providerBookingErrorResponse("BOOKING_STATE_CONFLICT", "en"))).toMatchObject({ status: 409, code: "CONCURRENT_MODIFICATION" });
   });
 
   it("always sets no-store", async () => {

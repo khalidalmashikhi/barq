@@ -546,5 +546,8 @@
   "tourVehiclePoolErrorVehicleNotFound": "Машина не найдена.",
   "tourVehiclePoolErrorVehicleNotEligible": "Эта машина сейчас не подходит для этого тура.",
   "tourVehiclePoolErrorUnknown": "Что-то пошло не так, попробуйте снова.",
-  "serviceErrorTourVehiclePoolRequired": "Добавьте хотя бы одну подходящую машину к этому туру, прежде чем публиковать его."
+  "serviceErrorTourVehiclePoolRequired": "Добавьте хотя бы одну подходящую машину к этому туру, прежде чем публиковать его.",
+  "acceptVehicleSelectHeading": "Выберите автомобиль",
+  "acceptVehicleRequiredHint": "Для принятия этого бронирования требуется автомобиль.",
+  "acceptVehicleNoneEligible": "Нет подходящих автомобилей. Добавьте или подтвердите автомобиль перед принятием."
 }

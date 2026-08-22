@@ -18,5 +18,10 @@
   "alreadyReviewed": "Sie haben für diese Buchung bereits eine Bewertung abgegeben",
   "invalidRating": "Bitte wählen Sie eine Bewertung zwischen 1 und 5",
   "invalidContent": "Bitte schreiben Sie eine kurze Bewertung, bevor Sie absenden",
-  "rateLimited": "Sie stellen zu schnell hintereinander Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut."
+  "rateLimited": "Sie stellen zu schnell hintereinander Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+  "vehicleRequired": "Wählen Sie ein Fahrzeug, um diese Buchung anzunehmen",
+  "vehicleNotInServicePool": "Dieses Fahrzeug gehört nicht zum Fahrzeugpool dieser Tour",
+  "vehicleNotEligible": "Dieses Fahrzeug ist derzeit nicht für diese Tour geeignet",
+  "vehicleCapacityInsufficient": "Dieses Fahrzeug kann die Anzahl der Gäste dieser Buchung nicht befördern",
+  "bookingStateConflict": "Diese Buchung wurde gerade aktualisiert. Bitte versuchen Sie es erneut"
 }
