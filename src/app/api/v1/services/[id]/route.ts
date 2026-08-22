@@ -3,6 +3,7 @@ import {
   getActivePricesForService,
   getServiceRatingAggregate,
 } from "@/lib/services/get-service-detail";
+import { getPublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { resolveApiLocale } from "@/lib/api/v1/locale";
 import { apiOk } from "@/lib/api/v1/respond";
@@ -26,11 +27,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const detail = await getServiceById(id, locale);
     if (!detail) return apiError("NOT_FOUND", { locale });
 
-    const [activePrices, rating] = await Promise.all([
+    const [activePrices, rating, tourVehicleSummary] = await Promise.all([
       getActivePricesForService(detail.id),
       getServiceRatingAggregate(detail.id),
+      // TOUR-VEHICLE-3 — customer-safe tour vehicle summary (null for non-tour / GUIDE_ONLY).
+      getPublicTourVehicleSummary(detail.id),
     ]);
 
-    return apiOk(toServiceDetailDTO(detail, activePrices, rating));
+    return apiOk(toServiceDetailDTO(detail, activePrices, rating, tourVehicleSummary));
   });
 }

@@ -86,5 +86,14 @@
   "shareExperienceText": "Sieh dir {serviceName} auf BARQ an",
   "shareProviderText": "Sieh dir {providerName} auf BARQ an",
   "shareCopiedLabel": "Link in die Zwischenablage kopiert",
-  "shareErrorLabel": "Dieser Link konnte nicht geteilt werden"
+  "shareErrorLabel": "Dieser Link konnte nicht geteilt werden",
+  "tourTransportHeading": "Transport",
+  "tourTransportIncluded": "Transport inbegriffen",
+  "tourVerified4x4": "Verifiziertes 4x4-Fahrzeug",
+  "tourVehiclesHeading": "Fahrzeuge für diese Tour",
+  "tourVehiclesRepresentativeNote": "Die gezeigten Fahrzeuge sind Beispiele für die derzeit für diese Tour genutzten Fahrzeuge; Ihrer Buchung wird kein bestimmtes Fahrzeug zugewiesen.",
+  "tourVehicleUnavailable": "Fahrzeugdetails sind derzeit nicht verfügbar.",
+  "tourVehicleGuestsSuffix": "Gäste",
+  "tourVehicle4x4Badge": "4x4",
+  "tourVehicleUntitled": "Fahrzeug"
 }

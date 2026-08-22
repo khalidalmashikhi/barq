@@ -86,5 +86,14 @@
   "shareExperienceText": "Découvrez {serviceName} sur BARQ",
   "shareProviderText": "Découvrez {providerName} sur BARQ",
   "shareCopiedLabel": "Lien copié dans le presse-papiers",
-  "shareErrorLabel": "Impossible de partager ce lien"
+  "shareErrorLabel": "Impossible de partager ce lien",
+  "tourTransportHeading": "Transport",
+  "tourTransportIncluded": "Transport inclus",
+  "tourVerified4x4": "Véhicule 4x4 vérifié",
+  "tourVehiclesHeading": "Véhicules utilisés pour ce circuit",
+  "tourVehiclesRepresentativeNote": "Les véhicules présentés sont des exemples de ceux actuellement utilisés pour ce circuit ; aucun véhicule précis n'est attribué à votre réservation.",
+  "tourVehicleUnavailable": "Les détails du véhicule ne sont pas disponibles pour le moment.",
+  "tourVehicleGuestsSuffix": "invités",
+  "tourVehicle4x4Badge": "4x4",
+  "tourVehicleUntitled": "Véhicule"
 }

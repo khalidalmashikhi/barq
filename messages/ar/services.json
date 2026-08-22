@@ -86,5 +86,14 @@
   "shareExperienceText": "اطّلع على {serviceName} على برق",
   "shareProviderText": "اطّلع على {providerName} على برق",
   "shareCopiedLabel": "تم نسخ الرابط",
-  "shareErrorLabel": "تعذرت مشاركة هذا الرابط"
+  "shareErrorLabel": "تعذرت مشاركة هذا الرابط",
+  "tourTransportHeading": "النقل",
+  "tourTransportIncluded": "يشمل النقل",
+  "tourVerified4x4": "مركبة دفع رباعي موثّقة",
+  "tourVehiclesHeading": "المركبات المستخدمة في هذه الجولة",
+  "tourVehiclesRepresentativeNote": "المركبات المعروضة أمثلة على المركبات المستخدمة حاليًا لهذه الجولة؛ ولا تُخصَّص مركبة معيّنة لحجزك.",
+  "tourVehicleUnavailable": "تفاصيل المركبة غير متوفرة حاليًا.",
+  "tourVehicleGuestsSuffix": "ضيوف",
+  "tourVehicle4x4Badge": "دفع رباعي",
+  "tourVehicleUntitled": "مركبة"
 }

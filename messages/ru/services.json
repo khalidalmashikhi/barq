@@ -86,5 +86,14 @@
   "shareExperienceText": "Посмотрите {serviceName} на BARQ",
   "shareProviderText": "Посмотрите {providerName} на BARQ",
   "shareCopiedLabel": "Ссылка скопирована в буфер обмена",
-  "shareErrorLabel": "Не удалось поделиться этой ссылкой"
+  "shareErrorLabel": "Не удалось поделиться этой ссылкой",
+  "tourTransportHeading": "Транспорт",
+  "tourTransportIncluded": "Транспорт включён",
+  "tourVerified4x4": "Подтверждённый внедорожник 4x4",
+  "tourVehiclesHeading": "Машины, используемые для этого тура",
+  "tourVehiclesRepresentativeNote": "Показанные машины — примеры тех, что сейчас используются для этого тура; конкретная машина к вашему бронированию не привязана.",
+  "tourVehicleUnavailable": "Данные о машине сейчас недоступны.",
+  "tourVehicleGuestsSuffix": "гостей",
+  "tourVehicle4x4Badge": "4x4",
+  "tourVehicleUntitled": "Машина"
 }

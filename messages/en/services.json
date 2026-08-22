@@ -86,5 +86,14 @@
   "shareExperienceText": "Check out {serviceName} on BARQ",
   "shareProviderText": "Check out {providerName} on BARQ",
   "shareCopiedLabel": "Link copied to clipboard",
-  "shareErrorLabel": "Couldn't share this link"
+  "shareErrorLabel": "Couldn't share this link",
+  "tourTransportHeading": "Transport",
+  "tourTransportIncluded": "Transport included",
+  "tourVerified4x4": "Verified 4x4 vehicle",
+  "tourVehiclesHeading": "Vehicles used for this tour",
+  "tourVehiclesRepresentativeNote": "The vehicles shown are examples of those currently used for this tour; a specific vehicle isn't assigned to your booking.",
+  "tourVehicleUnavailable": "Vehicle details are currently unavailable.",
+  "tourVehicleGuestsSuffix": "guests",
+  "tourVehicle4x4Badge": "4x4",
+  "tourVehicleUntitled": "Vehicle"
 }

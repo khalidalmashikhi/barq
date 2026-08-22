@@ -8,7 +8,9 @@ import {
   getServiceRatingAggregate,
 } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
+import { getPublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
 import { ServiceDetailView } from "@/components/services/service-detail-view";
+import { TourVehicleSection } from "@/components/tour-template/tour-vehicle-section";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
@@ -60,12 +62,14 @@ export default async function ServiceDetailPage({ params }: Props) {
   if (!fetchedService) { notFound(); return null; }
   const service = fetchedService;
 
-  const [relatedServices, slots, providerPublishedServicesCount, reviews, ratingAggregate] = await Promise.all([
+  const [relatedServices, slots, providerPublishedServicesCount, reviews, ratingAggregate, tourVehicleSummary] = await Promise.all([
     getRelatedServices(service.id, service.providerId),
     getAvailableSlots(service.id),
     getProviderPublishedServicesCount(service.providerId),
     getReviewsForService(service.id),
     getServiceRatingAggregate(service.id),
+    // TOUR-VEHICLE-3 — customer-safe tour vehicle summary (null for non-tour / GUIDE_ONLY).
+    getPublicTourVehicleSummary(service.id),
   ]);
 
   const t = await getServerTranslator("services");
@@ -109,6 +113,10 @@ export default async function ServiceDetailPage({ params }: Props) {
           serviceUrl={serviceUrl}
           mode="public"
         />
+        {/* TOUR-VEHICLE-3 — customer-safe tour vehicle presentation (tours with transport
+            only). Composes the guidingContent promise with currently-eligible pooled
+            vehicles; never an assigned/guaranteed vehicle. */}
+        {tourVehicleSummary && <TourVehicleSection summary={tourVehicleSummary} />}
       </main>
       <Footer />
     </div>

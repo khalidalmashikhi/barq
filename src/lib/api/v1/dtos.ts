@@ -69,6 +69,27 @@ export interface ActivePriceDTO {
   price: MoneyDTO;
 }
 
+// TOUR-VEHICLE-3 — customer-semantic tour vehicle presentation. Deliberately NOT the pool
+// row shape: no vehicleId/serviceId join metadata, no createdAt/isInPool, no blocker codes,
+// no registrationNumber/documents/expiry/trusted-raw/admin fields — a native client receives
+// only safe example-vehicle summaries (never an assigned/guaranteed vehicle).
+export interface TourVehicleDTO {
+  make: string | null;
+  model: string | null;
+  modelYear: number | null;
+  color: string | null;
+  passengerCapacity: number | null;
+  vehicleType: string | null;
+  isFourByFour: boolean;
+}
+
+export interface TourVehicleSummaryDTO {
+  transportIncluded: boolean;
+  requiresFourByFour: boolean;
+  /** Only currently-eligible pooled vehicles; empty when a transport tour is temporarily degraded. */
+  vehicles: TourVehicleDTO[];
+}
+
 export interface ServiceDetailDTO {
   id: string;
   name: string;
@@ -88,13 +109,16 @@ export interface ServiceDetailDTO {
   activePrices: ActivePriceDTO[];
   ratingAverage: number | null;
   reviewCount: number;
+  /** TOUR-VEHICLE-3 — present only for a tour with a vehicle presentation; null otherwise. */
+  tourVehicleSummary: TourVehicleSummaryDTO | null;
   createdAt: string; // ISO-8601
 }
 
 export function toServiceDetailDTO(
   detail: ServiceDetail,
   activePrices: ActivePriceOption[],
-  rating: { averageRating: number | null; reviewCount: number }
+  rating: { averageRating: number | null; reviewCount: number },
+  tourVehicleSummary?: TourVehicleSummaryDTO | null
 ): ServiceDetailDTO {
   return {
     id: detail.id,
@@ -116,6 +140,7 @@ export function toServiceDetailDTO(
     })),
     ratingAverage: rating.averageRating,
     reviewCount: rating.reviewCount,
+    tourVehicleSummary: tourVehicleSummary ?? null,
     createdAt: detail.createdAt.toISOString(),
   };
 }

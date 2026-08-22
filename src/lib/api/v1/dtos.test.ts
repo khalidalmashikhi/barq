@@ -102,6 +102,30 @@ describe("toServiceDetailDTO", () => {
     expect(dto.providerVerified).toBe(false);
     expect(dto.price).toBeNull();
   });
+
+  it("TOUR-VEHICLE-3 — tourVehicleSummary defaults to null and passes through a customer-safe summary (no private fields)", async () => {
+    const base = {
+      id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
+      providerDescription: "", providerStatus: "APPROVED", price: null,
+      regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+    };
+    // Omitted → null (non-tour service).
+    expect(toServiceDetailDTO(base, [], { averageRating: null, reviewCount: 0 }).tourVehicleSummary).toBeNull();
+
+    const summary = {
+      transportIncluded: true,
+      requiresFourByFour: false,
+      vehicles: [{ make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false }],
+    };
+    const dto = toServiceDetailDTO(base, [], { averageRating: null, reviewCount: 0 }, summary);
+    expect(dto.tourVehicleSummary).toEqual(summary);
+    // The vehicle carries no private / pool-join fields.
+    const v = dto.tourVehicleSummary!.vehicles[0]! as unknown as Record<string, unknown>;
+    for (const forbidden of ["registrationNumber", "claimedFourByFour", "fourByFourVerified", "vehicleId", "assetId", "isInPool", "blockers", "status", "objectKey"]) {
+      expect(v[forbidden]).toBeUndefined();
+    }
+  });
 });
 
 describe("toProviderPublicDTO — BR-002 / no-leak", () => {

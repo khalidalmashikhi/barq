@@ -86,5 +86,14 @@
   "shareExperienceText": "Podívejte se na {serviceName} na BARQ",
   "shareProviderText": "Podívejte se na {providerName} na BARQ",
   "shareCopiedLabel": "Odkaz zkopírován do schránky",
-  "shareErrorLabel": "Tento odkaz se nepodařilo sdílet"
+  "shareErrorLabel": "Tento odkaz se nepodařilo sdílet",
+  "tourTransportHeading": "Doprava",
+  "tourTransportIncluded": "Doprava v ceně",
+  "tourVerified4x4": "Ověřené vozidlo 4x4",
+  "tourVehiclesHeading": "Vozidla používaná pro tento výlet",
+  "tourVehiclesRepresentativeNote": "Zobrazená vozidla jsou příklady těch, která se pro tento výlet aktuálně používají; k vaší rezervaci není přiřazeno konkrétní vozidlo.",
+  "tourVehicleUnavailable": "Podrobnosti o vozidle nejsou momentálně k dispozici.",
+  "tourVehicleGuestsSuffix": "hostů",
+  "tourVehicle4x4Badge": "4x4",
+  "tourVehicleUntitled": "Vozidlo"
 }
