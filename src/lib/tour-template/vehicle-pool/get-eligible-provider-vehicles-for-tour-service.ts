@@ -4,7 +4,7 @@ import { requireApprovedProvider } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { TOUR_PACKAGE_SEMANTICS } from "../packages";
 import { loadOwnedTourServiceContext } from "./tour-service-context";
-import { POOL_ASSET_SELECT, evaluatePoolVehicle, type EvaluatedPoolVehicle, type PoolVehicleRow } from "./pool-dto";
+import { POOL_VEHICLE_SELECT, evaluatePoolVehicle, type EvaluatedPoolVehicle, type PoolVehicleRow } from "./pool-dto";
 
 // TOUR-VEHICLE-1 — the reusable domain reader TOUR-VEHICLE-2's "add a vehicle" selector
 // will consume. Returns the provider's own vehicles that are NOT already pooled on this
@@ -35,22 +35,7 @@ export async function getEligibleProviderVehiclesForTourService(serviceId: strin
     prisma.vehicle.findMany({
       where: { asset: { providerId: provider.id, assetType: "VEHICLE" } },
       orderBy: [{ createdAt: "desc" }, { assetId: "desc" }],
-      select: {
-        assetId: true,
-        make: true,
-        model: true,
-        modelYear: true,
-        color: true,
-        vehicleType: true,
-        passengerCapacity: true,
-        publicDescription: true,
-        registrationNumber: true,
-        claimedFourByFour: true,
-        fourByFourVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        asset: { select: POOL_ASSET_SELECT },
-      },
+      select: POOL_VEHICLE_SELECT,
     }),
     prisma.tourServiceVehicle.findMany({ where: { serviceId }, select: { vehicleId: true } }),
   ]);

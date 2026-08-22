@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { TOUR_PACKAGE_SEMANTICS } from "../packages";
 import { loadOwnedTourServiceContext } from "./tour-service-context";
-import { POOL_ASSET_SELECT, evaluatePoolVehicle, type PoolVehicleRow } from "./pool-dto";
+import { POOL_VEHICLE_SELECT, evaluatePoolVehicle, type PoolVehicleRow } from "./pool-dto";
 import type { TourVehiclePoolResult } from "./pool-errors";
 
 // TOUR-VEHICLE-1 — add one of the CURRENT provider's own vehicles to a tour service's
@@ -50,22 +50,7 @@ export async function addVehicleToTourServicePool(serviceId: string, vehicleId: 
     // Vehicle ownership — scoped to the provider; foreign/missing is uniform.
     const vehicle = await prisma.vehicle.findFirst({
       where: { assetId: vehicleId, asset: { providerId, assetType: "VEHICLE" } },
-      select: {
-        assetId: true,
-        make: true,
-        model: true,
-        modelYear: true,
-        color: true,
-        vehicleType: true,
-        passengerCapacity: true,
-        publicDescription: true,
-        registrationNumber: true,
-        claimedFourByFour: true,
-        fourByFourVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        asset: { select: POOL_ASSET_SELECT },
-      },
+      select: POOL_VEHICLE_SELECT,
     });
     if (!vehicle) return { ok: false, error: "VEHICLE_NOT_FOUND" };
 

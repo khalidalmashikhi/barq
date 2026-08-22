@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { loadOwnedTourServiceContext } from "./tour-service-context";
-import { POOL_ASSET_SELECT, evaluatePoolVehicle, type EvaluatedPoolVehicle, type PoolVehicleRow } from "./pool-dto";
+import { POOL_VEHICLE_SELECT, evaluatePoolVehicle, type EvaluatedPoolVehicle, type PoolVehicleRow } from "./pool-dto";
 
 // TOUR-VEHICLE-1 — the provider-private reader for a tour service's CONFIGURED vehicle
 // pool, each row carrying its LIVE eligibility. Ownership-scoped: a foreign/missing
@@ -30,24 +30,7 @@ export async function getTourServiceVehiclePool(serviceId: string): Promise<Pool
     orderBy: [{ createdAt: "asc" }, { vehicleId: "asc" }],
     select: {
       createdAt: true,
-      vehicle: {
-        select: {
-          assetId: true,
-          make: true,
-          model: true,
-          modelYear: true,
-          color: true,
-          vehicleType: true,
-          passengerCapacity: true,
-          publicDescription: true,
-          registrationNumber: true,
-          claimedFourByFour: true,
-          fourByFourVerified: true,
-          createdAt: true,
-          updatedAt: true,
-          asset: { select: POOL_ASSET_SELECT },
-        },
-      },
+      vehicle: { select: POOL_VEHICLE_SELECT },
     },
   });
 

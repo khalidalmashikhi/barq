@@ -5,6 +5,7 @@ import type { AvailabilityActionErrorCode } from "@/lib/provider/availability-ac
 import type { ProviderProfileActionErrorCode } from "@/lib/provider/provider-profile-errors";
 import type { BookingActionErrorCode } from "@/lib/booking/booking-action-errors";
 import type { VehicleActionErrorCode } from "@/lib/vehicles/vehicle-errors";
+import type { TourVehiclePoolErrorCode } from "@/lib/tour-template/vehicle-pool/pool-errors";
 import { apiError, type ApiErrorCode } from "./errors";
 
 // Gate PC (Provider Mutation API) — maps the EXISTING authoritative provider
@@ -101,9 +102,28 @@ const VEHICLE_CODE_MAP: Record<VehicleActionErrorCode, ApiErrorCode> = {
   UNKNOWN_ERROR: "INTERNAL_ERROR",
 };
 
+// TOUR-VEHICLE-2 — vehicle-pool mutation codes. Ownership stays uniform-404
+// (SERVICE_NOT_FOUND / VEHICLE_NOT_FOUND → NOT_FOUND) so a provider can never tell
+// "doesn't exist" from "belongs to someone else". Not-eligible outcomes are 422.
+const TOUR_VEHICLE_POOL_CODE_MAP: Record<TourVehiclePoolErrorCode, ApiErrorCode> = {
+  INVALID_INPUT: "INVALID_INPUT",
+  NO_PROVIDER_PROFILE: "NO_PROVIDER_PROFILE",
+  PROVIDER_NOT_APPROVED: "PROVIDER_NOT_APPROVED",
+  SERVICE_NOT_FOUND: "NOT_FOUND",
+  VEHICLE_NOT_FOUND: "NOT_FOUND",
+  TOUR_SERVICE_NOT_ELIGIBLE: "TOUR_SERVICE_NOT_ELIGIBLE",
+  VEHICLE_NOT_ELIGIBLE: "TOUR_VEHICLE_NOT_ELIGIBLE",
+  UNKNOWN_ERROR: "INTERNAL_ERROR",
+};
+
 /** Build the API v1 error response for a provider vehicle-action code. */
 export function vehicleErrorResponse(code: VehicleActionErrorCode, locale: Locale): NextResponse {
   return apiError(VEHICLE_CODE_MAP[code] ?? "INTERNAL_ERROR", { locale });
+}
+
+/** Build the API v1 error response for a tour vehicle-pool action code. */
+export function tourVehiclePoolErrorResponse(code: TourVehiclePoolErrorCode, locale: Locale): NextResponse {
+  return apiError(TOUR_VEHICLE_POOL_CODE_MAP[code] ?? "INTERNAL_ERROR", { locale });
 }
 
 /** Build the API v1 error response for a provider service-action code. */

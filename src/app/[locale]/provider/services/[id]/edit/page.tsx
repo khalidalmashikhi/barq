@@ -18,6 +18,11 @@ import { RegionField } from "@/components/regions/region-field";
 import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 import { getServiceMedia } from "@/lib/service/media/get-service-media";
 import { isProviderMediaErrorCode, getProviderMediaErrorTranslationKey } from "@/lib/provider/media/provider-media-errors";
+import { getTourServiceVehiclePoolView } from "@/lib/tour-template/vehicle-pool/pool-view";
+import { addVehicleToTourServicePool } from "@/lib/tour-template/vehicle-pool/add-vehicle-to-tour-service-pool";
+import { removeVehicleFromTourServicePool } from "@/lib/tour-template/vehicle-pool/remove-vehicle-from-tour-service-pool";
+import { isTourVehiclePoolErrorCode, getTourVehiclePoolErrorTranslationKey } from "@/lib/tour-template/vehicle-pool/pool-errors";
+import { VehiclePoolSection } from "@/components/tour-template/vehicle-pool-section";
 
 // Edit Experience — Phase 4.2 (Provider Experience), Priority 1. Same
 // shape as the Create page, pre-filled with the real bilingual values
@@ -36,12 +41,14 @@ type Props = {
     gallerySaved?: string;
     mediaDeleted?: string;
     mediaError?: string;
+    poolNotice?: string;
+    poolError?: string;
   }>;
 };
 
 export default async function EditServicePage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error, coverSaved, gallerySaved, mediaDeleted, mediaError } = await searchParams;
+  const { error, coverSaved, gallerySaved, mediaDeleted, mediaError, poolNotice, poolError } = await searchParams;
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
 
@@ -91,6 +98,39 @@ export default async function EditServicePage({ params, searchParams }: Props) {
 
   // Service media (Gap C) — one bounded query for cover + gallery.
   const media = await getServiceMedia(id);
+
+  // TOUR-VEHICLE-2 — provider vehicle pool. Null when this is not a tour context the
+  // caller owns; the section is simply not rendered then. The read model is the single
+  // authority (eligibility recomputed live); this page only wires add/remove server
+  // actions that call the authoritative domain ops (server-derived provider identity).
+  const poolView = await getTourServiceVehiclePoolView(id);
+  const poolErrorMessage =
+    poolError && isTourVehiclePoolErrorCode(poolError) ? t(getTourVehiclePoolErrorTranslationKey(poolError)) : null;
+  const poolNoticeValue = poolNotice === "added" || poolNotice === "removed" ? poolNotice : null;
+
+  const addPoolVehicle = async (formData: FormData) => {
+    "use server";
+    const vehicleId = String(formData.get("vehicleId") ?? "");
+    const result = await addVehicleToTourServicePool(id, vehicleId);
+    redirect({
+      href: result.ok
+        ? `/provider/services/${id}/edit?poolNotice=added`
+        : `/provider/services/${id}/edit?poolError=${result.error}`,
+      locale,
+    });
+  };
+
+  const removePoolVehicle = async (formData: FormData) => {
+    "use server";
+    const vehicleId = String(formData.get("vehicleId") ?? "");
+    const result = await removeVehicleFromTourServicePool(id, vehicleId);
+    redirect({
+      href: result.ok
+        ? `/provider/services/${id}/edit?poolNotice=removed`
+        : `/provider/services/${id}/edit?poolError=${result.error}`,
+      locale,
+    });
+  };
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
@@ -323,6 +363,19 @@ export default async function EditServicePage({ params, searchParams }: Props) {
           </div>
         </div>
       </Card>
+
+      {/* TOUR-VEHICLE-2 — provider vehicle pool (tour services only). Native add/remove
+          forms bound to server actions; the section is server-rendered from the live
+          eligibility read model. */}
+      {poolView && (
+        <VehiclePoolSection
+          view={poolView}
+          addAction={addPoolVehicle}
+          removeAction={removePoolVehicle}
+          notice={poolNoticeValue}
+          errorMessage={poolErrorMessage}
+        />
+      )}
     </div>
   );
 }

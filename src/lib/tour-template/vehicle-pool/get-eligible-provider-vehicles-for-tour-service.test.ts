@@ -10,7 +10,7 @@ const loadContextMock = vi.fn();
 vi.mock("./tour-service-context", () => ({ loadOwnedTourServiceContext: (...a: unknown[]) => loadContextMock(...a) }));
 
 const evaluateMock = vi.fn();
-vi.mock("./pool-dto", () => ({ POOL_ASSET_SELECT: {}, evaluatePoolVehicle: (...a: unknown[]) => evaluateMock(...a) }));
+vi.mock("./pool-dto", () => ({ POOL_VEHICLE_SELECT: {}, evaluatePoolVehicle: (...a: unknown[]) => evaluateMock(...a) }));
 
 const vehicleFindManyMock = vi.fn();
 const poolFindManyMock = vi.fn();

@@ -54,9 +54,12 @@ vi.mock("@/lib/db", () => ({
           upsert: (...args: unknown[]) => experienceUpsertMock(...args),
           updateMany: (...args: unknown[]) => experienceUpdateManyMock(...args),
         },
+        tourServiceVehicle: { deleteMany: (...args: unknown[]) => poolDeleteManyMock(...args) },
       }),
   },
 }));
+
+const poolDeleteManyMock = vi.fn();
 
 vi.mock("@/lib/categories/resolve-assignable-category", () => ({
   resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
@@ -85,6 +88,10 @@ function buildFormData(fields: Record<string, string>): FormData {
 beforeEach(() => {
   // A category CHANGE is authorized by default; specific tests override.
   isProviderAuthorizedForCategoryMock.mockResolvedValue(true);
+  // TOUR-VEHICLE-2 — the pool-clear deleteMany runs whenever a package that forbids a
+  // vehicle is set or content is cleared; default to "nothing to clear" so unrelated
+  // tests are unaffected.
+  poolDeleteManyMock.mockResolvedValue({ count: 0 });
 });
 
 afterEach(() => {
@@ -98,6 +105,7 @@ afterEach(() => {
   categoryFindUniqueMock.mockReset();
   experienceUpsertMock.mockReset();
   experienceUpdateManyMock.mockReset();
+  poolDeleteManyMock.mockReset();
 });
 
 describe("updateService", () => {
@@ -360,6 +368,47 @@ describe("updateService", () => {
 
       expect(result).toEqual({ ok: true });
       expect(experienceUpsertMock).toHaveBeenCalled();
+    });
+
+    // TOUR-VEHICLE-2 — the relational vehicle pool must stay consistent with the package.
+    it("setting a vehicle-forbidding package (GUIDE_ONLY) clears the pool and audits it", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: TG_CAT, serviceType: "EXPERIENCE" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+      updateMock.mockResolvedValue({});
+      experienceUpsertMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+      poolDeleteManyMock.mockResolvedValue({ count: 2 });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "اسم", nameEn: "Name", guidingContent: guiding() }));
+
+      expect(result).toEqual({ ok: true });
+      expect(poolDeleteManyMock).toHaveBeenCalledWith({ where: { serviceId: SERVICE_ID } });
+      expect(auditCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: "tour.vehicle_pool_cleared",
+          newValue: { reason: "package_forbids_vehicle", removed: 2 },
+        }),
+      });
+    });
+
+    it("transition AWAY from tourist-guide clears any configured pool (reason category_changed)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: TG_CAT, serviceType: "EXPERIENCE" });
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+      resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "TRANSPORT" });
+      updateMock.mockResolvedValue({});
+      experienceUpdateManyMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+      poolDeleteManyMock.mockResolvedValue({ count: 1 });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "اسم", nameEn: "Name", categoryId: "generic-cat" }));
+
+      expect(result).toEqual({ ok: true });
+      expect(poolDeleteManyMock).toHaveBeenCalledWith({ where: { serviceId: SERVICE_ID } });
+      expect(auditCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({ action: "tour.vehicle_pool_cleared", newValue: { reason: "category_changed", removed: 1 } }),
+      });
     });
   });
 

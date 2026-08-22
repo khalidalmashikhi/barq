@@ -19,6 +19,27 @@ export const POOL_ASSET_SELECT = {
   documents: { select: { type: true, status: true, expiresAt: true } },
 } as const;
 
+// The single Prisma `select` for a Vehicle when evaluating pool eligibility — the
+// customer-safe/owner fields toProviderVehicle needs plus the base Asset's two status
+// axes + documents. Shared by every pool reader/op so the batched fetch shape is defined
+// exactly once (no drift, no per-vehicle document round trip).
+export const POOL_VEHICLE_SELECT = {
+  assetId: true,
+  make: true,
+  model: true,
+  modelYear: true,
+  color: true,
+  vehicleType: true,
+  passengerCapacity: true,
+  publicDescription: true,
+  registrationNumber: true,
+  claimedFourByFour: true,
+  fourByFourVerified: true,
+  createdAt: true,
+  updatedAt: true,
+  asset: { select: POOL_ASSET_SELECT },
+} as const;
+
 // The DB row shape the mapper consumes (a superset of VehicleWithAsset — structurally
 // assignable to it, so toProviderVehicle still only reads its allowlisted public fields).
 export type PoolVehicleRow = VehicleWithAsset & {

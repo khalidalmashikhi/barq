@@ -9,6 +9,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
 import { resolveGuidingContentWrite, type GuidingContentWrite } from "@/lib/tour-template/resolve-guiding-content-write";
+import { TOUR_PACKAGE_SEMANTICS } from "@/lib/tour-template/packages";
 import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
 import { isSmartTourGuideEligible } from "@/lib/tour-template/eligibility";
 import { parseRegionCode } from "@/lib/regions";
@@ -259,6 +260,38 @@ export async function updateService(serviceId: string, formData: FormData): Prom
           },
           tx
         );
+      }
+
+      // TOUR-VEHICLE-2 — keep the relational vehicle pool consistent with the package.
+      // If the service switches to a package that forbids a vehicle (GUIDE_ONLY) or is no
+      // longer a tour at all (category moved away → content cleared), any configured pool
+      // rows are stale and are removed atomically. A stricter-but-still-vehicle switch
+      // (e.g. TRANSPORT → 4x4) is deliberately LEFT intact — those rows simply surface
+      // eligibility blockers on read, preserving the provider's configuration rather than
+      // silently deleting it.
+      const newPackage = guidingWrite.kind === "set" ? guidingWrite.value.packageType : null;
+      const packageForbidsVehicle =
+        newPackage !== null &&
+        !TOUR_PACKAGE_SEMANTICS[newPackage].includesTransport &&
+        !TOUR_PACKAGE_SEMANTICS[newPackage].vehicleOptional;
+      if (packageForbidsVehicle || clearGuidingContent) {
+        const cleared = await tx.tourServiceVehicle.deleteMany({ where: { serviceId } });
+        if (cleared.count > 0) {
+          await recordAuditEvent(
+            {
+              actorType: "PROVIDER",
+              actorId: provider.id,
+              action: "tour.vehicle_pool_cleared",
+              entityType: "Service",
+              entityId: serviceId,
+              newValue: {
+                reason: clearGuidingContent ? "category_changed" : "package_forbids_vehicle",
+                removed: cleared.count,
+              },
+            },
+            tx
+          );
+        }
       }
     });
 

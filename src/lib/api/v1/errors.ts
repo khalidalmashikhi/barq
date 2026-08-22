@@ -50,6 +50,11 @@ export type ApiErrorCode =
   // service (422), or content that failed the strict guidingContent contract (422).
   | "TOUR_TEMPLATE_NOT_ELIGIBLE"
   | "TOUR_TEMPLATE_INVALID"
+  // TOUR-VEHICLE-2 — vehicle-pool outcomes. The service is not a tour context that can
+  // hold a vehicle pool (422), or the vehicle is not currently assignable to the package
+  // — not ACTIVE/APPROVED, a required doc invalid, not trusted-4x4, or too small (422).
+  | "TOUR_SERVICE_NOT_ELIGIBLE"
+  | "TOUR_VEHICLE_NOT_ELIGIBLE"
   | "CAPACITY_BELOW_BOOKED"
   | "SLOT_HAS_BOOKINGS"
   // VEHICLE-1B (Provider Vehicle API) — a vehicle with this registration number
@@ -91,6 +96,8 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   ACTIVITY_NOT_AUTHORIZED: 403,
   TOUR_TEMPLATE_NOT_ELIGIBLE: 422,
   TOUR_TEMPLATE_INVALID: 422,
+  TOUR_SERVICE_NOT_ELIGIBLE: 422,
+  TOUR_VEHICLE_NOT_ELIGIBLE: 422,
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
   DUPLICATE_REGISTRATION: 409,
@@ -158,6 +165,14 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   TOUR_TEMPLATE_INVALID: {
     en: "The tour details are incomplete or invalid.",
     ar: "تفاصيل الجولة غير مكتملة أو غير صالحة.",
+  },
+  TOUR_SERVICE_NOT_ELIGIBLE: {
+    en: "This service can't have a vehicle pool.",
+    ar: "لا يمكن لهذه الخدمة أن تملك مجموعة مركبات.",
+  },
+  TOUR_VEHICLE_NOT_ELIGIBLE: {
+    en: "This vehicle isn't currently eligible for this tour.",
+    ar: "هذه المركبة غير مؤهلة حالياً لهذه الجولة.",
   },
   CAPACITY_BELOW_BOOKED: {
     en: "Capacity can't be set below the number of seats already booked.",
