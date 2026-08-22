@@ -694,5 +694,6 @@
   "vehicleFourByFourNo": "Non 4x4",
   "vehicleFourByFourConfirmButton": "Conferma 4x4",
   "vehicleFourByFourDenyButton": "Segna non 4x4",
-  "vehicleFourByFourReviewHint": "Imposta la capacità 4x4 attendibile in base a prove reali. Non dedurla mai da marca/modello o dall'etichetta SUV."
+  "vehicleFourByFourReviewHint": "Imposta la capacità 4x4 attendibile in base a prove reali. Non dedurla mai da marca/modello o dall'etichetta SUV.",
+  "serviceErrorTourVehiclePoolRequired": "Aggiungi almeno un veicolo idoneo a questo tour prima di poterlo pubblicare."
 }

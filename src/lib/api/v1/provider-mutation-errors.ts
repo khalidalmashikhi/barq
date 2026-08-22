@@ -42,6 +42,9 @@ const SERVICE_CODE_MAP: Record<ServiceActionErrorCode, ApiErrorCode> = {
   // Publish-time completeness (eligible tour missing content) → "not publishable
   // yet", consistent with the other publish blockers.
   TOUR_TEMPLATE_REQUIRED: "SERVICE_NOT_PUBLISHABLE",
+  // TOUR-VEHICLE-2P — transport tour with no eligible pooled vehicle → "not publishable
+  // yet"; the specific blocker rides in details.blockers (same as the other publish gates).
+  TOUR_VEHICLE_POOL_REQUIRED: "SERVICE_NOT_PUBLISHABLE",
   INVALID_STATUS_TRANSITION: "INVALID_STATUS_TRANSITION",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
 };

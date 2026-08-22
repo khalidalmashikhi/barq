@@ -694,5 +694,6 @@
   "vehicleFourByFourNo": "ليست دفع رباعي",
   "vehicleFourByFourConfirmButton": "تأكيد الدفع الرباعي",
   "vehicleFourByFourDenyButton": "تحديد أنها ليست دفع رباعي",
-  "vehicleFourByFourReviewHint": "حدِّد قدرة الدفع الرباعي الموثوقة بناءً على دليل فعلي. لا تستنتجها من الصانع/الطراز أو تسمية SUV."
+  "vehicleFourByFourReviewHint": "حدِّد قدرة الدفع الرباعي الموثوقة بناءً على دليل فعلي. لا تستنتجها من الصانع/الطراز أو تسمية SUV.",
+  "serviceErrorTourVehiclePoolRequired": "أضف مركبة مؤهلة واحدة على الأقل إلى هذه الجولة قبل نشرها."
 }

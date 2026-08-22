@@ -694,5 +694,6 @@
   "vehicleFourByFourNo": "Nie 4x4",
   "vehicleFourByFourConfirmButton": "Potwierdź 4x4",
   "vehicleFourByFourDenyButton": "Oznacz jako nie 4x4",
-  "vehicleFourByFourReviewHint": "Ustaw zaufaną zdolność 4x4 na podstawie rzeczywistych dowodów. Nigdy nie wnioskuj z marki/modelu ani etykiety SUV."
+  "vehicleFourByFourReviewHint": "Ustaw zaufaną zdolność 4x4 na podstawie rzeczywistych dowodów. Nigdy nie wnioskuj z marki/modelu ani etykiety SUV.",
+  "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz."
 }

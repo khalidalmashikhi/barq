@@ -545,5 +545,6 @@
   "tourVehiclePoolErrorServiceNotEligible": "Dieser Dienst kann keinen Fahrzeugpool haben.",
   "tourVehiclePoolErrorVehicleNotFound": "Fahrzeug nicht gefunden.",
   "tourVehiclePoolErrorVehicleNotEligible": "Dieses Fahrzeug ist derzeit nicht für diese Tour geeignet.",
-  "tourVehiclePoolErrorUnknown": "Etwas ist schiefgelaufen, bitte versuchen Sie es erneut."
+  "tourVehiclePoolErrorUnknown": "Etwas ist schiefgelaufen, bitte versuchen Sie es erneut.",
+  "serviceErrorTourVehiclePoolRequired": "Fügen Sie mindestens ein geeignetes Fahrzeug zu dieser Tour hinzu, bevor Sie sie veröffentlichen."
 }

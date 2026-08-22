@@ -545,5 +545,6 @@
   "tourVehiclePoolErrorServiceNotEligible": "У этой услуги не может быть пула машин.",
   "tourVehiclePoolErrorVehicleNotFound": "Машина не найдена.",
   "tourVehiclePoolErrorVehicleNotEligible": "Эта машина сейчас не подходит для этого тура.",
-  "tourVehiclePoolErrorUnknown": "Что-то пошло не так, попробуйте снова."
+  "tourVehiclePoolErrorUnknown": "Что-то пошло не так, попробуйте снова.",
+  "serviceErrorTourVehiclePoolRequired": "Добавьте хотя бы одну подходящую машину к этому туру, прежде чем публиковать его."
 }

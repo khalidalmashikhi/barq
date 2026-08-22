@@ -74,7 +74,7 @@ async function transition(
     if (toStatus === "PUBLISHED") {
       // Single source of publish gating (BR-026 category + active price),
       // returning ALL blockers in priority order so the UI can show them at once.
-      const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId });
+      const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId, providerId: service.providerId });
       const [primaryBlocker] = blockers;
       if (primaryBlocker) {
         return { ok: false, error: primaryBlocker, blockers };

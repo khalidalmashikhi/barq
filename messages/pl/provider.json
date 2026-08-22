@@ -545,5 +545,6 @@
   "tourVehiclePoolErrorServiceNotEligible": "Ta usługa nie może mieć puli pojazdów.",
   "tourVehiclePoolErrorVehicleNotFound": "Nie znaleziono pojazdu.",
   "tourVehiclePoolErrorVehicleNotEligible": "Ten pojazd nie kwalifikuje się obecnie do tej wycieczki.",
-  "tourVehiclePoolErrorUnknown": "Coś poszło nie tak, spróbuj ponownie."
+  "tourVehiclePoolErrorUnknown": "Coś poszło nie tak, spróbuj ponownie.",
+  "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz."
 }

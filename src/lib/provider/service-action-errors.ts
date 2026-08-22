@@ -37,6 +37,10 @@ export type ServiceActionErrorCode =
   // TOUR-1: an eligible smart-tour service cannot be published without valid
   // guidingContent present (publish-time completeness).
   | "TOUR_TEMPLATE_REQUIRED"
+  // TOUR-VEHICLE-2P: a transport tour (GUIDE_WITH_TRANSPORT / GUIDE_WITH_4X4) cannot be
+  // published without at least one CURRENTLY ELIGIBLE pooled vehicle (publish-time
+  // fulfillment completeness). Surfaced like the other publish blockers.
+  | "TOUR_VEHICLE_POOL_REQUIRED"
   | "INVALID_STATUS_TRANSITION"
   | "UNKNOWN_ERROR";
 
@@ -52,6 +56,7 @@ const SERVICE_ACTION_ERROR_CODES: readonly ServiceActionErrorCode[] = [
   "TOUR_TEMPLATE_NOT_ELIGIBLE",
   "TOUR_TEMPLATE_INVALID",
   "TOUR_TEMPLATE_REQUIRED",
+  "TOUR_VEHICLE_POOL_REQUIRED",
   "INVALID_STATUS_TRANSITION",
   "UNKNOWN_ERROR",
 ];
@@ -75,6 +80,7 @@ const SERVICE_ERROR_TRANSLATION_KEYS = {
   TOUR_TEMPLATE_NOT_ELIGIBLE: "serviceErrorTourNotEligible",
   TOUR_TEMPLATE_INVALID: "serviceErrorTourInvalid",
   TOUR_TEMPLATE_REQUIRED: "serviceErrorTourRequired",
+  TOUR_VEHICLE_POOL_REQUIRED: "serviceErrorTourVehiclePoolRequired",
   INVALID_STATUS_TRANSITION: "serviceErrorInvalidTransition",
   UNKNOWN_ERROR: "serviceErrorUnknown",
 } as const satisfies Record<ServiceActionErrorCode, string>;

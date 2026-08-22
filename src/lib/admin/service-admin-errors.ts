@@ -21,6 +21,10 @@ export type ServiceAdminActionErrorCode =
   | "INVALID_CATEGORY"
   // Task B (BR-026): a publish was attempted on an uncategorized service.
   | "SERVICE_CATEGORY_REQUIRED"
+  // TOUR-VEHICLE-2P: a transport tour cannot be published without a currently-eligible
+  // pooled vehicle. Shared with the provider flow via assertServicePublishable (the
+  // vehicle rule is a fulfillment prerequisite, enforced for governance publish too).
+  | "TOUR_VEHICLE_POOL_REQUIRED"
   | "INVALID_STATUS_TRANSITION"
   | "UNKNOWN_ERROR";
 
@@ -32,6 +36,7 @@ const SERVICE_ADMIN_ACTION_ERROR_CODES: readonly ServiceAdminActionErrorCode[] =
   "NO_ACTIVE_PRICE",
   "INVALID_CATEGORY",
   "SERVICE_CATEGORY_REQUIRED",
+  "TOUR_VEHICLE_POOL_REQUIRED",
   "INVALID_STATUS_TRANSITION",
   "UNKNOWN_ERROR",
 ];
@@ -51,6 +56,7 @@ const SERVICE_ADMIN_ERROR_TRANSLATION_KEYS = {
   NO_ACTIVE_PRICE: "serviceErrorNoActivePrice",
   INVALID_CATEGORY: "serviceErrorInvalidCategory",
   SERVICE_CATEGORY_REQUIRED: "serviceErrorCategoryRequired",
+  TOUR_VEHICLE_POOL_REQUIRED: "serviceErrorTourVehiclePoolRequired",
   INVALID_STATUS_TRANSITION: "serviceErrorInvalidTransition",
   UNKNOWN_ERROR: "serviceErrorUnknown",
 } as const satisfies Record<ServiceAdminActionErrorCode, string>;

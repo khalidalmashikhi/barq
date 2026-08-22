@@ -545,5 +545,6 @@
   "tourVehiclePoolErrorServiceNotEligible": "لا يمكن لهذه الخدمة أن تملك مجموعة مركبات.",
   "tourVehiclePoolErrorVehicleNotFound": "المركبة غير موجودة.",
   "tourVehiclePoolErrorVehicleNotEligible": "هذه المركبة غير مؤهلة حالياً لهذه الجولة.",
-  "tourVehiclePoolErrorUnknown": "حدث خطأ ما، الرجاء المحاولة مرة أخرى."
+  "tourVehiclePoolErrorUnknown": "حدث خطأ ما، الرجاء المحاولة مرة أخرى.",
+  "serviceErrorTourVehiclePoolRequired": "أضف مركبة مؤهلة واحدة على الأقل إلى هذه الجولة قبل نشرها."
 }

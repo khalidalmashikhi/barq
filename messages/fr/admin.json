@@ -694,5 +694,6 @@
   "vehicleFourByFourNo": "Pas un 4x4",
   "vehicleFourByFourConfirmButton": "Confirmer 4x4",
   "vehicleFourByFourDenyButton": "Marquer non 4x4",
-  "vehicleFourByFourReviewHint": "Définissez la capacité 4x4 de confiance à partir de preuves réelles. Ne la déduisez jamais de la marque/du modèle ou de l'étiquette SUV."
+  "vehicleFourByFourReviewHint": "Définissez la capacité 4x4 de confiance à partir de preuves réelles. Ne la déduisez jamais de la marque/du modèle ou de l'étiquette SUV.",
+  "serviceErrorTourVehiclePoolRequired": "Ajoutez au moins un véhicule éligible à ce circuit avant de pouvoir le publier."
 }

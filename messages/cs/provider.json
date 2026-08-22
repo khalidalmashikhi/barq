@@ -545,5 +545,6 @@
   "tourVehiclePoolErrorServiceNotEligible": "Tato služba nemůže mít fond vozidel.",
   "tourVehiclePoolErrorVehicleNotFound": "Vozidlo nenalezeno.",
   "tourVehiclePoolErrorVehicleNotEligible": "Toto vozidlo není momentálně vhodné pro tento výlet.",
-  "tourVehiclePoolErrorUnknown": "Něco se pokazilo, zkuste to znovu."
+  "tourVehiclePoolErrorUnknown": "Něco se pokazilo, zkuste to znovu.",
+  "serviceErrorTourVehiclePoolRequired": "Než tento výlet zveřejníte, přidejte alespoň jedno vhodné vozidlo."
 }

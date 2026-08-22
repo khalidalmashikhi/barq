@@ -545,5 +545,6 @@
   "tourVehiclePoolErrorServiceNotEligible": "Ce service ne peut pas avoir de parc de véhicules.",
   "tourVehiclePoolErrorVehicleNotFound": "Véhicule introuvable.",
   "tourVehiclePoolErrorVehicleNotEligible": "Ce véhicule n'est pas actuellement éligible pour ce circuit.",
-  "tourVehiclePoolErrorUnknown": "Une erreur s'est produite, veuillez réessayer."
+  "tourVehiclePoolErrorUnknown": "Une erreur s'est produite, veuillez réessayer.",
+  "serviceErrorTourVehiclePoolRequired": "Ajoutez au moins un véhicule éligible à ce circuit avant de pouvoir le publier."
 }

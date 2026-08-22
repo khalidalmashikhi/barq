@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Phase 2.3 (Service Foundation) — regression tests for admin-side
 // publishService/unpublishService/archiveService. Mirrors
@@ -26,6 +26,11 @@ const findUniqueMock = vi.fn();
 const findFirstMock = vi.fn();
 const updateMock = vi.fn();
 const auditCreateMock = vi.fn();
+// TOUR-VEHICLE-2P — the shared publish authority now reads the Experience row (and, for a
+// transport tour, the vehicle pool). These admin publish tests are non-tour, so the
+// Experience defaults to null (no vehicle blocker).
+const experienceFindUniqueMock = vi.fn();
+const poolFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -35,6 +40,8 @@ vi.mock("@/lib/db", () => ({
     price: {
       findFirst: (...args: unknown[]) => findFirstMock(...args),
     },
+    experience: { findUnique: (...args: unknown[]) => experienceFindUniqueMock(...args) },
+    tourServiceVehicle: { findMany: (...args: unknown[]) => poolFindManyMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
@@ -47,12 +54,18 @@ const { publishService, unpublishService, archiveService } = await import("./tra
 
 const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
+beforeEach(() => {
+  experienceFindUniqueMock.mockResolvedValue(null); // non-tour by default
+});
+
 afterEach(() => {
   requireAdminMock.mockReset();
   findUniqueMock.mockReset();
   findFirstMock.mockReset();
   updateMock.mockReset();
   auditCreateMock.mockReset();
+  experienceFindUniqueMock.mockReset();
+  poolFindManyMock.mockReset();
 });
 
 describe("publishService (admin)", () => {

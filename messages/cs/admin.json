@@ -694,5 +694,6 @@
   "vehicleFourByFourNo": "Není 4x4",
   "vehicleFourByFourConfirmButton": "Potvrdit 4x4",
   "vehicleFourByFourDenyButton": "Označit jako ne 4x4",
-  "vehicleFourByFourReviewHint": "Nastavte důvěryhodnou schopnost 4x4 na základě skutečných důkazů. Nikdy ji neodvozujte ze značky/modelu ani z označení SUV."
+  "vehicleFourByFourReviewHint": "Nastavte důvěryhodnou schopnost 4x4 na základě skutečných důkazů. Nikdy ji neodvozujte ze značky/modelu ani z označení SUV.",
+  "serviceErrorTourVehiclePoolRequired": "Než tento výlet zveřejníte, přidejte alespoň jedno vhodné vozidlo."
 }

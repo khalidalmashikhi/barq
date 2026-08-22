@@ -23,6 +23,7 @@ const updateMock = vi.fn();
 const auditCreateMock = vi.fn();
 const categoryFindUniqueMock = vi.fn();
 const experienceFindUniqueMock = vi.fn();
+const poolFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -35,6 +36,8 @@ vi.mock("@/lib/db", () => ({
     // TOUR-1 — publish reads the canonical tour category + the Experience row.
     category: { findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args) },
     experience: { findUnique: (...args: unknown[]) => experienceFindUniqueMock(...args) },
+    // TOUR-VEHICLE-2P — publish readiness reads the tour's configured vehicle pool.
+    tourServiceVehicle: { findMany: (...args: unknown[]) => poolFindManyMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
@@ -67,6 +70,7 @@ afterEach(() => {
   isProviderAuthorizedForCategoryMock.mockReset();
   categoryFindUniqueMock.mockReset();
   experienceFindUniqueMock.mockReset();
+  poolFindManyMock.mockReset();
 });
 
 describe("publishService", () => {
@@ -233,18 +237,60 @@ describe("publishService", () => {
       expect(updateMock).toHaveBeenCalled();
     });
 
-    it("generic (non-tour) publish never consults the Experience row", async () => {
+    it("generic (non-tour) publish succeeds; the publish-readiness vehicle check finds no tour and imposes no blocker", async () => {
       requireProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
       findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", status: "DRAFT", categoryId: "generic-cat" });
       findFirstMock.mockResolvedValue({ id: "price-1" });
-      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT }); // service cat != TG_CAT -> not eligible
+      categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT }); // service cat != TG_CAT -> not smart-tour eligible
+      // TOUR-VEHICLE-2P — the shared publish authority reads the Experience to detect a
+      // transport tour; a non-tour service (no Experience) yields no vehicle blocker.
+      experienceFindUniqueMock.mockResolvedValue(null);
       updateMock.mockResolvedValue({});
       auditCreateMock.mockResolvedValue({});
 
       const result = await publishService(SERVICE_ID);
 
       expect(result).toEqual({ ok: true });
-      expect(experienceFindUniqueMock).not.toHaveBeenCalled();
+      expect(updateMock).toHaveBeenCalled();
+    });
+
+    // TOUR-VEHICLE-2P — a transport tour cannot be published with no eligible pooled vehicle.
+    const transportGuiding = { ...validGuiding, packageType: "GUIDE_WITH_TRANSPORT", vehicle: { type: "SUV", make: null, model: null, year: null, passengerCapacity: null } };
+
+    it("TOUR-VEHICLE-2P — publish of a GUIDE_WITH_TRANSPORT tour with an EMPTY pool is blocked; no status transition", async () => {
+      eligibleService();
+      experienceFindUniqueMock.mockResolvedValue({ guidingContent: transportGuiding });
+      poolFindManyMock.mockResolvedValue([]); // no configured vehicles
+
+      const result = await publishService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: false, error: "TOUR_VEHICLE_POOL_REQUIRED", blockers: ["TOUR_VEHICLE_POOL_REQUIRED"] });
+      expect(updateMock).not.toHaveBeenCalled(); // blocked publish never transitions status
+    });
+
+    it("TOUR-VEHICLE-2P — publish of a GUIDE_WITH_TRANSPORT tour with an eligible pooled vehicle succeeds", async () => {
+      eligibleService();
+      experienceFindUniqueMock.mockResolvedValue({ guidingContent: transportGuiding });
+      poolFindManyMock.mockResolvedValue([
+        {
+          vehicle: {
+            assetId: "veh-1", make: "Toyota", model: "Prado", modelYear: 2024, color: "White", vehicleType: "SUV",
+            passengerCapacity: 6, publicDescription: null, registrationNumber: "OM 1", claimedFourByFour: null, fourByFourVerified: null,
+            createdAt: new Date("2026-01-01T00:00:00Z"), updatedAt: new Date("2026-01-02T00:00:00Z"),
+            asset: { status: "ACTIVE", providerId: "provider-1", verificationStatus: "APPROVED", documents: [
+              { type: "VEHICLE_REGISTRATION", status: "APPROVED", expiresAt: new Date("2027-01-01T00:00:00Z") },
+              { type: "VEHICLE_INSURANCE", status: "APPROVED", expiresAt: new Date("2027-01-01T00:00:00Z") },
+            ] },
+          },
+        },
+      ]);
+      updateMock.mockResolvedValue({});
+      auditCreateMock.mockResolvedValue({});
+
+      const result = await publishService(SERVICE_ID);
+
+      expect(result).toEqual({ ok: true });
+      expect(updateMock).toHaveBeenCalled();
     });
   });
 });

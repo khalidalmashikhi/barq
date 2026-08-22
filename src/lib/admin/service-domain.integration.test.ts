@@ -71,6 +71,11 @@ vi.mock("@/lib/db", () => ({
       findFirst: async ({ where }: { where: { serviceId: string; status: string } }) =>
         prices.find((p) => p.serviceId === where.serviceId && p.status === where.status) ?? null,
     },
+    // TOUR-VEHICLE-2P — the shared publish authority reads the Experience (and, for a
+    // transport tour, the pool). These integration services are generic (non-tour): no
+    // Experience → no vehicle publish blocker.
+    experience: { findUnique: async () => null },
+    tourServiceVehicle: { findMany: async () => [] },
     // Any well-formed categoryId resolves to a selectable PUBLIC/EXPERIENCE
     // category — the tests only ever pass CATEGORY_ID (a valid uuid); an invalid
     // uuid is rejected upstream by assertAssignableCategory before this runs.

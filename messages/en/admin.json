@@ -694,5 +694,6 @@
   "vehicleFourByFourNo": "Not 4x4",
   "vehicleFourByFourConfirmButton": "Confirm 4x4",
   "vehicleFourByFourDenyButton": "Mark not 4x4",
-  "vehicleFourByFourReviewHint": "Set the trusted 4x4 capability from real evidence. Never infer it from make/model or an SUV label."
+  "vehicleFourByFourReviewHint": "Set the trusted 4x4 capability from real evidence. Never infer it from make/model or an SUV label.",
+  "serviceErrorTourVehiclePoolRequired": "Add at least one eligible vehicle to this tour before you can publish it."
 }
