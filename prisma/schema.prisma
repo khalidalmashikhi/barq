@@ -1111,6 +1111,16 @@ model Booking {
   /// checks relied on in earlier sprints, which structurally cannot
   /// catch this class of error.
   vehicle    Vehicle?      @relation(fields: [vehicleId], references: [assetId])
+  /// BOOKING-VEHICLE-SNAPSHOT — a historical, CUSTOMER-SAFE snapshot of the assigned
+  /// vehicle's facts, captured atomically at provider acceptance alongside vehicleId (never
+  /// by create-booking). Immutable presentation history: later edits to the live Vehicle
+  /// (make/model/color/capacity/type/verified-4x4) or the vehicle leaving the fleet must
+  /// NOT rewrite a confirmed booking's record. Booking.vehicleId stays the AUTHORITATIVE
+  /// relational assignment; this is derived presentation data only. Allowlisted shape
+  /// (make/model/modelYear/color/passengerCapacity/vehicleType/isFourByFour) — NEVER
+  /// registrationNumber, documents, objectKey, verificationStatus, or the raw trusted/
+  /// claimed 4x4 flags. Nullable + no backfill: legacy and no-vehicle bookings stay null.
+  vehicleSnapshot Json?
   status     BookingStatus @default(CREATED)
 
   /// Group booking support (approved architecture, Entries 066-067):

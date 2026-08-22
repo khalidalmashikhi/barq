@@ -4,6 +4,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { loadOwnedTourServiceContext } from "@/lib/tour-template/vehicle-pool/tour-service-context";
 import { TOUR_PACKAGE_SEMANTICS } from "@/lib/tour-template/packages";
 import { POOL_VEHICLE_SELECT, evaluatePoolVehicle, type PoolVehicleRow } from "@/lib/tour-template/vehicle-pool/pool-dto";
+import { buildBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 
 // BOOKING-VEHICLE-1 — the ONE authoritative resolver for "which vehicle (if any) may be
 // committed to this booking at provider acceptance". Pure of side effects (reads only),
@@ -34,8 +35,11 @@ export type VehicleAssignmentError =
 
 export type VehicleAssignmentResolution =
   // ok — `vehicleId` is the vehicle to persist on the booking (null = no vehicle: non-tour,
-  // GUIDE_ONLY, or an optional package the provider accepted without a vehicle).
-  | { ok: true; vehicleId: string | null }
+  // GUIDE_ONLY, or an optional package the provider accepted without a vehicle). `snapshot`
+  // is the customer-safe historical snapshot (BOOKING-VEHICLE-SNAPSHOT), non-null EXACTLY
+  // when vehicleId is non-null — built from the SAME authoritative row this call validated,
+  // so the two are always written together and can never diverge.
+  | { ok: true; vehicleId: string | null; snapshot: BookingVehicleSnapshot | null }
   | { ok: false; error: VehicleAssignmentError };
 
 export type ResolveVehicleAssignmentParams = {
@@ -56,7 +60,7 @@ export async function resolveVehicleAssignmentForAcceptance(
   // A non-tour service (no eligible guidingContent) has no vehicle concept — the booking
   // keeps vehicleId null and any supplied id is ignored, so acceptance is unchanged.
   const contextResult = await loadOwnedTourServiceContext(db, providerId, serviceId);
-  if (!contextResult.ok) return { ok: true, vehicleId: null };
+  if (!contextResult.ok) return { ok: true, vehicleId: null, snapshot: null };
 
   const { packageType } = contextResult.context;
   const semantics = TOUR_PACKAGE_SEMANTICS[packageType];
@@ -64,7 +68,7 @@ export async function resolveVehicleAssignmentForAcceptance(
   const vehicleRequired = semantics.includesTransport;
 
   // GUIDE_ONLY (vehicle forbidden) — vehicleId stays null; a supplied id is ignored.
-  if (!vehicleAllowed) return { ok: true, vehicleId: null };
+  if (!vehicleAllowed) return { ok: true, vehicleId: null, snapshot: null };
 
   const normalized = vehicleId && vehicleId.length > 0 ? vehicleId : null;
   if (normalized !== null && !isValidUuid(normalized)) return { ok: false, error: "INVALID_INPUT" };
@@ -72,7 +76,7 @@ export async function resolveVehicleAssignmentForAcceptance(
   if (normalized === null) {
     // Required (GUIDE_WITH_TRANSPORT / GUIDE_WITH_4X4) → must supply one.
     // Optional (PRIVATE_CUSTOM_TOUR) → accepting with no vehicle is legitimate.
-    return vehicleRequired ? { ok: false, error: "VEHICLE_REQUIRED" } : { ok: true, vehicleId: null };
+    return vehicleRequired ? { ok: false, error: "VEHICLE_REQUIRED" } : { ok: true, vehicleId: null, snapshot: null };
   }
 
   // Pool membership scoped to THIS service: covers foreign AND own-but-unpooled uniformly
@@ -94,7 +98,11 @@ export async function resolveVehicleAssignmentForAcceptance(
     packageType,
     maxGuests: seats,
   });
-  if (evaluated.eligible) return { ok: true, vehicleId: normalized };
+  if (evaluated.eligible) {
+    // BOOKING-VEHICLE-SNAPSHOT — derive the customer-safe historical snapshot from the SAME
+    // authoritative row that just passed eligibility (never client-supplied, never stale).
+    return { ok: true, vehicleId: normalized, snapshot: buildBookingVehicleSnapshot(row.vehicle) };
+  }
 
   // Surface the capacity boundary distinctly ONLY when it is the sole problem; any other
   // (or additional) blocker is the generic not-eligible outcome.

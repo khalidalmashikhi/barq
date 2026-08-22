@@ -113,10 +113,12 @@ const { acceptBooking } = await import("./accept-booking");
 
 const BOOKING_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 const VEHICLE_ID = "019f4e4e-9000-7052-b15e-b79b5ccb1aaa";
+// BOOKING-VEHICLE-SNAPSHOT — the customer-safe snapshot the resolver returns alongside a vehicle.
+const SNAP = { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false };
 
 beforeEach(() => {
   // Default: no vehicle involved (non-tour / GUIDE_ONLY) — the pre-existing behavior.
-  resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: null });
+  resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: null, snapshot: null });
 });
 
 afterEach(() => {
@@ -313,8 +315,8 @@ describe("acceptBooking", () => {
       priceSnapshotCurrency: "OMR",
     });
     canAcceptBookingMock.mockReturnValue(true);
-    // Both the pre-check and the in-transaction re-check resolve to the chosen vehicle.
-    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID });
+    // Both the pre-check and the in-transaction re-check resolve to the chosen vehicle + its snapshot.
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP });
     transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
     commissionFindFirstMock.mockResolvedValue(null); // isolate the vehicle write from the commission write
     paymentCreateMock.mockResolvedValue({});
@@ -327,7 +329,11 @@ describe("acceptBooking", () => {
     expect(resolveVehicleAssignmentMock).toHaveBeenCalledWith(
       expect.objectContaining({ serviceId: "service-1", providerId: "provider-1", seats: 4, vehicleId: VEHICLE_ID })
     );
-    expect(bookingUpdateMock).toHaveBeenCalledWith({ where: { id: BOOKING_ID }, data: { vehicleId: VEHICLE_ID } });
+    // BOOKING-VEHICLE-SNAPSHOT — vehicleId AND the snapshot are written together in one update.
+    expect(bookingUpdateMock).toHaveBeenCalledWith({
+      where: { id: BOOKING_ID },
+      data: { vehicleId: VEHICLE_ID, vehicleSnapshot: SNAP },
+    });
     expect(dispatchLifecycleHookMock).toHaveBeenCalled();
   });
 
@@ -368,7 +374,7 @@ describe("acceptBooking", () => {
     canAcceptBookingMock.mockReturnValue(true);
     // Pre-check passes, in-transaction re-check fails (a doc expired / vehicle deactivated).
     resolveVehicleAssignmentMock
-      .mockResolvedValueOnce({ ok: true, vehicleId: VEHICLE_ID })
+      .mockResolvedValueOnce({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP })
       .mockResolvedValueOnce({ ok: false, error: "VEHICLE_NOT_ELIGIBLE" });
     transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
     commissionFindFirstMock.mockResolvedValue(null);
@@ -379,6 +385,9 @@ describe("acceptBooking", () => {
     expect(result).toEqual({ ok: false, error: "VEHICLE_NOT_ELIGIBLE" });
     // The transaction threw → the lifecycle hook (post-commit) never fired.
     expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+    // BOOKING-VEHICLE-SNAPSHOT — no partial write: vehicleId/vehicleSnapshot were never persisted
+    // (commission is null here, so booking.update is not called at all).
+    expect(bookingUpdateMock).not.toHaveBeenCalled();
   });
 
   it("maps a concurrent modification inside the guarded transition to BOOKING_STATE_CONFLICT", async () => {

@@ -14,6 +14,8 @@ const PAST = new Date("2026-01-01T00:00:00.000Z");
 const PROVIDER = "prov-1";
 const SERVICE = "svc-1";
 const VEHICLE = "019f4e4e-9000-7052-b15e-b79b5ccb1aaa";
+// The customer-safe snapshot the resolver builds from the default eligible vehicleRow().
+const SNAP = { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false };
 
 function guidingContent(packageType: string, maxGuests: number | null = null) {
   const transport = packageType === "GUIDE_WITH_TRANSPORT" || packageType === "GUIDE_WITH_4X4";
@@ -78,12 +80,12 @@ const base = (db: unknown, over: Record<string, unknown> = {}) => ({
 describe("resolveVehicleAssignmentForAcceptance — BOOKING-VEHICLE-1", () => {
   it("non-tour service → no vehicle (id ignored)", async () => {
     const db = makeDb({ experience: "none" });
-    expect(await resolveVehicleAssignmentForAcceptance(base(db))).toEqual({ ok: true, vehicleId: null });
+    expect(await resolveVehicleAssignmentForAcceptance(base(db))).toEqual({ ok: true, vehicleId: null, snapshot: null });
   });
 
   it("GUIDE_ONLY → vehicle forbidden; id ignored, pool never consulted", async () => {
     const db = makeDb({ packageType: "GUIDE_ONLY", poolRow: vehicleRow() });
-    expect(await resolveVehicleAssignmentForAcceptance(base(db))).toEqual({ ok: true, vehicleId: null });
+    expect(await resolveVehicleAssignmentForAcceptance(base(db))).toEqual({ ok: true, vehicleId: null, snapshot: null });
   });
 
   it("GUIDE_WITH_TRANSPORT + no vehicle → VEHICLE_REQUIRED", async () => {
@@ -116,7 +118,7 @@ describe("resolveVehicleAssignmentForAcceptance — BOOKING-VEHICLE-1", () => {
 
   it("GUIDE_WITH_TRANSPORT + eligible pooled vehicle → ok with the vehicleId", async () => {
     const db = makeDb({ packageType: "GUIDE_WITH_TRANSPORT", poolRow: vehicleRow() });
-    expect(await resolveVehicleAssignmentForAcceptance(base(db))).toEqual({ ok: true, vehicleId: VEHICLE });
+    expect(await resolveVehicleAssignmentForAcceptance(base(db))).toEqual({ ok: true, vehicleId: VEHICLE, snapshot: SNAP });
   });
 
   it("inactive vehicle → VEHICLE_NOT_ELIGIBLE", async () => {
@@ -153,7 +155,7 @@ describe("resolveVehicleAssignmentForAcceptance — BOOKING-VEHICLE-1", () => {
 
   it("capacity: seats == passengerCapacity → ok", async () => {
     const db = makeDb({ packageType: "GUIDE_WITH_TRANSPORT", poolRow: vehicleRow() });
-    expect(await resolveVehicleAssignmentForAcceptance(base(db, { seats: 6 }))).toEqual({ ok: true, vehicleId: VEHICLE });
+    expect(await resolveVehicleAssignmentForAcceptance(base(db, { seats: 6 }))).toEqual({ ok: true, vehicleId: VEHICLE, snapshot: SNAP });
   });
 
   it("GUIDE_WITH_4X4: trusted-null vehicle → VEHICLE_NOT_ELIGIBLE; trusted-true → ok", async () => {
@@ -161,14 +163,27 @@ describe("resolveVehicleAssignmentForAcceptance — BOOKING-VEHICLE-1", () => {
     expect(await resolveVehicleAssignmentForAcceptance(base(notTrusted))).toEqual({ ok: false, error: "VEHICLE_NOT_ELIGIBLE" });
 
     const trusted = makeDb({ packageType: "GUIDE_WITH_4X4", poolRow: vehicleRow({ vehicle: { fourByFourVerified: true } }) });
-    expect(await resolveVehicleAssignmentForAcceptance(base(trusted))).toEqual({ ok: true, vehicleId: VEHICLE });
+    expect(await resolveVehicleAssignmentForAcceptance(base(trusted))).toEqual({
+      ok: true, vehicleId: VEHICLE, snapshot: { ...SNAP, isFourByFour: true },
+    });
   });
 
   it("PRIVATE_CUSTOM_TOUR: no vehicle → ok(null); eligible vehicle → ok(id)", async () => {
     const none = makeDb({ packageType: "PRIVATE_CUSTOM_TOUR" });
-    expect(await resolveVehicleAssignmentForAcceptance(base(none, { vehicleId: null }))).toEqual({ ok: true, vehicleId: null });
+    expect(await resolveVehicleAssignmentForAcceptance(base(none, { vehicleId: null }))).toEqual({ ok: true, vehicleId: null, snapshot: null });
 
     const withV = makeDb({ packageType: "PRIVATE_CUSTOM_TOUR", poolRow: vehicleRow() });
-    expect(await resolveVehicleAssignmentForAcceptance(base(withV))).toEqual({ ok: true, vehicleId: VEHICLE });
+    expect(await resolveVehicleAssignmentForAcceptance(base(withV))).toEqual({ ok: true, vehicleId: VEHICLE, snapshot: SNAP });
+  });
+
+  it("BOOKING-VEHICLE-SNAPSHOT — the built snapshot carries no private field from the row", async () => {
+    // The pool row has registrationNumber "OM 12345", verificationStatus, documents, and the
+    // raw trusted/claimed 4x4 flags — NONE may appear in the derived snapshot.
+    const db = makeDb({ packageType: "GUIDE_WITH_TRANSPORT", poolRow: vehicleRow() });
+    const result = await resolveVehicleAssignmentForAcceptance(base(db));
+    const json = JSON.stringify(result);
+    for (const forbidden of ["registrationNumber", "OM 12345", "verificationStatus", "documents", "objectKey", "claimedFourByFour", "fourByFourVerified", "assetId", "status"]) {
+      expect(json).not.toContain(forbidden);
+    }
   });
 });

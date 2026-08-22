@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
@@ -217,8 +218,18 @@ export async function acceptBooking(bookingId: string, vehicleId?: string | null
           vehicleId: assignment.vehicleId,
         });
         if (!revalidated.ok) throw new VehicleAssignmentAbortError(revalidated.error);
-        if (revalidated.vehicleId !== null) {
-          await tx.booking.update({ where: { id: booking.id }, data: { vehicleId: revalidated.vehicleId } });
+        // BOOKING-VEHICLE-SNAPSHOT — write the authoritative vehicleId AND its customer-safe
+        // historical snapshot together in this one update, so a confirmed vehicle-required
+        // booking can never end up with a vehicleId but no snapshot (or vice-versa). The
+        // snapshot is non-null exactly when vehicleId is; requiring BOTH here enforces that.
+        if (revalidated.vehicleId !== null && revalidated.snapshot !== null) {
+          await tx.booking.update({
+            where: { id: booking.id },
+            data: {
+              vehicleId: revalidated.vehicleId,
+              vehicleSnapshot: revalidated.snapshot as unknown as Prisma.InputJsonValue,
+            },
+          });
         }
       }
 
