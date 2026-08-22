@@ -70,6 +70,16 @@ export type ApiErrorCode =
   | "DOCUMENT_LOCKED"
   // Submit blocked: required documents missing/rejected. blockers ride in details (422).
   | "VERIFICATION_NOT_READY"
+  // REVIEW-API-1 — customer review creation outcomes, mirroring the domain's own
+  // ReviewActionErrorCode. Rating outside the integer 1-5 range (422), content that
+  // is blank after trimming or longer than 2000 characters (422), a booking that is
+  // not COMPLETED (422), and a booking that already has a review (409 — the state
+  // conflicts with the request, and a client retrying after an unknown outcome uses
+  // exactly this code to learn its review did commit).
+  | "INVALID_RATING"
+  | "INVALID_CONTENT"
+  | "BOOKING_NOT_REVIEWABLE"
+  | "ALREADY_REVIEWED"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -104,6 +114,13 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   DOCUMENT_ALREADY_EXISTS: 409,
   DOCUMENT_LOCKED: 409,
   VERIFICATION_NOT_READY: 422,
+  INVALID_RATING: 422,
+  INVALID_CONTENT: 422,
+  BOOKING_NOT_REVIEWABLE: 422,
+  // 409, not 422: the request is well-formed and the booking is eligible in
+  // principle — it is the CURRENT STATE that conflicts, because a review already
+  // exists. Same reasoning as DOCUMENT_ALREADY_EXISTS/SLOT_FULL above.
+  ALREADY_REVIEWED: 409,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -197,6 +214,25 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   VERIFICATION_NOT_READY: {
     en: "Complete the required documents before submitting for verification.",
     ar: "أكمل المستندات المطلوبة قبل الإرسال للتحقق.",
+  },
+  // Mirrors the committed web copy in messages/{en,ar}/errors.json — invalidRating,
+  // invalidContent, bookingNotReviewable and alreadyReviewed — so the same failure
+  // reads the same way whichever client a customer is using.
+  INVALID_RATING: {
+    en: "Please select a rating between 1 and 5.",
+    ar: "الرجاء اختيار تقييم بين 1 و5.",
+  },
+  INVALID_CONTENT: {
+    en: "Please write a short review before submitting.",
+    ar: "الرجاء كتابة تعليق قصير قبل الإرسال.",
+  },
+  BOOKING_NOT_REVIEWABLE: {
+    en: "This booking cannot be reviewed — only completed bookings are eligible.",
+    ar: "لا يمكن تقييم هذا الحجز — التقييم متاح فقط للحجوزات المكتملة.",
+  },
+  ALREADY_REVIEWED: {
+    en: "You've already submitted a review for this booking.",
+    ar: "لقد أرسلت بالفعل تقييمًا لهذا الحجز.",
   },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",
