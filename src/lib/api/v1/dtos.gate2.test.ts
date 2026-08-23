@@ -46,18 +46,25 @@ describe("toBookingSummaryDTO", () => {
   it("maps snapshot price to MoneyDTO string and dates to ISO", () => {
     const dto = toBookingSummaryDTO({
       id: "b1",
+      serviceId: "svc-1",
       serviceName: "Desert Safari",
       status: "CONFIRMED",
       priceSnapshot: "25 OMR",
+      availabilityId: "av-1",
       slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
     });
+    // EXACT equality, deliberately kept exact: this assertion is the allow-list guard.
+    // A Booking field that leaked into the DTO would fail here, which is the whole point
+    // — it must never be relaxed to toMatchObject/objectContaining.
     expect(dto).toEqual({
       id: "b1",
       status: "CONFIRMED",
+      serviceId: "svc-1",
       serviceName: "Desert Safari",
       priceSnapshot: { amount: "25.00", currency: "OMR" },
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
+      availabilityId: "av-1",
       createdAt: "2026-05-01T00:00:00.000Z",
     });
     expect(typeof dto.priceSnapshot!.amount).toBe("string");
@@ -66,14 +73,83 @@ describe("toBookingSummaryDTO", () => {
   it("maps null price / null slot", () => {
     const dto = toBookingSummaryDTO({
       id: "b1",
+      serviceId: "svc-1",
       serviceName: "n",
       status: "CREATED",
       priceSnapshot: null,
+      availabilityId: null,
       slotStartTime: null,
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
     });
     expect(dto.priceSnapshot).toBeNull();
     expect(dto.scheduledStartTime).toBeNull();
+    // NULL, never "" — a slotless booking has no slot, and an empty string would be a
+    // value a client could accidentally match against.
+    expect(dto.availabilityId).toBeNull();
+  });
+
+  // BOOKING-SUMMARY-RECONCILIATION — why these two ids are on the wire at all.
+  describe("reconciliation key", () => {
+    function summary(over: Partial<Parameters<typeof toBookingSummaryDTO>[0]> = {}) {
+      return toBookingSummaryDTO({
+        id: "b1",
+        serviceId: "svc-1",
+        serviceName: "Desert Safari",
+        status: "PENDING_PROVIDER",
+        priceSnapshot: null,
+        availabilityId: "av-1",
+        slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        ...over,
+      });
+    }
+
+    /**
+     * THE CLIENT PREDICATE, REPRODUCED. createBooking()'s duplicate guard is
+     * `{ customerId, availabilityId, status: { not: "CANCELLED" } }`. customerId is
+     * implicit (this endpoint only ever returns the caller's own bookings), so
+     * availabilityId + status is exactly the client-visible remainder — which is why
+     * both are exposed.
+     */
+    it("exposes availabilityId + status, the client-visible half of the server guard", () => {
+      const candidates = [
+        summary({ id: "match", availabilityId: "av-1", status: "PENDING_PROVIDER" }),
+        summary({ id: "other-slot", availabilityId: "av-2" }),
+        summary({ id: "cancelled", availabilityId: "av-1", status: "CANCELLED" }),
+      ].filter((b) => b.availabilityId === "av-1" && b.status !== "CANCELLED");
+
+      expect(candidates.map((c) => c.id)).toEqual(["match"]);
+    });
+
+    /**
+     * AND WHY THE WEAKER KEY IS NOT ENOUGH. Availability has no
+     * @@unique(serviceId, startTime), no unique/exclusion constraint in any migration,
+     * and no overlap guard in any of the four availability write paths — so two rows may
+     * legitimately share a service and a start time. Matching on those two fields
+     * therefore yields two candidates, and a client would have to guess.
+     */
+    it("serviceId + scheduledStartTime alone cannot discriminate same-start slots", () => {
+      const sameServiceSameStart = [
+        summary({ id: "b1", availabilityId: "av-1" }),
+        summary({ id: "b2", availabilityId: "av-2" }),
+      ];
+
+      const weak = sameServiceSameStart.filter(
+        (b) => b.serviceId === "svc-1" && b.scheduledStartTime === "2026-06-01T09:00:00.000Z"
+      );
+      expect(weak).toHaveLength(2); // ambiguous — a client must not guess
+
+      const strong = sameServiceSameStart.filter((b) => b.availabilityId === "av-1");
+      expect(strong.map((b) => b.id)).toEqual(["b1"]); // unambiguous
+    });
+
+    /** serviceId is the defensive consistency check, never the discriminator. */
+    it("carries serviceId as a stable machine id rather than a localized name", () => {
+      const dto = summary({ serviceName: "\u0631\u062d\u0644\u0629" });
+
+      expect(dto.serviceId).toBe("svc-1");
+      expect(dto.serviceId).not.toBe(dto.serviceName);
+    });
   });
 });
 

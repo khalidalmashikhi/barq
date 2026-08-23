@@ -46,9 +46,11 @@ describe("GET /api/v1/me/bookings", () => {
       items: [
         {
           id: "b1",
+          serviceId: "svc-1",
           serviceName: "Desert Safari",
           status: "CONFIRMED",
           priceSnapshot: "25 OMR",
+          availabilityId: "av-1",
           slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
           createdAt: new Date("2026-05-01T00:00:00.000Z"),
         },
@@ -68,14 +70,23 @@ describe("GET /api/v1/me/bookings", () => {
     );
 
     const body = await res.json();
+    // EXACT equality, kept exact on purpose: this is the wire allow-list guard. It must
+    // fail if any additional Booking field ever reaches a customer, so it is never
+    // relaxed to toMatchObject/objectContaining.
     expect(body.items[0]).toEqual({
       id: "b1",
       status: "CONFIRMED",
+      serviceId: "svc-1",
       serviceName: "Desert Safari",
       priceSnapshot: { amount: "25.00", currency: "OMR" },
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
+      availabilityId: "av-1",
       createdAt: "2026-05-01T00:00:00.000Z",
     });
+    // Nothing private rides along.
+    for (const forbidden of ["customerId", "providerId", "paymentId", "phone", "email"]) {
+      expect(Object.keys(body.items[0])).not.toContain(forbidden);
+    }
     expect(typeof body.items[0].priceSnapshot.amount).toBe("string");
     expect(body).toMatchObject({ page: 1, pageSize: 50, totalCount: 1, totalPages: 1 });
   });

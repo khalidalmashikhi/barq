@@ -4,6 +4,7 @@
   "remainingSeatsLabel": "posti rimanenti",
   "noBookingsOnPageLabel": "Nessuna prenotazione in questa pagina",
   "myBookingsTitle": "Le mie prenotazioni",
+  "bookingOutcomeUnknownLabel": "Non siamo riusciti a confermare se la tua richiesta di prenotazione è stata creata. Controlla Le mie prenotazioni prima di riprovare.",
   "noBookingsLabel": "Nessuna prenotazione ancora",
   "browseExperiencesButton": "Esplora le esperienze",
   "slotLabel": "Fascia oraria",

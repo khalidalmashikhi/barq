@@ -17,9 +17,21 @@ import type { Locale } from "@/i18n/locales";
 
 export type MyBookingListItem = {
   id: string;
+  /// BOOKING-SUMMARY-RECONCILIATION — the stable machine id of the booked service.
+  /// `serviceName` is localized display text and can be shared by two services, so it
+  /// is never a key; this is.
+  serviceId: string;
   serviceName: string;
   status: string;
   priceSnapshot: string | null;
+  /// BOOKING-SUMMARY-RECONCILIATION — the slot this booking reserves, or null for a
+  /// genuinely slotless booking. THE reconciliation key: createBooking()'s duplicate
+  /// guard is keyed on (customerId, availabilityId, status != CANCELLED), so a client
+  /// holding the availabilityId it submitted can reproduce that exact predicate rather
+  /// than approximating it. `slotStartTime` cannot: nothing prevents two Availability
+  /// rows sharing a service and a start time (no @@unique, no DB constraint, and no
+  /// overlap guard in any of the four availability write paths).
+  availabilityId: string | null;
   slotStartTime: Date | null;
   createdAt: Date;
 };
@@ -117,6 +129,9 @@ export async function getMyBookings(
 
   type BookingRow = {
     id: string;
+    // Both are SCALARS already on the Booking row — no extra query, no extra include.
+    serviceId: string;
+    availabilityId: string | null;
     status: string;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
@@ -127,12 +142,16 @@ export async function getMyBookings(
 
   const items = (bookings as BookingRow[]).map((booking) => ({
     id: booking.id,
+    serviceId: booking.serviceId,
     serviceName: extractLocalizedText(booking.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     status: booking.status,
     priceSnapshot:
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
         : null,
+    // Read from the Booking scalar, NOT from `availability?.id`: the two are the same
+    // value, and the scalar is the one the duplicate guard itself keys on.
+    availabilityId: booking.availabilityId,
     slotStartTime: booking.availability?.startTime ?? null,
     createdAt: booking.createdAt,
   }));

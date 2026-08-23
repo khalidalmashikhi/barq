@@ -284,12 +284,32 @@ export function toMeDTO(
 export interface BookingSummaryDTO {
   id: string;
   status: string;
+  /// BOOKING-SUMMARY-RECONCILIATION — stable machine id of the booked service. Already
+  /// public (it keys GET /api/v1/services/{id}) and already on BookingDetailDTO.
+  serviceId: string;
   serviceName: string;
   // Snapshotted price captured at booking time (domain truth). This is the
   // stored Price snapshot, NOT a computed order total — labeled honestly so a
   // client never treats it as a seats-multiplied total.
   priceSnapshot: MoneyDTO | null;
   scheduledStartTime: string | null; // ISO-8601 slot start, when the booking references a slot
+  /// BOOKING-SUMMARY-RECONCILIATION — the slot id, or null when the booking has no slot.
+  ///
+  /// THIS IS THE RECONCILIATION KEY, and it is exposed because nothing weaker works. A
+  /// client that receives 422 DUPLICATE_BOOKING needs to find the booking that already
+  /// exists WITHOUT guessing. createBooking()'s guard is
+  /// `{ customerId, availabilityId, status: { not: "CANCELLED" } }`, so a client holding
+  /// the availabilityId it just submitted reproduces that predicate exactly.
+  ///
+  /// serviceId + scheduledStartTime CANNOT substitute: Availability has no
+  /// @@unique(serviceId, startTime), no unique/exclusion constraint in any migration,
+  /// and none of the four availability write paths guards against overlap — so two rows
+  /// may legitimately share a service and a start time, yielding two candidates.
+  ///
+  /// Not a new exposure: slot ids are already served unauthenticated by
+  /// GET /api/v1/services/{id}/availability, and this endpoint only ever returns the
+  /// caller's own bookings.
+  availabilityId: string | null;
   createdAt: string; // ISO-8601
 }
 
@@ -297,9 +317,11 @@ export function toBookingSummaryDTO(item: MyBookingListItem): BookingSummaryDTO 
   return {
     id: item.id,
     status: item.status,
+    serviceId: item.serviceId,
     serviceName: item.serviceName,
     priceSnapshot: parseMoneyString(item.priceSnapshot),
     scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
+    availabilityId: item.availabilityId,
     createdAt: item.createdAt.toISOString(),
   };
 }

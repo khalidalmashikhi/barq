@@ -4,6 +4,7 @@
   "remainingSeatsLabel": "مقعد متبقٍ",
   "noBookingsOnPageLabel": "لا توجد حجوزات في هذه الصفحة",
   "myBookingsTitle": "حجوزاتي",
+  "bookingOutcomeUnknownLabel": "تعذر التأكد مما إذا تم إنشاء طلب الحجز. تحقق من حجوزاتي قبل المحاولة مرة أخرى.",
   "noBookingsLabel": "لا توجد حجوزات بعد",
   "browseExperiencesButton": "تصفح التجارب",
   "slotLabel": "الموعد",

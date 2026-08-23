@@ -4,6 +4,7 @@
   "remainingSeatsLabel": "мест осталось",
   "noBookingsOnPageLabel": "На этой странице нет бронирований",
   "myBookingsTitle": "Мои бронирования",
+  "bookingOutcomeUnknownLabel": "Не удалось подтвердить, был ли создан ваш запрос на бронирование. Проверьте раздел «Мои бронирования», прежде чем повторять попытку.",
   "noBookingsLabel": "Пока нет бронирований",
   "browseExperiencesButton": "Смотреть впечатления",
   "slotLabel": "Время",

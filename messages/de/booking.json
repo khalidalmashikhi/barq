@@ -4,6 +4,7 @@
   "remainingSeatsLabel": "verbleibende Plätze",
   "noBookingsOnPageLabel": "Keine Buchungen auf dieser Seite",
   "myBookingsTitle": "Meine Buchungen",
+  "bookingOutcomeUnknownLabel": "Wir konnten nicht bestätigen, ob Ihre Buchungsanfrage erstellt wurde. Prüfen Sie Meine Buchungen, bevor Sie es erneut versuchen.",
   "noBookingsLabel": "Noch keine Buchungen",
   "browseExperiencesButton": "Erlebnisse entdecken",
   "slotLabel": "Zeitfenster",

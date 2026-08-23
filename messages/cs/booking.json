@@ -4,6 +4,7 @@
   "remainingSeatsLabel": "zbývající místa",
   "noBookingsOnPageLabel": "Na této stránce nejsou žádné rezervace",
   "myBookingsTitle": "Moje rezervace",
+  "bookingOutcomeUnknownLabel": "Nepodařilo se nám ověřit, zda byla vaše žádost o rezervaci vytvořena. Než to zkusíte znovu, zkontrolujte Moje rezervace.",
   "noBookingsLabel": "Zatím žádné rezervace",
   "browseExperiencesButton": "Prozkoumat zážitky",
   "slotLabel": "Časový termín",

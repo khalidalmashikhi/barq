@@ -4,6 +4,7 @@
   "remainingSeatsLabel": "seats remaining",
   "noBookingsOnPageLabel": "No bookings on this page",
   "myBookingsTitle": "My Bookings",
+  "bookingOutcomeUnknownLabel": "We couldn't confirm whether your booking request was created. Check My Bookings before trying again.",
   "noBookingsLabel": "No bookings yet",
   "browseExperiencesButton": "Browse Experiences",
   "slotLabel": "Time Slot",
