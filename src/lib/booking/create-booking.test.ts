@@ -37,15 +37,31 @@ vi.mock("@/lib/booking/lifecycle", () => ({
   dispatchLifecycleHook: (...args: unknown[]) => dispatchLifecycleHookMock(...args),
 }));
 
+// BOOKING-SLOT-AUTHORITY — createBooking() now consults the slot authority before
+// accepting a slot-less booking. Mocked as a module (not through the prisma mock) so
+// this file keeps testing createBooking's DECISION, not the authority's own query —
+// which has its own dedicated tests in service-requires-slot.test.ts.
+const serviceRequiresSlotMock = vi.fn();
+
+vi.mock("@/lib/booking/service-requires-slot", () => ({
+  serviceRequiresSlot: (...args: unknown[]) => serviceRequiresSlotMock(...args),
+}));
+
 const serviceFindFirstMock = vi.fn();
 const priceFindFirstMock = vi.fn();
 const bookingCreateMock = vi.fn();
+const availabilityFindFirstMock = vi.fn();
+const bookingFindFirstMock = vi.fn();
 const executeRawMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     service: { findFirst: (...args: unknown[]) => serviceFindFirstMock(...args) },
     price: { findFirst: (...args: unknown[]) => priceFindFirstMock(...args) },
+    // Needed only by the slotted happy-path test below; the pre-existing tests never
+    // reach these because they book slot-lessly.
+    availability: { findFirst: (...args: unknown[]) => availabilityFindFirstMock(...args) },
+    booking: { findFirst: (...args: unknown[]) => bookingFindFirstMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         $executeRaw: (...args: unknown[]) => executeRawMock(...args),
@@ -61,6 +77,7 @@ const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 const PRICE_ID = "019f4e4e-80b8-7cf2-b043-916c71648fcb";
 const PROVIDER_ID = "019f4e4e-80dd-7760-9398-7bbb2cd8f5ea";
 const CUSTOMER_ID = "019f4e4e-8200-7a11-9c3e-1a2b3c4d5e6f";
+const AVAILABILITY_ID = "019f4e4e-8300-7b22-8d4f-2b3c4d5e6f70";
 
 function formData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -74,8 +91,14 @@ afterEach(() => {
   transitionBookingMock.mockReset();
   dispatchLifecycleHookMock.mockReset();
   serviceFindFirstMock.mockReset();
+  // Default: a genuinely slotless service, so every pre-existing test keeps exercising
+  // the exact path it was written for.
+  serviceRequiresSlotMock.mockReset();
+  serviceRequiresSlotMock.mockResolvedValue(false);
   priceFindFirstMock.mockReset();
   bookingCreateMock.mockReset();
+  availabilityFindFirstMock.mockReset();
+  bookingFindFirstMock.mockReset();
   executeRawMock.mockReset();
   _resetRateLimitStoreForTests();
   vi.unstubAllEnvs();
@@ -145,6 +168,122 @@ describe("createBooking", () => {
 
       expect(result).toEqual({ ok: false, error: "SERVICE_UNAVAILABLE" });
       expect(bookingCreateMock).not.toHaveBeenCalled();
+    });
+  });
+
+
+  // BOOKING-SLOT-AUTHORITY — the slot-required rule, and the capacity hole it closes.
+  describe("slot requirement enforcement (BOOKING-SLOT-AUTHORITY)", () => {
+    function slotBasedService() {
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+      transitionBookingMock.mockResolvedValue({ hook: "context" });
+      serviceRequiresSlotMock.mockResolvedValue(true);
+    }
+
+    /**
+     * THE REGRESSION THIS WHOLE GATE EXISTS FOR.
+     *
+     * The atomic `bookedCount + seats <= capacity` guard runs ONLY when an
+     * availabilityId is present. So before this check, omitting one against a
+     * slot-based service produced a real, confirmed booking that consumed NO capacity
+     * — overbooking that no seat count could ever see. Rejecting BEFORE the
+     * transaction is what makes that impossible.
+     */
+    it("omitting availabilityId can no longer bypass the atomic capacity guard", async () => {
+      slotBasedService();
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "99" }));
+
+      expect(result).toEqual({ ok: false, error: "SLOT_REQUIRED" });
+      // Nothing was reserved...
+      expect(executeRawMock).not.toHaveBeenCalled();
+      // ...nothing was written...
+      expect(bookingCreateMock).not.toHaveBeenCalled();
+      // ...and no lifecycle or provider-notification side effect fired.
+      expect(recordBookingCreatedMock).not.toHaveBeenCalled();
+      expect(transitionBookingMock).not.toHaveBeenCalled();
+      expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+    });
+
+    it("returns SLOT_REQUIRED when availabilityId is omitted entirely", async () => {
+      slotBasedService();
+
+      expect(await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID })))
+        .toEqual({ ok: false, error: "SLOT_REQUIRED" });
+    });
+
+    /** An empty string is treated as absent, not as a malformed uuid. */
+    it("returns SLOT_REQUIRED for an empty-string availabilityId", async () => {
+      slotBasedService();
+
+      expect(await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: "" })))
+        .toEqual({ ok: false, error: "SLOT_REQUIRED" });
+    });
+
+    it("derives the rule from the authority, never from the request", async () => {
+      slotBasedService();
+
+      // Hostile input: the client asserts no slot is needed.
+      await createBooking(
+        formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, requiresSlot: "false", slotRequired: "no" })
+      );
+
+      expect(serviceRequiresSlotMock).toHaveBeenCalledWith(SERVICE_ID);
+      expect(bookingCreateMock).not.toHaveBeenCalled();
+    });
+
+    /** SLOT_REQUIRED is not SLOT_UNAVAILABLE: nothing was selected to become unavailable. */
+    it("is a distinct code from SLOT_UNAVAILABLE and SLOT_FULL", async () => {
+      slotBasedService();
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(result).toEqual({ ok: false, error: "SLOT_REQUIRED" });
+      expect(result).not.toEqual({ ok: false, error: "SLOT_UNAVAILABLE" });
+      expect(result).not.toEqual({ ok: false, error: "SLOT_FULL" });
+    });
+
+    /** The genuinely slotless service is untouched by any of this. */
+    it("a service with no declared availability still books without a slot", async () => {
+      slotBasedService();
+      serviceRequiresSlotMock.mockResolvedValue(false);
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+      expect(bookingCreateMock).toHaveBeenCalled();
+    });
+
+    /**
+     * The check only guards the ABSENT case. A supplied slot goes through the existing
+     * ownership/state/time validation and the atomic guard exactly as before — the
+     * authority is not consulted a second time to second-guess it.
+     */
+    it("a slot-based service booked WITH a slot is unaffected", async () => {
+      slotBasedService();
+      availabilityFindFirstMock.mockResolvedValue({ id: AVAILABILITY_ID, serviceId: SERVICE_ID, state: "OPEN" });
+      bookingFindFirstMock.mockResolvedValue(null);
+      executeRawMock.mockResolvedValue(1);
+
+      const result = await createBooking(
+        formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: AVAILABILITY_ID, seats: "2" })
+      );
+
+      expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+      expect(executeRawMock).toHaveBeenCalled();
+      expect(dispatchLifecycleHookMock).toHaveBeenCalledWith({ hook: "context" });
+    });
+
+    /** Rejection happens before the price lookup — no wasted work, no partial state. */
+    it("rejects before any transaction is opened", async () => {
+      slotBasedService();
+
+      await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(priceFindFirstMock).not.toHaveBeenCalled();
     });
   });
 

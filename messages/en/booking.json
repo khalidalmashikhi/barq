@@ -19,6 +19,7 @@
   "viewDetailsButton": "View Booking Details",
   "bookServiceTitle": "Book: {serviceName}",
   "selectSlotLabel": "Select a time slot",
+  "noSlotsAvailableLabel": "No time slots are currently available.",
   "noPricesAvailableLabel": "No pricing options are currently available for this experience",
   "selectPriceLabel": "Select a Price",
   "confirmBookingButton": "Confirm Booking Request",

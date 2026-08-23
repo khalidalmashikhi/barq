@@ -19,6 +19,7 @@
   "viewDetailsButton": "Просмотреть детали бронирования",
   "bookServiceTitle": "Бронирование: {serviceName}",
   "selectSlotLabel": "Выберите время",
+  "noSlotsAvailableLabel": "Свободных временных слотов сейчас нет.",
   "noPricesAvailableLabel": "Для этого впечатления пока нет доступных тарифов",
   "selectPriceLabel": "Выберите тариф",
   "confirmBookingButton": "Подтвердить запрос на бронирование",

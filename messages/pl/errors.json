@@ -5,6 +5,7 @@
   "serviceUnavailable": "Ta atrakcja nie jest obecnie dostępna do rezerwacji",
   "priceUnavailable": "Wybrana opcja cenowa nie jest dostępna dla tej atrakcji",
   "slotUnavailable": "Wybrany termin nie jest już dostępny",
+  "slotRequired": "Wybierz termin dla tego przeżycia",
   "slotFull": "Przepraszamy, pozostałe miejsca w tym terminie zostały właśnie zajęte",
   "bookingNotFound": "Nie znaleziono rezerwacji",
   "bookingNotCancellable": "Tej rezerwacji nie można anulować w jej obecnym stanie",

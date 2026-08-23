@@ -23,6 +23,11 @@ export type BookingActionErrorCode =
   | "NO_PROVIDER_PROFILE"
   | "SERVICE_UNAVAILABLE"
   | "PRICE_UNAVAILABLE"
+  // BOOKING-SLOT-AUTHORITY — three DISTINCT slot failures, deliberately not merged:
+  // SLOT_REQUIRED    the service is slot-based and the request supplied no slot at all
+  // SLOT_UNAVAILABLE a slot WAS supplied but is foreign, not OPEN, or in the past
+  // SLOT_FULL        a valid slot lost its remaining capacity in a race
+  | "SLOT_REQUIRED"
   | "SLOT_UNAVAILABLE"
   | "SLOT_FULL"
   | "DUPLICATE_BOOKING"
@@ -52,6 +57,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "NO_PROVIDER_PROFILE",
   "SERVICE_UNAVAILABLE",
   "PRICE_UNAVAILABLE",
+  "SLOT_REQUIRED",
   "SLOT_UNAVAILABLE",
   "SLOT_FULL",
   "DUPLICATE_BOOKING",

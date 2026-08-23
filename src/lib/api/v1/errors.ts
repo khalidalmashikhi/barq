@@ -30,6 +30,7 @@ export type ApiErrorCode =
   | "CONCURRENT_MODIFICATION"
   | "SERVICE_UNAVAILABLE"
   | "PRICE_UNAVAILABLE"
+  | "SLOT_REQUIRED"
   | "SLOT_UNAVAILABLE"
   | "DUPLICATE_BOOKING"
   | "BOOKING_NOT_CANCELLABLE"
@@ -104,6 +105,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   CONCURRENT_MODIFICATION: 409,
   SERVICE_UNAVAILABLE: 422,
   PRICE_UNAVAILABLE: 422,
+  SLOT_REQUIRED: 422,
   SLOT_UNAVAILABLE: 422,
   DUPLICATE_BOOKING: 422,
   BOOKING_NOT_CANCELLABLE: 422,
@@ -164,6 +166,9 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   },
   SERVICE_UNAVAILABLE: { en: "This experience is not currently available for booking.", ar: "هذه التجربة غير متاحة للحجز حالياً." },
   PRICE_UNAVAILABLE: { en: "The selected price option is not available for this experience.", ar: "الخيار السعري المحدد غير متاح لهذه التجربة." },
+  // Distinct from SLOT_UNAVAILABLE on purpose: nothing was selected to become
+  // unavailable. The service is slot-based and the request carried no slot at all.
+  SLOT_REQUIRED: { en: "Please select a time slot for this experience.", ar: "الرجاء اختيار موعد لهذه التجربة." },
   SLOT_UNAVAILABLE: { en: "The selected time slot is no longer available.", ar: "الموعد المحدد لم يعد متاحاً." },
   DUPLICATE_BOOKING: { en: "You already have a booking for this time slot.", ar: "لديك بالفعل حجز لهذا الموعد." },
   BOOKING_NOT_CANCELLABLE: { en: "This booking cannot be cancelled in its current status.", ar: "لا يمكن إلغاء هذا الحجز في حالته الحالية." },

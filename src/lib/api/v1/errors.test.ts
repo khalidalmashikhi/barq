@@ -41,6 +41,28 @@ describe("apiErrorMessage", () => {
   });
 });
 
+describe("SLOT_REQUIRED (BOOKING-SLOT-AUTHORITY)", () => {
+  /**
+   * A SEPARATE CODE, NOT A REUSE. SLOT_UNAVAILABLE means a slot WAS chosen and is no
+   * longer valid; SLOT_REQUIRED means the service is slot-based and none was supplied.
+   * Same 422, different instruction to the customer — so the messages must differ too.
+   */
+  it("is 422 and carries its own message, distinct from SLOT_UNAVAILABLE", () => {
+    expect(apiError("SLOT_REQUIRED").status).toBe(422);
+    expect(apiError("SLOT_UNAVAILABLE").status).toBe(422);
+    expect(apiErrorMessage("SLOT_REQUIRED", "en")).not.toBe(apiErrorMessage("SLOT_UNAVAILABLE", "en"));
+    expect(apiErrorMessage("SLOT_REQUIRED", "ar")).not.toBe(apiErrorMessage("SLOT_UNAVAILABLE", "ar"));
+  });
+
+  it("has a real curated message in both en and ar, never a raw code", () => {
+    for (const locale of ["en", "ar"] as const) {
+      const message = apiErrorMessage("SLOT_REQUIRED", locale);
+      expect(message.length).toBeGreaterThan(0);
+      expect(message).not.toContain("SLOT_REQUIRED");
+    }
+  });
+});
+
 describe("apiError (HTTP)", () => {
   it("maps codes to the right status and sets no-store", async () => {
     const notFound = apiError("NOT_FOUND", { locale: "en" });

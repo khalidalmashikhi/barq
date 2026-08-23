@@ -19,6 +19,7 @@
   "viewDetailsButton": "Zobacz szczegóły rezerwacji",
   "bookServiceTitle": "Rezerwacja: {serviceName}",
   "selectSlotLabel": "Wybierz termin",
+  "noSlotsAvailableLabel": "Obecnie nie ma dostępnych terminów.",
   "noPricesAvailableLabel": "Brak dostępnych opcji cenowych dla tej atrakcji",
   "selectPriceLabel": "Wybierz cenę",
   "confirmBookingButton": "Potwierdź zgłoszenie rezerwacji",

@@ -5,6 +5,7 @@
   "serviceUnavailable": "Dieses Erlebnis ist derzeit nicht buchbar",
   "priceUnavailable": "Die ausgewählte Preisoption ist für dieses Erlebnis nicht verfügbar",
   "slotUnavailable": "Das ausgewählte Zeitfenster ist nicht mehr verfügbar",
+  "slotRequired": "Bitte wählen Sie einen Termin für dieses Erlebnis",
   "slotFull": "Leider wurden die verbleibenden Plätze für dieses Zeitfenster soeben vergeben",
   "bookingNotFound": "Buchung nicht gefunden",
   "bookingNotCancellable": "Diese Buchung kann in ihrem aktuellen Status nicht storniert werden",

@@ -19,6 +19,7 @@
   "viewDetailsButton": "Voir les détails de la réservation",
   "bookServiceTitle": "Réserver : {serviceName}",
   "selectSlotLabel": "Sélectionnez un créneau horaire",
+  "noSlotsAvailableLabel": "Aucun créneau horaire n'est disponible pour le moment.",
   "noPricesAvailableLabel": "Aucune option tarifaire n'est actuellement disponible pour cette expérience",
   "selectPriceLabel": "Sélectionnez un tarif",
   "confirmBookingButton": "Confirmer la demande de réservation",

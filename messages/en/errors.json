@@ -5,6 +5,7 @@
   "serviceUnavailable": "This experience is not currently available for booking",
   "priceUnavailable": "The selected price option is not available for this experience",
   "slotUnavailable": "The selected time slot is no longer available",
+  "slotRequired": "Please select a time slot for this experience",
   "slotFull": "Sorry, the remaining capacity for this slot was just taken",
   "bookingNotFound": "Booking not found",
   "bookingNotCancellable": "This booking cannot be cancelled in its current status",

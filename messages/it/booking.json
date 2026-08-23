@@ -19,6 +19,7 @@
   "viewDetailsButton": "Visualizza dettagli prenotazione",
   "bookServiceTitle": "Prenota: {serviceName}",
   "selectSlotLabel": "Seleziona una fascia oraria",
+  "noSlotsAvailableLabel": "Al momento non ci sono orari disponibili.",
   "noPricesAvailableLabel": "Al momento non sono disponibili opzioni di prezzo per questa esperienza",
   "selectPriceLabel": "Seleziona un prezzo",
   "confirmBookingButton": "Conferma richiesta di prenotazione",

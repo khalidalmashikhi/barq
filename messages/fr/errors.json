@@ -5,6 +5,7 @@
   "serviceUnavailable": "Cette expérience n'est actuellement pas disponible à la réservation",
   "priceUnavailable": "L'option tarifaire sélectionnée n'est pas disponible pour cette expérience",
   "slotUnavailable": "Le créneau horaire sélectionné n'est plus disponible",
+  "slotRequired": "Veuillez sélectionner un créneau horaire pour cette expérience",
   "slotFull": "Désolé, les places restantes pour ce créneau viennent d'être prises",
   "bookingNotFound": "Réservation introuvable",
   "bookingNotCancellable": "Cette réservation ne peut pas être annulée dans son statut actuel",

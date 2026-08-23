@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect, Link } from "@/i18n/navigation";
-import { Calendar, PackageX, Users, ArrowRight } from "lucide-react";
+import { Calendar, CalendarX, PackageX, Users, ArrowRight } from "lucide-react";
 import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { resolveBarqUser } from "@/lib/auth/barq-user";
 import { getServiceById, getActivePricesForService } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
+import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { prisma } from "@/lib/db";
 import { createBooking } from "@/lib/booking/create-booking";
 import { isBookingActionErrorCode } from "@/lib/booking/booking-action-errors";
@@ -51,9 +52,16 @@ export default async function BookServicePage({ params, searchParams }: Props) {
   if (!fetchedService) { notFound(); return null; }
   const service = fetchedService;
 
-  const [prices, slots] = await Promise.all([
+  // BOOKING-SLOT-AUTHORITY — `slots.length > 0` is NO LONGER the definition of
+  // "this service needs a slot". An empty list is ambiguous (no slots exist vs. every
+  // slot is full/past/blocked), and treating it as "slotless" let this form submit
+  // without an availabilityId against a slot-based service — which skipped the atomic
+  // capacity guard entirely. The rule now comes from the SAME authority createBooking()
+  // enforces, so the form can never offer something the server will refuse.
+  const [prices, slots, requiresSlot] = await Promise.all([
     getActivePricesForService(service.id),
     getAvailableSlots(service.id),
+    serviceRequiresSlot(service.id),
   ]);
 
   const barqUser = await resolveBarqUser(session.user.id);
@@ -83,6 +91,12 @@ export default async function BookServicePage({ params, searchParams }: Props) {
       {!customer && <Alert variant="warning">{tErrors("noCustomerProfile")}</Alert>}
       {prices.length === 0 ? (
         <EmptyState icon={PackageX} message={t("noPricesAvailableLabel")} padding="py-10" />
+      ) : requiresSlot && slots.length === 0 ? (
+        // Slot-based, but nothing is bookable right now. Deliberately renders NO form:
+        // any form here could only submit without an availabilityId, which the server
+        // now refuses with SLOT_REQUIRED — so offering it would be an affordance that
+        // cannot succeed.
+        <EmptyState icon={CalendarX} message={t("noSlotsAvailableLabel")} padding="py-10" />
       ) : (
         <form
           action={async (formData: FormData) => {
@@ -97,7 +111,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
           className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm"
         >
           <input type="hidden" name="serviceId" value={service.id} />
-          {slots.length > 0 && (
+          {requiresSlot && (
             <fieldset className="flex flex-col gap-2">
               <legend className="flex items-center gap-2 text-sm font-medium text-foreground/80">
                 <Calendar size={16} strokeWidth={1.75} />
@@ -114,7 +128,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
               ))}
             </fieldset>
           )}
-          {slots.length > 0 && (
+          {requiresSlot && (
             <div className="flex flex-col gap-2">
               <label htmlFor="seats" className="flex items-center gap-2 text-sm font-medium text-foreground/80">
                 <Users size={16} strokeWidth={1.75} />

@@ -19,6 +19,7 @@
   "viewDetailsButton": "عرض تفاصيل الحجز",
   "bookServiceTitle": "حجز: {serviceName}",
   "selectSlotLabel": "اختر الموعد",
+  "noSlotsAvailableLabel": "لا توجد مواعيد متاحة حاليًا.",
   "noPricesAvailableLabel": "لا تتوفر خيارات سعرية لهذه التجربة حالياً",
   "selectPriceLabel": "اختر السعر",
   "confirmBookingButton": "تأكيد طلب الحجز",

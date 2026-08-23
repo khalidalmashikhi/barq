@@ -7,6 +7,10 @@ describe("toApiBookingErrorCode", () => {
     expect(toApiBookingErrorCode("NO_CUSTOMER_PROFILE")).toBe("NO_CUSTOMER_PROFILE");
     expect(toApiBookingErrorCode("SERVICE_UNAVAILABLE")).toBe("SERVICE_UNAVAILABLE");
     expect(toApiBookingErrorCode("PRICE_UNAVAILABLE")).toBe("PRICE_UNAVAILABLE");
+    // BOOKING-SLOT-AUTHORITY — three DISTINCT slot codes. Collapsing any pair would
+    // tell a customer the wrong thing: "pick a time" vs "that time is gone" vs "it
+    // just sold out" are different instructions.
+    expect(toApiBookingErrorCode("SLOT_REQUIRED")).toBe("SLOT_REQUIRED");
     expect(toApiBookingErrorCode("SLOT_UNAVAILABLE")).toBe("SLOT_UNAVAILABLE");
     expect(toApiBookingErrorCode("SLOT_FULL")).toBe("SLOT_FULL");
     expect(toApiBookingErrorCode("DUPLICATE_BOOKING")).toBe("DUPLICATE_BOOKING");
@@ -32,6 +36,7 @@ describe("bookingErrorResponse", () => {
     expect(bookingErrorResponse("SLOT_FULL", "en").status).toBe(409);
     expect(bookingErrorResponse("SERVICE_UNAVAILABLE", "en").status).toBe(422);
     expect(bookingErrorResponse("PRICE_UNAVAILABLE", "en").status).toBe(422);
+    expect(bookingErrorResponse("SLOT_REQUIRED", "en").status).toBe(422);
     expect(bookingErrorResponse("SLOT_UNAVAILABLE", "en").status).toBe(422);
     expect(bookingErrorResponse("DUPLICATE_BOOKING", "en").status).toBe(422);
     expect(bookingErrorResponse("BOOKING_NOT_CANCELLABLE", "en").status).toBe(422);

@@ -8,6 +8,7 @@ import { recordBookingCreated, transitionBooking } from "@/lib/booking/lifecycle
 import { dispatchLifecycleHook } from "@/lib/booking/lifecycle";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit/rate-limiter";
+import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { getBookingCreateRateLimit } from "@/lib/rate-limit/rate-limit-config";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -127,6 +128,26 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
 
   if (!service) {
     return { ok: false, error: "SERVICE_UNAVAILABLE" };
+  }
+
+  // BOOKING-SLOT-AUTHORITY — a slot-based service may NEVER be booked without a slot.
+  //
+  // THIS CLOSES A CAPACITY-BYPASS PATH, not merely a contract inconsistency. The
+  // atomic `bookedCount + seats <= capacity` guard below runs ONLY when an
+  // availabilityId is present, so before this check a request that simply omitted one
+  // produced a real, confirmed booking against a slot-based service while consuming
+  // zero capacity — overbooking that no seat count could see. The rule was previously
+  // enforced only by the web form's HTML `required`, i.e. not enforced at all.
+  //
+  // Derived SERVER-SIDE from the same single authority the read surfaces use; nothing
+  // about it is accepted from the client. Returning here — before the transaction —
+  // guarantees zero Booking rows, zero capacity mutation, zero lifecycle events and
+  // zero provider notification on rejection.
+  //
+  // The empty string is treated as absent above, so "" lands here rather than failing
+  // the UUID check with a less accurate INVALID_INPUT.
+  if (availabilityId === null && (await serviceRequiresSlot(service.id))) {
+    return { ok: false, error: "SLOT_REQUIRED" };
   }
 
   const price = await prisma.price.findFirst({

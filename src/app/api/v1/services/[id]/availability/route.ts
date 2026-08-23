@@ -1,5 +1,6 @@
 import { getServiceById } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
+import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { resolveApiLocale } from "@/lib/api/v1/locale";
 import { apiOk } from "@/lib/api/v1/respond";
@@ -27,8 +28,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const service = await getServiceById(id, locale);
     if (!service) return apiError("NOT_FOUND", { locale });
 
-    const slots = await getAvailableSlots(service.id);
+    // TWO DIFFERENT QUESTIONS, answered by two different authorities.
+    //
+    // `items` is what can be booked RIGHT NOW. `requiresSlot` is whether this service
+    // is slot-based AT ALL. An empty `items` alone is ambiguous — it means either "no
+    // slots exist, book without one" or "slot-based, but everything is full/past/
+    // blocked" — and no client could previously tell those apart. Both are needed, and
+    // the rule is never re-derived here: this route reads the same
+    // serviceRequiresSlot() that createBooking() enforces, so presentation and
+    // enforcement cannot drift.
+    const [requiresSlot, slots] = await Promise.all([
+      serviceRequiresSlot(service.id),
+      getAvailableSlots(service.id),
+    ]);
 
-    return apiOk({ items: slots.map(toAvailabilitySlotDTO) });
+    return apiOk({ requiresSlot, items: slots.map(toAvailabilitySlotDTO) });
   });
 }

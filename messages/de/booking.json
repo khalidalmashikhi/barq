@@ -19,6 +19,7 @@
   "viewDetailsButton": "Buchungsdetails ansehen",
   "bookServiceTitle": "Buchen: {serviceName}",
   "selectSlotLabel": "Zeitfenster auswählen",
+  "noSlotsAvailableLabel": "Derzeit sind keine Termine verfügbar.",
   "noPricesAvailableLabel": "Für dieses Erlebnis sind derzeit keine Preisoptionen verfügbar",
   "selectPriceLabel": "Preis auswählen",
   "confirmBookingButton": "Buchungsanfrage bestätigen",

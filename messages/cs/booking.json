@@ -19,6 +19,7 @@
   "viewDetailsButton": "Zobrazit podrobnosti rezervace",
   "bookServiceTitle": "Rezervace: {serviceName}",
   "selectSlotLabel": "Vyberte časový termín",
+  "noSlotsAvailableLabel": "Aktuálně nejsou k dispozici žádné termíny.",
   "noPricesAvailableLabel": "Pro tento zážitek aktuálně nejsou k dispozici žádné cenové možnosti",
   "selectPriceLabel": "Vyberte cenu",
   "confirmBookingButton": "Potvrdit žádost o rezervaci",

@@ -92,6 +92,10 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   NO_CUSTOMER_PROFILE: "INTERNAL_ERROR",
   SERVICE_UNAVAILABLE: "INTERNAL_ERROR",
   PRICE_UNAVAILABLE: "INTERNAL_ERROR",
+  // BOOKING-SLOT-AUTHORITY — customer-create-only: a provider accepting, rejecting,
+  // starting or completing a booking never supplies an availabilityId, so this can only
+  // arrive here through a bug. Internal, never the customer-facing 422/message.
+  SLOT_REQUIRED: "INTERNAL_ERROR",
   SLOT_UNAVAILABLE: "INTERNAL_ERROR",
   SLOT_FULL: "INTERNAL_ERROR",
   DUPLICATE_BOOKING: "INTERNAL_ERROR",
