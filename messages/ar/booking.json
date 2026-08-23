@@ -80,5 +80,9 @@
   "noPaymentYetLabel": "لم يتم تسجيل أي دفعة لهذا الحجز حتى الآن",
   "shareBookingText": "لقد حجزت للتو {serviceName} عبر برق!",
   "shareCopiedLabel": "تم نسخ الرابط",
-  "shareErrorLabel": "تعذرت مشاركة هذا الرابط"
+  "shareErrorLabel": "تعذرت مشاركة هذا الرابط",
+  "assignedVehicleTitle": "المركبة المخصصة للحجز",
+  "assignedVehicleUntitled": "مركبة",
+  "assignedVehicleGuestsSuffix": "ضيوف",
+  "assignedVehicle4x4Badge": "دفع رباعي"
 }

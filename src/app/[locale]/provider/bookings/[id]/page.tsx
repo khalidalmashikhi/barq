@@ -5,6 +5,7 @@ import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderBookingDetail } from "@/lib/provider/queries/get-provider-booking-detail";
 import { getBookingAcceptanceVehicleOptions } from "@/lib/provider/queries/get-booking-acceptance-vehicles";
 import { BookingAcceptanceVehiclePicker } from "@/components/bookings/booking-acceptance-vehicle-picker";
+import { AssignedVehicleCard } from "@/components/bookings/assigned-vehicle-card";
 import { getBookingTimeline } from "@/lib/booking/lifecycle/get-booking-timeline";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { acceptBooking } from "@/lib/booking/accept-booking";
@@ -153,6 +154,23 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
         <CreditCard size={14} strokeWidth={1.75} />
         {tPayments("viewPaymentsLabel")}
       </Link>
+
+      {/* BOOKING-VEHICLE-2 — the assigned vehicle (historical snapshot + live plate).
+          Present only after acceptance, so it never coexists with the PENDING_PROVIDER
+          acceptance selector below. Historical fields come from the snapshot; only the plate
+          is live. No "change vehicle" control. */}
+      {booking.assignedVehicle && (
+        <AssignedVehicleCard
+          vehicle={booking.assignedVehicle}
+          labels={{
+            title: t("assignedVehicleTitle"),
+            untitled: t("vehicleUntitled"),
+            guestsSuffix: t("tourVehiclePoolGuestsSuffix"),
+            fourByFour: t("tourVehiclePool4x4Badge"),
+            plate: t("assignedVehiclePlateLabel"),
+          }}
+        />
+      )}
 
       {(needsAction || canStart || canComplete) && (
         <Card hoverLift={false}>

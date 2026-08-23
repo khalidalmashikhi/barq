@@ -4,6 +4,7 @@ import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import type { Locale } from "@/i18n/locales";
 
 // Booking detail query — Engineering Sprint (Availability Engine).
@@ -37,6 +38,11 @@ export type BookingDetail = {
   /// the page can link to /payments/[id] honestly; null renders an
   /// honest "no Payment yet" state instead of a broken link.
   paymentId: string | null;
+  /// BOOKING-VEHICLE-2 — the CUSTOMER-safe historical vehicle assigned to this booking at
+  /// provider acceptance, derived ONLY from Booking.vehicleSnapshot via the strict parser
+  /// (never the live Vehicle, never a live fallback). null for legacy/no-vehicle/malformed —
+  /// fail-closed. Carries no id/plate/private field (the parser's allowlist guarantees it).
+  assignedVehicle: BookingVehicleSnapshot | null;
 };
 
 // `localeOverride` (additive, optional): the authenticated /api/v1 adapter passes
@@ -78,6 +84,7 @@ export async function getBookingDetail(
     priceSnapshotCurrency: string | null;
     confirmedAt: Date | null;
     createdAt: Date;
+    vehicleSnapshot: unknown;
     service: { name: unknown };
     provider: { businessName: unknown };
     availability: { startTime: Date } | null;
@@ -105,5 +112,8 @@ export async function getBookingDetail(
     createdAt: row.createdAt,
     hasReview: row.review !== null,
     paymentId: row.payment?.id ?? null,
+    // Historical authority only — the strict parser fails closed to null on
+    // absent/legacy/malformed JSON, so no raw JSON or private key can ever escape.
+    assignedVehicle: parseBookingVehicleSnapshot(row.vehicleSnapshot),
   };
 }

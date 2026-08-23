@@ -80,5 +80,9 @@
   "noPaymentYetLabel": "Aucun paiement enregistré pour cette réservation pour le moment",
   "shareBookingText": "Je viens de réserver {serviceName} sur BARQ !",
   "shareCopiedLabel": "Lien copié dans le presse-papiers",
-  "shareErrorLabel": "Impossible de partager ce lien"
+  "shareErrorLabel": "Impossible de partager ce lien",
+  "assignedVehicleTitle": "Véhicule attribué",
+  "assignedVehicleUntitled": "Véhicule",
+  "assignedVehicleGuestsSuffix": "invités",
+  "assignedVehicle4x4Badge": "4x4"
 }

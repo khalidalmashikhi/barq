@@ -77,6 +77,8 @@ describe("POST /api/v1/me/provider/bookings/{id}/accept", () => {
       priceSnapshot: { amount: "25.00", currency: "OMR" },
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       createdAt: "2026-05-01T00:00:00.000Z",
+      // BOOKING-VEHICLE-2 — the DETAIL fixture has no snapshot, so the DTO maps assignedVehicle to null.
+      assignedVehicle: null,
     });
     const s = JSON.stringify(body);
     expect(s).not.toContain("customerId");

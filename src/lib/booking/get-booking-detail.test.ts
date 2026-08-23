@@ -72,3 +72,50 @@ describe("getBookingDetail (Gate A — active admin excluded)", () => {
     expect(bookingFindFirstMock).not.toHaveBeenCalled();
   });
 });
+
+describe("getBookingDetail — BOOKING-VEHICLE-2 assignedVehicle (snapshot authority)", () => {
+  const SNAP = { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false };
+
+  function primeBooking(vehicleSnapshot: unknown) {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    assertNotActiveAdminMock.mockResolvedValue(undefined);
+    customerFindUniqueMock.mockResolvedValue({ id: "cust-1" });
+    bookingFindFirstMock.mockResolvedValue({
+      id: VALID_UUID, serviceId: "s1", providerId: "p1", status: "CONFIRMED", seats: 4,
+      priceSnapshotAmount: null, priceSnapshotCurrency: null, confirmedAt: null,
+      createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      vehicleSnapshot,
+      service: { name: "Safari" }, provider: { businessName: "Desert Co" },
+      availability: null, review: null, payment: null,
+    });
+  }
+
+  it("parses a valid snapshot into the customer-safe assignedVehicle", async () => {
+    primeBooking({ ...SNAP });
+    const result = await getBookingDetail(VALID_UUID);
+    expect(result?.assignedVehicle).toEqual(SNAP);
+  });
+
+  it("null snapshot → assignedVehicle null (no live fallback)", async () => {
+    primeBooking(null);
+    expect((await getBookingDetail(VALID_UUID))?.assignedVehicle).toBeNull();
+  });
+
+  it("malformed / private-key-bearing snapshot → fail closed to null", async () => {
+    primeBooking({ ...SNAP, registrationNumber: "OM 12345" }); // extra private key → strict parser rejects
+    const result = await getBookingDetail(VALID_UUID);
+    expect(result?.assignedVehicle).toBeNull();
+    expect(JSON.stringify(result)).not.toContain("OM 12345");
+  });
+
+  it("a later live Vehicle change cannot alter the historical snapshot the reader returns", async () => {
+    // The reader derives ONLY from vehicleSnapshot; there is no Vehicle join for the customer,
+    // so whatever the live Vehicle later becomes, the returned facts are the snapshot's.
+    primeBooking({ ...SNAP, make: "Toyota", model: "Prado" });
+    const result = await getBookingDetail(VALID_UUID);
+    expect(result?.assignedVehicle).toEqual(SNAP);
+    // No id/plate ever present.
+    const s = JSON.stringify(result);
+    for (const forbidden of ["vehicleId", "assetId", "registrationNumber"]) expect(s).not.toContain(forbidden);
+  });
+});

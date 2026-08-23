@@ -93,6 +93,11 @@ describe("toBookingDetailDTO", () => {
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       hasReview: false,
       paymentId: "pay1",
+      // BOOKING-VEHICLE-2 — customer-safe assigned-vehicle snapshot.
+      assignedVehicle: {
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false,
+      },
     });
     expect(dto).toEqual({
       id: "b1",
@@ -108,7 +113,26 @@ describe("toBookingDetailDTO", () => {
       createdAt: "2026-05-01T00:00:00.000Z",
       hasReview: false,
       paymentId: "pay1",
+      assignedVehicle: {
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false,
+      },
     });
+    // Customer never receives a plate or any id, even when a vehicle is assigned.
+    const s = JSON.stringify(dto);
+    for (const forbidden of ["registrationNumber", "vehicleId", "assetId", "fourByFourVerified", "verificationStatus"]) {
+      expect(s).not.toContain(forbidden);
+    }
+  });
+
+  it("assignedVehicle is null when the booking has no snapshot", () => {
+    const dto = toBookingDetailDTO({
+      id: "b1", serviceId: "s1", providerId: "p1", serviceName: "n", providerName: "pn",
+      status: "PENDING_PROVIDER", priceSnapshot: null, seats: 1, slotStartTime: null,
+      confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false,
+      paymentId: null, assignedVehicle: null,
+    });
+    expect(dto.assignedVehicle).toBeNull();
   });
 });
 

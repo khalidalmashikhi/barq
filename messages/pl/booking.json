@@ -80,5 +80,9 @@
   "noPaymentYetLabel": "Dla tej rezerwacji nie zarejestrowano jeszcze żadnej płatności",
   "shareBookingText": "Właśnie zarezerwowałem/am {serviceName} w BARQ!",
   "shareCopiedLabel": "Link skopiowany do schowka",
-  "shareErrorLabel": "Nie udało się udostępnić tego linku"
+  "shareErrorLabel": "Nie udało się udostępnić tego linku",
+  "assignedVehicleTitle": "Przydzielony pojazd",
+  "assignedVehicleUntitled": "Pojazd",
+  "assignedVehicleGuestsSuffix": "gości",
+  "assignedVehicle4x4Badge": "4x4"
 }

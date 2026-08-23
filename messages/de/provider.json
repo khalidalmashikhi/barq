@@ -549,5 +549,7 @@
   "serviceErrorTourVehiclePoolRequired": "Fügen Sie mindestens ein geeignetes Fahrzeug zu dieser Tour hinzu, bevor Sie sie veröffentlichen.",
   "acceptVehicleSelectHeading": "Fahrzeug auswählen",
   "acceptVehicleRequiredHint": "Zum Annehmen dieser Buchung ist ein Fahrzeug erforderlich.",
-  "acceptVehicleNoneEligible": "Keine geeigneten Fahrzeuge verfügbar. Fügen Sie vor dem Annehmen ein Fahrzeug hinzu oder verifizieren Sie es."
+  "acceptVehicleNoneEligible": "Keine geeigneten Fahrzeuge verfügbar. Fügen Sie vor dem Annehmen ein Fahrzeug hinzu oder verifizieren Sie es.",
+  "assignedVehicleTitle": "Zugewiesenes Fahrzeug",
+  "assignedVehiclePlateLabel": "Kennzeichen"
 }

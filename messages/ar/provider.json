@@ -549,5 +549,7 @@
   "serviceErrorTourVehiclePoolRequired": "أضف مركبة مؤهلة واحدة على الأقل إلى هذه الجولة قبل نشرها.",
   "acceptVehicleSelectHeading": "اختر مركبة",
   "acceptVehicleRequiredHint": "يلزم اختيار مركبة لقبول هذا الحجز.",
-  "acceptVehicleNoneEligible": "لا توجد مركبات مؤهلة متاحة. أضف مركبة أو استكمل التحقق منها قبل القبول."
+  "acceptVehicleNoneEligible": "لا توجد مركبات مؤهلة متاحة. أضف مركبة أو استكمل التحقق منها قبل القبول.",
+  "assignedVehicleTitle": "المركبة المخصصة",
+  "assignedVehiclePlateLabel": "رقم اللوحة"
 }

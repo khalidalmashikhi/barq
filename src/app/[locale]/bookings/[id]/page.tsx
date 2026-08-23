@@ -24,6 +24,7 @@ import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getBookingTimeline } from "@/lib/booking/lifecycle/get-booking-timeline";
 import { BookingTimeline } from "@/components/bookings/booking-timeline";
 import { CancelBookingDialog } from "@/components/bookings/cancel-booking-dialog";
+import { AssignedVehicleCard } from "@/components/bookings/assigned-vehicle-card";
 
 // INTERNATIONALIZATION PHASE A.4 — REAL BUG FIXED: this page previously
 // discarded cancelBooking()'s result entirely (`await cancelBooking(...)`
@@ -174,6 +175,22 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
             </span>
           </div>
         </div>
+
+        {/* BOOKING-VEHICLE-2 — the specific vehicle assigned to THIS booking (historical
+            snapshot only). Rendered solely when an assignment exists; the customer never
+            sees a plate, a vehicle id, or any selector. Distinct from the Service page's
+            representative pool card. */}
+        {booking.assignedVehicle && (
+          <AssignedVehicleCard
+            vehicle={booking.assignedVehicle}
+            labels={{
+              title: t("assignedVehicleTitle"),
+              untitled: t("assignedVehicleUntitled"),
+              guestsSuffix: t("assignedVehicleGuestsSuffix"),
+              fourByFour: t("assignedVehicle4x4Badge"),
+            }}
+          />
+        )}
 
         <BookingTimeline events={timelineEvents} />
 

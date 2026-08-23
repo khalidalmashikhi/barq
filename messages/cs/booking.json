@@ -80,5 +80,9 @@
   "noPaymentYetLabel": "Pro tuto rezervaci zatím nebyla zaznamenána žádná platba",
   "shareBookingText": "Právě jsem si rezervoval/a {serviceName} na BARQ!",
   "shareCopiedLabel": "Odkaz zkopírován do schránky",
-  "shareErrorLabel": "Tento odkaz se nepodařilo sdílet"
+  "shareErrorLabel": "Tento odkaz se nepodařilo sdílet",
+  "assignedVehicleTitle": "Přidělené vozidlo",
+  "assignedVehicleUntitled": "Vozidlo",
+  "assignedVehicleGuestsSuffix": "hostů",
+  "assignedVehicle4x4Badge": "4x4"
 }

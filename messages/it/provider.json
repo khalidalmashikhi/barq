@@ -549,5 +549,7 @@
   "serviceErrorTourVehiclePoolRequired": "Aggiungi almeno un veicolo idoneo a questo tour prima di poterlo pubblicare.",
   "acceptVehicleSelectHeading": "Seleziona un veicolo",
   "acceptVehicleRequiredHint": "È necessario un veicolo per accettare questa prenotazione.",
-  "acceptVehicleNoneEligible": "Nessun veicolo idoneo disponibile. Aggiungi o verifica un veicolo prima di accettare."
+  "acceptVehicleNoneEligible": "Nessun veicolo idoneo disponibile. Aggiungi o verifica un veicolo prima di accettare.",
+  "assignedVehicleTitle": "Veicolo assegnato",
+  "assignedVehiclePlateLabel": "Targa"
 }

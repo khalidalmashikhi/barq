@@ -549,5 +549,7 @@
   "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz.",
   "acceptVehicleSelectHeading": "Wybierz pojazd",
   "acceptVehicleRequiredHint": "Do zaakceptowania tej rezerwacji wymagany jest pojazd.",
-  "acceptVehicleNoneEligible": "Brak dostępnych kwalifikujących się pojazdów. Dodaj lub zweryfikuj pojazd przed zaakceptowaniem."
+  "acceptVehicleNoneEligible": "Brak dostępnych kwalifikujących się pojazdów. Dodaj lub zweryfikuj pojazd przed zaakceptowaniem.",
+  "assignedVehicleTitle": "Przydzielony pojazd",
+  "assignedVehiclePlateLabel": "Tablica"
 }

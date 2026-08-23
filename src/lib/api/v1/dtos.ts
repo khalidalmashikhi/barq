@@ -305,6 +305,47 @@ export function toBookingSummaryDTO(item: MyBookingListItem): BookingSummaryDTO 
 }
 
 // ---------------------------------------------------------------------------
+// Assigned vehicle (BOOKING-VEHICLE-2) — the historical snapshot committed at
+// provider acceptance. Customer gets the safe allowlist; provider additionally
+// gets the ONE live operational field (registrationNumber). Explicit maps (never
+// a pass-through of the stored value) keep the wire an allowlist by construction —
+// no id, no assetId, no verification/documents/expiry/objectKey/pool metadata.
+// ---------------------------------------------------------------------------
+
+export interface AssignedVehicleDTO {
+  make: string | null;
+  model: string | null;
+  modelYear: number | null;
+  color: string | null;
+  passengerCapacity: number | null;
+  vehicleType: string | null;
+  isFourByFour: boolean;
+}
+
+export interface ProviderAssignedVehicleDTO extends AssignedVehicleDTO {
+  /** LIVE operational plate of the assigned Vehicle — provider-only, never sent to customers. */
+  registrationNumber: string | null;
+}
+
+function toAssignedVehicleDTO(v: AssignedVehicleDTO | null): AssignedVehicleDTO | null {
+  if (!v) return null;
+  return {
+    make: v.make,
+    model: v.model,
+    modelYear: v.modelYear,
+    color: v.color,
+    passengerCapacity: v.passengerCapacity,
+    vehicleType: v.vehicleType,
+    isFourByFour: v.isFourByFour,
+  };
+}
+
+function toProviderAssignedVehicleDTO(v: ProviderAssignedVehicleDTO | null): ProviderAssignedVehicleDTO | null {
+  if (!v) return null;
+  return { ...toAssignedVehicleDTO(v)!, registrationNumber: v.registrationNumber };
+}
+
+// ---------------------------------------------------------------------------
 // Booking detail (customer's own)
 // ---------------------------------------------------------------------------
 
@@ -322,6 +363,8 @@ export interface BookingDetailDTO {
   createdAt: string; // ISO-8601
   hasReview: boolean;
   paymentId: string | null;
+  // BOOKING-VEHICLE-2 — customer-safe historical assigned vehicle (snapshot only), or null.
+  assignedVehicle: AssignedVehicleDTO | null;
 }
 
 export function toBookingDetailDTO(detail: BookingDetail): BookingDetailDTO {
@@ -339,6 +382,7 @@ export function toBookingDetailDTO(detail: BookingDetail): BookingDetailDTO {
     createdAt: detail.createdAt.toISOString(),
     hasReview: detail.hasReview,
     paymentId: detail.paymentId,
+    assignedVehicle: toAssignedVehicleDTO(detail.assignedVehicle),
   };
 }
 
@@ -562,6 +606,8 @@ export interface ProviderBookingDetailDTO {
   priceSnapshot: MoneyDTO | null;
   scheduledStartTime: string | null;
   createdAt: string;
+  // BOOKING-VEHICLE-2 — historical snapshot fields + the ONE live plate; null when unassigned.
+  assignedVehicle: ProviderAssignedVehicleDTO | null;
 }
 
 export function toProviderBookingDetailDTO(detail: ProviderBookingDetail): ProviderBookingDetailDTO {
@@ -574,6 +620,7 @@ export function toProviderBookingDetailDTO(detail: ProviderBookingDetail): Provi
     priceSnapshot: parseMoneyString(detail.priceSnapshot),
     scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
     createdAt: detail.createdAt.toISOString(),
+    assignedVehicle: toProviderAssignedVehicleDTO(detail.assignedVehicle),
   };
 }
 

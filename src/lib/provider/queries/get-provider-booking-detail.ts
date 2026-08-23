@@ -4,6 +4,7 @@ import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
+import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import type { BookingStatus } from "@prisma/client";
 import type { Locale } from "@/i18n/locales";
 
@@ -22,6 +23,10 @@ import type { Locale } from "@/i18n/locales";
 // this DTO, per that query module's own note on why no such field
 // exists in the schema at all.
 
+// BOOKING-VEHICLE-2 — provider hybrid: the historical snapshot fields plus the ONE live
+// operational field (registrationNumber) resolved from the currently-assigned Vehicle.
+export type ProviderAssignedVehicle = BookingVehicleSnapshot & { registrationNumber: string | null };
+
 export type ProviderBookingDetail = {
   id: string;
   serviceId: string;
@@ -31,6 +36,9 @@ export type ProviderBookingDetail = {
   priceSnapshot: string | null;
   slotStartTime: Date | null;
   createdAt: Date;
+  /// Historical assigned vehicle (snapshot) + live plate. null when unassigned/legacy/malformed
+  /// (fail-closed via the strict parser). Historical fields NEVER come from the live Vehicle.
+  assignedVehicle: ProviderAssignedVehicle | null;
 };
 
 // `localeOverride` (additive, optional): the /api/v1 provider adapter passes an
@@ -46,7 +54,9 @@ export async function getProviderBookingDetail(
 
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, providerId: provider.id },
-    include: { service: true, availability: true },
+    // BOOKING-VEHICLE-2 — bounded live-plate lookup on the assigned Vehicle (single detail
+    // read, ownership already scoped above; only registrationNumber is selected).
+    include: { service: true, availability: true, vehicle: { select: { registrationNumber: true } } },
   });
 
   if (!booking) return null;
@@ -61,11 +71,19 @@ export async function getProviderBookingDetail(
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
     createdAt: Date;
+    vehicleSnapshot: unknown;
     service: { name: unknown };
     availability: { startTime: Date } | null;
+    vehicle: { registrationNumber: string | null } | null;
   };
 
   const row = booking as BookingRow;
+
+  // Historical facts come from the snapshot ONLY; the live plate is the sole live field.
+  const snapshot = parseBookingVehicleSnapshot(row.vehicleSnapshot);
+  const assignedVehicle: ProviderAssignedVehicle | null = snapshot
+    ? { ...snapshot, registrationNumber: row.vehicle?.registrationNumber ?? null }
+    : null;
 
   return {
     id: row.id,
@@ -79,5 +97,6 @@ export async function getProviderBookingDetail(
         : null,
     slotStartTime: row.availability?.startTime ?? null,
     createdAt: row.createdAt,
+    assignedVehicle,
   };
 }

@@ -80,5 +80,9 @@
   "noPaymentYetLabel": "Для этого бронирования платёж пока не зафиксирован",
   "shareBookingText": "Я только что забронировал(а) {serviceName} на BARQ!",
   "shareCopiedLabel": "Ссылка скопирована в буфер обмена",
-  "shareErrorLabel": "Не удалось поделиться этой ссылкой"
+  "shareErrorLabel": "Не удалось поделиться этой ссылкой",
+  "assignedVehicleTitle": "Назначенный автомобиль",
+  "assignedVehicleUntitled": "Автомобиль",
+  "assignedVehicleGuestsSuffix": "гостей",
+  "assignedVehicle4x4Badge": "4x4"
 }

@@ -159,7 +159,7 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
     expect(s).not.toContain("phone");
   });
 
-  it("detail: serviceId present, no customer PII", () => {
+  it("detail: serviceId present, no customer PII; assignedVehicle null when unassigned", () => {
     const dto = toProviderBookingDetailDTO({
       id: "b1",
       serviceId: "s1",
@@ -169,10 +169,32 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
       priceSnapshot: null,
       slotStartTime: null,
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      assignedVehicle: null,
     });
     expect(dto.priceSnapshot).toBeNull();
     expect(dto.scheduledStartTime).toBeNull();
+    expect(dto.assignedVehicle).toBeNull();
     expect(JSON.stringify(dto)).not.toContain("customerId");
+  });
+
+  it("BOOKING-VEHICLE-2 — provider detail exposes snapshot fields + live plate, but no vehicleId/private data", () => {
+    const dto = toProviderBookingDetailDTO({
+      id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED", seats: 4,
+      priceSnapshot: null, slotStartTime: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      assignedVehicle: {
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false, registrationNumber: "QA-TV2-0001",
+      },
+    });
+    expect(dto.assignedVehicle).toEqual({
+      make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+      passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false, registrationNumber: "QA-TV2-0001",
+    });
+    const s = JSON.stringify(dto);
+    // Plate is the ONLY live field; no ids or other private data ride along.
+    for (const forbidden of ["vehicleId", "assetId", "claimedFourByFour", "fourByFourVerified", "verificationStatus", "objectKey", "documents"]) {
+      expect(s).not.toContain(forbidden);
+    }
   });
 });
 
