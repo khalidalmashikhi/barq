@@ -90,6 +90,14 @@ vi.mock("@/lib/booking/vehicle-assignment-on-accept", () => ({
   resolveVehicleAssignmentForAcceptance: (...args: unknown[]) => resolveVehicleAssignmentMock(...args),
 }));
 
+// BOOKING-CONFLICT-1B — the vehicle reservation primitive is its own unit (see
+// vehicle-reservation/reserve-vehicle.test.ts for its matrix). Here it is mocked; the default
+// (set in beforeEach) succeeds, so every vehicle-assignment test that predates 1B is unchanged.
+const reserveVehicleMock = vi.fn();
+vi.mock("@/lib/booking/vehicle-reservation", () => ({
+  reserveVehicleForBooking: (...args: unknown[]) => reserveVehicleMock(...args),
+}));
+
 const bookingFindUniqueMock = vi.fn();
 const commissionFindFirstMock = vi.fn();
 const bookingUpdateMock = vi.fn();
@@ -119,6 +127,8 @@ const SNAP = { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", 
 beforeEach(() => {
   // Default: no vehicle involved (non-tour / GUIDE_ONLY) — the pre-existing behavior.
   resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: null, snapshot: null });
+  // Default: the reservation succeeds when a vehicle IS assigned — keeps pre-1B vehicle tests green.
+  reserveVehicleMock.mockResolvedValue({ ok: true, reservationId: "res-1" });
 });
 
 afterEach(() => {
@@ -131,6 +141,7 @@ afterEach(() => {
   bookingUpdateMock.mockReset();
   paymentCreateMock.mockReset();
   resolveVehicleAssignmentMock.mockReset();
+  reserveVehicleMock.mockReset();
   stripeCreateMock.mockReset();
   delete process.env.PAYMENT_PROVIDER;
   delete process.env.STRIPE_SECRET_KEY;
@@ -495,5 +506,105 @@ describe("acceptBooking", () => {
       where: { id: BOOKING_ID },
       data: { vehicleId: VEHICLE_ID, vehicleSnapshot: SNAP },
     });
+  });
+
+  // --- BOOKING-CONFLICT-1B -----------------------------------------------------
+
+  const SLOT_START = new Date("2026-06-01T09:00:00.000Z");
+  const SLOT_END = new Date("2026-06-01T12:00:00.000Z");
+  const SLOT_BASED_BOOKING = {
+    id: BOOKING_ID, providerId: "provider-1", serviceId: "service-1", seats: 4, status: "PENDING_PROVIDER",
+    priceSnapshotAmount: { toString: () => "15" }, priceSnapshotCurrency: "OMR",
+    operationalStartAt: SLOT_START, operationalEndAt: SLOT_END, // slot-derived interval
+  };
+
+  function primeVehicleAcceptance(booking: unknown) {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue(booking);
+    canAcceptBookingMock.mockReturnValue(true);
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP });
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null);
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+  }
+
+  it("reserves the vehicle for the SLOT-DERIVED interval (equal to the booking's operational window)", async () => {
+    primeVehicleAcceptance(SLOT_BASED_BOOKING);
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID);
+
+    expect(result).toEqual({ ok: true });
+    // The reservation window is exactly the booking's operational interval, not the (ignored)
+    // provider-supplied schedule — and it is committed inside the acceptance transaction.
+    expect(reserveVehicleMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { bookingId: BOOKING_ID, vehicleId: VEHICLE_ID, startsAt: SLOT_START, endsAt: SLOT_END }
+    );
+  });
+
+  it("reserves the vehicle for the PROVIDER-SUPPLIED interval on a slotless booking", async () => {
+    primeVehicleAcceptance(SLOTLESS_BOOKING);
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID, START, END);
+
+    expect(result).toEqual({ ok: true });
+    expect(reserveVehicleMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { bookingId: BOOKING_ID, vehicleId: VEHICLE_ID, startsAt: START, endsAt: END }
+    );
+  });
+
+  it("VEHICLE_BUSY: an overlapping reservation aborts acceptance — no vehicle write, no hook", async () => {
+    primeVehicleAcceptance(SLOT_BASED_BOOKING);
+    reserveVehicleMock.mockResolvedValue({ ok: false, reason: "VEHICLE_BUSY" });
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID);
+
+    // The transaction threw and rolled back: booking stays PENDING_PROVIDER (never written to
+    // CONFIRMED in DB), no vehicleId/snapshot write, and the post-commit hook never fired.
+    expect(result).toEqual({ ok: false, error: "VEHICLE_BUSY" });
+    expect(bookingUpdateMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+  });
+
+  it("ALREADY_RESERVED (stale/double accept) maps to BOOKING_STATE_CONFLICT, never a second reservation", async () => {
+    primeVehicleAcceptance(SLOT_BASED_BOOKING);
+    reserveVehicleMock.mockResolvedValue({ ok: false, reason: "ALREADY_RESERVED" });
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID);
+
+    expect(result).toEqual({ ok: false, error: "BOOKING_STATE_CONFLICT" });
+    expect(bookingUpdateMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+  });
+
+  it("INVALID_INTERVAL from the reservation primitive maps defensively to INVALID_SCHEDULE", async () => {
+    primeVehicleAcceptance(SLOT_BASED_BOOKING);
+    reserveVehicleMock.mockResolvedValue({ ok: false, reason: "INVALID_INTERVAL" });
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID);
+
+    expect(result).toEqual({ ok: false, error: "INVALID_SCHEDULE" });
+    expect(bookingUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("a non-vehicle acceptance never reserves anything (unchanged path)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID, providerId: "provider-1", serviceId: "service-1", seats: 1, status: "PENDING_PROVIDER",
+      priceSnapshotAmount: { toString: () => "15" }, priceSnapshotCurrency: "OMR",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    // default resolveVehicleAssignmentMock → { vehicleId: null }
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null);
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+
+    const result = await acceptBooking(BOOKING_ID);
+
+    expect(result).toEqual({ ok: true });
+    expect(reserveVehicleMock).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,7 @@ import {
   type VehicleAssignmentError,
 } from "@/lib/booking/vehicle-assignment-on-accept";
 import { validateOperationalInterval, type OperationalInterval } from "@/lib/booking/operational-interval";
+import { reserveVehicleForBooking } from "@/lib/booking/vehicle-reservation";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -29,6 +30,18 @@ class VehicleAssignmentAbortError extends Error {
   constructor(readonly code: VehicleAssignmentError) {
     super(`vehicle assignment aborted: ${code}`);
     this.name = "VehicleAssignmentAbortError";
+  }
+}
+
+// BOOKING-CONFLICT-1B — thrown ONLY inside the acceptance transaction when the atomic
+// vehicle reservation cannot be committed, carrying the mapped BookingActionErrorCode back to
+// the caller's catch. Aborting here rolls the whole transaction back (the CONFIRMED transition,
+// commission, Payment row, vehicleId/snapshot write), so a booking that loses the reservation
+// race is left exactly as it was: PENDING_PROVIDER, no vehicle, no payment.
+class VehicleReservationAbortError extends Error {
+  constructor(readonly code: BookingActionErrorCode) {
+    super(`vehicle reservation aborted: ${code}`);
+    this.name = "VehicleReservationAbortError";
   }
 }
 
@@ -256,6 +269,58 @@ export async function acceptBooking(
         // booking can never end up with a vehicleId but no snapshot (or vice-versa). The
         // snapshot is non-null exactly when vehicleId is; requiring BOTH here enforces that.
         if (revalidated.vehicleId !== null && revalidated.snapshot !== null) {
+          // BOOKING-CONFLICT-1B — reserve the physical vehicle for this booking's operational
+          // window BEFORE writing the assignment, inside this same transaction. The window is
+          // the provider-supplied schedule for a slotless booking (intervalToWrite) or the
+          // slot-derived interval already on the booking — the exact interval this update will
+          // persist, so the reservation and Booking.operationalStartAt/endAt always agree. The
+          // reservation primitive takes a per-vehicle advisory lock + overlap check + insert,
+          // so of two concurrent acceptances of the same vehicle for overlapping windows exactly
+          // one commits; the loser gets VEHICLE_BUSY and this whole transaction rolls back.
+          const reservationInterval: OperationalInterval | null =
+            intervalToWrite ??
+            ((booking.operationalStartAt ?? null) !== null && (booking.operationalEndAt ?? null) !== null
+              ? { startsAt: booking.operationalStartAt as Date, endsAt: booking.operationalEndAt as Date }
+              : null);
+          if (reservationInterval === null) {
+            // Impossible in practice — a vehicle assignment always has an interval by this point
+            // (the pre-tx gate above rejects a missing one). Fail closed rather than reserve an
+            // unbounded window; map to the existing schedule domain error, never an internal shape.
+            throw new VehicleReservationAbortError("INVALID_SCHEDULE");
+          }
+
+          const reservation = await reserveVehicleForBooking(tx, {
+            bookingId: booking.id,
+            vehicleId: revalidated.vehicleId,
+            startsAt: reservationInterval.startsAt,
+            endsAt: reservationInterval.endsAt,
+          });
+          if (!reservation.ok) {
+            if (reservation.reason === "VEHICLE_BUSY") {
+              // Safe conflict signal — booking + vehicle + requested window only; NEVER the
+              // conflicting booking/customer/reservation (see §21). Fires inside the tx that is
+              // about to roll back, which is fine: it is a log line, not a DB write.
+              logger.warn("acceptBooking.vehicle_busy", {
+                bookingId: booking.id,
+                vehicleId: revalidated.vehicleId,
+                startsAt: reservationInterval.startsAt.toISOString(),
+                endsAt: reservationInterval.endsAt.toISOString(),
+              });
+            }
+            // VEHICLE_BUSY → the new domain conflict code. INVALID_INTERVAL is impossible here
+            // (guarded above) → defensively the existing INVALID_SCHEDULE. ALREADY_RESERVED
+            // means a reservation already exists for this booking (a stale/double accept that
+            // slipped past the status guard) → the existing stale-state BOOKING_STATE_CONFLICT;
+            // never a silent second reservation.
+            const code: BookingActionErrorCode =
+              reservation.reason === "VEHICLE_BUSY"
+                ? "VEHICLE_BUSY"
+                : reservation.reason === "ALREADY_RESERVED"
+                  ? "BOOKING_STATE_CONFLICT"
+                  : "INVALID_SCHEDULE";
+            throw new VehicleReservationAbortError(code);
+          }
+
           await tx.booking.update({
             where: { id: booking.id },
             data: {
@@ -287,6 +352,13 @@ export async function acceptBooking(
     // code. The whole transaction rolled back, so the booking is still PENDING_PROVIDER,
     // vehicleId is still null, and no Payment/commission was written.
     if (error instanceof VehicleAssignmentAbortError) {
+      return { ok: false, error: error.code };
+    }
+    // BOOKING-CONFLICT-1B — the in-transaction vehicle reservation could not be committed
+    // (overlapping active reservation → VEHICLE_BUSY, or a stale double-accept). The whole
+    // transaction rolled back: booking still PENDING_PROVIDER, vehicleId/snapshot still null,
+    // no Payment/commission/status-event written, no reservation row.
+    if (error instanceof VehicleReservationAbortError) {
       return { ok: false, error: error.code };
     }
     // A genuine concurrent-modification race inside transitionBooking()'s guarded write —

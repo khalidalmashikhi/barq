@@ -48,6 +48,14 @@ vi.mock("@/lib/invoicing/build-invoice-content", () => ({
   buildInvoiceContent: (...args: unknown[]) => buildInvoiceContentMock(...args),
 }));
 
+// BOOKING-CONFLICT-1B — the vehicle-reservation release primitive is its own unit (see
+// vehicle-reservation/release-vehicle-reservation.test.ts). Mocked here to assert completion
+// releases the vehicle's occupancy hold inside the same transaction.
+const releaseVehicleMock = vi.fn();
+vi.mock("@/lib/booking/vehicle-reservation", () => ({
+  releaseVehicleReservationForBooking: (...args: unknown[]) => releaseVehicleMock(...args),
+}));
+
 const bookingFindUniqueMock = vi.fn();
 const paymentFindUniqueMock = vi.fn();
 const invoiceCreateMock = vi.fn();
@@ -79,6 +87,7 @@ afterEach(() => {
   bookingFindUniqueMock.mockReset();
   paymentFindUniqueMock.mockReset();
   invoiceCreateMock.mockReset();
+  releaseVehicleMock.mockReset();
 });
 
 describe("completeBooking", () => {
@@ -123,11 +132,14 @@ describe("completeBooking", () => {
     generateInvoiceNumberMock.mockResolvedValue("BARQ-2026-000001");
     buildInvoiceContentMock.mockReturnValue({ ar: "محتوى", en: "content" });
     invoiceCreateMock.mockResolvedValue({});
+    releaseVehicleMock.mockResolvedValue({ released: 1 });
     dispatchLifecycleHookMock.mockResolvedValue(undefined);
 
     const result = await completeBooking(BOOKING_ID);
 
     expect(result).toEqual({ ok: true });
+    // BOOKING-CONFLICT-1B — completion releases the vehicle occupancy hold in the same tx.
+    expect(releaseVehicleMock).toHaveBeenCalledWith(expect.anything(), BOOKING_ID, expect.any(Date));
     expect(paymentFindUniqueMock).toHaveBeenCalledWith({ where: { bookingId: BOOKING_ID } });
     expect(buildInvoiceContentMock).toHaveBeenCalledWith({
       serviceName: { ar: "جولة", en: "Desert Tour" },

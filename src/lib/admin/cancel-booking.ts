@@ -6,6 +6,7 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+import { releaseVehicleReservationForBooking } from "@/lib/booking/vehicle-reservation";
 import { logger } from "@/lib/logger";
 import type { BookingAdminActionErrorCode } from "./booking-admin-errors";
 
@@ -94,6 +95,12 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
           WHERE id = ${booking.availabilityId}::uuid
         `;
       }
+
+      // BOOKING-CONFLICT-1B — release the vehicle's physical-occupancy hold in the SAME
+      // transaction as the status + capacity release, identical to the customer cancel path
+      // (src/lib/booking/cancel-booking.ts). Idempotent (0 rows for a booking with no active
+      // reservation); never deletes; never clears vehicleId / snapshot / operational interval.
+      await releaseVehicleReservationForBooking(tx, booking.id, new Date());
 
       return ctx;
     });

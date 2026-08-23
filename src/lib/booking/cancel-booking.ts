@@ -6,6 +6,7 @@ import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/aut
 import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+import { releaseVehicleReservationForBooking } from "@/lib/booking/vehicle-reservation";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -99,6 +100,15 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
           WHERE id = ${booking.availabilityId}::uuid
         `;
       }
+
+      // BOOKING-CONFLICT-1B — release the vehicle's physical-occupancy hold in the SAME
+      // transaction as the status change and capacity release, so a cancelled booking frees
+      // its vehicle window atomically. Distinct from the seat-capacity release above (a
+      // different resource). Idempotent: a booking with no active reservation (a slotless
+      // non-vehicle booking, a PENDING_PROVIDER cancellation that never confirmed, or a legacy
+      // pre-1A confirmed booking) releases 0 rows. Never deletes; never clears vehicleId /
+      // vehicleSnapshot / operationalStartAt/endAt — assignment history is retained.
+      await releaseVehicleReservationForBooking(tx, booking.id, new Date());
 
       return ctx;
     });

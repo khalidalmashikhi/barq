@@ -6,6 +6,7 @@ import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/aut
 import { isValidUuid } from "@/lib/uuid";
 import { canCompleteBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+import { releaseVehicleReservationForBooking } from "@/lib/booking/vehicle-reservation";
 import { generateInvoiceNumber } from "@/lib/invoicing/generate-invoice-number";
 import { buildInvoiceContent } from "@/lib/invoicing/build-invoice-content";
 import { logger } from "@/lib/logger";
@@ -104,6 +105,13 @@ export async function completeBooking(bookingId: string): Promise<CompleteBookin
           },
         });
       }
+
+      // BOOKING-CONFLICT-1B — the service is over: release the vehicle's physical-occupancy
+      // hold in the SAME transaction as the COMPLETED transition and invoice creation, freeing
+      // the vehicle's window for future bookings. Idempotent (0 rows for a non-vehicle or
+      // legacy booking); never deletes; never clears vehicleId / snapshot / operational interval
+      // — the assignment stays on the completed booking as history.
+      await releaseVehicleReservationForBooking(tx, booking.id, new Date());
 
       return ctx;
     });

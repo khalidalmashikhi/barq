@@ -48,6 +48,13 @@ export type BookingActionErrorCode =
   | "VEHICLE_NOT_ELIGIBLE"
   | "VEHICLE_CAPACITY_INSUFFICIENT"
   | "BOOKING_STATE_CONFLICT"
+  // BOOKING-CONFLICT-1B — the vehicle the provider selected is already committed to another
+  // active reservation whose operational window overlaps this booking's. Detected atomically
+  // inside the acceptance transaction (per-vehicle advisory lock + overlap check); the whole
+  // acceptance rolls back, so the booking stays PENDING_PROVIDER with no vehicle/payment.
+  // Distinct from VEHICLE_NOT_ELIGIBLE (a property of the vehicle itself) — this is a
+  // time-window conflict with a DIFFERENT booking, and reveals nothing about that booking.
+  | "VEHICLE_BUSY"
   // BOOKING-INTERVAL-1 — provider acceptance operational-interval outcomes for a
   // vehicle-required booking. SCHEDULE_REQUIRED: a slotless vehicle-required booking has no
   // operational interval and the provider supplied none at acceptance. INVALID_SCHEDULE: a
@@ -78,6 +85,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "VEHICLE_NOT_ELIGIBLE",
   "VEHICLE_CAPACITY_INSUFFICIENT",
   "BOOKING_STATE_CONFLICT",
+  "VEHICLE_BUSY",
   "SCHEDULE_REQUIRED",
   "INVALID_SCHEDULE",
   "RATE_LIMITED",

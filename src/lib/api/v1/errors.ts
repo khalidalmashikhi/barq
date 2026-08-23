@@ -65,6 +65,10 @@ export type ApiErrorCode =
   | "VEHICLE_REQUIRED"
   | "VEHICLE_NOT_IN_SERVICE_POOL"
   | "VEHICLE_CAPACITY_INSUFFICIENT"
+  // BOOKING-CONFLICT-1B — the selected vehicle is already committed to an overlapping active
+  // reservation (409 Conflict; mapped in provider-mutation-errors.ts). The message is generic
+  // and reveals nothing about the conflicting booking, customer, or time window.
+  | "VEHICLE_BUSY"
   // BOOKING-INTERVAL-1 — provider acceptance operational-schedule outcomes (mapped in
   // provider-mutation-errors.ts). A slotless vehicle-required booking needs a provider-supplied
   // interval (SCHEDULE_REQUIRED, 422); a supplied interval that is malformed / start>=end is
@@ -128,6 +132,9 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   VEHICLE_REQUIRED: 422,
   VEHICLE_NOT_IN_SERVICE_POOL: 422,
   VEHICLE_CAPACITY_INSUFFICIENT: 422,
+  // 409, not 422: the request is well-formed and the vehicle is eligible in principle — it is
+  // the CURRENT STATE (an overlapping reservation) that conflicts. Same reasoning as SLOT_FULL.
+  VEHICLE_BUSY: 409,
   SCHEDULE_REQUIRED: 422,
   INVALID_SCHEDULE: 422,
   CAPACITY_BELOW_BOOKED: 409,
@@ -227,6 +234,10 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   VEHICLE_CAPACITY_INSUFFICIENT: {
     en: "This vehicle can't carry the number of guests on this booking.",
     ar: "لا تتسع هذه المركبة لعدد ضيوف هذا الحجز.",
+  },
+  VEHICLE_BUSY: {
+    en: "The selected vehicle is already assigned to another booking during this time.",
+    ar: "المركبة المحددة مرتبطة بحجز آخر خلال هذه الفترة.",
   },
   SCHEDULE_REQUIRED: {
     en: "Set a start and end time before accepting this booking.",

@@ -26,5 +26,6 @@
   "vehicleCapacityInsufficient": "This vehicle can't carry the number of guests on this booking",
   "bookingStateConflict": "This booking was just updated. Please try again",
   "scheduleRequired": "Set a start and end time before accepting this booking",
-  "invalidSchedule": "The start and end time are invalid"
+  "invalidSchedule": "The start and end time are invalid",
+  "vehicleBusy": "The selected vehicle is already assigned to another booking during this time"
 }

@@ -35,6 +35,14 @@ vi.mock("@/lib/booking/lifecycle", () => ({
   dispatchLifecycleHook: (...args: unknown[]) => dispatchLifecycleHookMock(...args),
 }));
 
+// BOOKING-CONFLICT-1B — the vehicle-reservation release primitive is its own unit (see
+// vehicle-reservation/release-vehicle-reservation.test.ts). Mocked here so we only assert
+// this action invokes it inside the cancellation transaction.
+const releaseVehicleMock = vi.fn();
+vi.mock("@/lib/booking/vehicle-reservation", () => ({
+  releaseVehicleReservationForBooking: (...args: unknown[]) => releaseVehicleMock(...args),
+}));
+
 const bookingFindUniqueMock = vi.fn();
 const executeRawMock = vi.fn();
 
@@ -59,6 +67,7 @@ afterEach(() => {
   dispatchLifecycleHookMock.mockReset();
   bookingFindUniqueMock.mockReset();
   executeRawMock.mockReset();
+  releaseVehicleMock.mockReset();
 });
 
 describe("cancelBooking (admin)", () => {
@@ -113,6 +122,7 @@ describe("cancelBooking (admin)", () => {
     const hookContext = { bookingId: BOOKING_ID, toStatus: "CANCELLED" };
     transitionBookingMock.mockResolvedValue(hookContext);
     executeRawMock.mockResolvedValue(undefined);
+    releaseVehicleMock.mockResolvedValue({ released: 1 });
     dispatchLifecycleHookMock.mockResolvedValue(undefined);
 
     const result = await cancelBooking(BOOKING_ID, "duplicate request");
@@ -129,6 +139,9 @@ describe("cancelBooking (admin)", () => {
       expect.anything()
     );
     expect(executeRawMock).toHaveBeenCalled();
+    // BOOKING-CONFLICT-1B — the vehicle reservation is released in the same transaction,
+    // keyed on the booking id, with a release instant. Distinct from the capacity release above.
+    expect(releaseVehicleMock).toHaveBeenCalledWith(expect.anything(), BOOKING_ID, expect.any(Date));
     expect(dispatchLifecycleHookMock).toHaveBeenCalledWith(hookContext);
   });
 

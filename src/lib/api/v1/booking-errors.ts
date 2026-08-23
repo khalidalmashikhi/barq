@@ -41,6 +41,8 @@ const CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   VEHICLE_NOT_ELIGIBLE: "INTERNAL_ERROR",
   VEHICLE_CAPACITY_INSUFFICIENT: "INTERNAL_ERROR",
   BOOKING_STATE_CONFLICT: "INTERNAL_ERROR",
+  // BOOKING-CONFLICT-1B — provider-acceptance-only; never from customer create/cancel.
+  VEHICLE_BUSY: "INTERNAL_ERROR",
   // BOOKING-INTERVAL-1 — provider-acceptance-only; never from customer create/cancel.
   SCHEDULE_REQUIRED: "INTERNAL_ERROR",
   INVALID_SCHEDULE: "INTERNAL_ERROR",

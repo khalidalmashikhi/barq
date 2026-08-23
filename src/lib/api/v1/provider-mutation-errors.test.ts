@@ -86,6 +86,19 @@ describe("providerBookingErrorResponse", () => {
     // BOOKING-INTERVAL-1 — provider acceptance operational-schedule outcomes (422).
     expect(await read(providerBookingErrorResponse("SCHEDULE_REQUIRED", "en"))).toMatchObject({ status: 422, code: "SCHEDULE_REQUIRED" });
     expect(await read(providerBookingErrorResponse("INVALID_SCHEDULE", "en"))).toMatchObject({ status: 422, code: "INVALID_SCHEDULE" });
+    // BOOKING-CONFLICT-1B — the selected vehicle is already committed to an overlapping
+    // reservation → 409 Conflict, carried through as the stable VEHICLE_BUSY wire code.
+    expect(await read(providerBookingErrorResponse("VEHICLE_BUSY", "en"))).toMatchObject({ status: 409, code: "VEHICLE_BUSY" });
+  });
+
+  it("BOOKING-CONFLICT-1B — VEHICLE_BUSY message is generic and leaks no conflicting-booking detail", async () => {
+    const res = await read(providerBookingErrorResponse("VEHICLE_BUSY", "en"));
+    expect(res.status).toBe(409);
+    // The wire code is stable; the body carries no bookingId/customer/interval/reservation id.
+    const body = JSON.stringify(res);
+    for (const forbidden of ["bookingId", "customerId", "reservationId", "operationalStartAt"]) {
+      expect(body).not.toContain(forbidden);
+    }
   });
 
   it("always sets no-store", async () => {

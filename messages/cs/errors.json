@@ -26,5 +26,6 @@
   "vehicleCapacityInsufficient": "Toto vozidlo nepojme počet hostů této rezervace",
   "bookingStateConflict": "Tato rezervace byla právě aktualizována. Zkuste to znovu",
   "scheduleRequired": "Před přijetím této rezervace nastavte čas začátku a konce",
-  "invalidSchedule": "Čas začátku a konce je neplatný"
+  "invalidSchedule": "Čas začátku a konce je neplatný",
+  "vehicleBusy": "Vybrané vozidlo je v tuto dobu již přiřazeno k jiné rezervaci"
 }

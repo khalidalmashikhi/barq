@@ -26,5 +26,6 @@
   "vehicleCapacityInsufficient": "Questo veicolo non può trasportare il numero di ospiti di questa prenotazione",
   "bookingStateConflict": "Questa prenotazione è stata appena aggiornata. Riprova",
   "scheduleRequired": "Imposta un orario di inizio e di fine prima di accettare questa prenotazione",
-  "invalidSchedule": "L'orario di inizio e di fine non è valido"
+  "invalidSchedule": "L'orario di inizio e di fine non è valido",
+  "vehicleBusy": "Il veicolo selezionato è già assegnato a un'altra prenotazione in questo periodo"
 }
