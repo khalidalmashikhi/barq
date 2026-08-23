@@ -46,10 +46,16 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
 
   const title = (v: AcceptanceVehicleCandidate) => buildVehicleTitle(v.make, v.model) ?? t("vehicleUntitled");
 
-  const eligible = options.candidates.filter((c) => c.eligible);
+  // BOOKING-CONFLICT-1C — three distinct states. `busy` (server-derived) is an
+  // otherwise-ELIGIBLE vehicle already reserved for an overlapping window: it cannot be
+  // selected now, but it is NOT an eligibility blocker — shown separately from the ineligible
+  // (blocker) list. Eligibility is the more fundamental gate, so a vehicle that is both
+  // ineligible and busy shows under ineligible with its blockers.
+  const selectable = options.candidates.filter((c) => c.eligible && !c.busy);
+  const busy = options.candidates.filter((c) => c.eligible && c.busy);
   const ineligible = options.candidates.filter((c) => !c.eligible);
-  // Pre-select only when the package requires a vehicle and there is exactly one eligible.
-  const preselectId = options.vehicleRequired && eligible.length === 1 ? eligible[0]!.vehicleId : null;
+  // Pre-select only when the package requires a vehicle and there is exactly one SELECTABLE.
+  const preselectId = options.vehicleRequired && selectable.length === 1 ? selectable[0]!.vehicleId : null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -58,11 +64,11 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
         {options.vehicleRequired && <p className="mt-0.5 text-xs text-foreground/50">{t("acceptVehicleRequiredHint")}</p>}
       </div>
 
-      {eligible.length === 0 ? (
+      {selectable.length === 0 ? (
         <p className="text-xs text-danger">{t("acceptVehicleNoneEligible")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {eligible.map((v) => (
+          {selectable.map((v) => (
             <li key={v.vehicleId}>
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-accent/10">
                 <input
@@ -80,6 +86,23 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
                   <span className="mt-0.5 block text-xs text-foreground/50">{facts(v)}</span>
                 </span>
               </label>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {busy.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {busy.map((v) => (
+            <li key={v.vehicleId} className="rounded-xl border border-dashed border-border p-3 opacity-70">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-foreground">{title(v)}</span>
+                {v.isFourByFour && <Badge variant="info">{t("tourVehiclePool4x4Badge")}</Badge>}
+                <Badge variant="warning">{t("acceptVehicleBusyBadge")}</Badge>
+              </div>
+              <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+              {/* Generic reason only — never the conflicting booking / customer / interval. */}
+              <p className="mt-1 text-xs text-danger">{t("acceptVehicleBusyReason")}</p>
             </li>
           ))}
         </ul>

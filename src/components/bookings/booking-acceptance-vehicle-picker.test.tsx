@@ -31,7 +31,7 @@ function radios(tree: unknown): AnyEl[] {
 
 const V = (over: Record<string, unknown> = {}) => ({
   vehicleId: "veh-1", make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
-  vehicleType: "SUV", passengerCapacity: 6, isFourByFour: false, eligible: true, blockers: [],
+  vehicleType: "SUV", passengerCapacity: 6, isFourByFour: false, eligible: true, blockers: [], busy: false,
   ...over,
 });
 
@@ -76,5 +76,46 @@ describe("BookingAcceptanceVehiclePicker (provider)", () => {
   it("4x4 eligible vehicle → 4x4 badge chip", async () => {
     const options = { vehicleRequired: true, requiresFourByFour: true, seats: 2, candidates: [V({ isFourByFour: true })] };
     expect(texts(await BookingAcceptanceVehiclePicker({ options: options as never }))).toContain("tourVehiclePool4x4Badge");
+  });
+
+  // --- BOOKING-CONFLICT-1C — busy-state ---------------------------------------
+
+  it("busy (eligible but reserved) vehicle → NOT a radio, shown with busy badge + generic reason", async () => {
+    const options = {
+      vehicleRequired: true, requiresFourByFour: false, seats: 4,
+      candidates: [V({ vehicleId: "free" }), V({ vehicleId: "taken", busy: true })],
+    };
+    const tree = await BookingAcceptanceVehiclePicker({ options: options as never });
+    // Only the free vehicle is selectable.
+    expect(radios(tree).map((r) => r.props.value)).toEqual(["free"]);
+    const t = texts(tree);
+    expect(t).toContain("acceptVehicleBusyBadge");
+    expect(t).toContain("acceptVehicleBusyReason");
+    // No conflicting-booking detail is ever rendered.
+    const json = JSON.stringify(tree);
+    for (const forbidden of ["bookingId", "customerId", "reservationId", "operationalStart"]) {
+      expect(json).not.toContain(forbidden);
+    }
+  });
+
+  it("all eligible vehicles busy → no radios, none-available notice, never auto-reject", async () => {
+    const options = {
+      vehicleRequired: true, requiresFourByFour: false, seats: 4,
+      candidates: [V({ vehicleId: "a", busy: true }), V({ vehicleId: "b", busy: true })],
+    };
+    const tree = await BookingAcceptanceVehiclePicker({ options: options as never });
+    expect(radios(tree)).toHaveLength(0);
+    const t = texts(tree);
+    expect(t).toContain("acceptVehicleNoneEligible"); // prompt shown; nothing is auto-actioned
+    expect(t).toContain("acceptVehicleBusyReason");
+  });
+
+  it("a busy candidate is NOT listed as an eligibility blocker (distinct states)", async () => {
+    const options = {
+      vehicleRequired: true, requiresFourByFour: false, seats: 4,
+      candidates: [V({ vehicleId: "taken", busy: true })],
+    };
+    const t = texts(await BookingAcceptanceVehiclePicker({ options: options as never }));
+    expect(t).not.toContain("tourVehiclePoolUnavailableBadge"); // that badge is the ineligible state
   });
 });

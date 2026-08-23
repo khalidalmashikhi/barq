@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Seleziona un veicolo",
   "acceptVehicleRequiredHint": "È necessario un veicolo per accettare questa prenotazione.",
   "acceptVehicleNoneEligible": "Nessun veicolo idoneo disponibile. Aggiungi o verifica un veicolo prima di accettare.",
+  "acceptVehicleBusyBadge": "Occupato",
+  "acceptVehicleBusyReason": "Il veicolo è già assegnato a un'altra prenotazione in questo periodo.",
   "assignedVehicleTitle": "Veicolo assegnato",
   "assignedVehiclePlateLabel": "Targa",
   "acceptScheduleHeading": "Programma",

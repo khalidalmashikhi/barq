@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Выберите автомобиль",
   "acceptVehicleRequiredHint": "Для принятия этого бронирования требуется автомобиль.",
   "acceptVehicleNoneEligible": "Нет подходящих автомобилей. Добавьте или подтвердите автомобиль перед принятием.",
+  "acceptVehicleBusyBadge": "Занято",
+  "acceptVehicleBusyReason": "Транспортное средство уже назначено на другое бронирование в это время.",
   "assignedVehicleTitle": "Назначенный автомобиль",
   "assignedVehiclePlateLabel": "Номер",
   "acceptScheduleHeading": "Расписание",

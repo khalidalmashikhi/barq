@@ -6,6 +6,7 @@ import { loadOwnedTourServiceContext } from "@/lib/tour-template/vehicle-pool/to
 import { TOUR_PACKAGE_SEMANTICS } from "@/lib/tour-template/packages";
 import { POOL_VEHICLE_SELECT, evaluatePoolVehicle, type PoolVehicleRow } from "@/lib/tour-template/vehicle-pool/pool-dto";
 import type { VehicleAssignmentBlocker } from "@/lib/tour-template/vehicle-pool/vehicle-assignment";
+import { findBusyVehicleIdsForInterval } from "@/lib/booking/vehicle-reservation";
 
 // BOOKING-VEHICLE-1 — the provider-private candidate reader for a booking's acceptance
 // screen: the service pool's vehicles, each with LIVE eligibility evaluated against THIS
@@ -33,6 +34,15 @@ export type AcceptanceVehicleCandidate = {
   /** LIVE eligibility for THIS booking (pool + selectability + package + seats capacity). */
   eligible: boolean;
   blockers: VehicleAssignmentBlocker[];
+  /**
+   * BOOKING-CONFLICT-1C — proactive, SERVER-DERIVED: an otherwise-eligible vehicle that
+   * already holds an ACTIVE reservation overlapping this booking's operational window, so it
+   * can't be selected right now. UX hint ONLY — the acceptBooking transaction remains the
+   * race authority (advisory lock + overlap + insert). Always false when the booking has no
+   * authoritative interval yet (slotless, not-yet-scheduled) — busy can't be judged then.
+   * Never carries any detail about the conflicting booking/customer/interval.
+   */
+  busy: boolean;
 };
 
 export type BookingAcceptanceVehicleOptions = {
@@ -61,7 +71,7 @@ export async function getBookingAcceptanceVehicleOptions(
 
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, providerId: provider.id },
-    select: { id: true, serviceId: true, seats: true, status: true, operationalStartAt: true },
+    select: { id: true, serviceId: true, seats: true, status: true, operationalStartAt: true, operationalEndAt: true },
   });
   // Missing / not-owned / not awaiting the provider → no selector (uniform null).
   if (!booking || booking.status !== "PENDING_PROVIDER") return null;
@@ -81,12 +91,33 @@ export async function getBookingAcceptanceVehicleOptions(
   });
 
   const now = new Date();
-  const candidates: AcceptanceVehicleCandidate[] = rows.map((r) => {
+  const evaluatedCandidates = rows.map((r) => {
     const evaluated = evaluatePoolVehicle(
       r.vehicle as unknown as PoolVehicleRow,
       { serviceId: booking.serviceId, providerId: provider.id, packageType, maxGuests: booking.seats },
       now,
     );
+    return evaluated;
+  });
+
+  // BOOKING-CONFLICT-1C — proactive busy-state, but ONLY when the booking already has an
+  // authoritative operational interval (slot-derived, or a slotless one already scheduled).
+  // A slotless not-yet-scheduled booking has no window to judge overlap against, so busy stays
+  // false and the final acceptBooking 409 remains the safety net for the schedule entered on
+  // the form. ONE bounded reservation query for ALL candidate ids (never one per vehicle).
+  const intervalStart = booking.operationalStartAt ?? null;
+  const intervalEnd = booking.operationalEndAt ?? null;
+  const busyIds =
+    intervalStart !== null && intervalEnd !== null
+      ? await findBusyVehicleIdsForInterval(
+          prisma,
+          evaluatedCandidates.map((e) => e.vehicle.id),
+          intervalStart,
+          intervalEnd,
+        )
+      : new Set<string>();
+
+  const candidates: AcceptanceVehicleCandidate[] = evaluatedCandidates.map((evaluated) => {
     const v = evaluated.vehicle;
     // Allowlist — never the private registrationNumber / status the ProviderVehicleDTO also carries.
     return {
@@ -100,6 +131,7 @@ export async function getBookingAcceptanceVehicleOptions(
       isFourByFour: v.isFourByFour,
       eligible: evaluated.eligible,
       blockers: evaluated.blockers,
+      busy: busyIds.has(v.id),
     };
   });
 

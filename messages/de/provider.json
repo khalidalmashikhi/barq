@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Fahrzeug auswählen",
   "acceptVehicleRequiredHint": "Zum Annehmen dieser Buchung ist ein Fahrzeug erforderlich.",
   "acceptVehicleNoneEligible": "Keine geeigneten Fahrzeuge verfügbar. Fügen Sie vor dem Annehmen ein Fahrzeug hinzu oder verifizieren Sie es.",
+  "acceptVehicleBusyBadge": "Belegt",
+  "acceptVehicleBusyReason": "Das Fahrzeug ist in diesem Zeitraum bereits einer anderen Buchung zugewiesen.",
   "assignedVehicleTitle": "Zugewiesenes Fahrzeug",
   "assignedVehiclePlateLabel": "Kennzeichen",
   "acceptScheduleHeading": "Zeitplan",

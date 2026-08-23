@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Select a vehicle",
   "acceptVehicleRequiredHint": "A vehicle is required to accept this booking.",
   "acceptVehicleNoneEligible": "No eligible vehicles are available. Add or verify a vehicle before accepting.",
+  "acceptVehicleBusyBadge": "Busy",
+  "acceptVehicleBusyReason": "The vehicle is already assigned to another booking during this time.",
   "assignedVehicleTitle": "Assigned vehicle",
   "assignedVehiclePlateLabel": "Plate",
   "acceptScheduleHeading": "Schedule",

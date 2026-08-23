@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -14,6 +14,13 @@ vi.mock("@/lib/db", () => ({
     service: { findFirst: (...a: unknown[]) => serviceFindFirstMock(...a) },
     tourServiceVehicle: { findMany: (...a: unknown[]) => poolFindManyMock(...a) },
   },
+}));
+
+// BOOKING-CONFLICT-1C — the reservation busy-lookup is its own unit (see
+// vehicle-reservation/find-busy-vehicles.test.ts). Mocked here; default = nothing busy.
+const findBusyMock = vi.fn();
+vi.mock("@/lib/booking/vehicle-reservation", () => ({
+  findBusyVehicleIdsForInterval: (...a: unknown[]) => findBusyMock(...a),
 }));
 
 // loadOwnedTourServiceContext (via service.findFirst + parseGuidingContent) and
@@ -61,11 +68,19 @@ afterEach(() => {
   bookingFindFirstMock.mockReset();
   serviceFindFirstMock.mockReset();
   poolFindManyMock.mockReset();
+  findBusyMock.mockReset();
+});
+
+beforeEach(() => {
+  // Default: nothing busy (matches the pre-1C behavior for every existing test).
+  findBusyMock.mockResolvedValue(new Set<string>());
 });
 
 function primeBooking(status = "PENDING_PROVIDER", seats = 4, operationalStartAt: Date | null = null) {
   requireProviderMock.mockResolvedValue({ provider: { id: PROVIDER } });
-  bookingFindFirstMock.mockResolvedValue({ id: BOOKING, serviceId: "svc-1", seats, status, operationalStartAt });
+  // A slot-based booking carries BOTH interval bounds; slotless carries neither.
+  const operationalEndAt = operationalStartAt ? new Date(operationalStartAt.getTime() + 3 * 3600_000) : null;
+  bookingFindFirstMock.mockResolvedValue({ id: BOOKING, serviceId: "svc-1", seats, status, operationalStartAt, operationalEndAt });
 }
 
 describe("getBookingAcceptanceVehicleOptions — BOOKING-VEHICLE-1", () => {
@@ -142,5 +157,40 @@ describe("getBookingAcceptanceVehicleOptions — BOOKING-VEHICLE-1", () => {
     const options = await getBookingAcceptanceVehicleOptions(BOOKING);
     expect(options!.vehicleRequired).toBe(true);
     expect(options!.requiresSchedule).toBe(false);
+  });
+
+  // --- BOOKING-CONFLICT-1C — proactive busy-state ---------------------------
+
+  it("slot-based booking: an overlapping active reservation marks the candidate busy (one bounded query with candidate ids + interval)", async () => {
+    const START = new Date("2026-06-01T09:00:00.000Z");
+    primeBooking("PENDING_PROVIDER", 4, START);
+    serviceFindFirstMock.mockResolvedValue({ id: "svc-1", providerId: PROVIDER, experience: { guidingContent: guidingContent("GUIDE_WITH_TRANSPORT") } });
+    poolFindManyMock.mockResolvedValue([poolRow("veh-free"), poolRow("veh-busy")]);
+    findBusyMock.mockResolvedValue(new Set(["veh-busy"]));
+
+    const options = await getBookingAcceptanceVehicleOptions(BOOKING);
+    expect(options!.candidates.map((c) => [c.vehicleId, c.eligible, c.busy])).toEqual([
+      ["veh-free", true, false],
+      ["veh-busy", true, true],
+    ]);
+    // ONE bounded reservation query for ALL candidate ids over the booking's interval.
+    expect(findBusyMock).toHaveBeenCalledTimes(1);
+    expect(findBusyMock).toHaveBeenCalledWith(
+      expect.anything(),
+      ["veh-free", "veh-busy"],
+      START,
+      new Date(START.getTime() + 3 * 3600_000),
+    );
+  });
+
+  it("slotless booking (no interval yet): busy-state is NOT computed and every candidate is not busy", async () => {
+    primeBooking("PENDING_PROVIDER", 4, null); // no operational interval
+    serviceFindFirstMock.mockResolvedValue({ id: "svc-1", providerId: PROVIDER, experience: { guidingContent: guidingContent("GUIDE_WITH_TRANSPORT") } });
+    poolFindManyMock.mockResolvedValue([poolRow("veh-eligible")]);
+
+    const options = await getBookingAcceptanceVehicleOptions(BOOKING);
+    expect(options!.requiresSchedule).toBe(true);
+    expect(options!.candidates[0]!.busy).toBe(false);
+    expect(findBusyMock).not.toHaveBeenCalled(); // no window to judge overlap against
   });
 });

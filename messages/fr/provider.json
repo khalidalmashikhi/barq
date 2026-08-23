@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Sélectionner un véhicule",
   "acceptVehicleRequiredHint": "Un véhicule est requis pour accepter cette réservation.",
   "acceptVehicleNoneEligible": "Aucun véhicule éligible n'est disponible. Ajoutez ou vérifiez un véhicule avant d'accepter.",
+  "acceptVehicleBusyBadge": "Occupé",
+  "acceptVehicleBusyReason": "Le véhicule est déjà affecté à une autre réservation pendant cette période.",
   "assignedVehicleTitle": "Véhicule attribué",
   "assignedVehiclePlateLabel": "Plaque",
   "acceptScheduleHeading": "Horaire",

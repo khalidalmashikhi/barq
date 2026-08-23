@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Vyberte vozidlo",
   "acceptVehicleRequiredHint": "K přijetí této rezervace je vyžadováno vozidlo.",
   "acceptVehicleNoneEligible": "Nejsou k dispozici žádná způsobilá vozidla. Před přijetím přidejte nebo ověřte vozidlo.",
+  "acceptVehicleBusyBadge": "Obsazeno",
+  "acceptVehicleBusyReason": "Vozidlo je v tuto dobu již přiřazeno k jiné rezervaci.",
   "assignedVehicleTitle": "Přidělené vozidlo",
   "assignedVehiclePlateLabel": "SPZ",
   "acceptScheduleHeading": "Rozvrh",

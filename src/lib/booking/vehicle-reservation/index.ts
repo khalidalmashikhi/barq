@@ -9,3 +9,4 @@ export {
   type ReserveVehicleResult,
 } from "./reserve-vehicle";
 export { releaseVehicleReservationForBooking } from "./release-vehicle-reservation";
+export { findBusyVehicleIdsForInterval } from "./find-busy-vehicles";

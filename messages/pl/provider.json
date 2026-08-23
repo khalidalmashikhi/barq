@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "Wybierz pojazd",
   "acceptVehicleRequiredHint": "Do zaakceptowania tej rezerwacji wymagany jest pojazd.",
   "acceptVehicleNoneEligible": "Brak dostępnych kwalifikujących się pojazdów. Dodaj lub zweryfikuj pojazd przed zaakceptowaniem.",
+  "acceptVehicleBusyBadge": "Zajęty",
+  "acceptVehicleBusyReason": "Pojazd jest już przypisany do innej rezerwacji w tym czasie.",
   "assignedVehicleTitle": "Przydzielony pojazd",
   "assignedVehiclePlateLabel": "Tablica",
   "acceptScheduleHeading": "Harmonogram",

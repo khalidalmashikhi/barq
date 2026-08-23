@@ -550,6 +550,8 @@
   "acceptVehicleSelectHeading": "اختر مركبة",
   "acceptVehicleRequiredHint": "يلزم اختيار مركبة لقبول هذا الحجز.",
   "acceptVehicleNoneEligible": "لا توجد مركبات مؤهلة متاحة. أضف مركبة أو استكمل التحقق منها قبل القبول.",
+  "acceptVehicleBusyBadge": "مشغولة",
+  "acceptVehicleBusyReason": "المركبة مرتبطة بحجز آخر خلال هذه الفترة.",
   "assignedVehicleTitle": "المركبة المخصصة",
   "assignedVehiclePlateLabel": "رقم اللوحة",
   "acceptScheduleHeading": "الموعد",
