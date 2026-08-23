@@ -832,6 +832,10 @@ model Vehicle {
   /// (relational pool). Deletion of a pooled vehicle is RESTRICTED at the FK, so a
   /// configured tour never silently loses its vehicle.
   tourServiceVehicles TourServiceVehicle[]
+  /// BOOKING-CONFLICT-1A — physical-occupancy reservations committing this vehicle to
+  /// bookings for a time window. Deletion is RESTRICTED at the FK (a vehicle with a
+  /// committed reservation is never silently removed).
+  reservations VehicleReservation[]
 
   @@map("vehicles")
 }
@@ -1179,6 +1183,10 @@ model Booking {
   /// generates one automatically yet — see BookingContract's own
   /// comment) or several (one per revision, per requirement #5/#9).
   contracts                 BookingContract[]
+  /// BOOKING-CONFLICT-1A — the physical-vehicle resource reservation created at
+  /// provider acceptance (one per booking; see VehicleReservation). Optional/one-to-one:
+  /// only vehicle-assigned confirmed bookings have one, and none exists while PENDING.
+  vehicleReservation        VehicleReservation?
 
   @@index([customerId])
   @@index([providerId])
@@ -1194,6 +1202,48 @@ model Booking {
   /// many provider+status-scoped counts).
   @@index([providerId, status])
   @@map("bookings")
+}
+
+/// BOOKING-CONFLICT-1A — a physical-occupancy reservation committing one Vehicle to
+/// one Booking for a half-open time window [startsAt, endsAt). This is the durable
+/// record the conflict engine consults to guarantee a vehicle is never double-booked
+/// for overlapping intervals. Race safety is enforced in application code by taking a
+/// per-Vehicle transaction-scoped advisory lock, then an overlap check, then the
+/// insert — all in ONE transaction (see src/lib/booking/vehicle-reservation). There is
+/// deliberately NO btree_gist exclusion constraint here (no CREATE EXTENSION precedent
+/// in this database); the advisory-lock protocol is the authority.
+///
+/// A reservation is ACTIVE while releasedAt IS NULL; releasing (on cancellation /
+/// no-show / reassignment, in a later gate) sets releasedAt rather than deleting the
+/// row, preserving history. This foundation gate adds the table + primitives ONLY;
+/// nothing writes to it yet (acceptBooking is untouched until BOOKING-CONFLICT-1B).
+model VehicleReservation {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// The reserved physical vehicle. RESTRICT: a vehicle with any reservation row can
+  /// never be silently deleted out from under a booking's history.
+  vehicleId String  @db.Uuid
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [assetId], onDelete: Restrict)
+
+  /// The owning booking. Exactly one reservation per booking (@unique). RESTRICT: the
+  /// reservation is history and must be released, not orphaned by a booking delete.
+  bookingId String  @unique @db.Uuid
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  /// Half-open operational window [startsAt, endsAt) in absolute UTC instants — mirrors
+  /// the Booking.operationalStartAt/endAt authority (BOOKING-INTERVAL-1). endsAt > startsAt.
+  startsAt DateTime @db.Timestamptz(6)
+  endsAt   DateTime @db.Timestamptz(6)
+
+  /// NULL while the reservation actively holds the vehicle; set to the release instant
+  /// when the hold is lifted (cancellation / reassignment, a later gate). Never deleted.
+  releasedAt DateTime? @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  /// The overlap query filters by vehicleId then range — this composite index serves it.
+  @@index([vehicleId, startsAt, endsAt])
+  @@map("vehicle_reservations")
 }
 
 /// Who performed a booking status transition — Phase E.1. No FK to
