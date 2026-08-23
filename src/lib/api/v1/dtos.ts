@@ -67,6 +67,17 @@ export function toServiceSummaryDTO(item: ServiceListItem): ServiceSummaryDTO {
 export interface ActivePriceDTO {
   id: string;
   price: MoneyDTO;
+  /// BOOKING-PRICE-SEMANTICS — the governed CODE this amount is priced per, or null.
+  /// Stable and never localized, so a client may branch on it.
+  pricingUnit: string | null;
+  /// The same unit already localized by the Platform, or null when there is none — or
+  /// when the code is one the label registry does not yet know. A client renders the
+  /// amount alone in that case and NEVER falls back to showing `pricingUnit` itself.
+  ///
+  /// Resolved server-side on purpose: the pricing-unit vocabulary is commercially
+  /// extensible with no DB CHECK, so every client mirroring the registry would drift
+  /// the moment a unit is added.
+  pricingUnitLabel: string | null;
 }
 
 // TOUR-VEHICLE-3 — customer-semantic tour vehicle presentation. Deliberately NOT the pool
@@ -137,6 +148,8 @@ export function toServiceDetailDTO(
     activePrices: activePrices.map((option) => ({
       id: option.id,
       price: toMoneyDTO(option.amount, option.currency),
+      pricingUnit: option.pricingUnit,
+      pricingUnitLabel: option.pricingUnitLabel,
     })),
     ratingAverage: rating.averageRating,
     reviewCount: rating.reviewCount,

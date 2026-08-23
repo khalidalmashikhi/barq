@@ -4,6 +4,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { pricingUnitLabelKey } from "@/lib/pricing-units";
 import type { Locale } from "@/i18n/locales";
 import type { ReviewItem } from "@/components/services/reviews-section";
 
@@ -66,9 +67,40 @@ export type ActivePriceOption = {
   id: string;
   amount: string;
   currency: string;
+  /// BOOKING-PRICE-SEMANTICS — the stable governed CODE this amount is priced per
+  /// (PER_PERSON, PER_DAY, …), or null for a legacy/flat price. Never localized.
+  pricingUnit: string | null;
+  /// The SAME unit, already localized by the Platform. Null when there is no unit, and
+  /// ALSO null for a code the label registry does not yet know — a consumer then shows
+  /// the amount alone rather than leaking a raw code as customer-facing text.
+  pricingUnitLabel: string | null;
 };
 
-export async function getActivePricesForService(serviceId: string): Promise<ActivePriceOption[]> {
+/**
+ * Every ACTIVE price for a service, each carrying its own unit.
+ *
+ * WHY THE UNIT TRAVELS PER OPTION. A service may have more than one ACTIVE price, and
+ * until this gate the unit was read from the row and then dropped — twice. A client
+ * offered "25.00 OMR" and "40.00 OMR" could tell the amounts apart but not what either
+ * was priced per, which is not a choice a customer can make. `ServiceDetail.pricingUnit`
+ * cannot fix that: it is taken from the FIRST active price only, so using it to label a
+ * list would correctly label one option and mislabel the rest.
+ *
+ * THE LABEL IS RESOLVED HERE, ON THE PLATFORM. The pricing-unit vocabulary is
+ * deliberately extensible and has no DB CHECK — `src/lib/pricing-units` is its only
+ * allow-list, and the common i18n namespace its only translation. Handing a client the
+ * raw code would force every client to mirror both, and to drift the moment a new unit
+ * is added. `localeOverride` mirrors getServiceById()'s own additive parameter: Web
+ * passes nothing and behaves exactly as before; the /api/v1 adapter passes its resolved
+ * locale.
+ *
+ * DISPLAY METADATA ONLY, unchanged by this gate: the unit never multiplies by seats,
+ * never feeds a total, and never reaches the booking/payment/snapshot pipeline.
+ */
+export async function getActivePricesForService(
+  serviceId: string,
+  localeOverride?: Locale
+): Promise<ActivePriceOption[]> {
   if (!isValidUuid(serviceId)) return [];
 
   const prices = await prisma.price.findMany({
@@ -76,12 +108,28 @@ export async function getActivePricesForService(serviceId: string): Promise<Acti
     orderBy: { createdAt: "desc" },
   });
 
-  type PriceRow = { id: string; amount: unknown; currency: string };
-  return (prices as PriceRow[]).map((price) => ({
-    id: price.id,
-    amount: String(price.amount),
-    currency: price.currency,
-  }));
+  type PriceRow = { id: string; amount: unknown; currency: string; pricingUnit?: string | null };
+  const rows = prices as PriceRow[];
+
+  // One translator for the whole list, not one per row.
+  const t = localeOverride
+    ? await getServerTranslator({ locale: localeOverride, namespace: "common" })
+    : await getServerTranslator("common");
+
+  return rows.map((price) => {
+    const unit = price.pricingUnit ?? null;
+    // Fail safe: an unknown/future code keeps its stable value on the wire but resolves
+    // to NO label, so it can never be rendered at a customer.
+    const labelKey = pricingUnitLabelKey(unit);
+
+    return {
+      id: price.id,
+      amount: String(price.amount),
+      currency: price.currency,
+      pricingUnit: unit,
+      pricingUnitLabel: labelKey ? t(labelKey) : null,
+    };
+  });
 }
 
 // Shared row -> ServiceDetail mapping, used by BOTH the gated public read and

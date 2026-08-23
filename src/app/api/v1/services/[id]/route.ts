@@ -28,7 +28,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!detail) return apiError("NOT_FOUND", { locale });
 
     const [activePrices, rating, tourVehicleSummary] = await Promise.all([
-      getActivePricesForService(detail.id),
+      // Locale-aware: each active price carries its own already-localized unit label.
+      getActivePricesForService(detail.id, locale),
       getServiceRatingAggregate(detail.id),
       // TOUR-VEHICLE-3 — customer-safe tour vehicle summary (null for non-tour / GUIDE_ONLY).
       getPublicTourVehicleSummary(detail.id),

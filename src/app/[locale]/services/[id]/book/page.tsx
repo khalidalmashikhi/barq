@@ -69,6 +69,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
 
   const t = await getServerTranslator("booking");
   const tErrors = await getServerTranslator("errors");
+  const tCommon = await getServerTranslator("common");
   const errorMessage = error && isBookingActionErrorCode(error) ? tErrors(getBookingErrorTranslationKey(error)) : null;
 
   return (
@@ -142,7 +143,18 @@ export default async function BookServicePage({ params, searchParams }: Props) {
             {prices.map((price) => (
               <label key={price.id} className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent/20">
                 <input type="radio" name="priceId" value={price.id} required className="accent-primary" />
-                {price.amount} {price.currency}
+                {/* BOOKING-PRICE-SEMANTICS — each option carries its OWN unit. Two active
+                    prices were previously two bare amounts with no stated basis, which is
+                    not a choice a customer can make. The service-level pricingUnit is not
+                    used here: it comes from the first active price only, so it would label
+                    one option correctly and mislabel the rest. A null label (absent or
+                    not-yet-governed unit) shows the amount alone, never the raw code. */}
+                {price.pricingUnitLabel
+                  ? tCommon("priceWithUnit", {
+                      price: `${price.amount} ${price.currency}`,
+                      unit: price.pricingUnitLabel,
+                    })
+                  : `${price.amount} ${price.currency}`}
               </label>
             ))}
           </fieldset>

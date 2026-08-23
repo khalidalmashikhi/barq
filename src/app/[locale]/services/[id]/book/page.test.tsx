@@ -61,9 +61,18 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/booking/create-booking", () => ({ createBooking: vi.fn() }));
 
 // Translator returns the KEY, so an assertion on "noSlotsAvailableLabel" proves the
-// committed key is used rather than matching prose that could drift.
+// committed key is used rather than matching prose that could drift. Interpolated values
+// are appended rather than substituted: BOOKING-PRICE-SEMANTICS renders a priced option
+// through common.priceWithUnit, and a mock that returned the bare key would hide both the
+// amount and the unit, letting a wrong or missing unit pass unnoticed.
 vi.mock("@/lib/i18n/get-server-translator", () => ({
-  getServerTranslator: vi.fn().mockResolvedValue((k: string) => k),
+  getServerTranslator: vi.fn().mockResolvedValue((k: string, values?: Record<string, unknown>) =>
+    values
+      ? `${k}(${Object.entries(values)
+          .map(([name, value]) => `${name}=${String(value)}`)
+          .join(",")})`
+      : k
+  ),
 }));
 vi.mock("next-intl/server", () => ({ getLocale: vi.fn().mockResolvedValue("en") }));
 vi.mock("@/lib/i18n/format-date", () => ({ formatDate: () => "1 September 2026, 10:00" }));
@@ -105,7 +114,15 @@ function setUp({ requiresSlot, slots }: { requiresSlot: boolean; slots: ReturnTy
     name: "Wadi Shab hike",
     providerName: "Muscat Trails",
   });
-  getActivePricesMock.mockResolvedValue([{ id: PRICE_ID, amount: "25.00", currency: "OMR" }]);
+  getActivePricesMock.mockResolvedValue([
+    {
+      id: PRICE_ID,
+      amount: "25.00",
+      currency: "OMR",
+      pricingUnit: "PER_PERSON",
+      pricingUnitLabel: "per person",
+    },
+  ]);
   getAvailableSlotsMock.mockResolvedValue(slots);
   serviceRequiresSlotMock.mockResolvedValue(requiresSlot);
 }
@@ -198,5 +215,120 @@ describe("BookServicePage — slot requirement", () => {
     expect(tree).toContain("noPricesAvailableLabel");
     expect(tree).not.toContain("noSlotsAvailableLabel");
     expect(tree).not.toContain("confirmBookingButton");
+  });
+});
+
+// BOOKING-PRICE-SEMANTICS — this page is where the customer actually CHOOSES a price, so
+// it is the surface where an unstated pricing basis does real damage: two bare amounts are
+// not a choice anyone can reason about. The unit is resolved by the Platform and rendered
+// through the committed common.priceWithUnit key.
+describe("BookServicePage — pricing unit on each option", () => {
+  const SECOND_PRICE_ID = "019f4e4e-80b8-7cf2-b043-916c71648fcc";
+
+  function withPrices(prices: Record<string, unknown>[]) {
+    setUp({ requiresSlot: false, slots: [] });
+    getActivePricesMock.mockResolvedValue(prices);
+  }
+
+  function price(over: Record<string, unknown> = {}) {
+    return {
+      id: PRICE_ID,
+      amount: "25.00",
+      currency: "OMR",
+      pricingUnit: "PER_PERSON",
+      pricingUnitLabel: "per person",
+      ...over,
+    };
+  }
+
+  it("renders the amount with its unit label through the committed key", async () => {
+    withPrices([price()]);
+
+    const tree = await render();
+
+    expect(tree).toContain("priceWithUnit(price=25.00 OMR,unit=per person)");
+  });
+
+  /** THE CASE THE WHOLE GATE EXISTS FOR — each option states its own basis. */
+  it("labels two options with their own distinct units", async () => {
+    withPrices([
+      price({ id: PRICE_ID, amount: "25.00", pricingUnitLabel: "per person" }),
+      price({ id: SECOND_PRICE_ID, amount: "40.50", pricingUnit: "PER_DAY", pricingUnitLabel: "per day" }),
+    ]);
+
+    const tree = await render();
+
+    expect(tree).toContain("priceWithUnit(price=25.00 OMR,unit=per person)");
+    expect(tree).toContain("priceWithUnit(price=40.50 OMR,unit=per day)");
+  });
+
+  it("still offers exactly one selectable radio per price, keyed by the exact price id", async () => {
+    withPrices([price(), price({ id: SECOND_PRICE_ID })]);
+
+    const tree = await render();
+
+    expect(tree).toContain(PRICE_ID);
+    expect(tree).toContain(SECOND_PRICE_ID);
+    // The submitted value is the price ID, never the amount or the unit.
+    expect(tree).toContain(`"name":"priceId","value":"${PRICE_ID}"`);
+    expect(tree).toContain(`"name":"priceId","value":"${SECOND_PRICE_ID}"`);
+  });
+
+  // --- a missing label must degrade to the amount, never to a code ----------
+
+  /**
+   * A legacy flat price, and a code this build does not govern yet, both arrive with a
+   * null label. Either must render as the amount alone: a raw SCREAMING_CASE code shown
+   * to a customer is worse than saying nothing about the basis.
+   */
+  it("shows the bare amount for a legacy price with no unit", async () => {
+    withPrices([price({ pricingUnit: null, pricingUnitLabel: null })]);
+
+    const tree = await render();
+
+    expect(tree).toContain("25.00 OMR");
+    expect(tree).not.toContain("priceWithUnit");
+  });
+
+  it("never renders the raw code when the unit is not yet governed", async () => {
+    withPrices([price({ pricingUnit: "PER_NIGHT", pricingUnitLabel: null })]);
+
+    const tree = await render();
+
+    expect(tree).toContain("25.00 OMR");
+    expect(tree).not.toContain("PER_NIGHT");
+    expect(tree).not.toContain("priceWithUnit");
+  });
+
+  it("keeps the form submittable when a label is missing", async () => {
+    withPrices([price({ pricingUnit: null, pricingUnitLabel: null })]);
+
+    const tree = await render();
+
+    // An unlabelled price is still a bookable price.
+    expect(tree).toContain("confirmBookingButton");
+    expect(tree).toContain("selectPriceLabel");
+    expect(tree).toContain(PRICE_ID);
+  });
+
+  /**
+   * The SERVICE-level pricingUnit comes from the first active price only, so using it to
+   * label the list would label one option right and mislabel every other one.
+   */
+  it("does not fall back to the service-level unit for an unlabelled option", async () => {
+    setUp({ requiresSlot: false, slots: [] });
+    getServiceByIdMock.mockResolvedValue({
+      id: SERVICE_ID,
+      name: "Wadi Shab hike",
+      providerName: "Muscat Trails",
+      pricingUnit: "PER_PERSON",
+      pricingUnitLabel: "per person",
+    });
+    getActivePricesMock.mockResolvedValue([price({ pricingUnit: null, pricingUnitLabel: null })]);
+
+    const tree = await render();
+
+    expect(tree).not.toContain("per person");
+    expect(tree).toContain("25.00 OMR");
   });
 });

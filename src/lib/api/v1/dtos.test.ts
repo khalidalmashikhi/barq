@@ -73,16 +73,34 @@ describe("toServiceDetailDTO", () => {
         createdAt: new Date("2026-01-02T00:00:00.000Z"),
       },
       [
-        { id: "pr1", amount: "25", currency: "OMR" },
-        { id: "pr2", amount: "40.5", currency: "OMR" },
+        { id: "pr1", amount: "25", currency: "OMR", pricingUnit: "PER_PERSON", pricingUnitLabel: "per person" },
+        { id: "pr2", amount: "40.5", currency: "OMR", pricingUnit: "PER_DAY", pricingUnitLabel: "per day" },
       ],
       { averageRating: 4.5, reviewCount: 3 }
     );
     expect(dto.providerVerified).toBe(true);
+    // EXACT equality, kept exact: this is the wire allow-list for a price option, so an
+    // internal Price field leaking in must fail here. BOOKING-PRICE-SEMANTICS — the two
+    // options carry DIFFERENT units, which is the case the whole gate exists for: two bare
+    // amounts are not a choice a customer can make.
     expect(dto.activePrices).toEqual([
-      { id: "pr1", price: { amount: "25.00", currency: "OMR" } },
-      { id: "pr2", price: { amount: "40.50", currency: "OMR" } },
+      {
+        id: "pr1",
+        price: { amount: "25.00", currency: "OMR" },
+        pricingUnit: "PER_PERSON",
+        pricingUnitLabel: "per person",
+      },
+      {
+        id: "pr2",
+        price: { amount: "40.50", currency: "OMR" },
+        pricingUnit: "PER_DAY",
+        pricingUnitLabel: "per day",
+      },
     ]);
+    // The SERVICE-level unit must not be what labels the list: it comes from the first
+    // active price only, so using it would mislabel every other option.
+    expect(dto.pricingUnit).toBe("PER_PERSON");
+    expect(dto.activePrices[1]!.pricingUnit).not.toBe(dto.pricingUnit);
     expect(dto.ratingAverage).toBe(4.5);
     expect(dto.reviewCount).toBe(3);
     expect(dto.createdAt).toBe("2026-01-02T00:00:00.000Z");
