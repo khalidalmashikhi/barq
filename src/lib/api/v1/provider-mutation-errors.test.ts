@@ -83,6 +83,9 @@ describe("providerBookingErrorResponse", () => {
     expect(await read(providerBookingErrorResponse("VEHICLE_NOT_ELIGIBLE", "en"))).toMatchObject({ status: 422, code: "TOUR_VEHICLE_NOT_ELIGIBLE" });
     expect(await read(providerBookingErrorResponse("VEHICLE_CAPACITY_INSUFFICIENT", "en"))).toMatchObject({ status: 422, code: "VEHICLE_CAPACITY_INSUFFICIENT" });
     expect(await read(providerBookingErrorResponse("BOOKING_STATE_CONFLICT", "en"))).toMatchObject({ status: 409, code: "CONCURRENT_MODIFICATION" });
+    // BOOKING-INTERVAL-1 — provider acceptance operational-schedule outcomes (422).
+    expect(await read(providerBookingErrorResponse("SCHEDULE_REQUIRED", "en"))).toMatchObject({ status: 422, code: "SCHEDULE_REQUIRED" });
+    expect(await read(providerBookingErrorResponse("INVALID_SCHEDULE", "en"))).toMatchObject({ status: 422, code: "INVALID_SCHEDULE" });
   });
 
   it("always sets no-store", async () => {

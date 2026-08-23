@@ -24,5 +24,7 @@
   "vehicleNotInServicePool": "Ten pojazd nie należy do puli pojazdów tej wycieczki",
   "vehicleNotEligible": "Ten pojazd nie kwalifikuje się obecnie do tej wycieczki",
   "vehicleCapacityInsufficient": "Ten pojazd nie pomieści liczby gości w tej rezerwacji",
-  "bookingStateConflict": "Ta rezerwacja została właśnie zaktualizowana. Spróbuj ponownie"
+  "bookingStateConflict": "Ta rezerwacja została właśnie zaktualizowana. Spróbuj ponownie",
+  "scheduleRequired": "Ustaw czas rozpoczęcia i zakończenia przed zaakceptowaniem tej rezerwacji",
+  "invalidSchedule": "Czas rozpoczęcia i zakończenia jest nieprawidłowy"
 }

@@ -313,6 +313,10 @@ describe("acceptBooking", () => {
       status: "PENDING_PROVIDER",
       priceSnapshotAmount: { toString: () => "15" },
       priceSnapshotCurrency: "OMR",
+      // BOOKING-INTERVAL-1 — slot-based booking (interval already snapshotted at create), so
+      // acceptance needs no provider schedule and does not re-write the interval.
+      operationalStartAt: new Date("2026-06-01T09:00:00.000Z"),
+      operationalEndAt: new Date("2026-06-01T12:00:00.000Z"),
     });
     canAcceptBookingMock.mockReturnValue(true);
     // Both the pre-check and the in-transaction re-check resolve to the chosen vehicle + its snapshot.
@@ -370,6 +374,8 @@ describe("acceptBooking", () => {
       status: "PENDING_PROVIDER",
       priceSnapshotAmount: { toString: () => "15" },
       priceSnapshotCurrency: "OMR",
+      operationalStartAt: new Date("2026-06-01T09:00:00.000Z"),
+      operationalEndAt: new Date("2026-06-01T12:00:00.000Z"),
     });
     canAcceptBookingMock.mockReturnValue(true);
     // Pre-check passes, in-transaction re-check fails (a doc expired / vehicle deactivated).
@@ -408,5 +414,86 @@ describe("acceptBooking", () => {
 
     expect(result).toEqual({ ok: false, error: "BOOKING_STATE_CONFLICT" });
     expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+  });
+
+  // --- BOOKING-INTERVAL-1 ------------------------------------------------------
+
+  const SLOTLESS_BOOKING = {
+    id: BOOKING_ID, providerId: "provider-1", serviceId: "service-1", seats: 4, status: "PENDING_PROVIDER",
+    priceSnapshotAmount: { toString: () => "15" }, priceSnapshotCurrency: "OMR",
+    operationalStartAt: null, operationalEndAt: null, // slotless: no interval yet
+  };
+  const START = new Date("2026-07-01T06:00:00.000Z");
+  const END = new Date("2026-07-01T10:00:00.000Z");
+
+  it("slotless vehicle-required acceptance with NO schedule → SCHEDULE_REQUIRED, before payment/transition", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue(SLOTLESS_BOOKING);
+    canAcceptBookingMock.mockReturnValue(true);
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP });
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID); // no schedule supplied
+
+    expect(result).toEqual({ ok: false, error: "SCHEDULE_REQUIRED" });
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+    expect(paymentCreateMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+  });
+
+  it("slotless vehicle-required acceptance with a reversed interval → INVALID_SCHEDULE", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue(SLOTLESS_BOOKING);
+    canAcceptBookingMock.mockReturnValue(true);
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP });
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID, END, START); // end before start
+
+    expect(result).toEqual({ ok: false, error: "INVALID_SCHEDULE" });
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+  });
+
+  it("slotless vehicle-required acceptance with a valid schedule → CONFIRMED, writing vehicle + snapshot + interval together", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue(SLOTLESS_BOOKING);
+    canAcceptBookingMock.mockReturnValue(true);
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP });
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null);
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID, START, END);
+
+    expect(result).toEqual({ ok: true });
+    expect(bookingUpdateMock).toHaveBeenCalledWith({
+      where: { id: BOOKING_ID },
+      data: { vehicleId: VEHICLE_ID, vehicleSnapshot: SNAP, operationalStartAt: START, operationalEndAt: END },
+    });
+  });
+
+  it("slot-based booking: provider-supplied schedule is IGNORED (cannot override the slot-derived interval)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      ...SLOTLESS_BOOKING,
+      // Already has a slot-derived interval → provider cannot override it.
+      operationalStartAt: new Date("2026-06-01T09:00:00.000Z"),
+      operationalEndAt: new Date("2026-06-01T12:00:00.000Z"),
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: VEHICLE_ID, snapshot: SNAP });
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null);
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+
+    // Provider tries to pass a different interval — it must be ignored.
+    const result = await acceptBooking(BOOKING_ID, VEHICLE_ID, START, END);
+
+    expect(result).toEqual({ ok: true });
+    // The update carries NO operational interval — the slot-derived one stands untouched.
+    expect(bookingUpdateMock).toHaveBeenCalledWith({
+      where: { id: BOOKING_ID },
+      data: { vehicleId: VEHICLE_ID, vehicleSnapshot: SNAP },
+    });
   });
 });

@@ -17,6 +17,7 @@ import {
   resolveVehicleAssignmentForAcceptance,
   type VehicleAssignmentError,
 } from "@/lib/booking/vehicle-assignment-on-accept";
+import { validateOperationalInterval, type OperationalInterval } from "@/lib/booking/operational-interval";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -112,7 +113,18 @@ export type AcceptBookingResult = { ok: true } | { ok: false; error: BookingActi
 // services (where Booking.vehicleId stays null). Provider identity is always server-derived;
 // the vehicle is validated against the service's pool + live eligibility + the booking's
 // party — never trusted from the client beyond being an id the provider chose.
-export async function acceptBooking(bookingId: string, vehicleId?: string | null): Promise<AcceptBookingResult> {
+// BOOKING-INTERVAL-1: `operationalStartAt`/`operationalEndAt` are the provider-supplied
+// operational schedule (already parsed to absolute instants by the caller — Web via
+// omanLocalToUtc, API via ISO parse). They are consulted ONLY when a vehicle is being
+// assigned AND the booking has no interval yet (slotless transport). For a slot-based
+// booking the interval already exists (snapshotted at create) and the provider CANNOT
+// override it — any supplied values are ignored. Non-vehicle acceptance ignores them.
+export async function acceptBooking(
+  bookingId: string,
+  vehicleId?: string | null,
+  operationalStartAt?: Date | null,
+  operationalEndAt?: Date | null,
+): Promise<AcceptBookingResult> {
   if (!isValidUuid(bookingId)) {
     return { ok: false, error: "INVALID_INPUT" };
   }
@@ -156,6 +168,27 @@ export async function acceptBooking(bookingId: string, vehicleId?: string | null
     });
     if (!assignment.ok) {
       return { ok: false, error: assignment.error };
+    }
+
+    // BOOKING-INTERVAL-1 — a vehicle-required acceptance needs an authoritative operational
+    // interval (start < end). Resolved BEFORE payment initiation so a missing/invalid schedule
+    // never creates a gateway intent. Slot-based bookings already carry the interval from
+    // create → use it, ignore any supplied schedule (provider cannot override). Slotless
+    // bookings need the provider to supply it now; absent → SCHEDULE_REQUIRED, broken →
+    // INVALID_SCHEDULE. No interval requirement when no vehicle is assigned.
+    let intervalToWrite: OperationalInterval | null = null;
+    if (assignment.vehicleId !== null) {
+      // `?? null` normalizes an absent field to null so a slot-derived interval is detected
+      // whether the row carries null (real DB) or the field is simply unset.
+      const hasExistingInterval =
+        (booking.operationalStartAt ?? null) !== null && (booking.operationalEndAt ?? null) !== null;
+      if (!hasExistingInterval) {
+        const validated = validateOperationalInterval(operationalStartAt ?? null, operationalEndAt ?? null);
+        if (!validated.ok) {
+          return { ok: false, error: validated.error };
+        }
+        intervalToWrite = validated.interval;
+      }
     }
 
     // Obtain the gateway and consume its result — this action no longer
@@ -228,6 +261,13 @@ export async function acceptBooking(bookingId: string, vehicleId?: string | null
             data: {
               vehicleId: revalidated.vehicleId,
               vehicleSnapshot: revalidated.snapshot as unknown as Prisma.InputJsonValue,
+              // BOOKING-INTERVAL-1 — persist the provider-supplied schedule (slotless only;
+              // null when the booking already had a slot-derived interval) in the SAME update
+              // as vehicleId/snapshot, so a confirmed vehicle-required booking always ends up
+              // with a valid interval AND its vehicle together, or neither.
+              ...(intervalToWrite
+                ? { operationalStartAt: intervalToWrite.startsAt, operationalEndAt: intervalToWrite.endsAt }
+                : {}),
             },
           });
         }

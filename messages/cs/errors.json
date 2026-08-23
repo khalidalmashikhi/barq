@@ -24,5 +24,7 @@
   "vehicleNotInServicePool": "Toto vozidlo není součástí vozového parku této prohlídky",
   "vehicleNotEligible": "Toto vozidlo aktuálně není způsobilé pro tuto prohlídku",
   "vehicleCapacityInsufficient": "Toto vozidlo nepojme počet hostů této rezervace",
-  "bookingStateConflict": "Tato rezervace byla právě aktualizována. Zkuste to znovu"
+  "bookingStateConflict": "Tato rezervace byla právě aktualizována. Zkuste to znovu",
+  "scheduleRequired": "Před přijetím této rezervace nastavte čas začátku a konce",
+  "invalidSchedule": "Čas začátku a konce je neplatný"
 }

@@ -277,6 +277,42 @@ describe("createBooking", () => {
       expect(dispatchLifecycleHookMock).toHaveBeenCalledWith({ hook: "context" });
     });
 
+    // BOOKING-INTERVAL-1 — a slot-based booking snapshots the selected Availability's
+    // start/end onto the Booking operational interval at create (server-derived, not client).
+    it("snapshots the selected Availability start/end onto the Booking operational interval", async () => {
+      slotBasedService();
+      const start = new Date("2026-06-01T09:00:00.000Z");
+      const end = new Date("2026-06-01T12:00:00.000Z");
+      availabilityFindFirstMock.mockResolvedValue({ id: AVAILABILITY_ID, serviceId: SERVICE_ID, state: "OPEN", startTime: start, endTime: end });
+      bookingFindFirstMock.mockResolvedValue(null);
+      executeRawMock.mockResolvedValue(1);
+
+      const result = await createBooking(
+        formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: AVAILABILITY_ID, seats: "2" })
+      );
+
+      expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+      const data = (bookingCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+      expect(data.operationalStartAt).toEqual(start);
+      expect(data.operationalEndAt).toEqual(end);
+    });
+
+    // A genuinely slotless booking carries no interval at create (provider schedules at acceptance).
+    it("a slotless booking is created with no operational interval", async () => {
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+      transitionBookingMock.mockResolvedValue({ hook: "context" });
+      serviceRequiresSlotMock.mockResolvedValue(false);
+
+      await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      const data = (bookingCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+      expect(data).not.toHaveProperty("operationalStartAt");
+      expect(data).not.toHaveProperty("operationalEndAt");
+    });
+
     /** Rejection happens before the price lookup — no wasted work, no partial state. */
     it("rejects before any transaction is opened", async () => {
       slotBasedService();

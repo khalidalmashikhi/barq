@@ -1121,6 +1121,18 @@ model Booking {
   /// registrationNumber, documents, objectKey, verificationStatus, or the raw trusted/
   /// claimed 4x4 flags. Nullable + no backfill: legacy and no-vehicle bookings stay null.
   vehicleSnapshot Json?
+  /// BOOKING-INTERVAL-1 — the ONE authoritative operational time window during which this
+  /// booking's operational resources (the assigned Vehicle now; guide/driver later) are
+  /// committed. Absolute instants (timestamptz), half-open [start, end). Populated at
+  /// CREATE for slot-based bookings (snapshotted from the selected Availability, so a later
+  /// Availability edit/delete never rewrites a booking's committed window) and at PROVIDER
+  /// ACCEPTANCE for slotless vehicle-required bookings (provider-supplied). Nullable + no
+  /// backfill: legacy and pre-acceptance slotless bookings are null. A vehicle-required
+  /// booking cannot reach CONFIRMED without a valid interval (start < end) — enforced in
+  /// acceptBooking, NOT by the DB. This is the interval BOOKING-CONFLICT-1 will reserve on;
+  /// this gate only establishes it (no overlap/reservation logic here).
+  operationalStartAt DateTime? @db.Timestamptz(6)
+  operationalEndAt   DateTime? @db.Timestamptz(6)
   status     BookingStatus @default(CREATED)
 
   /// Group booking support (approved architecture, Entries 066-067):

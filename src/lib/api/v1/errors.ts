@@ -65,6 +65,12 @@ export type ApiErrorCode =
   | "VEHICLE_REQUIRED"
   | "VEHICLE_NOT_IN_SERVICE_POOL"
   | "VEHICLE_CAPACITY_INSUFFICIENT"
+  // BOOKING-INTERVAL-1 — provider acceptance operational-schedule outcomes (mapped in
+  // provider-mutation-errors.ts). A slotless vehicle-required booking needs a provider-supplied
+  // interval (SCHEDULE_REQUIRED, 422); a supplied interval that is malformed / start>=end is
+  // INVALID_SCHEDULE (422). Distinct from SLOT_REQUIRED (the customer create-time slot rule).
+  | "SCHEDULE_REQUIRED"
+  | "INVALID_SCHEDULE"
   | "CAPACITY_BELOW_BOOKED"
   | "SLOT_HAS_BOOKINGS"
   // VEHICLE-1B (Provider Vehicle API) — a vehicle with this registration number
@@ -122,6 +128,8 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   VEHICLE_REQUIRED: 422,
   VEHICLE_NOT_IN_SERVICE_POOL: 422,
   VEHICLE_CAPACITY_INSUFFICIENT: 422,
+  SCHEDULE_REQUIRED: 422,
+  INVALID_SCHEDULE: 422,
   CAPACITY_BELOW_BOOKED: 409,
   SLOT_HAS_BOOKINGS: 409,
   DUPLICATE_REGISTRATION: 409,
@@ -219,6 +227,14 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   VEHICLE_CAPACITY_INSUFFICIENT: {
     en: "This vehicle can't carry the number of guests on this booking.",
     ar: "لا تتسع هذه المركبة لعدد ضيوف هذا الحجز.",
+  },
+  SCHEDULE_REQUIRED: {
+    en: "Set a start and end time before accepting this booking.",
+    ar: "حدد وقت البداية والنهاية قبل قبول هذا الحجز.",
+  },
+  INVALID_SCHEDULE: {
+    en: "The start and end time are invalid.",
+    ar: "وقت البداية والنهاية غير صالح.",
   },
   CAPACITY_BELOW_BOOKED: {
     en: "Capacity can't be set below the number of seats already booked.",

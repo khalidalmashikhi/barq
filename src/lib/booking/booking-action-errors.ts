@@ -48,6 +48,13 @@ export type BookingActionErrorCode =
   | "VEHICLE_NOT_ELIGIBLE"
   | "VEHICLE_CAPACITY_INSUFFICIENT"
   | "BOOKING_STATE_CONFLICT"
+  // BOOKING-INTERVAL-1 — provider acceptance operational-interval outcomes for a
+  // vehicle-required booking. SCHEDULE_REQUIRED: a slotless vehicle-required booking has no
+  // operational interval and the provider supplied none at acceptance. INVALID_SCHEDULE: a
+  // schedule was supplied but is malformed (one-sided pair, non-date, or start >= end).
+  // Distinct from SLOT_REQUIRED (the customer's create-time "no Availability slot" outcome).
+  | "SCHEDULE_REQUIRED"
+  | "INVALID_SCHEDULE"
   | "RATE_LIMITED"
   | "UNKNOWN_ERROR";
 
@@ -71,6 +78,8 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "VEHICLE_NOT_ELIGIBLE",
   "VEHICLE_CAPACITY_INSUFFICIENT",
   "BOOKING_STATE_CONFLICT",
+  "SCHEDULE_REQUIRED",
+  "INVALID_SCHEDULE",
   "RATE_LIMITED",
   "UNKNOWN_ERROR",
 ];

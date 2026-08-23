@@ -22,6 +22,7 @@ import { BookingTimeline } from "@/components/bookings/booking-timeline";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
+import { omanLocalToUtc } from "@/lib/date/oman-time";
 
 // Payment Experience & Financial Operations phase — additive cross-
 // link only. No new query: this reuses getProviderPayments()'s own
@@ -187,11 +188,41 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
                       // The provider's chosen vehicle (radio) — validated server-side by acceptBooking.
                       const raw = formData.get("vehicleId");
                       const vehicleId = typeof raw === "string" && raw.length > 0 ? raw : null;
-                      const result = await acceptBooking(booking.id, vehicleId);
+                      // BOOKING-INTERVAL-1 — slotless transport schedule (Oman wall-clock →
+                      // instant). Ignored server-side for slot-based/non-vehicle acceptance.
+                      const startRaw = formData.get("operationalStartAt");
+                      const endRaw = formData.get("operationalEndAt");
+                      const operationalStartAt =
+                        typeof startRaw === "string" && startRaw ? omanLocalToUtc(startRaw) : null;
+                      const operationalEndAt = typeof endRaw === "string" && endRaw ? omanLocalToUtc(endRaw) : null;
+                      const result = await acceptBooking(booking.id, vehicleId, operationalStartAt, operationalEndAt);
                       redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
                     }}
                     className="flex flex-col gap-3"
                   >
+                    {vehicleOptions?.requiresSchedule && (
+                      <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
+                        <h3 className="text-sm font-semibold text-foreground">{t("acceptScheduleHeading")}</h3>
+                        <label className="flex flex-col gap-1 text-xs text-foreground/60">
+                          {t("acceptScheduleStartLabel")}
+                          <input
+                            type="datetime-local"
+                            name="operationalStartAt"
+                            required
+                            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs text-foreground/60">
+                          {t("acceptScheduleEndLabel")}
+                          <input
+                            type="datetime-local"
+                            name="operationalEndAt"
+                            required
+                            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </label>
+                      </div>
+                    )}
                     {vehicleOptions && <BookingAcceptanceVehiclePicker options={vehicleOptions} />}
                     <SubmitButton className="w-fit rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
                       {t("acceptBookingButton")}

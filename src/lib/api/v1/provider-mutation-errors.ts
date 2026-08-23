@@ -86,6 +86,9 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   VEHICLE_NOT_ELIGIBLE: "TOUR_VEHICLE_NOT_ELIGIBLE",
   VEHICLE_CAPACITY_INSUFFICIENT: "VEHICLE_CAPACITY_INSUFFICIENT",
   BOOKING_STATE_CONFLICT: "CONCURRENT_MODIFICATION",
+  // BOOKING-INTERVAL-1 — provider acceptance operational-schedule outcomes (422).
+  SCHEDULE_REQUIRED: "SCHEDULE_REQUIRED",
+  INVALID_SCHEDULE: "INVALID_SCHEDULE",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
   // Not reachable from provider accept/reject/start/complete — treated as
   // unexpected internal conditions rather than normal rejections.

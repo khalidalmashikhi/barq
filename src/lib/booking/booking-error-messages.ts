@@ -38,6 +38,8 @@ const BOOKING_ERROR_TRANSLATION_KEYS = {
   VEHICLE_NOT_ELIGIBLE: "vehicleNotEligible",
   VEHICLE_CAPACITY_INSUFFICIENT: "vehicleCapacityInsufficient",
   BOOKING_STATE_CONFLICT: "bookingStateConflict",
+  SCHEDULE_REQUIRED: "scheduleRequired",
+  INVALID_SCHEDULE: "invalidSchedule",
   RATE_LIMITED: "rateLimited",
   UNKNOWN_ERROR: "unknownError",
 } as const satisfies Record<BookingActionErrorCode, string>;

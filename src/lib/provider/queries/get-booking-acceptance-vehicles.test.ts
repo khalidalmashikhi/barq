@@ -63,9 +63,9 @@ afterEach(() => {
   poolFindManyMock.mockReset();
 });
 
-function primeBooking(status = "PENDING_PROVIDER", seats = 4) {
+function primeBooking(status = "PENDING_PROVIDER", seats = 4, operationalStartAt: Date | null = null) {
   requireProviderMock.mockResolvedValue({ provider: { id: PROVIDER } });
-  bookingFindFirstMock.mockResolvedValue({ id: BOOKING, serviceId: "svc-1", seats, status });
+  bookingFindFirstMock.mockResolvedValue({ id: BOOKING, serviceId: "svc-1", seats, status, operationalStartAt });
 }
 
 describe("getBookingAcceptanceVehicleOptions — BOOKING-VEHICLE-1", () => {
@@ -110,6 +110,8 @@ describe("getBookingAcceptanceVehicleOptions — BOOKING-VEHICLE-1", () => {
     expect(options).not.toBeNull();
     expect(options!.vehicleRequired).toBe(true);
     expect(options!.requiresFourByFour).toBe(false);
+    // BOOKING-INTERVAL-1 — slotless transport (no interval) → the provider must schedule it.
+    expect(options!.requiresSchedule).toBe(true);
     expect(options!.seats).toBe(4);
     expect(options!.candidates.map((c) => [c.vehicleId, c.eligible])).toEqual([
       ["veh-eligible", true],
@@ -130,5 +132,15 @@ describe("getBookingAcceptanceVehicleOptions — BOOKING-VEHICLE-1", () => {
     const options = await getBookingAcceptanceVehicleOptions(BOOKING);
     expect(options!.candidates[0]!.eligible).toBe(false);
     expect(options!.candidates[0]!.blockers).toContain("INSUFFICIENT_GUEST_CAPACITY");
+  });
+
+  it("BOOKING-INTERVAL-1 — a slot-based transport booking (interval already set) does NOT require a schedule", async () => {
+    primeBooking("PENDING_PROVIDER", 4, new Date("2026-06-01T09:00:00.000Z"));
+    serviceFindFirstMock.mockResolvedValue({ id: "svc-1", providerId: PROVIDER, experience: { guidingContent: guidingContent("GUIDE_WITH_TRANSPORT") } });
+    poolFindManyMock.mockResolvedValue([poolRow("veh-eligible")]);
+
+    const options = await getBookingAcceptanceVehicleOptions(BOOKING);
+    expect(options!.vehicleRequired).toBe(true);
+    expect(options!.requiresSchedule).toBe(false);
   });
 });

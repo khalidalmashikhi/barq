@@ -551,5 +551,8 @@
   "acceptVehicleRequiredHint": "Для принятия этого бронирования требуется автомобиль.",
   "acceptVehicleNoneEligible": "Нет подходящих автомобилей. Добавьте или подтвердите автомобиль перед принятием.",
   "assignedVehicleTitle": "Назначенный автомобиль",
-  "assignedVehiclePlateLabel": "Номер"
+  "assignedVehiclePlateLabel": "Номер",
+  "acceptScheduleHeading": "Расписание",
+  "acceptScheduleStartLabel": "Время начала",
+  "acceptScheduleEndLabel": "Время окончания"
 }

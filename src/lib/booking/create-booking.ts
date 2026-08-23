@@ -158,6 +158,13 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: false, error: "PRICE_UNAVAILABLE" };
   }
 
+  // BOOKING-INTERVAL-1 — for a slot-based booking, the operational interval is snapshotted
+  // from the selected Availability here at create (both instants, or neither). Slot times are
+  // frozen once a booking references the slot, but snapshotting onto the Booking makes the
+  // interval historically stable regardless, and unifies slot-based with the slotless path
+  // (which gets its interval from the provider at acceptance). Slotless bookings keep it null.
+  let slotInterval: { startsAt: Date; endsAt: Date } | null = null;
+
   // If a slot was selected, re-validate it belongs to this service, is
   // OPEN, and is in the future — never trust the client's claim about
   // any of these, even though the ID itself came from a legitimate
@@ -175,6 +182,9 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     if (!availability) {
       return { ok: false, error: "SLOT_UNAVAILABLE" };
     }
+
+    // Server-derived from the authoritative slot — never from client-supplied start/end.
+    slotInterval = { startsAt: availability.startTime, endsAt: availability.endTime };
 
     // Duplicate-booking prevention (Phase C.3 Group 1): the same
     // customer creating a second, active booking for the exact same
@@ -236,6 +246,11 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
           availabilityId,
           priceSnapshotAmount: price.amount,
           priceSnapshotCurrency: price.currency,
+          // BOOKING-INTERVAL-1 — slot-based bookings carry the operational interval from
+          // create; slotless bookings stay null until the provider schedules at acceptance.
+          ...(slotInterval
+            ? { operationalStartAt: slotInterval.startsAt, operationalEndAt: slotInterval.endsAt }
+            : {}),
         },
       });
 

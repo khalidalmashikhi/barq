@@ -24,5 +24,7 @@
   "vehicleNotInServicePool": "هذه المركبة ليست ضمن مجموعة مركبات هذه الجولة",
   "vehicleNotEligible": "هذه المركبة غير مؤهلة حالياً لهذه الجولة",
   "vehicleCapacityInsufficient": "لا تتسع هذه المركبة لعدد ضيوف هذا الحجز",
-  "bookingStateConflict": "تم تحديث هذا الحجز للتو. الرجاء المحاولة مرة أخرى"
+  "bookingStateConflict": "تم تحديث هذا الحجز للتو. الرجاء المحاولة مرة أخرى",
+  "scheduleRequired": "حدد وقت البداية والنهاية قبل قبول هذا الحجز",
+  "invalidSchedule": "وقت البداية والنهاية غير صالح"
 }

@@ -30,8 +30,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const { id } = await params;
       const body = await readJsonObject(request);
       const vehicleId = coerceField(body.vehicleId);
+      // BOOKING-INTERVAL-1 — optional ISO-8601 operational schedule (slotless vehicle-required
+      // bookings only; ignored otherwise). Parsed to instants here; acceptBooking validates.
+      const startRaw = coerceField(body.operationalStartAt);
+      const endRaw = coerceField(body.operationalEndAt);
+      const operationalStartAt = startRaw ? new Date(startRaw) : null;
+      const operationalEndAt = endRaw ? new Date(endRaw) : null;
 
-      const result = await acceptBooking(id, vehicleId);
+      const result = await acceptBooking(id, vehicleId, operationalStartAt, operationalEndAt);
       if (!result.ok) return providerBookingErrorResponse(result.error, locale);
 
       const detail = await getProviderBookingDetail(id, locale);

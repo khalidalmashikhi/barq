@@ -551,5 +551,8 @@
   "acceptVehicleRequiredHint": "Un véhicule est requis pour accepter cette réservation.",
   "acceptVehicleNoneEligible": "Aucun véhicule éligible n'est disponible. Ajoutez ou vérifiez un véhicule avant d'accepter.",
   "assignedVehicleTitle": "Véhicule attribué",
-  "assignedVehiclePlateLabel": "Plaque"
+  "assignedVehiclePlateLabel": "Plaque",
+  "acceptScheduleHeading": "Horaire",
+  "acceptScheduleStartLabel": "Heure de début",
+  "acceptScheduleEndLabel": "Heure de fin"
 }

@@ -24,5 +24,7 @@
   "vehicleNotInServicePool": "Ce véhicule ne fait pas partie du parc de véhicules de ce circuit",
   "vehicleNotEligible": "Ce véhicule n'est pas actuellement éligible pour ce circuit",
   "vehicleCapacityInsufficient": "Ce véhicule ne peut pas transporter le nombre d'invités de cette réservation",
-  "bookingStateConflict": "Cette réservation vient d'être mise à jour. Veuillez réessayer"
+  "bookingStateConflict": "Cette réservation vient d'être mise à jour. Veuillez réessayer",
+  "scheduleRequired": "Définissez une heure de début et de fin avant d'accepter cette réservation",
+  "invalidSchedule": "L'heure de début et de fin est invalide"
 }

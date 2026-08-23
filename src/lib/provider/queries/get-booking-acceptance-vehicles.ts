@@ -40,6 +40,12 @@ export type BookingAcceptanceVehicleOptions = {
   vehicleRequired: boolean;
   /** True for GUIDE_WITH_4X4 — only trusted-4x4 vehicles are eligible. */
   requiresFourByFour: boolean;
+  /**
+   * BOOKING-INTERVAL-1 — true when the provider must supply an operational start/end at
+   * acceptance: a vehicle-required (transport) package whose booking has no interval yet
+   * (i.e. slotless). False for slot-based bookings (interval already snapshotted at create).
+   */
+  requiresSchedule: boolean;
   /** The booking's guest party the vehicle must carry. */
   seats: number;
   /** The configured pool vehicles, each with live eligibility (an ineligible one stays listed). */
@@ -55,7 +61,7 @@ export async function getBookingAcceptanceVehicleOptions(
 
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, providerId: provider.id },
-    select: { id: true, serviceId: true, seats: true, status: true },
+    select: { id: true, serviceId: true, seats: true, status: true, operationalStartAt: true },
   });
   // Missing / not-owned / not awaiting the provider → no selector (uniform null).
   if (!booking || booking.status !== "PENDING_PROVIDER") return null;
@@ -100,6 +106,9 @@ export async function getBookingAcceptanceVehicleOptions(
   return {
     vehicleRequired: semantics.includesTransport,
     requiresFourByFour: semantics.requiresFourByFour,
+    // Slotless transport booking with no interval yet → the provider schedules it at acceptance.
+    // `?? null` treats an absent field as null (real DB rows carry null).
+    requiresSchedule: semantics.includesTransport && (booking.operationalStartAt ?? null) === null,
     seats: booking.seats,
     candidates,
   };

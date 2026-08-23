@@ -551,5 +551,8 @@
   "acceptVehicleRequiredHint": "Zum Annehmen dieser Buchung ist ein Fahrzeug erforderlich.",
   "acceptVehicleNoneEligible": "Keine geeigneten Fahrzeuge verfügbar. Fügen Sie vor dem Annehmen ein Fahrzeug hinzu oder verifizieren Sie es.",
   "assignedVehicleTitle": "Zugewiesenes Fahrzeug",
-  "assignedVehiclePlateLabel": "Kennzeichen"
+  "assignedVehiclePlateLabel": "Kennzeichen",
+  "acceptScheduleHeading": "Zeitplan",
+  "acceptScheduleStartLabel": "Startzeit",
+  "acceptScheduleEndLabel": "Endzeit"
 }

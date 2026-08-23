@@ -551,5 +551,8 @@
   "acceptVehicleRequiredHint": "A vehicle is required to accept this booking.",
   "acceptVehicleNoneEligible": "No eligible vehicles are available. Add or verify a vehicle before accepting.",
   "assignedVehicleTitle": "Assigned vehicle",
-  "assignedVehiclePlateLabel": "Plate"
+  "assignedVehiclePlateLabel": "Plate",
+  "acceptScheduleHeading": "Schedule",
+  "acceptScheduleStartLabel": "Start time",
+  "acceptScheduleEndLabel": "End time"
 }

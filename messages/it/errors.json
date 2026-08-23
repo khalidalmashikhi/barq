@@ -24,5 +24,7 @@
   "vehicleNotInServicePool": "Questo veicolo non fa parte del parco veicoli di questo tour",
   "vehicleNotEligible": "Questo veicolo non è attualmente idoneo per questo tour",
   "vehicleCapacityInsufficient": "Questo veicolo non può trasportare il numero di ospiti di questa prenotazione",
-  "bookingStateConflict": "Questa prenotazione è stata appena aggiornata. Riprova"
+  "bookingStateConflict": "Questa prenotazione è stata appena aggiornata. Riprova",
+  "scheduleRequired": "Imposta un orario di inizio e di fine prima di accettare questa prenotazione",
+  "invalidSchedule": "L'orario di inizio e di fine non è valido"
 }

@@ -551,5 +551,8 @@
   "acceptVehicleRequiredHint": "Do zaakceptowania tej rezerwacji wymagany jest pojazd.",
   "acceptVehicleNoneEligible": "Brak dostępnych kwalifikujących się pojazdów. Dodaj lub zweryfikuj pojazd przed zaakceptowaniem.",
   "assignedVehicleTitle": "Przydzielony pojazd",
-  "assignedVehiclePlateLabel": "Tablica"
+  "assignedVehiclePlateLabel": "Tablica",
+  "acceptScheduleHeading": "Harmonogram",
+  "acceptScheduleStartLabel": "Czas rozpoczęcia",
+  "acceptScheduleEndLabel": "Czas zakończenia"
 }
