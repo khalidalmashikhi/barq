@@ -35,6 +35,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       getPublicTourVehicleSummary(detail.id),
     ]);
 
-    return apiOk(toServiceDetailDTO(detail, activePrices, rating, tourVehicleSummary));
+    // Locale threaded so each representative vehicle carries a server-resolved type
+    // label; no client mirrors the Platform's vehicle-type registry.
+    return apiOk(toServiceDetailDTO(detail, activePrices, rating, tourVehicleSummary, locale));
   });
 }

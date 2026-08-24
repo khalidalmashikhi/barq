@@ -112,6 +112,114 @@ describe("GET /api/v1/services/{id}", () => {
     }
   });
 
+  // TOUR-VEHICLE-TYPE-LABEL — the type label is resolved by the PLATFORM, per request
+  // locale, so no native client mirrors the vehicle-type registry.
+  describe("tour vehicle type label", () => {
+    function serviceRow() {
+      return {
+        id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
+        providerDescription: "", providerStatus: "APPROVED", price: null,
+        regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      };
+    }
+
+    function arrange(vehicleType: string | null) {
+      getServiceByIdMock.mockResolvedValue(serviceRow());
+      getActivePricesMock.mockResolvedValue([]);
+      getRatingMock.mockResolvedValue({ averageRating: null, reviewCount: 0 });
+      getTourVehicleSummaryMock.mockResolvedValue({
+        transportIncluded: true,
+        requiresFourByFour: false,
+        vehicles: [{
+          make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+          passengerCapacity: 6, vehicleType, isFourByFour: false,
+        }],
+      });
+    }
+
+    async function vehicleFor(locale: string, vehicleType: string | null = "SEDAN") {
+      arrange(vehicleType);
+      const res = await GET(
+        new Request("http://localhost/api/v1/services/s1", {
+          headers: { "Accept-Language": locale },
+        }),
+        params("s1")
+      );
+      return (await res.json()).tourVehicleSummary.vehicles[0];
+    }
+
+    it("resolves the type label in English", async () => {
+      const vehicle = await vehicleFor("en");
+
+      expect(vehicle.vehicleType).toBe("SEDAN");
+      expect(vehicle.vehicleTypeLabel).toBe("Sedan");
+    });
+
+    it("resolves the same type in Arabic", async () => {
+      const vehicle = await vehicleFor("ar");
+
+      expect(vehicle.vehicleTypeLabel).toBe("سيارة سيدان");
+    });
+
+    /** The CODE is what a client branches on, so it must not vary by language. */
+    it("keeps the code identical across locales while the label changes", async () => {
+      const en = await vehicleFor("en");
+      const ar = await vehicleFor("ar");
+
+      expect(en.vehicleType).toBe(ar.vehicleType);
+      expect(en.vehicleTypeLabel).not.toBe(ar.vehicleTypeLabel);
+    });
+
+    /**
+     * A code the registry does not govern keeps its stable value on the wire but carries NO
+     * label — a raw SCREAMING_CASE code must never be handed to a client as display text.
+     */
+    it("sends a null label for an ungoverned code, never the code itself", async () => {
+      const vehicle = await vehicleFor("en", "HOVERCRAFT");
+
+      expect(vehicle.vehicleType).toBe("HOVERCRAFT");
+      expect(vehicle.vehicleTypeLabel).toBeNull();
+    });
+
+    it("sends a null label when the vehicle has no type", async () => {
+      const vehicle = await vehicleFor("en", null);
+
+      expect(vehicle.vehicleType).toBeNull();
+      expect(vehicle.vehicleTypeLabel).toBeNull();
+    });
+
+    /** The privacy allow-list is unchanged by adding a derived label. */
+    it("adds no private field alongside the new label", async () => {
+      arrange("SUV");
+      const res = await GET(new Request("http://localhost/api/v1/services/s1"), params("s1"));
+      const body = await res.json();
+
+      expect(Object.keys(body.tourVehicleSummary.vehicles[0]).sort()).toEqual([
+        "color", "isFourByFour", "make", "model", "modelYear",
+        "passengerCapacity", "vehicleType", "vehicleTypeLabel",
+      ]);
+      const serialized = JSON.stringify(body);
+      for (const forbidden of [
+        "registrationNumber", "claimedFourByFour", "fourByFourVerified", "objectKey",
+        "vehicleId", "assetId", "isInPool", "blockers", "verificationStatus",
+      ]) {
+        expect(serialized).not.toContain(forbidden);
+      }
+    });
+
+    it("still sends a null summary for a non-tour service", async () => {
+      getServiceByIdMock.mockResolvedValue(serviceRow());
+      getActivePricesMock.mockResolvedValue([]);
+      getRatingMock.mockResolvedValue({ averageRating: null, reviewCount: 0 });
+      getTourVehicleSummaryMock.mockResolvedValue(null);
+
+      const res = await GET(new Request("http://localhost/api/v1/services/s1"), params("s1"));
+
+      expect((await res.json()).tourVehicleSummary).toBeNull();
+    });
+  });
+
   // BOOKING-PRICE-SEMANTICS — the unit label is resolved by the PLATFORM, per request
   // locale, so no client ever mirrors the pricing-unit registry.
   describe("active price locale plumbing", () => {

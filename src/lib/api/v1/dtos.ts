@@ -1,5 +1,8 @@
 import type { ServiceListItem } from "@/lib/services/get-services";
 import type { ServiceDetail, ActivePriceOption } from "@/lib/services/get-service-detail";
+import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
+import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
+import { defaultLocale } from "@/i18n/locales";
 import type { ProviderProfile } from "@/lib/services/get-provider-profile";
 import type { PublicRootCategory } from "@/lib/categories/get-public-root-categories";
 import type { AvailableSlot } from "@/lib/booking/get-available-slots";
@@ -90,7 +93,23 @@ export interface TourVehicleDTO {
   modelYear: number | null;
   color: string | null;
   passengerCapacity: number | null;
+  /// The canonical vehicle-type CODE (SEDAN, SUV, FOUR_BY_FOUR, …). Stable, never
+  /// localized, so a client may branch on it — and NOT the 4x4 authority, which is
+  /// `isFourByFour` (admin-confirmed) rather than a type a provider chose.
   vehicleType: string | null;
+  /// The same type, ALREADY LOCALIZED by the Platform in the request's locale.
+  ///
+  /// Resolved server-side for exactly the reason `pricingUnitLabel` is: the vehicle-type
+  /// vocabulary is Platform-owned and admin-localizable, so a native client could only
+  /// display it by mirroring that registry — and every mirror drifts the moment a label
+  /// changes. Web has local registry access and keeps using it; this field exists for the
+  /// clients that do not.
+  ///
+  /// Null when there is no type at all, and ALSO null for a code this build's registry does
+  /// not govern. Both mean the same thing to a client: render the rest and say nothing
+  /// about the type. The raw code is never promoted into the label — showing a customer
+  /// `FOUR_BY_FOUR` would be worse than showing nothing.
+  vehicleTypeLabel: string | null;
   isFourByFour: boolean;
 }
 
@@ -129,8 +148,15 @@ export function toServiceDetailDTO(
   detail: ServiceDetail,
   activePrices: ActivePriceOption[],
   rating: { averageRating: number | null; reviewCount: number },
-  tourVehicleSummary?: TourVehicleSummaryDTO | null
+  /// The producer's read model — NOT the wire type. It carries no `vehicleTypeLabel`,
+  /// because localizing is this adapter's job, exactly as it is for an active price.
+  tourVehicleSummary?: PublicTourVehicleSummary | null,
+  /// Request locale. Omitted only by callers that do not localize (tests, and any
+  /// non-localized adapter); the label then resolves against the default locale.
+  locale: Locale = defaultLocale
 ): ServiceDetailDTO {
+  const vehicleTypeLabels = new Map(vehicleTypeOptions(locale).map((o) => [o.code, o.label]));
+
   return {
     id: detail.id,
     name: detail.name,
@@ -153,7 +179,27 @@ export function toServiceDetailDTO(
     })),
     ratingAverage: rating.averageRating,
     reviewCount: rating.reviewCount,
-    tourVehicleSummary: tourVehicleSummary ?? null,
+    tourVehicleSummary: tourVehicleSummary
+      ? {
+          transportIncluded: tourVehicleSummary.transportIncluded,
+          requiresFourByFour: tourVehicleSummary.requiresFourByFour,
+          // Mapped field by field rather than spread: this is the customer-safe
+          // allow-list, and a spread would carry through anything the read model ever
+          // gained. Server ORDER is preserved; nothing here re-ranks the pool.
+          vehicles: tourVehicleSummary.vehicles.map((v) => ({
+            make: v.make,
+            model: v.model,
+            modelYear: v.modelYear,
+            color: v.color,
+            passengerCapacity: v.passengerCapacity,
+            vehicleType: v.vehicleType,
+            // `?? null` and never `?? v.vehicleType`: an ungoverned code stays unlabelled
+            // rather than leaking as display text.
+            vehicleTypeLabel: v.vehicleType ? vehicleTypeLabels.get(v.vehicleType) ?? null : null,
+            isFourByFour: v.isFourByFour,
+          })),
+        }
+      : null,
     createdAt: detail.createdAt.toISOString(),
   };
 }

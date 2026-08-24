@@ -136,8 +136,19 @@ describe("toServiceDetailDTO", () => {
       requiresFourByFour: false,
       vehicles: [{ make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false }],
     };
-    const dto = toServiceDetailDTO(base, [], { averageRating: null, reviewCount: 0 }, summary);
-    expect(dto.tourVehicleSummary).toEqual(summary);
+    const dto = toServiceDetailDTO(base, [], { averageRating: null, reviewCount: 0 }, summary, "en");
+    // EXACT equality, deliberately still exact: this is the wire allow-list for a
+    // representative vehicle, so a read-model field leaking through must fail here. The
+    // summary is no longer passed through by reference — the adapter maps it field by
+    // field and adds the localized type label.
+    expect(dto.tourVehicleSummary).toEqual({
+      transportIncluded: true,
+      requiresFourByFour: false,
+      vehicles: [{
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType: "SUV", vehicleTypeLabel: "SUV", isFourByFour: false,
+      }],
+    });
     // The vehicle carries no private / pool-join fields.
     const v = dto.tourVehicleSummary!.vehicles[0]! as unknown as Record<string, unknown>;
     for (const forbidden of ["registrationNumber", "claimedFourByFour", "fourByFourVerified", "vehicleId", "assetId", "isInPool", "blockers", "status", "objectKey"]) {
@@ -145,6 +156,123 @@ describe("toServiceDetailDTO", () => {
     }
   });
 });
+
+  // TOUR-VEHICLE-TYPE-LABEL — the type CODE is stable and the LABEL is localized, exactly
+  // as pricingUnit/pricingUnitLabel already are. A client should never have to mirror the
+  // Platform's vehicle-type vocabulary to show it.
+describe("toServiceDetailDTO — vehicleTypeLabel", () => {
+    const base = {
+      id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
+      providerDescription: "", providerStatus: "APPROVED", price: null,
+      regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+    };
+
+    function vehicle(vehicleType: string | null) {
+      return {
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType, isFourByFour: false,
+      };
+    }
+
+    function summaryOf(...types: (string | null)[]) {
+      return { transportIncluded: true, requiresFourByFour: false, vehicles: types.map(vehicle) };
+    }
+
+    function vehiclesFor(locale: "en" | "ar", ...types: (string | null)[]) {
+      return toServiceDetailDTO(
+        base, [], { averageRating: null, reviewCount: 0 }, summaryOf(...types), locale
+      ).tourVehicleSummary!.vehicles;
+    }
+
+    it("localizes a known type in English", () => {
+      const [v] = vehiclesFor("en", "SEDAN");
+      expect(v!.vehicleType).toBe("SEDAN");
+      expect(v!.vehicleTypeLabel).toBe("Sedan");
+    });
+
+    it("localizes the same type in Arabic", () => {
+      const [v] = vehiclesFor("ar", "SEDAN");
+      expect(v!.vehicleTypeLabel).toBe("سيارة سيدان");
+    });
+
+    /**
+     * THE CODE IS THE STABLE HALF. It must be byte-identical across locales, or a client
+     * that branches on it would behave differently per language.
+     */
+    it("keeps the code identical across locales while the label changes", () => {
+      const [en] = vehiclesFor("en", "SEDAN");
+      const [ar] = vehiclesFor("ar", "SEDAN");
+
+      expect(en!.vehicleType).toBe(ar!.vehicleType);
+      expect(en!.vehicleTypeLabel).not.toBe(ar!.vehicleTypeLabel);
+    });
+
+    it("localizes the structurally meaningful four-by-four type", () => {
+      expect(vehiclesFor("en", "FOUR_BY_FOUR")[0]!.vehicleTypeLabel).toBe("4x4");
+      expect(vehiclesFor("ar", "FOUR_BY_FOUR")[0]!.vehicleTypeLabel).toBe("دفع رباعي (4x4)");
+    });
+
+    /**
+     * AN UNGOVERNED CODE STAYS UNLABELLED. The registry is app-owned and can grow, so a
+     * stored code this build does not know keeps its stable value on the wire but resolves
+     * to NO label — never promoted into display text.
+     */
+    it("returns a null label for a code the registry does not govern", () => {
+      const [v] = vehiclesFor("en", "HOVERCRAFT");
+
+      expect(v!.vehicleType).toBe("HOVERCRAFT");
+      expect(v!.vehicleTypeLabel).toBeNull();
+    });
+
+    it("never falls back to the raw code as the label", () => {
+      for (const type of ["HOVERCRAFT", "SUBMARINE", "FOUR_BY_FOUR"]) {
+        const [v] = vehiclesFor("en", type);
+        expect(v!.vehicleTypeLabel).not.toBe(v!.vehicleType);
+      }
+    });
+
+    it("returns a null label when there is no type at all", () => {
+      const [v] = vehiclesFor("en", null);
+
+      expect(v!.vehicleType).toBeNull();
+      expect(v!.vehicleTypeLabel).toBeNull();
+    });
+
+    /** Each vehicle resolves on its own; one unknown type does not blank its neighbours. */
+    it("resolves every vehicle in a list independently and in server order", () => {
+      const vehicles = vehiclesFor("en", "SEDAN", "HOVERCRAFT", "VAN");
+
+      expect(vehicles.map((v) => v.vehicleType)).toEqual(["SEDAN", "HOVERCRAFT", "VAN"]);
+      expect(vehicles.map((v) => v.vehicleTypeLabel)).toEqual(["Sedan", null, "Van"]);
+    });
+
+    /** The rest of the summary is untouched by this gate. */
+    it("leaves the package promise and the null summary unchanged", () => {
+      const dto = toServiceDetailDTO(
+        base, [], { averageRating: null, reviewCount: 0 },
+        { transportIncluded: true, requiresFourByFour: true, vehicles: [] }, "en"
+      );
+
+      expect(dto.tourVehicleSummary).toEqual({
+        transportIncluded: true, requiresFourByFour: true, vehicles: [],
+      });
+      expect(
+        toServiceDetailDTO(base, [], { averageRating: null, reviewCount: 0 }, null, "en")
+          .tourVehicleSummary
+      ).toBeNull();
+    });
+
+    /** The allow-list still holds once a field has been added to it. */
+    it("exposes exactly the eight contract fields per vehicle", () => {
+      const [v] = vehiclesFor("en", "SUV");
+
+      expect(Object.keys(v!).sort()).toEqual([
+        "color", "isFourByFour", "make", "model", "modelYear",
+        "passengerCapacity", "vehicleType", "vehicleTypeLabel",
+      ]);
+    });
+  });
 
 describe("toProviderPublicDTO — BR-002 / no-leak", () => {
   it("maps only public fields and never exposes contactEmail or internal fields", () => {
