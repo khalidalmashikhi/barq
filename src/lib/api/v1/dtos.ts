@@ -1,6 +1,7 @@
 import type { ServiceListItem } from "@/lib/services/get-services";
 import type { ServiceDetail, ActivePriceOption } from "@/lib/services/get-service-detail";
 import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
+import type { BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { defaultLocale } from "@/i18n/locales";
 import type { ProviderProfile } from "@/lib/services/get-provider-profile";
@@ -15,7 +16,7 @@ import type { ProviderServiceListItem } from "@/lib/provider/queries/get-provide
 import type { ProviderServiceDetail } from "@/lib/provider/queries/get-provider-service-detail";
 import type { ProviderAvailabilityListItem } from "@/lib/provider/queries/get-provider-availability";
 import type { ProviderBookingListItem } from "@/lib/provider/queries/get-provider-bookings";
-import type { ProviderBookingDetail } from "@/lib/provider/queries/get-provider-booking-detail";
+import type { ProviderBookingDetail, ProviderAssignedVehicle } from "@/lib/provider/queries/get-provider-booking-detail";
 import type { ProviderVerificationData } from "@/lib/provider/documents/get-provider-verification-data";
 import type { Locale } from "@/i18n/locales";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
@@ -399,7 +400,21 @@ export interface AssignedVehicleDTO {
   modelYear: number | null;
   color: string | null;
   passengerCapacity: number | null;
+  /// The canonical vehicle-type CODE frozen into the booking's snapshot. Stable and never
+  /// localized, so a client may branch on it — and NOT the 4x4 authority, which is
+  /// `isFourByFour` alone.
   vehicleType: string | null;
+  /// The same type, LOCALIZED AT RESPONSE TIME from [vehicleType].
+  ///
+  /// Deliberately NOT stored in `Booking.vehicleSnapshot`: that snapshot is immutable
+  /// booking history, and the same frozen booking may later be read in either language.
+  /// Only the response presentation localizes, so nothing about the historical record
+  /// depends on who is looking at it.
+  ///
+  /// Null when there is no type, and ALSO null for a code the Platform's registry does not
+  /// govern. The code is never substituted as a fallback — a customer must not be shown
+  /// `FOUR_BY_FOUR`.
+  vehicleTypeLabel: string | null;
   isFourByFour: boolean;
 }
 
@@ -408,7 +423,29 @@ export interface ProviderAssignedVehicleDTO extends AssignedVehicleDTO {
   registrationNumber: string | null;
 }
 
-function toAssignedVehicleDTO(v: AssignedVehicleDTO | null): AssignedVehicleDTO | null {
+/**
+ * Localize a snapshot's canonical vehicle-type code.
+ *
+ * `?? null` and NEVER `?? code`: the registry is app-owned and can grow, so a code this
+ * build does not govern resolves to no label rather than leaking as display text.
+ */
+function assignedVehicleTypeLabel(vehicleType: string | null, locale: Locale): string | null {
+  if (!vehicleType) return null;
+  return vehicleTypeOptions(locale).find((o) => o.code === vehicleType)?.label ?? null;
+}
+
+/**
+ * The customer-safe assigned vehicle.
+ *
+ * Takes the SNAPSHOT (booking history) rather than the wire type, and builds the wire
+ * field by field — never a spread — so a column added to the snapshot can never leak onto
+ * a customer response by accident.
+ *
+ * `locale` is REQUIRED, not defaulted. Every production caller already resolves one from
+ * its auth wrapper, and a default here would mean any future caller that forgot to pass it
+ * silently emitted the wrong language.
+ */
+function toAssignedVehicleDTO(v: BookingVehicleSnapshot | null, locale: Locale): AssignedVehicleDTO | null {
   if (!v) return null;
   return {
     make: v.make,
@@ -417,13 +454,18 @@ function toAssignedVehicleDTO(v: AssignedVehicleDTO | null): AssignedVehicleDTO 
     color: v.color,
     passengerCapacity: v.passengerCapacity,
     vehicleType: v.vehicleType,
+    vehicleTypeLabel: assignedVehicleTypeLabel(v.vehicleType, locale),
     isFourByFour: v.isFourByFour,
   };
 }
 
-function toProviderAssignedVehicleDTO(v: ProviderAssignedVehicleDTO | null): ProviderAssignedVehicleDTO | null {
+/** The provider variant: the customer-safe base plus the ONE live operational field. */
+function toProviderAssignedVehicleDTO(
+  v: ProviderAssignedVehicle | null,
+  locale: Locale
+): ProviderAssignedVehicleDTO | null {
   if (!v) return null;
-  return { ...toAssignedVehicleDTO(v)!, registrationNumber: v.registrationNumber };
+  return { ...toAssignedVehicleDTO(v, locale)!, registrationNumber: v.registrationNumber };
 }
 
 // ---------------------------------------------------------------------------
@@ -448,7 +490,7 @@ export interface BookingDetailDTO {
   assignedVehicle: AssignedVehicleDTO | null;
 }
 
-export function toBookingDetailDTO(detail: BookingDetail): BookingDetailDTO {
+export function toBookingDetailDTO(detail: BookingDetail, locale: Locale): BookingDetailDTO {
   return {
     id: detail.id,
     status: detail.status,
@@ -463,7 +505,7 @@ export function toBookingDetailDTO(detail: BookingDetail): BookingDetailDTO {
     createdAt: detail.createdAt.toISOString(),
     hasReview: detail.hasReview,
     paymentId: detail.paymentId,
-    assignedVehicle: toAssignedVehicleDTO(detail.assignedVehicle),
+    assignedVehicle: toAssignedVehicleDTO(detail.assignedVehicle, locale),
   };
 }
 
@@ -691,7 +733,10 @@ export interface ProviderBookingDetailDTO {
   assignedVehicle: ProviderAssignedVehicleDTO | null;
 }
 
-export function toProviderBookingDetailDTO(detail: ProviderBookingDetail): ProviderBookingDetailDTO {
+export function toProviderBookingDetailDTO(
+  detail: ProviderBookingDetail,
+  locale: Locale
+): ProviderBookingDetailDTO {
   return {
     id: detail.id,
     serviceId: detail.serviceId,
@@ -701,7 +746,7 @@ export function toProviderBookingDetailDTO(detail: ProviderBookingDetail): Provi
     priceSnapshot: parseMoneyString(detail.priceSnapshot),
     scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
     createdAt: detail.createdAt.toISOString(),
-    assignedVehicle: toProviderAssignedVehicleDTO(detail.assignedVehicle),
+    assignedVehicle: toProviderAssignedVehicleDTO(detail.assignedVehicle, locale),
   };
 }
 

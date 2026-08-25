@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { buildBookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { toMeDTO, toBookingSummaryDTO, toBookingDetailDTO, toNotificationDTO } from "./dtos";
 
 describe("toMeDTO", () => {
@@ -174,7 +175,7 @@ describe("toBookingDetailDTO", () => {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
         passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false,
       },
-    });
+    }, "en");
     expect(dto).toEqual({
       id: "b1",
       status: "CONFIRMED",
@@ -191,7 +192,7 @@ describe("toBookingDetailDTO", () => {
       paymentId: "pay1",
       assignedVehicle: {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
-        passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false,
+        passengerCapacity: 6, vehicleType: "SUV", vehicleTypeLabel: "SUV", isFourByFour: false,
       },
     });
     // Customer never receives a plate or any id, even when a vehicle is assigned.
@@ -207,8 +208,141 @@ describe("toBookingDetailDTO", () => {
       status: "PENDING_PROVIDER", priceSnapshot: null, seats: 1, slotStartTime: null,
       confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false,
       paymentId: null, assignedVehicle: null,
-    });
+    }, "en");
     expect(dto.assignedVehicle).toBeNull();
+  });
+
+  // ASSIGNED-VEHICLE-TYPE-LABEL — the snapshot stores a canonical CODE; the label is
+  // resolved at RESPONSE time. That split is what lets the same frozen booking be read in
+  // either language without rewriting history.
+  describe("assigned vehicle type label", () => {
+    function detailWith(vehicleType: string | null) {
+      return {
+        id: "b1", serviceId: "s1", providerId: "p1", serviceName: "n", providerName: "pn",
+        status: "CONFIRMED" as const, priceSnapshot: null, seats: 1, slotStartTime: null,
+        confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false,
+        paymentId: null,
+        assignedVehicle: {
+          make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+          passengerCapacity: 6, vehicleType, isFourByFour: false,
+        },
+      };
+    }
+
+    function vehicleFor(locale: "en" | "ar", vehicleType: string | null = "SEDAN") {
+      return toBookingDetailDTO(detailWith(vehicleType), locale).assignedVehicle!;
+    }
+
+    it("localizes a known type in English", () => {
+      const v = vehicleFor("en");
+      expect(v.vehicleType).toBe("SEDAN");
+      expect(v.vehicleTypeLabel).toBe("Sedan");
+    });
+
+    it("localizes the same type in Arabic", () => {
+      expect(vehicleFor("ar").vehicleTypeLabel).toBe("سيارة سيدان");
+    });
+
+    /** The CODE is the stable half: identical bytes in every language. */
+    it("keeps the canonical code identical across locales", () => {
+      expect(vehicleFor("en").vehicleType).toBe(vehicleFor("ar").vehicleType);
+      expect(vehicleFor("en").vehicleTypeLabel).not.toBe(vehicleFor("ar").vehicleTypeLabel);
+    });
+
+    /**
+     * A code frozen into an OLD booking that this build's registry no longer governs keeps
+     * its historical value and resolves to NO label. Substituting the code would show a
+     * customer `FOUR_BY_FOUR`.
+     */
+    it("returns a null label for an ungoverned code and never the code itself", () => {
+      const v = vehicleFor("en", "HOVERCRAFT");
+      expect(v.vehicleType).toBe("HOVERCRAFT");
+      expect(v.vehicleTypeLabel).toBeNull();
+    });
+
+    it("returns a null label when the snapshot has no type", () => {
+      const v = vehicleFor("en", null);
+      expect(v.vehicleType).toBeNull();
+      expect(v.vehicleTypeLabel).toBeNull();
+    });
+
+    it("never falls back to the raw code as the label", () => {
+      for (const code of ["HOVERCRAFT", "SUBMARINE", "FOUR_BY_FOUR"]) {
+        const v = vehicleFor("en", code);
+        expect(v.vehicleTypeLabel).not.toBe(v.vehicleType);
+      }
+    });
+
+    /**
+     * TRUST IS UNTOUCHED. A booking whose snapshot says FOUR_BY_FOUR but whose trusted flag
+     * is false stays unverified — the label is a category fact, never evidence.
+     */
+    it("leaves isFourByFour independent of the type and its label", () => {
+      const v = vehicleFor("en", "FOUR_BY_FOUR");
+      expect(v.vehicleTypeLabel).toBe("4x4");
+      expect(v.isFourByFour).toBe(false);
+    });
+
+
+    /**
+     * THE LABEL IS NEVER PERSISTED. `Booking.vehicleSnapshot` is immutable booking history,
+     * and the same frozen booking may later be read in either language — so the stored
+     * snapshot keeps the canonical code only, and localization happens at response time.
+     *
+     * Proven against the real builder, not a hand-written fixture: if a future change ever
+     * wrote a label into the snapshot, this fails.
+     */
+    it("does not persist the localized label in the stored snapshot", () => {
+      const snapshot = buildBookingVehicleSnapshot({
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType: "SEDAN", fourByFourVerified: null,
+      });
+
+      expect(Object.keys(snapshot).sort()).toEqual([
+        "color", "isFourByFour", "make", "model", "modelYear",
+        "passengerCapacity", "vehicleType",
+      ]);
+      expect("vehicleTypeLabel" in snapshot).toBe(false);
+    });
+
+    /** Mapping is pure with respect to the snapshot: history is read, never rewritten. */
+    it("does not mutate the snapshot it was given", () => {
+      const snapshot = buildBookingVehicleSnapshot({
+        make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+        passengerCapacity: 6, vehicleType: "SEDAN", fourByFourVerified: null,
+      });
+      const before = JSON.stringify(snapshot);
+
+      toBookingDetailDTO({
+        id: "b1", serviceId: "s1", providerId: "p1", serviceName: "n", providerName: "pn",
+        status: "CONFIRMED", priceSnapshot: null, seats: 1, slotStartTime: null,
+        confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        hasReview: false, paymentId: null, assignedVehicle: snapshot,
+      }, "ar");
+
+      expect(JSON.stringify(snapshot)).toBe(before);
+    });
+
+    /** The customer allow-list is still exactly eight fields. */
+    it("exposes exactly the eight customer fields", () => {
+      expect(Object.keys(vehicleFor("en")).sort()).toEqual([
+        "color", "isFourByFour", "make", "model", "modelYear",
+        "passengerCapacity", "vehicleType", "vehicleTypeLabel",
+      ]);
+    });
+
+    /** No plate, no ids — adding a derived label introduces no new data source. */
+    it("still exposes no private field in either locale", () => {
+      for (const locale of ["en", "ar"] as const) {
+        const serialized = JSON.stringify(vehicleFor(locale));
+        for (const forbidden of [
+          "registrationNumber", "vehicleId", "assetId", "objectKey",
+          "fourByFourVerified", "verificationStatus", "isInPool", "blockers",
+        ]) {
+          expect(serialized).not.toContain(forbidden);
+        }
+      }
+    });
   });
 });
 

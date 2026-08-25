@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const { id } = await params;
       const detail = await getProviderBookingDetail(id, locale);
       if (!detail) return apiError("NOT_FOUND", { locale });
-      return apiOk(toProviderBookingDetailDTO(detail));
+      return apiOk(toProviderBookingDetailDTO(detail, locale));
     })
   );
 }

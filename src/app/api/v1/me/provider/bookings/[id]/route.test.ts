@@ -41,4 +41,43 @@ describe("GET /api/v1/me/provider/bookings/{id}", () => {
     expect(body.serviceId).toBe("s1");
     expect(JSON.stringify(body)).not.toContain("customerId");
   });
+
+  // ASSIGNED-VEHICLE-TYPE-LABEL — the provider surface inherits the localized label and must
+  // receive its OWN locale, not a default. Before locale was required, a forgotten argument
+  // here would have answered every provider in the default language.
+  describe("provider assigned vehicle type label locale threading", () => {
+    async function vehicleFor(locale: string) {
+      getDetailMock.mockResolvedValue({
+        id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED", seats: 2,
+        priceSnapshot: null, slotStartTime: null,
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        assignedVehicle: { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SEDAN", isFourByFour: false, registrationNumber: "QA-TV2-0001" },
+      });
+      const res = await GET(
+        new Request("http://x/api/v1/me/provider/bookings/b1", {
+          headers: { "Accept-Language": locale },
+        }),
+        params("b1")
+      );
+      return (await res.json()).assignedVehicle;
+    }
+
+    it("resolves the label in English", async () => {
+      const v = await vehicleFor("en");
+      expect(v.vehicleType).toBe("SEDAN");
+      expect(v.vehicleTypeLabel).toBe("Sedan");
+    });
+
+    it("resolves the label in Arabic while the code stays identical", async () => {
+      const en = await vehicleFor("en");
+      const ar = await vehicleFor("ar");
+      expect(ar.vehicleTypeLabel).toBe("سيارة سيدان");
+      expect(ar.vehicleType).toBe(en.vehicleType);
+    });
+
+    /** The provider-only plate must survive alongside the new label. */
+    it("keeps the provider-only plate", async () => {
+      expect((await vehicleFor("en")).registrationNumber).toBe("QA-TV2-0001");
+    });
+  });
 });

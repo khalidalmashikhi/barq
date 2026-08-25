@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       const detail = await getProviderBookingDetail(id, locale);
       if (!detail) return apiError("INTERNAL_ERROR", { locale });
-      return apiOk(toProviderBookingDetailDTO(detail));
+      return apiOk(toProviderBookingDetailDTO(detail, locale));
     })
   );
 }

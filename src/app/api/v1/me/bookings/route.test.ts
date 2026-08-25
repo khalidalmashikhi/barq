@@ -25,7 +25,9 @@ vi.mock("@/lib/booking/get-my-bookings", () => ({
 vi.mock("@/lib/booking/create-booking", () => ({ createBooking: vi.fn() }));
 vi.mock("@/lib/booking/get-booking-detail", () => ({ getBookingDetail: vi.fn() }));
 
-const { GET } = await import("./route");
+const { createBooking } = await import("@/lib/booking/create-booking");
+const { getBookingDetail } = await import("@/lib/booking/get-booking-detail");
+const { GET, POST } = await import("./route");
 
 beforeEach(() => {
   h.requireAuth.mockReset();
@@ -89,5 +91,46 @@ describe("GET /api/v1/me/bookings", () => {
     }
     expect(typeof body.items[0].priceSnapshot.amount).toBe("string");
     expect(body).toMatchObject({ page: 1, pageSize: 50, totalCount: 1, totalPages: 1 });
+  });
+
+  // ASSIGNED-VEHICLE-TYPE-LABEL — the 201 envelope returns a BookingDetailDTO, so the CREATE
+  // route threads locale too. This caller was missed by the first scope projection, which is
+  // exactly why it is pinned here.
+  describe("create response assigned vehicle type label locale threading", () => {
+    async function bookingFor(locale: string) {
+      h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: { id: "u1" } });
+      vi.mocked(createBooking).mockResolvedValue({ ok: true, bookingId: "b1" } as never);
+      vi.mocked(getBookingDetail).mockResolvedValue({
+        id: "b1", serviceId: "s1", providerId: "p1", serviceName: "Safari",
+        providerName: "Desert Co", status: "PENDING_PROVIDER", priceSnapshot: null, seats: 1,
+        slotStartTime: null, confirmedAt: null,
+        createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false, paymentId: null,
+        assignedVehicle: {
+          make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+          passengerCapacity: 6, vehicleType: "SEDAN", isFourByFour: false,
+        },
+      } as never);
+
+      const res = await POST(new Request("http://x/api/v1/me/bookings", {
+        method: "POST",
+        headers: { "Accept-Language": locale, "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceId: "s1", priceId: "p1" }),
+      }));
+
+      expect(res.status).toBe(201);
+      return (await res.json()).booking;
+    }
+
+    it("localizes the label inside the 201 envelope", async () => {
+      const booking = await bookingFor("en");
+      expect(booking.assignedVehicle.vehicleType).toBe("SEDAN");
+      expect(booking.assignedVehicle.vehicleTypeLabel).toBe("Sedan");
+    });
+
+    it("follows the caller's locale without changing the canonical code", async () => {
+      const booking = await bookingFor("ar");
+      expect(booking.assignedVehicle.vehicleTypeLabel).toBe("سيارة سيدان");
+      expect(booking.assignedVehicle.vehicleType).toBe("SEDAN");
+    });
   });
 });

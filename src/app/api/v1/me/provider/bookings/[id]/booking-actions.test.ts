@@ -215,4 +215,65 @@ describe("POST /api/v1/me/provider/bookings/{id}/complete", () => {
     expect(res.status).toBe(409);
     expect((await res.json()).error.code).toBe("BOOKING_NOT_ACTIONABLE");
   });
+
+  // ASSIGNED-VEHICLE-TYPE-LABEL — all FOUR provider mutations answer with a
+  // ProviderBookingDetailDTO, so each must thread its own resolved locale. Table-driven so a
+  // fifth action added later without threading fails here rather than shipping the wrong
+  // language for one route.
+  describe("provider action responses localize the assigned vehicle type", () => {
+    const actions: Array<[string, (req: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>, () => void]> = [
+      ["accept", acceptPOST, () => acceptMock.mockResolvedValue({ ok: true })],
+      ["reject", rejectPOST, () => rejectMock.mockResolvedValue({ ok: true })],
+      ["start", startPOST, () => startMock.mockResolvedValue({ ok: true })],
+      ["complete", completePOST, () => completeMock.mockResolvedValue({ ok: true })],
+    ];
+
+    function arrange(prime: () => void) {
+      prime();
+      detailMock.mockResolvedValue({
+        id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED", seats: 2,
+        priceSnapshot: null, slotStartTime: null,
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        assignedVehicle: {
+          make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+          passengerCapacity: 6, vehicleType: "SEDAN", isFourByFour: false,
+          registrationNumber: "QA-TV2-0001",
+        },
+      });
+    }
+
+    async function vehicleFor(
+      route: (req: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>,
+      prime: () => void,
+      locale: string,
+    ) {
+      arrange(prime);
+      const res = await route(
+        new Request("http://x/api/v1/me/provider/bookings/b1/x", {
+          method: "POST",
+          headers: { "Accept-Language": locale },
+        }),
+        { params: Promise.resolve({ id: "b1" }) },
+      );
+      return (await res.json()).assignedVehicle;
+    }
+
+    for (const [name, route, prime] of actions) {
+      it(`${name} localizes the type label in English`, async () => {
+        const v = await vehicleFor(route, prime, "en");
+        expect(v.vehicleType).toBe("SEDAN");
+        expect(v.vehicleTypeLabel).toBe("Sedan");
+      });
+
+      it(`${name} localizes the type label in Arabic without changing the code`, async () => {
+        const v = await vehicleFor(route, prime, "ar");
+        expect(v.vehicleTypeLabel).toBe("سيارة سيدان");
+        expect(v.vehicleType).toBe("SEDAN");
+      });
+
+      it(`${name} keeps the provider-only plate`, async () => {
+        expect((await vehicleFor(route, prime, "en")).registrationNumber).toBe("QA-TV2-0001");
+      });
+    }
+  });
 });

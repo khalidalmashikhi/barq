@@ -170,7 +170,7 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
       slotStartTime: null,
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       assignedVehicle: null,
-    });
+    }, "en");
     expect(dto.priceSnapshot).toBeNull();
     expect(dto.scheduledStartTime).toBeNull();
     expect(dto.assignedVehicle).toBeNull();
@@ -185,10 +185,13 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
         passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false, registrationNumber: "QA-TV2-0001",
       },
-    });
+    }, "en");
+    // EXACT equality, still exact: the provider variant is the customer allow-list PLUS the
+    // one live plate, and nothing else. The localized label joins it; the plate survives.
     expect(dto.assignedVehicle).toEqual({
       make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
-      passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false, registrationNumber: "QA-TV2-0001",
+      passengerCapacity: 6, vehicleType: "SUV", vehicleTypeLabel: "SUV",
+      isFourByFour: false, registrationNumber: "QA-TV2-0001",
     });
     const s = JSON.stringify(dto);
     // Plate is the ONLY live field; no ids or other private data ride along.
@@ -284,5 +287,71 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
     expect(dto.workspaceAvailable).toBe(true);
     expect(dto.items[0]!.name).toBe("السجل التجاري");
     expect(dto.items[0]!.description).toBeNull();
+  });
+
+  // ASSIGNED-VEHICLE-TYPE-LABEL — the provider surface inherits the localized label from the
+  // shared customer-safe base, and keeps its own provider-only plate.
+  describe("provider assigned vehicle type label", () => {
+    function detail(vehicleType: string | null) {
+      return {
+        id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED" as const,
+        seats: 4, priceSnapshot: null, slotStartTime: null,
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        assignedVehicle: {
+          make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
+          passengerCapacity: 6, vehicleType, isFourByFour: false,
+          registrationNumber: "QA-TV2-0001",
+        },
+      };
+    }
+
+    function vehicleFor(locale: "en" | "ar", vehicleType: string | null = "SEDAN") {
+      return toProviderBookingDetailDTO(detail(vehicleType), locale).assignedVehicle!;
+    }
+
+    it("localizes a known type in English", () => {
+      const v = vehicleFor("en");
+      expect(v.vehicleType).toBe("SEDAN");
+      expect(v.vehicleTypeLabel).toBe("Sedan");
+    });
+
+    it("localizes the same type in Arabic", () => {
+      expect(vehicleFor("ar").vehicleTypeLabel).toBe("سيارة سيدان");
+    });
+
+    /**
+     * THE POINT OF MAKING locale REQUIRED. Before this gate a provider route could have
+     * inherited a default locale and silently answered in the wrong language; now the code
+     * is stable and the label genuinely follows the caller.
+     */
+    it("keeps the canonical code identical while the label follows the locale", () => {
+      expect(vehicleFor("en").vehicleType).toBe(vehicleFor("ar").vehicleType);
+      expect(vehicleFor("en").vehicleTypeLabel).not.toBe(vehicleFor("ar").vehicleTypeLabel);
+    });
+
+    it("returns a null label for an ungoverned code, never the code itself", () => {
+      const v = vehicleFor("en", "HOVERCRAFT");
+      expect(v.vehicleType).toBe("HOVERCRAFT");
+      expect(v.vehicleTypeLabel).toBeNull();
+    });
+
+    /** The provider-only plate must survive the field-by-field localization. */
+    it("preserves the provider-only plate in both locales", () => {
+      expect(vehicleFor("en").registrationNumber).toBe("QA-TV2-0001");
+      expect(vehicleFor("ar").registrationNumber).toBe("QA-TV2-0001");
+    });
+
+    it("exposes exactly the eight shared fields plus the plate", () => {
+      expect(Object.keys(vehicleFor("en")).sort()).toEqual([
+        "color", "isFourByFour", "make", "model", "modelYear", "passengerCapacity",
+        "registrationNumber", "vehicleType", "vehicleTypeLabel",
+      ]);
+    });
+
+    it("leaves isFourByFour independent of the type and its label", () => {
+      const v = vehicleFor("en", "FOUR_BY_FOUR");
+      expect(v.vehicleTypeLabel).toBe("4x4");
+      expect(v.isFourByFour).toBe(false);
+    });
   });
 });

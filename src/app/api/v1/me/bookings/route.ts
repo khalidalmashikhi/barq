@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       const detail = await getBookingDetail(result.bookingId, locale);
       if (!detail) return apiError("INTERNAL_ERROR", { locale });
 
-      return apiOk({ booking: toBookingDetailDTO(detail) }, { status: 201 });
+      return apiOk({ booking: toBookingDetailDTO(detail, locale) }, { status: 201 });
     })
   );
 }
