@@ -45,8 +45,24 @@ describe("getEmailOtpProvider — factory (INERT by default)", () => {
   });
 
   it("throws on an unknown provider name", () => {
-    vi.stubEnv("EMAIL_OTP_PROVIDER", "resend");
+    vi.stubEnv("EMAIL_OTP_PROVIDER", "sendgrid");
     expect(() => getEmailOtpProvider()).toThrow(/unknown EMAIL_OTP_PROVIDER/);
+  });
+
+  // AUTH-EMAIL-VENDOR-1 — Resend
+  it('EMAIL_OTP_PROVIDER="resend" with both credentials -> ResendEmailProvider', () => {
+    vi.stubEnv("EMAIL_OTP_PROVIDER", "resend");
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    vi.stubEnv("EMAIL_FROM", "BARQ <noreply@barq.example>");
+    const p = getEmailOtpProvider();
+    expect(p.name).toBe("resend");
+  });
+
+  it('EMAIL_OTP_PROVIDER="resend" without credentials -> throws (all-or-nothing)', () => {
+    vi.stubEnv("EMAIL_OTP_PROVIDER", "resend"); // no RESEND_API_KEY / EMAIL_FROM
+    expect(() => getEmailOtpProvider()).toThrow(/requires RESEND_API_KEY and EMAIL_FROM/);
+    vi.stubEnv("RESEND_API_KEY", "re_test"); // still missing EMAIL_FROM
+    expect(() => getEmailOtpProvider()).toThrow(/requires RESEND_API_KEY and EMAIL_FROM/);
   });
 });
 
@@ -57,8 +73,11 @@ describe("isEmailOtpConfigured — fail-closed UI gate", () => {
     expect(isEmailOtpConfigured()).toBe(false);
   });
 
-  it('is true only for a provider that can deliver ("console" in dev)', () => {
+  it('is true for a provider that can deliver ("console" in dev, "resend" in prod)', () => {
     vi.stubEnv("EMAIL_OTP_PROVIDER", "console");
+    expect(isEmailOtpConfigured()).toBe(true);
+    vi.unstubAllEnvs();
+    vi.stubEnv("EMAIL_OTP_PROVIDER", "resend");
     expect(isEmailOtpConfigured()).toBe(true);
   });
 });

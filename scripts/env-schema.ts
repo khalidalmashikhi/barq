@@ -56,7 +56,15 @@ export const envSchema = z
     // AUTH_EMAIL_OTP_*) are runtime-validated by src/lib/email-otp/*-config.ts
     // (fail-fast on a malformed value), matching how the phone OTP tuning vars are
     // handled — so they are deliberately not duplicated in this schema.
-    EMAIL_OTP_PROVIDER: z.enum(["disabled", "console"]).optional().default("disabled"),
+    EMAIL_OTP_PROVIDER: z.enum(["disabled", "console", "resend"]).optional().default("disabled"),
+    // AUTH-EMAIL-VENDOR-1 — Resend credentials. Optional in the base schema;
+    // required all-or-nothing when EMAIL_OTP_PROVIDER=resend (the .superRefine()
+    // below), mirroring OTP_PROVIDER=twilio -> TWILIO_*. RESEND_API_KEY is a secret
+    // and is server-only (never exposed to the browser); EMAIL_FROM is the verified
+    // Resend sender, e.g. "BARQ <noreply@your-domain>". No secrets are committed —
+    // .env.example ships empty placeholders.
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
     TWILIO_FROM_NUMBER: z.string().optional(),
@@ -145,6 +153,26 @@ export const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ["TWILIO_FROM_NUMBER"],
           message: "required when OTP_PROVIDER=twilio",
+        });
+      }
+    }
+
+    // AUTH-EMAIL-VENDOR-1 — EMAIL_OTP_PROVIDER=resend requires its credentials in
+    // every environment (there is no meaningful "resend selected but no
+    // credentials" state). Same all-or-nothing discipline as OTP_PROVIDER=twilio.
+    if (env.EMAIL_OTP_PROVIDER === "resend") {
+      if (!env.RESEND_API_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["RESEND_API_KEY"],
+          message: "required when EMAIL_OTP_PROVIDER=resend",
+        });
+      }
+      if (!env.EMAIL_FROM) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["EMAIL_FROM"],
+          message: "required when EMAIL_OTP_PROVIDER=resend",
         });
       }
     }

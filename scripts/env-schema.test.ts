@@ -392,7 +392,46 @@ describe("envSchema — EMAIL_OTP_PROVIDER (email OTP, inert by default)", () =>
 
   it("rejects an unknown provider value", () => {
     vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, EMAIL_OTP_PROVIDER: "sendgrid" });
+    expect(result.success).toBe(false);
+  });
+
+  // AUTH-EMAIL-VENDOR-1 — Resend all-or-nothing credentials.
+  it("REJECTS EMAIL_OTP_PROVIDER=resend without RESEND_API_KEY + EMAIL_FROM (any env)", () => {
+    vi.stubEnv("NODE_ENV", "test");
     const result = envSchema.safeParse({ ...validBase, EMAIL_OTP_PROVIDER: "resend" });
     expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((i) => i.path[0]);
+      expect(paths).toContain("RESEND_API_KEY");
+      expect(paths).toContain("EMAIL_FROM");
+    }
+  });
+
+  it("REJECTS a partial resend config (api key without EMAIL_FROM)", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, EMAIL_OTP_PROVIDER: "resend", RESEND_API_KEY: "re_x" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path[0] === "EMAIL_FROM")).toBe(true);
+    }
+  });
+
+  it("accepts EMAIL_OTP_PROVIDER=resend with both credentials, including in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({
+      ...validBase,
+      BETTER_AUTH_SECRET: "a".repeat(32),
+      NEXT_PUBLIC_APP_URL: "https://barq.example",
+      OTP_PROVIDER: "twilio",
+      TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
+      TWILIO_AUTH_TOKEN: "token",
+      TWILIO_FROM_NUMBER: "+14155238886",
+      CRON_SECRET: "a".repeat(32),
+      EMAIL_OTP_PROVIDER: "resend",
+      RESEND_API_KEY: "re_live_x",
+      EMAIL_FROM: "BARQ <noreply@barq.example>",
+    });
+    expect(result.success).toBe(true);
   });
 });
