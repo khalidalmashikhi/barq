@@ -87,5 +87,21 @@
   "connectedLabel": "مُتصل",
   "connectGoogleButton": "ربط Google",
   "connectGoogleLoading": "جارٍ الربط…",
-  "connectGoogleError": "تعذّر ربط Google. يُرجى المحاولة مرة أخرى."
+  "connectGoogleError": "تعذّر ربط Google. يُرجى المحاولة مرة أخرى.",
+  "emailMethodLabel": "البريد الإلكتروني",
+  "addEmailButton": "إضافة بريد إلكتروني",
+  "addEmailInputLabel": "البريد الإلكتروني",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "إرسال رمز التحقق",
+  "addEmailOtpLabel": "رمز التحقق",
+  "addEmailVerifyButton": "تحقق",
+  "addEmailCancel": "إلغاء",
+  "addEmailLoading": "جارٍ التحميل…",
+  "addEmailErrorInvalid": "أدخل بريدًا إلكترونيًا صالحًا.",
+  "addEmailErrorConflict": "طريقة تسجيل الدخول هذه مرتبطة بالفعل بحساب آخر.",
+  "addEmailErrorAlready": "يوجد بريد إلكتروني مرتبط بحسابك بالفعل.",
+  "addEmailErrorRateLimited": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
+  "addEmailErrorInvalidOtp": "الرمز غير صحيح أو منتهي الصلاحية. حاول مرة أخرى.",
+  "addEmailErrorUnavailable": "تسجيل الدخول عبر البريد الإلكتروني غير متاح حاليًا.",
+  "addEmailErrorGeneric": "حدث خطأ ما، الرجاء المحاولة مرة أخرى."
 }

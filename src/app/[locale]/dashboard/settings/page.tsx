@@ -6,6 +6,9 @@ import { isGoogleConfigured } from "@/lib/auth/social-config";
 import { getLinkedProviderIds } from "@/lib/auth/connected-accounts";
 import { ConnectGoogleButton } from "@/components/auth/connect-google-button";
 import { GoogleIcon } from "@/components/ui/google-icon";
+import { isEmailOtpConfigured } from "@/lib/email-otp/get-email-provider";
+import { getLinkedEmailState } from "@/lib/auth/linked-email";
+import { AddEmailButton } from "@/components/auth/add-email-button";
 import { getCustomerSettings } from "@/lib/customer/get-customer-settings";
 import { updateCustomerSettings } from "@/lib/customer/update-customer-settings";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
@@ -70,6 +73,10 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
   // providers (safe metadata only; no tokens).
   const googleEnabled = isGoogleConfigured();
   const googleConnected = googleEnabled && (await getLinkedProviderIds()).includes("google");
+  // AUTH-EMAIL-LINK-1 — email linking is offered only when email OTP is configured
+  // on this deployment (a real vendor). INERT otherwise, so the Email row is hidden.
+  const emailLinkingEnabled = isEmailOtpConfigured();
+  const linkedEmail = emailLinkingEnabled ? await getLinkedEmailState() : null;
 
   return (
     <AppShell
@@ -146,25 +153,51 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
             same account. Disconnect is intentionally not offered yet (MVP) — see
             the Gate-3 report; showing "Connected" without a remove action can
             never lock a user out. */}
-        {googleEnabled && (
+        {(googleEnabled || emailLinkingEnabled) && (
           <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("connectedAccountsTitle")}</h2>
               <p className="mt-1 text-xs text-foreground/50">{t("connectedAccountsSubtitle")}</p>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="flex items-center gap-2.5 text-sm font-medium text-foreground">
-                <GoogleIcon size={20} />
-                {t("googleLabel")}
-              </span>
-              {googleConnected ? (
-                <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                  {t("connectedLabel")}
+
+            {/* AUTH-EMAIL-LINK-1 — Email sign-in method. Connected shows the masked
+                real email; otherwise "Add email" opens the OTP ownership-proof flow,
+                which attaches the verified email to THIS same account. */}
+            {emailLinkingEnabled && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex flex-col text-sm font-medium text-foreground">
+                  {t("emailMethodLabel")}
+                  {linkedEmail?.hasRealEmail && linkedEmail.maskedEmail && (
+                    <span className="text-xs font-normal text-foreground/50" dir="ltr">
+                      {linkedEmail.maskedEmail}
+                    </span>
+                  )}
                 </span>
-              ) : (
-                <ConnectGoogleButton />
-              )}
-            </div>
+                {linkedEmail?.hasRealEmail ? (
+                  <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+                    {t("connectedLabel")}
+                  </span>
+                ) : (
+                  <AddEmailButton />
+                )}
+              </div>
+            )}
+
+            {googleEnabled && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex items-center gap-2.5 text-sm font-medium text-foreground">
+                  <GoogleIcon size={20} />
+                  {t("googleLabel")}
+                </span>
+                {googleConnected ? (
+                  <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+                    {t("connectedLabel")}
+                  </span>
+                ) : (
+                  <ConnectGoogleButton />
+                )}
+              </div>
+            )}
           </section>
         )}
       </div>

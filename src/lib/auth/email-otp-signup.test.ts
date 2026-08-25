@@ -40,6 +40,12 @@ describe("AUTH-EMAIL-OTP-1 — email OTP sign-in only", () => {
     expect(emailOtp?.options?.disableSignUp).toBe(true);
   });
 
+  it("AUTH-EMAIL-LINK-1 — enables OTP change-email for authenticated linking (verifyCurrentEmail false)", () => {
+    const changeEmail = emailOtp?.options?.changeEmail as { enabled?: boolean; verifyCurrentEmail?: boolean } | undefined;
+    expect(changeEmail?.enabled).toBe(true);
+    expect(changeEmail?.verifyCurrentEmail).toBe(false);
+  });
+
   it("keeps storeOTP hashed (email codes are not stored in plaintext)", () => {
     expect(emailOtp?.options?.storeOTP).toBe("hashed");
   });

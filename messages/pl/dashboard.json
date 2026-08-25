@@ -87,5 +87,21 @@
   "connectedLabel": "Połączono",
   "connectGoogleButton": "Połącz Google",
   "connectGoogleLoading": "Łączenie…",
-  "connectGoogleError": "Nie udało się połączyć Google. Spróbuj ponownie."
+  "connectGoogleError": "Nie udało się połączyć Google. Spróbuj ponownie.",
+  "emailMethodLabel": "E-mail",
+  "addEmailButton": "Dodaj e-mail",
+  "addEmailInputLabel": "Adres e-mail",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Wyślij kod weryfikacyjny",
+  "addEmailOtpLabel": "Kod weryfikacyjny",
+  "addEmailVerifyButton": "Zweryfikuj",
+  "addEmailCancel": "Anuluj",
+  "addEmailLoading": "Ładowanie…",
+  "addEmailErrorInvalid": "Podaj prawidłowy adres e-mail.",
+  "addEmailErrorConflict": "Ta metoda logowania jest już połączona z innym kontem.",
+  "addEmailErrorAlready": "Do Twojego konta jest już przypisany e-mail.",
+  "addEmailErrorRateLimited": "Zbyt wiele prób. Spróbuj ponownie później.",
+  "addEmailErrorInvalidOtp": "Kod jest nieprawidłowy lub wygasł. Spróbuj ponownie.",
+  "addEmailErrorUnavailable": "Logowanie przez e-mail jest obecnie niedostępne.",
+  "addEmailErrorGeneric": "Coś poszło nie tak, spróbuj ponownie."
 }

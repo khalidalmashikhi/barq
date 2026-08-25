@@ -87,5 +87,21 @@
   "connectedLabel": "Collegato",
   "connectGoogleButton": "Collega Google",
   "connectGoogleLoading": "Collegamento…",
-  "connectGoogleError": "Impossibile collegare Google. Riprova."
+  "connectGoogleError": "Impossibile collegare Google. Riprova.",
+  "emailMethodLabel": "Email",
+  "addEmailButton": "Aggiungi email",
+  "addEmailInputLabel": "Indirizzo email",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Invia codice di verifica",
+  "addEmailOtpLabel": "Codice di verifica",
+  "addEmailVerifyButton": "Verifica",
+  "addEmailCancel": "Annulla",
+  "addEmailLoading": "Caricamento…",
+  "addEmailErrorInvalid": "Inserisci un indirizzo email valido.",
+  "addEmailErrorConflict": "Questo metodo di accesso è già collegato a un altro account.",
+  "addEmailErrorAlready": "Un'email è già collegata al tuo account.",
+  "addEmailErrorRateLimited": "Troppi tentativi. Riprova più tardi.",
+  "addEmailErrorInvalidOtp": "Il codice è errato o scaduto. Riprova.",
+  "addEmailErrorUnavailable": "L'accesso via email non è disponibile al momento.",
+  "addEmailErrorGeneric": "Si è verificato un errore, riprova."
 }

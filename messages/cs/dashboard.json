@@ -87,5 +87,21 @@
   "connectedLabel": "Připojeno",
   "connectGoogleButton": "Připojit Google",
   "connectGoogleLoading": "Připojování…",
-  "connectGoogleError": "Google se nepodařilo připojit. Zkuste to znovu."
+  "connectGoogleError": "Google se nepodařilo připojit. Zkuste to znovu.",
+  "emailMethodLabel": "E-mail",
+  "addEmailButton": "Přidat e-mail",
+  "addEmailInputLabel": "E-mailová adresa",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Odeslat ověřovací kód",
+  "addEmailOtpLabel": "Ověřovací kód",
+  "addEmailVerifyButton": "Ověřit",
+  "addEmailCancel": "Zrušit",
+  "addEmailLoading": "Načítání…",
+  "addEmailErrorInvalid": "Zadejte platnou e-mailovou adresu.",
+  "addEmailErrorConflict": "Tento způsob přihlášení je již propojen s jiným účtem.",
+  "addEmailErrorAlready": "K vašemu účtu je již připojen e-mail.",
+  "addEmailErrorRateLimited": "Příliš mnoho pokusů. Zkuste to prosím později.",
+  "addEmailErrorInvalidOtp": "Kód je nesprávný nebo vypršel. Zkuste to znovu.",
+  "addEmailErrorUnavailable": "Přihlášení e-mailem není momentálně dostupné.",
+  "addEmailErrorGeneric": "Něco se pokazilo, zkuste to znovu."
 }

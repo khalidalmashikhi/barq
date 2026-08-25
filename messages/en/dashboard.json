@@ -87,5 +87,21 @@
   "connectedLabel": "Connected",
   "connectGoogleButton": "Connect Google",
   "connectGoogleLoading": "Connecting…",
-  "connectGoogleError": "Couldn't connect Google. Please try again."
+  "connectGoogleError": "Couldn't connect Google. Please try again.",
+  "emailMethodLabel": "Email",
+  "addEmailButton": "Add email",
+  "addEmailInputLabel": "Email address",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Send verification code",
+  "addEmailOtpLabel": "Verification code",
+  "addEmailVerifyButton": "Verify",
+  "addEmailCancel": "Cancel",
+  "addEmailLoading": "Loading…",
+  "addEmailErrorInvalid": "Enter a valid email address.",
+  "addEmailErrorConflict": "This sign-in method is already connected to another account.",
+  "addEmailErrorAlready": "An email is already connected to your account.",
+  "addEmailErrorRateLimited": "Too many attempts. Please try again later.",
+  "addEmailErrorInvalidOtp": "That code is incorrect or has expired. Please try again.",
+  "addEmailErrorUnavailable": "Email sign-in isn't available right now.",
+  "addEmailErrorGeneric": "Something went wrong, please try again."
 }

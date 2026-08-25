@@ -87,5 +87,21 @@
   "connectedLabel": "Verbunden",
   "connectGoogleButton": "Google verbinden",
   "connectGoogleLoading": "Wird verbunden …",
-  "connectGoogleError": "Google konnte nicht verbunden werden. Bitte versuchen Sie es erneut."
+  "connectGoogleError": "Google konnte nicht verbunden werden. Bitte versuchen Sie es erneut.",
+  "emailMethodLabel": "E-Mail",
+  "addEmailButton": "E-Mail hinzufügen",
+  "addEmailInputLabel": "E-Mail-Adresse",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Bestätigungscode senden",
+  "addEmailOtpLabel": "Bestätigungscode",
+  "addEmailVerifyButton": "Bestätigen",
+  "addEmailCancel": "Abbrechen",
+  "addEmailLoading": "Wird geladen…",
+  "addEmailErrorInvalid": "Gib eine gültige E-Mail-Adresse ein.",
+  "addEmailErrorConflict": "Diese Anmeldemethode ist bereits mit einem anderen Konto verbunden.",
+  "addEmailErrorAlready": "Mit deinem Konto ist bereits eine E-Mail verbunden.",
+  "addEmailErrorRateLimited": "Zu viele Versuche. Bitte versuche es später erneut.",
+  "addEmailErrorInvalidOtp": "Der Code ist falsch oder abgelaufen. Bitte versuche es erneut.",
+  "addEmailErrorUnavailable": "Die Anmeldung per E-Mail ist derzeit nicht verfügbar.",
+  "addEmailErrorGeneric": "Etwas ist schiefgelaufen, bitte versuche es erneut."
 }

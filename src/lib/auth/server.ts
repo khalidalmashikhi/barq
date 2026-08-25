@@ -324,6 +324,21 @@ export const auth = betterAuth({
       //     WITHOUT sending and deletes the verification — the response is identical
       //     whether or not the email exists (no enumeration).
       disableSignUp: true,
+      // AUTH-EMAIL-LINK-1 — enable Better Auth's OTP-based change-email so an
+      // AUTHENTICATED user can attach a real, verified email to their CURRENT
+      // AuthUser (endpoints /email-otp/request-email-change + /email-otp/change-email,
+      // both behind sensitiveSessionMiddleware). Verified against better-auth@1.6.23:
+      // change-email does updateUser(currentAuthUser.id, {email, emailVerified:true})
+      // on the SAME AuthUser (no new user, no re-parent), rejects a taken email, and
+      // verifies the OTP atomically before mutating. verifyCurrentEmail:false because
+      // phone-first users hold a synthetic UNVERIFIED @phone.barq.internal email that
+      // cannot be OTP-verified — ownership is proven by the OTP sent to the NEW email.
+      // BARQ wraps these in src/lib/auth/link-email.ts (auth + conflict pre-check +
+      // synthetic-domain reject + rate limit + audit); the client never mutates email.
+      changeEmail: {
+        enabled: true,
+        verifyCurrentEmail: false,
+      },
     }),
   ],
 

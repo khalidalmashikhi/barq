@@ -87,5 +87,21 @@
   "connectedLabel": "Подключено",
   "connectGoogleButton": "Подключить Google",
   "connectGoogleLoading": "Подключение…",
-  "connectGoogleError": "Не удалось подключить Google. Повторите попытку."
+  "connectGoogleError": "Не удалось подключить Google. Повторите попытку.",
+  "emailMethodLabel": "Эл. почта",
+  "addEmailButton": "Добавить эл. почту",
+  "addEmailInputLabel": "Адрес эл. почты",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Отправить код подтверждения",
+  "addEmailOtpLabel": "Код подтверждения",
+  "addEmailVerifyButton": "Подтвердить",
+  "addEmailCancel": "Отмена",
+  "addEmailLoading": "Загрузка…",
+  "addEmailErrorInvalid": "Введите действительный адрес эл. почты.",
+  "addEmailErrorConflict": "Этот способ входа уже привязан к другому аккаунту.",
+  "addEmailErrorAlready": "К вашему аккаунту уже привязана эл. почта.",
+  "addEmailErrorRateLimited": "Слишком много попыток. Повторите попытку позже.",
+  "addEmailErrorInvalidOtp": "Код неверен или истёк. Повторите попытку.",
+  "addEmailErrorUnavailable": "Вход по эл. почте сейчас недоступен.",
+  "addEmailErrorGeneric": "Что-то пошло не так, повторите попытку."
 }

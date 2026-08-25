@@ -87,5 +87,21 @@
   "connectedLabel": "Connecté",
   "connectGoogleButton": "Connecter Google",
   "connectGoogleLoading": "Connexion…",
-  "connectGoogleError": "Impossible de connecter Google. Réessayez."
+  "connectGoogleError": "Impossible de connecter Google. Réessayez.",
+  "emailMethodLabel": "E-mail",
+  "addEmailButton": "Ajouter un e-mail",
+  "addEmailInputLabel": "Adresse e-mail",
+  "addEmailInputPlaceholder": "you@example.com",
+  "addEmailSendButton": "Envoyer le code de vérification",
+  "addEmailOtpLabel": "Code de vérification",
+  "addEmailVerifyButton": "Vérifier",
+  "addEmailCancel": "Annuler",
+  "addEmailLoading": "Chargement…",
+  "addEmailErrorInvalid": "Saisissez une adresse e-mail valide.",
+  "addEmailErrorConflict": "Cette méthode de connexion est déjà associée à un autre compte.",
+  "addEmailErrorAlready": "Une adresse e-mail est déjà associée à votre compte.",
+  "addEmailErrorRateLimited": "Trop de tentatives. Réessayez plus tard.",
+  "addEmailErrorInvalidOtp": "Ce code est incorrect ou a expiré. Veuillez réessayer.",
+  "addEmailErrorUnavailable": "La connexion par e-mail n'est pas disponible pour le moment.",
+  "addEmailErrorGeneric": "Une erreur s'est produite, veuillez réessayer."
 }

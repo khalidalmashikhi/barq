@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ReactElement } from "react";
 
 // Social Login (Gate 3) — server-component wiring tests for the login page and
@@ -67,6 +67,14 @@ function ConnectGoogleButtonMock() {
   return null;
 }
 vi.mock("@/components/auth/connect-google-button", () => ({ ConnectGoogleButton: ConnectGoogleButtonMock }));
+// AUTH-EMAIL-LINK-1 — settings page now also reads the linked-email state (server-only)
+// and renders the email linking client component; mock both so the real modules aren't pulled in.
+const getLinkedEmailStateMock = vi.fn();
+vi.mock("@/lib/auth/linked-email", () => ({ getLinkedEmailState: (...a: unknown[]) => getLinkedEmailStateMock(...a) }));
+function AddEmailButtonMock() {
+  return null;
+}
+vi.mock("@/components/auth/add-email-button", () => ({ AddEmailButton: AddEmailButtonMock }));
 
 const { default: LoginPage } = await import("@/app/[locale]/login/page");
 const { default: SettingsPage } = await import("@/app/[locale]/dashboard/settings/page");
@@ -113,6 +121,12 @@ describe("Login page — Google wiring", () => {
 });
 
 describe("Settings — Sign-in methods section", () => {
+  // Default: email linking off (INERT) so the existing Google-only assertions hold.
+  beforeEach(() => {
+    isEmailOtpConfiguredMock.mockReturnValue(false);
+    getLinkedEmailStateMock.mockResolvedValue({ hasRealEmail: false, maskedEmail: null });
+  });
+
   it("shows Connected when the account has Google linked", async () => {
     isGoogleConfiguredMock.mockReturnValue(true);
     getLinkedProviderIdsMock.mockResolvedValue(["google"]);
@@ -129,11 +143,42 @@ describe("Settings — Sign-in methods section", () => {
     expect(containsText(tree, "connectedLabel")).toBe(false);
   });
 
-  it("hides the whole section when Google is not configured on this deployment", async () => {
+  it("hides the whole section when neither Google nor email is configured", async () => {
     isGoogleConfiguredMock.mockReturnValue(false);
     getLinkedProviderIdsMock.mockResolvedValue([]);
     const tree = (await SettingsPage({ searchParams: Promise.resolve({}) })) as ReactElement;
     expect(containsText(tree, "connectedAccountsTitle")).toBe(false);
     expect(findByType(tree, ConnectGoogleButtonMock)).toBeNull();
+  });
+
+  // --- AUTH-EMAIL-LINK-1 — email row ---
+
+  it("shows Add email (section visible) when email OTP is configured and no real email is linked", async () => {
+    isGoogleConfiguredMock.mockReturnValue(false);
+    isEmailOtpConfiguredMock.mockReturnValue(true);
+    getLinkedEmailStateMock.mockResolvedValue({ hasRealEmail: false, maskedEmail: null });
+    const tree = (await SettingsPage({ searchParams: Promise.resolve({}) })) as ReactElement;
+    expect(containsText(tree, "connectedAccountsTitle")).toBe(true); // section shown even without Google
+    expect(containsText(tree, "emailMethodLabel")).toBe(true);
+    expect(findByType(tree, AddEmailButtonMock)).not.toBeNull();
+  });
+
+  it("shows the masked email + Connected (no Add email) when a real email is linked", async () => {
+    isGoogleConfiguredMock.mockReturnValue(false);
+    isEmailOtpConfiguredMock.mockReturnValue(true);
+    getLinkedEmailStateMock.mockResolvedValue({ hasRealEmail: true, maskedEmail: "c***@example.com" });
+    const tree = (await SettingsPage({ searchParams: Promise.resolve({}) })) as ReactElement;
+    expect(containsText(tree, "c***@example.com")).toBe(true);
+    expect(containsText(tree, "connectedLabel")).toBe(true);
+    expect(findByType(tree, AddEmailButtonMock)).toBeNull();
+  });
+
+  it("hides the email row when email OTP is not configured (INERT)", async () => {
+    isGoogleConfiguredMock.mockReturnValue(true); // section visible via Google
+    isEmailOtpConfiguredMock.mockReturnValue(false);
+    getLinkedProviderIdsMock.mockResolvedValue([]);
+    const tree = (await SettingsPage({ searchParams: Promise.resolve({}) })) as ReactElement;
+    expect(containsText(tree, "emailMethodLabel")).toBe(false);
+    expect(findByType(tree, AddEmailButtonMock)).toBeNull();
   });
 });
