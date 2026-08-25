@@ -334,3 +334,65 @@ describe("envSchema — Payment provider", () => {
     expect(result.success).toBe(true);
   });
 });
+
+// AUTH-CUSTOMER-EMAIL-OTP — EMAIL_OTP_PROVIDER defaults to "disabled" (email OTP
+// inert; safe in production) and, like OTP_PROVIDER, must not be "console" in
+// production (that dev-only provider refuses to run there anyway — fail fast at
+// startup instead of at the first email sign-in attempt).
+describe("envSchema — EMAIL_OTP_PROVIDER (email OTP, inert by default)", () => {
+  it('defaults to "disabled" when unset', () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.EMAIL_OTP_PROVIDER).toBe("disabled");
+    }
+  });
+
+  it('allows "console" outside production', () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, EMAIL_OTP_PROVIDER: "console" });
+    expect(result.success).toBe(true);
+  });
+
+  it('allows "disabled" in production (email OTP simply stays inert)', () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({
+      ...validBase,
+      BETTER_AUTH_SECRET: "a".repeat(32),
+      NEXT_PUBLIC_APP_URL: "https://barq.example",
+      OTP_PROVIDER: "twilio",
+      TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
+      TWILIO_AUTH_TOKEN: "token",
+      TWILIO_FROM_NUMBER: "+14155238886",
+      CRON_SECRET: "a".repeat(32),
+      EMAIL_OTP_PROVIDER: "disabled",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('REJECTS "console" in production', () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({
+      ...validBase,
+      BETTER_AUTH_SECRET: "a".repeat(32),
+      NEXT_PUBLIC_APP_URL: "https://barq.example",
+      OTP_PROVIDER: "twilio",
+      TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
+      TWILIO_AUTH_TOKEN: "token",
+      TWILIO_FROM_NUMBER: "+14155238886",
+      CRON_SECRET: "a".repeat(32),
+      EMAIL_OTP_PROVIDER: "console",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path[0] === "EMAIL_OTP_PROVIDER")).toBe(true);
+    }
+  });
+
+  it("rejects an unknown provider value", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, EMAIL_OTP_PROVIDER: "resend" });
+    expect(result.success).toBe(false);
+  });
+});

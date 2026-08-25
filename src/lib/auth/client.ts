@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/react";
-import { phoneNumberClient } from "better-auth/client/plugins";
+import { phoneNumberClient, emailOTPClient } from "better-auth/client/plugins";
 
 // Better Auth browser client — Engineering Sprint 3 (Phone OTP UI).
 //
@@ -20,5 +20,11 @@ import { phoneNumberClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
-  plugins: [phoneNumberClient()],
+  // AUTH-CUSTOMER-EMAIL-OTP — emailOTPClient adds authClient.emailOtp.* and
+  // authClient.signIn.emailOtp, mirroring the phoneNumber client plugin. The
+  // customer login form only calls these when email OTP is configured on the
+  // deployment (isEmailOtpConfigured, passed as a prop); the plugin being present
+  // in the client is harmless when the server provider is disabled (sends fail
+  // closed with EMAIL_DELIVERY_UNAVAILABLE).
+  plugins: [phoneNumberClient(), emailOTPClient()],
 });

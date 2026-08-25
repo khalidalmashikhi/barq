@@ -45,6 +45,18 @@ export const envSchema = z
     // APP_ENV=staging by the .superRefine() rules below.
     OTP_PROVIDER: z.enum(["console", "twilio", "disabled"]).optional().default("console"),
     OTP_CHANNEL: z.enum(["sms", "whatsapp"]).optional(),
+    // AUTH-CUSTOMER-EMAIL-OTP — email OTP delivery vendor. INERT by default
+    // ("disabled" fails closed and the "Continue with email" option is not shown):
+    // no email vendor is wired yet. "console" is dev-only (prints codes to the
+    // server terminal) and is rejected in production by the .superRefine() below,
+    // exactly like OTP_PROVIDER=console. A real vendor is a future, dependency-
+    // approving gate that adds its enum value + credentials here. The numeric
+    // tuning vars (EMAIL_OTP_EXPIRES_IN_SECONDS, EMAIL_OTP_MAX_ATTEMPTS,
+    // EMAIL_OTP_LENGTH, EMAIL_OTP_RESEND_COOLDOWN_SECONDS, EMAIL_OTP_MAX_SENDS_PER_DAY,
+    // AUTH_EMAIL_OTP_*) are runtime-validated by src/lib/email-otp/*-config.ts
+    // (fail-fast on a malformed value), matching how the phone OTP tuning vars are
+    // handled — so they are deliberately not duplicated in this schema.
+    EMAIL_OTP_PROVIDER: z.enum(["disabled", "console"]).optional().default("disabled"),
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
     TWILIO_FROM_NUMBER: z.string().optional(),
@@ -213,6 +225,20 @@ export const envSchema = z
         path: ["OTP_PROVIDER"],
         message:
           "must not be \"console\" in production — that provider only prints codes to the server terminal (src/lib/otp/providers/console-provider.ts) and itself refuses to run when NODE_ENV=production, meaning no OTP would ever be delivered. Set OTP_PROVIDER=twilio (with its credentials) or another real provider before deploying.",
+      });
+    }
+
+    // AUTH-CUSTOMER-EMAIL-OTP — same rule as OTP_PROVIDER: the dev-only "console"
+    // email provider prints codes to the terminal and refuses to run under
+    // NODE_ENV=production, so it would deliver nothing. "disabled" (the default) is
+    // fine in production — email OTP simply stays inert/unavailable until a real
+    // email vendor is wired.
+    if (env.EMAIL_OTP_PROVIDER === "console") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["EMAIL_OTP_PROVIDER"],
+        message:
+          "must not be \"console\" in production — that provider only prints codes to the server terminal (src/lib/email-otp/providers/console-email-provider.ts) and refuses to run when NODE_ENV=production. Leave it \"disabled\" (email OTP stays inert) or set a real email vendor before offering email sign-in.",
       });
     }
 

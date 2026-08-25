@@ -4,6 +4,7 @@ import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { isGoogleConfigured } from "@/lib/auth/social-config";
+import { isEmailOtpConfigured } from "@/lib/email-otp/get-email-provider";
 import { LoginForm } from "@/components/auth/login-form";
 import { Logo } from "@/components/ui/logo";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -132,7 +133,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <div className="mb-10 flex justify-center lg:hidden">
             <Logo variant="full" className="h-24" />
           </div>
-          <LoginForm googleEnabled={isGoogleConfigured()} oauthError={oauthError} />
+          <LoginForm
+            googleEnabled={isGoogleConfigured()}
+            emailEnabled={isEmailOtpConfigured()}
+            oauthError={oauthError}
+          />
         </div>
       </div>
     </main>

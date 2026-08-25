@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { phoneNumber } from "better-auth/plugins";
+import { phoneNumber, emailOTP } from "better-auth/plugins";
 import { createAuthMiddleware, APIError } from "better-auth/api";
 import { prisma } from "@/lib/db";
 import { buildGoogleSocialProvider, BARQ_ACCOUNT_LINKING } from "./social-config";
@@ -28,6 +28,31 @@ import {
   logOtpSendFailed,
   logVerifyOutcome,
 } from "@/lib/otp/audit";
+// AUTH-CUSTOMER-EMAIL-OTP — email OTP delivery + anti-abuse, mirroring the phone
+// OTP infrastructure above. INERT by default (getEmailOtpProvider fails closed
+// unless EMAIL_OTP_PROVIDER is configured).
+import { getEmailOtpProvider } from "@/lib/email-otp/get-email-provider";
+import { EmailDeliveryUnavailableError } from "@/lib/email-otp/providers/disabled-email-provider";
+import { getEmailOtpConfig } from "@/lib/email-otp/email-otp-config";
+import { normalizeEmail } from "@/lib/email-otp/normalize-email";
+import {
+  getEmailOtpSendIpRateLimit,
+  getEmailOtpSendEmailRateLimit,
+  getEmailOtpVerifyIpRateLimit,
+  emailOtpSendIpKey,
+  emailOtpSendEmailKey,
+  emailOtpSendCooldownKey,
+  emailOtpSendDailyKey,
+  emailOtpVerifyIpKey,
+} from "@/lib/email-otp/email-otp-rate-limit-config";
+import {
+  logEmailOtpRequested,
+  logEmailOtpResendRejected,
+  logEmailOtpDailyLimitRejected,
+  logEmailOtpSent,
+  logEmailOtpSendFailed,
+  logEmailOtpVerifyOutcome,
+} from "@/lib/email-otp/audit";
 
 // Better Auth server configuration — Engineering Sprint 2 (Auth Foundation),
 // updated by the Phone OTP Schema Support sprint now that `phoneNumberVerified`
@@ -237,6 +262,54 @@ export const auth = betterAuth({
       expiresIn: getOtpConfig().expiresInSeconds,
       allowedAttempts: getOtpConfig().maxAttempts,
     }),
+
+    // AUTH-CUSTOMER-EMAIL-OTP — Email OTP as an ADDITIONAL customer sign-in
+    // method. Phone OTP + Google are entirely unaffected. Verified against the
+    // installed better-auth@1.6.23 emailOTP plugin (endpoints
+    // /email-otp/send-verification-otp + /sign-in/email-otp; storeOTP option;
+    // findUserByEmail on sign-in so an existing email reuses its AuthUser and a
+    // new one is created only when sign-up is allowed). Identity converges on one
+    // BARQ User via the existing authUserId bridge (resolveBarqUser): a new email
+    // -> new AuthUser -> new User; an existing real email -> its AuthUser -> its
+    // User. Email is NEVER a reconciliation key (barq-user.ts), so an email
+    // identity is never silently merged into a phone identity — same posture as
+    // Google. Email OTP grants NO Provider/Admin role (roles are DB profile rows).
+    //
+    // INERT until provisioned: sendVerificationOTP delegates to getEmailOtpProvider(),
+    // which fails closed (EmailDeliveryUnavailableError -> stable 503 code) unless a
+    // real email vendor is configured. Rate limiting / cooldown / daily cap /
+    // normalization live in the root hooks below, mirroring the phone path.
+    emailOTP({
+      sendVerificationOTP: async ({ email, otp, type }: { email: string; otp: string; type: "sign-in" | "email-verification" | "forget-password" | "change-email" }) => {
+        try {
+          await getEmailOtpProvider().send({ email, code: otp, type });
+          logEmailOtpSent(email);
+        } catch (error) {
+          logEmailOtpSendFailed(email, error instanceof Error ? error.message : "unknown error");
+          // Fail closed with a stable, machine-readable code (never the OTP, never
+          // a secret) so the client can show a localized "delivery unavailable"
+          // message — mirrors the phone OtpDeliveryUnavailableError path.
+          if (error instanceof EmailDeliveryUnavailableError) {
+            throw new APIError("SERVICE_UNAVAILABLE", {
+              code: "EMAIL_DELIVERY_UNAVAILABLE",
+              message: "Email OTP delivery is unavailable in this environment.",
+            });
+          }
+          throw error;
+        }
+      },
+      otpLength: getEmailOtpConfig().otpLength,
+      expiresIn: getEmailOtpConfig().expiresInSeconds,
+      allowedAttempts: getEmailOtpConfig().maxAttempts,
+      // Store the code HASHED at rest (Better Auth default is "plain"). This is an
+      // improvement over the phone path's plaintext Verification.value: a DB reader
+      // can no longer see live email codes. resendStrategy falls back to "rotate"
+      // under hashing, which is the behavior we want (each send is a fresh code).
+      storeOTP: "hashed",
+      // disableSignUp left at its default (false): a first-time email signs up,
+      // mirroring the phone plugin's signUpOnVerification (sign-in/sign-up only for
+      // v1 — authenticated "link email to my account" is a deferred later gate).
+    }),
   ],
 
   // Root-level before/after hooks — Phase D.4, extended by the P0-1
@@ -259,6 +332,90 @@ export const auth = betterAuth({
   // even when the endpoint throws, error at `ctx.context.returned`.)
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      // === Email OTP endpoints (AUTH-CUSTOMER-EMAIL-OTP) ===
+      // Self-contained; returns before the phone block below. Mirrors the phone
+      // path: authoritative email normalization (single source of truth), durable
+      // cooldown + daily cap + per-IP/per-email send limits, per-IP verify limit,
+      // then rewrites ctx.body.email to the canonical value so the plugin's stored
+      // verification, delivery, and resolved identity all key on the same string.
+      if (ctx.path === "/email-otp/send-verification-otp" || ctx.path === "/sign-in/email-otp") {
+        const isEmailSend = ctx.path === "/email-otp/send-verification-otp";
+
+        const emailParam = (ctx.body as { email?: string } | undefined)?.email;
+        // Missing param: let Better Auth's own validation produce its standard error.
+        if (typeof emailParam !== "string" || emailParam.trim() === "") return;
+
+        // Authoritative canonicalization (single source of truth). Reject malformed
+        // input here — before the cooldown/cap lookups and before any code is
+        // generated. Never expose normalization internals; the client maps the
+        // stable code to a localized message.
+        const normalizedEmail = normalizeEmail(emailParam);
+        if (!normalizedEmail.ok) {
+          throw new APIError("BAD_REQUEST", {
+            code: "INVALID_EMAIL",
+            message: "Enter a valid email address.",
+          });
+        }
+        const email = normalizedEmail.email;
+
+        const rateLimitSecret = process.env.BETTER_AUTH_SECRET ?? "";
+        const ctxAny = ctx as { headers?: Headers; request?: { headers?: Headers } };
+        const ipKey = hmacRateLimitKey(resolveClientIp(ctxAny.headers ?? ctxAny.request?.headers), rateLimitSecret);
+        const emailKey = hmacRateLimitKey(email, rateLimitSecret);
+
+        if (isEmailSend) {
+          logEmailOtpRequested(email);
+          const { resendCooldownSeconds, maxSendsPerDay } = getEmailOtpConfig();
+
+          // Cooldown expressed as a durable 1-per-window limiter (decoupled from the
+          // plugin's internal verification-identifier format, unlike the phone path).
+          const cooldown = await consumeRateLimit(emailOtpSendCooldownKey(emailKey), 1, resendCooldownSeconds);
+          if (!cooldown.allowed) {
+            logEmailOtpResendRejected(email, cooldown.retryAfterSeconds);
+            throw ctx.error("TOO_MANY_REQUESTS", {
+              message: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another code.`,
+            });
+          }
+
+          const daily = await consumeRateLimit(emailOtpSendDailyKey(emailKey), maxSendsPerDay, 86400);
+          if (!daily.allowed) {
+            logEmailOtpDailyLimitRejected(email);
+            throw ctx.error("TOO_MANY_REQUESTS", {
+              message: "You've reached the maximum number of verification codes for today. Please try again tomorrow.",
+            });
+          }
+
+          const sendIp = getEmailOtpSendIpRateLimit();
+          const ipSend = await consumeRateLimit(emailOtpSendIpKey(ipKey), sendIp.limit, sendIp.windowSeconds);
+          if (!ipSend.allowed) {
+            throw ctx.error("TOO_MANY_REQUESTS", { message: TOO_MANY_REQUESTS_MESSAGE });
+          }
+
+          const sendEmail = getEmailOtpSendEmailRateLimit();
+          const emailSend = await consumeRateLimit(emailOtpSendEmailKey(emailKey), sendEmail.limit, sendEmail.windowSeconds);
+          if (!emailSend.allowed) {
+            throw ctx.error("TOO_MANY_REQUESTS", { message: TOO_MANY_REQUESTS_MESSAGE });
+          }
+
+          if (Math.random() < 0.05) void sweepExpiredRateLimits();
+        } else {
+          // /sign-in/email-otp — durable per-IP verify cap (brute-force protection
+          // across ALL emails from one source). No per-email verify cap (would let an
+          // attacker lock a victim out); per-code brute force is capped by Better Auth.
+          const verifyIp = getEmailOtpVerifyIpRateLimit();
+          const ipVerify = await consumeRateLimit(emailOtpVerifyIpKey(ipKey), verifyIp.limit, verifyIp.windowSeconds);
+          if (!ipVerify.allowed) {
+            throw ctx.error("TOO_MANY_REQUESTS", { message: TOO_MANY_REQUESTS_MESSAGE });
+          }
+        }
+
+        return {
+          context: {
+            body: { ...(ctx.body as Record<string, unknown>), email },
+          },
+        };
+      }
+
       const isSendOtp = ctx.path === "/phone-number/send-otp";
       const isVerify = ctx.path === "/phone-number/verify";
       if (!isSendOtp && !isVerify) return;
@@ -365,10 +522,19 @@ export const auth = betterAuth({
       };
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path !== "/phone-number/verify") return;
-
-      const phoneNumberParam = (ctx.body as { phoneNumber?: string } | undefined)?.phoneNumber;
-      logVerifyOutcome(phoneNumberParam, ctx.context.returned);
+      if (ctx.path === "/phone-number/verify") {
+        const phoneNumberParam = (ctx.body as { phoneNumber?: string } | undefined)?.phoneNumber;
+        logVerifyOutcome(phoneNumberParam, ctx.context.returned);
+        return;
+      }
+      // AUTH-CUSTOMER-EMAIL-OTP — log the email sign-in verify outcome (masked email,
+      // never the code). After-hooks run even when the endpoint threw (outcome at
+      // ctx.context.returned), mirroring the phone verify logging above.
+      if (ctx.path === "/sign-in/email-otp") {
+        const emailParam = (ctx.body as { email?: string } | undefined)?.email;
+        logEmailOtpVerifyOutcome(emailParam, ctx.context.returned);
+        return;
+      }
     }),
   },
 

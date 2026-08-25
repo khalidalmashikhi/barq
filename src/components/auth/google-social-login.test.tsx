@@ -41,6 +41,10 @@ const getSessionMock = vi.fn();
 vi.mock("@/lib/auth", () => ({ getSession: (...a: unknown[]) => getSessionMock(...a), UnauthenticatedError: class extends Error {}, isActiveAdminSession: async () => false }));
 const isGoogleConfiguredMock = vi.fn();
 vi.mock("@/lib/auth/social-config", () => ({ isGoogleConfigured: (...a: unknown[]) => isGoogleConfiguredMock(...a) }));
+// AUTH-CUSTOMER-EMAIL-OTP — the login page now also reads isEmailOtpConfigured
+// (server-only); mock it so the real module isn't pulled into the test.
+const isEmailOtpConfiguredMock = vi.fn();
+vi.mock("@/lib/email-otp/get-email-provider", () => ({ isEmailOtpConfigured: (...a: unknown[]) => isEmailOtpConfiguredMock(...a) }));
 function LoginFormMock() {
   return null;
 }
@@ -92,6 +96,19 @@ describe("Login page — Google wiring", () => {
     const tree = (await LoginPage({ searchParams: Promise.resolve({ error: "oauth" }) })) as ReactElement;
     const form = findByType(tree, LoginFormMock);
     expect(form.props.oauthError).toBe(true);
+  });
+
+  it("AUTH-CUSTOMER-EMAIL-OTP — passes emailEnabled through from isEmailOtpConfigured (both states)", async () => {
+    getSessionMock.mockResolvedValue(null);
+    isGoogleConfiguredMock.mockReturnValue(false);
+
+    isEmailOtpConfiguredMock.mockReturnValue(true);
+    let tree = (await LoginPage({ searchParams: Promise.resolve({}) })) as ReactElement;
+    expect(findByType(tree, LoginFormMock).props.emailEnabled).toBe(true);
+
+    isEmailOtpConfiguredMock.mockReturnValue(false);
+    tree = (await LoginPage({ searchParams: Promise.resolve({}) })) as ReactElement;
+    expect(findByType(tree, LoginFormMock).props.emailEnabled).toBe(false);
   });
 });
 

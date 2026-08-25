@@ -71,14 +71,28 @@ import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 // too-early/over-limit resend, we surface its localized message.
 const RESEND_COOLDOWN_SECONDS = 30;
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "email" | "emailOtp";
 
-// Google is an ADDITIONAL sign-in method — the phone+OTP flow below is
-// preserved exactly. `googleEnabled` comes from the server (only true when both
-// Google credentials are configured); the credentials themselves never reach
-// the client. `oauthError` is set when Better Auth redirected back here after a
-// failed Google attempt.
-export function LoginForm({ googleEnabled = false, oauthError = false }: { googleEnabled?: boolean; oauthError?: boolean }) {
+// Google and Email OTP are ADDITIONAL sign-in methods — the phone+OTP flow below
+// is preserved exactly. `googleEnabled` / `emailEnabled` come from the server
+// (only true when that method is configured on the deployment); no credential
+// ever reaches the client. `oauthError` is set when Better Auth redirected back
+// here after a failed Google attempt.
+//
+// AUTH-CUSTOMER-EMAIL-OTP: the email flow mirrors the phone flow's shape
+// (enter identifier -> 6-digit code -> verify), using authClient.emailOtp.* +
+// authClient.signIn.emailOtp. The phone step + otp step below are UNCHANGED; the
+// email step + emailOtp step are additive and reuse the same otpDigits state
+// (only one verify step is ever active at a time).
+export function LoginForm({
+  googleEnabled = false,
+  emailEnabled = false,
+  oauthError = false,
+}: {
+  googleEnabled?: boolean;
+  emailEnabled?: boolean;
+  oauthError?: boolean;
+}) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("auth");
@@ -90,6 +104,11 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [nationalNumber, setNationalNumber] = useState("");
   const [submittedPhone, setSubmittedPhone] = useState("");
+  // AUTH-CUSTOMER-EMAIL-OTP — email entry + the canonical email actually sent
+  // (server re-normalizes authoritatively; this is the value reused for resend +
+  // verify so all three hit one identity).
+  const [emailInput, setEmailInput] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(emptyOtp());
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -129,6 +148,122 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
       setError(t("oauthError"));
       setGoogleLoading(false);
     }
+  }
+
+  // --- AUTH-CUSTOMER-EMAIL-OTP — email sign-in flow (mirrors the phone flow) ---
+
+  function handleContinueWithEmail() {
+    setStep("email");
+    setError(null);
+    setResendNotice(false);
+  }
+
+  async function handleRequestEmailOtp(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    // Minimal client-side format guard; the server re-normalizes + validates
+    // authoritatively (INVALID_EMAIL) and remains the source of truth.
+    const email = emailInput.trim();
+    if (!email.includes("@") || /\s/.test(email)) {
+      setError(t("invalidEmail"));
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error: requestError } = await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+
+      if (requestError) {
+        // Stable server codes: INVALID_EMAIL (normalization) and
+        // EMAIL_DELIVERY_UNAVAILABLE (provider disabled / inert). Specific
+        // localized message for each; generic fallback otherwise.
+        const code = (requestError as { code?: string }).code;
+        setError(
+          code === "INVALID_EMAIL"
+            ? t("invalidEmail")
+            : code === "EMAIL_DELIVERY_UNAVAILABLE"
+              ? t("emailUnavailable")
+              : t("genericError")
+        );
+        return;
+      }
+
+      setSubmittedEmail(email);
+      setOtpSent(true);
+      setResendNotice(false);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setOtpDigits(emptyOtp());
+      setStep("emailOtp");
+    } catch {
+      setError(t("genericError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResendEmailOtp() {
+    if (resendCooldown > 0 || resending || loading) return;
+    setResending(true);
+    setError(null);
+    setResendNotice(false);
+
+    try {
+      const { error: requestError } = await authClient.emailOtp.sendVerificationOtp({
+        email: submittedEmail,
+        type: "sign-in",
+      });
+
+      if (requestError) {
+        const code = (requestError as { code?: string }).code;
+        setError(t(resendErrorKey(code)));
+        return;
+      }
+
+      setResendNotice(true);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setOtpDigits(emptyOtp());
+      otpInputRefs.current[0]?.focus();
+    } catch {
+      setError(t("genericError"));
+    } finally {
+      setResending(false);
+    }
+  }
+
+  async function handleVerifyEmailOtp(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: verifyError } = await authClient.signIn.emailOtp({
+        email: submittedEmail,
+        otp,
+      });
+
+      if (verifyError) {
+        setError(t("invalidOtpError"));
+        return;
+      }
+
+      router.push("/dashboard", { locale });
+      router.refresh();
+    } catch {
+      setError(t("genericError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleChangeEmail() {
+    setStep("email");
+    setOtpDigits(emptyOtp());
+    setOtpSent(false);
+    setResendNotice(false);
+    setResendCooldown(0);
+    setError(null);
   }
 
   async function handleRequestOtp(event: React.FormEvent) {
@@ -287,19 +422,34 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
       <h1 className="text-2xl font-semibold text-foreground">{t("loginTitle")}</h1>
       <p className="mt-1.5 text-sm text-foreground/60">{t("loginSubtitle")}</p>
 
-      {googleEnabled && (
+      {step === "phone" && (googleEnabled || emailEnabled) && (
         <div className="mt-8 flex flex-col gap-5">
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading || loading}
-            className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-          >
-            <GoogleIcon size={18} />
-            {googleLoading ? t("loading") : t("continueWithGoogle")}
-          </button>
+          {googleEnabled && (
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+              className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            >
+              <GoogleIcon size={18} />
+              {googleLoading ? t("loading") : t("continueWithGoogle")}
+            </button>
+          )}
 
-          {/* Divider: Google is one option; phone + OTP remains fully available. */}
+          {/* AUTH-CUSTOMER-EMAIL-OTP — opens the email sign-in sub-flow. Shown only
+              when email OTP is configured on this deployment (emailEnabled). */}
+          {emailEnabled && (
+            <button
+              type="button"
+              onClick={handleContinueWithEmail}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            >
+              {t("continueWithEmail")}
+            </button>
+          )}
+
+          {/* Divider: Google/email are alternatives; phone + OTP remains fully available. */}
           <div className="flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
             <span className="text-xs uppercase tracking-wide text-foreground/40">{t("orDivider")}</span>
@@ -422,6 +572,133 @@ export function LoginForm({ googleEnabled = false, oauthError = false }: { googl
               className="text-sm text-foreground/60 underline-offset-2 hover:underline"
             >
               {t("changePhoneButton")}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* AUTH-CUSTOMER-EMAIL-OTP — email entry step */}
+      {step === "email" && (
+        <form onSubmit={handleRequestEmailOtp} className="mt-8 flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="email" className="text-sm font-medium text-foreground/80">
+              {t("emailLabel")}
+            </label>
+            <input
+              id="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={emailInput}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setEmailInput(event.target.value)}
+              disabled={loading}
+              placeholder={t("emailPlaceholder")}
+              dir="ltr"
+              className="h-12 rounded-xl border border-border bg-background/60 px-4 text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" disabled={loading || emailInput.trim() === ""} className="w-full">
+            {loading ? t("loading") : t("requestOtpButton")}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setStep("phone");
+              setError(null);
+            }}
+            className="self-center text-sm text-foreground/60 underline-offset-2 hover:underline"
+          >
+            {t("backToOptions")}
+          </button>
+        </form>
+      )}
+
+      {/* AUTH-CUSTOMER-EMAIL-OTP — email OTP verify step (mirrors the phone otp step) */}
+      {step === "emailOtp" && (
+        <form onSubmit={handleVerifyEmailOtp} className="mt-8 flex flex-col gap-5">
+          {otpSent && (
+            <p className="rounded-xl bg-accent px-4 py-2.5 text-sm text-accent-foreground">{t("otpSentSuccess")}</p>
+          )}
+
+          {resendNotice && (
+            <p role="status" className="rounded-xl bg-success/10 px-4 py-2.5 text-sm text-success">
+              {t("otpResentSuccess")}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-foreground/80">{t("otpLabel")}</label>
+            <div className="flex justify-center gap-2" dir="ltr">
+              {otpDigits.map((digit: string, index: number) => (
+                <input
+                  key={index}
+                  ref={(el: HTMLInputElement | null) => {
+                    otpInputRefs.current[index] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete={index === 0 ? "one-time-code" : "off"}
+                  maxLength={1}
+                  value={digit}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    handleOtpDigitChange(index, event.target.value)
+                  }
+                  onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => handleOtpKeyDown(index, event)}
+                  onPaste={handleOtpPaste}
+                  aria-label={`${t("otpLabel")} ${index + 1}`}
+                  className="h-12 w-10 rounded-xl border border-border bg-background/60 text-center text-lg font-medium text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              ))}
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" disabled={loading || otp.length < OTP_LENGTH} className="w-full">
+            {loading ? t("loading") : t("verifyOtpButton")}
+          </Button>
+
+          <div className="flex flex-col items-center gap-2">
+            {(() => {
+              const resendState = getResendButtonState({
+                cooldownSeconds: resendCooldown,
+                resending,
+                verifying: loading,
+              });
+              return (
+                <button
+                  type="button"
+                  onClick={handleResendEmailOtp}
+                  disabled={resendState.disabled}
+                  aria-disabled={resendState.disabled}
+                  className="text-sm font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-foreground/40 disabled:no-underline"
+                >
+                  {resendState.label === "loading"
+                    ? t("loading")
+                    : resendState.label === "cooldown"
+                      ? t("resendCooldownLabel", { seconds: resendCooldown })
+                      : t("resendOtpButton")}
+                </button>
+              );
+            })()}
+            <button
+              type="button"
+              onClick={handleChangeEmail}
+              className="text-sm text-foreground/60 underline-offset-2 hover:underline"
+            >
+              {t("changeEmailButton")}
             </button>
           </div>
         </form>
