@@ -306,9 +306,24 @@ export const auth = betterAuth({
       // can no longer see live email codes. resendStrategy falls back to "rotate"
       // under hashing, which is the behavior we want (each send is a fresh code).
       storeOTP: "hashed",
-      // disableSignUp left at its default (false): a first-time email signs up,
-      // mirroring the phone plugin's signUpOnVerification (sign-in/sign-up only for
-      // v1 — authenticated "link email to my account" is a deferred later gate).
+      // AUTH-EMAIL-OTP-1 — disableSignUp: true makes email OTP SIGN-IN ONLY. An
+      // email-first sign-in would otherwise create a fresh AuthUser -> a fresh BARQ
+      // User via resolveBarqUser (email is never a reconciliation key), duplicating
+      // the identity of a person who already has a phone/Google account. Until
+      // authenticated email-linking exists (AUTH-EMAIL-LINK-1), the ONLY email that
+      // can sign in is one already attached to an AuthUser — so no duplicate
+      // identity can ever be created from an email.
+      //
+      // Verified against the installed better-auth@1.6.23 email-otp routes:
+      //   • /sign-in/email-otp: an unknown email hits the createUser branch ONLY
+      //     when !disableSignUp; with disableSignUp it throws INVALID_OTP instead
+      //     (never USER_NOT_FOUND) — no createUser, no session, and indistinguishable
+      //     from a wrong code (anti-enumeration).
+      //   • /email-otp/send-verification-otp: for an unknown email with
+      //     disableSignUp, shouldSendOTP is false, so it returns { success: true }
+      //     WITHOUT sending and deletes the verification — the response is identical
+      //     whether or not the email exists (no enumeration).
+      disableSignUp: true,
     }),
   ],
 
