@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Zbyt wiele prób. Spróbuj ponownie później.",
   "addEmailErrorInvalidOtp": "Kod jest nieprawidłowy lub wygasł. Spróbuj ponownie.",
   "addEmailErrorUnavailable": "Logowanie przez e-mail jest obecnie niedostępne.",
-  "addEmailErrorGeneric": "Coś poszło nie tak, spróbuj ponownie."
+  "addEmailErrorGeneric": "Coś poszło nie tak, spróbuj ponownie.",
+  "phoneMethodLabel": "Telefon",
+  "addPhoneButton": "Dodaj telefon",
+  "addPhoneInputLabel": "Numer telefonu",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Wyślij kod weryfikacyjny",
+  "addPhoneOtpLabel": "Kod weryfikacyjny",
+  "addPhoneVerifyButton": "Zweryfikuj",
+  "addPhoneCancel": "Anuluj",
+  "addPhoneLoading": "Ładowanie…",
+  "addPhoneErrorInvalid": "Podaj prawidłowy omański numer telefonu komórkowego.",
+  "addPhoneErrorConflict": "Ta metoda logowania jest już połączona z innym kontem.",
+  "addPhoneErrorAlready": "Do Twojego konta jest już przypisany numer telefonu.",
+  "addPhoneErrorRateLimited": "Zbyt wiele prób. Spróbuj ponownie później.",
+  "addPhoneErrorInvalidOtp": "Kod jest nieprawidłowy lub wygasł. Spróbuj ponownie.",
+  "addPhoneErrorUnavailable": "Weryfikacja telefoniczna jest obecnie niedostępna.",
+  "addPhoneErrorGeneric": "Coś poszło nie tak, spróbuj ponownie."
 }

@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Слишком много попыток. Повторите попытку позже.",
   "addEmailErrorInvalidOtp": "Код неверен или истёк. Повторите попытку.",
   "addEmailErrorUnavailable": "Вход по эл. почте сейчас недоступен.",
-  "addEmailErrorGeneric": "Что-то пошло не так, повторите попытку."
+  "addEmailErrorGeneric": "Что-то пошло не так, повторите попытку.",
+  "phoneMethodLabel": "Телефон",
+  "addPhoneButton": "Добавить телефон",
+  "addPhoneInputLabel": "Номер телефона",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Отправить код подтверждения",
+  "addPhoneOtpLabel": "Код подтверждения",
+  "addPhoneVerifyButton": "Подтвердить",
+  "addPhoneCancel": "Отмена",
+  "addPhoneLoading": "Загрузка…",
+  "addPhoneErrorInvalid": "Введите действительный оманский мобильный номер.",
+  "addPhoneErrorConflict": "Этот способ входа уже привязан к другому аккаунту.",
+  "addPhoneErrorAlready": "К вашему аккаунту уже привязан номер телефона.",
+  "addPhoneErrorRateLimited": "Слишком много попыток. Повторите попытку позже.",
+  "addPhoneErrorInvalidOtp": "Код неверен или истёк. Повторите попытку.",
+  "addPhoneErrorUnavailable": "Подтверждение по телефону сейчас недоступно.",
+  "addPhoneErrorGeneric": "Что-то пошло не так, повторите попытку."
 }

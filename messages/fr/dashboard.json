@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Trop de tentatives. Réessayez plus tard.",
   "addEmailErrorInvalidOtp": "Ce code est incorrect ou a expiré. Veuillez réessayer.",
   "addEmailErrorUnavailable": "La connexion par e-mail n'est pas disponible pour le moment.",
-  "addEmailErrorGeneric": "Une erreur s'est produite, veuillez réessayer."
+  "addEmailErrorGeneric": "Une erreur s'est produite, veuillez réessayer.",
+  "phoneMethodLabel": "Téléphone",
+  "addPhoneButton": "Ajouter un téléphone",
+  "addPhoneInputLabel": "Numéro de téléphone",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Envoyer le code de vérification",
+  "addPhoneOtpLabel": "Code de vérification",
+  "addPhoneVerifyButton": "Vérifier",
+  "addPhoneCancel": "Annuler",
+  "addPhoneLoading": "Chargement…",
+  "addPhoneErrorInvalid": "Saisissez un numéro mobile omanais valide.",
+  "addPhoneErrorConflict": "Cette méthode de connexion est déjà associée à un autre compte.",
+  "addPhoneErrorAlready": "Un numéro de téléphone est déjà associé à votre compte.",
+  "addPhoneErrorRateLimited": "Trop de tentatives. Réessayez plus tard.",
+  "addPhoneErrorInvalidOtp": "Ce code est incorrect ou a expiré. Veuillez réessayer.",
+  "addPhoneErrorUnavailable": "La vérification par téléphone n'est pas disponible pour le moment.",
+  "addPhoneErrorGeneric": "Une erreur s'est produite, veuillez réessayer."
 }

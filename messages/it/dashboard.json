@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Troppi tentativi. Riprova più tardi.",
   "addEmailErrorInvalidOtp": "Il codice è errato o scaduto. Riprova.",
   "addEmailErrorUnavailable": "L'accesso via email non è disponibile al momento.",
-  "addEmailErrorGeneric": "Si è verificato un errore, riprova."
+  "addEmailErrorGeneric": "Si è verificato un errore, riprova.",
+  "phoneMethodLabel": "Telefono",
+  "addPhoneButton": "Aggiungi telefono",
+  "addPhoneInputLabel": "Numero di telefono",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Invia codice di verifica",
+  "addPhoneOtpLabel": "Codice di verifica",
+  "addPhoneVerifyButton": "Verifica",
+  "addPhoneCancel": "Annulla",
+  "addPhoneLoading": "Caricamento…",
+  "addPhoneErrorInvalid": "Inserisci un numero di cellulare omanita valido.",
+  "addPhoneErrorConflict": "Questo metodo di accesso è già collegato a un altro account.",
+  "addPhoneErrorAlready": "Un numero di telefono è già collegato al tuo account.",
+  "addPhoneErrorRateLimited": "Troppi tentativi. Riprova più tardi.",
+  "addPhoneErrorInvalidOtp": "Il codice è errato o scaduto. Riprova.",
+  "addPhoneErrorUnavailable": "La verifica telefonica non è disponibile al momento.",
+  "addPhoneErrorGeneric": "Si è verificato un errore, riprova."
 }

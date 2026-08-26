@@ -1,20 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 
-// AUTH-EMAIL-OTP-1 — regression guard for the "email OTP is SIGN-IN ONLY" decision.
-//
-// This asserts the real, constructed Better Auth `auth` instance carries the
-// email-otp plugin with `disableSignUp: true`. Better Auth's plugin object exposes
-// its input options (node_modules/better-auth/dist/plugins/email-otp/index.mjs
-// returns `{ id: "email-otp", ..., options }`), so flipping the flag back to false
-// in src/lib/auth/server.ts would fail this test.
-//
-// The RUNTIME consequence of the flag is Better Auth's own, verified from the
-// installed package (routes.mjs): with disableSignUp, /sign-in/email-otp throws
-// INVALID_OTP for an unknown email instead of taking the createUser branch (that
-// branch runs only when !disableSignUp), and /email-otp/send-verification-otp
-// returns { success: true } without sending for an unknown email — so an unknown
-// email creates NO AuthUser / User / Customer and leaks no account existence. We do
-// not re-boot Better Auth to re-test its library internals here; we pin OUR config.
+// AUTH-DUAL-IDENTITY-1 — regression guard for the email-OTP plugin config on the
+// real, constructed Better Auth `auth` instance (its plugin object exposes its
+// input `options`). Pins that email OTP is now a first-class SIGNUP method
+// (disableSignUp: false, superseding AUTH-EMAIL-OTP-1's sign-in-only stance),
+// change-email linking stays enabled, storeOTP stays hashed, and the phone plugin
+// is untouched. We pin OUR config, not Better Auth's internals.
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ prisma: {} }));
@@ -36,8 +27,11 @@ describe("AUTH-EMAIL-OTP-1 — email OTP sign-in only", () => {
     expect(emailOtp).toBeDefined();
   });
 
-  it("configures the email-otp plugin with disableSignUp: true (no email-first sign-up)", () => {
-    expect(emailOtp?.options?.disableSignUp).toBe(true);
+  it("AUTH-DUAL-IDENTITY-1 — email OTP is a first-class signup method (disableSignUp: false)", () => {
+    // Email-first signup is now supported (mirrors phone OTP). An unknown email that
+    // verifies creates one AuthUser -> one BARQ User + Customer (Case C/D), no
+    // Provider/Admin privilege, no merge; convergence is by explicit linking.
+    expect(emailOtp?.options?.disableSignUp).toBe(false);
   });
 
   it("AUTH-EMAIL-LINK-1 — enables OTP change-email for authenticated linking (verifyCurrentEmail false)", () => {

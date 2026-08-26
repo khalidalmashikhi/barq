@@ -9,6 +9,8 @@ import { GoogleIcon } from "@/components/ui/google-icon";
 import { isEmailOtpConfigured } from "@/lib/email-otp/get-email-provider";
 import { getLinkedEmailState } from "@/lib/auth/linked-email";
 import { AddEmailButton } from "@/components/auth/add-email-button";
+import { getLinkedPhoneState } from "@/lib/auth/linked-phone";
+import { AddPhoneButton } from "@/components/auth/add-phone-button";
 import { getCustomerSettings } from "@/lib/customer/get-customer-settings";
 import { updateCustomerSettings } from "@/lib/customer/update-customer-settings";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
@@ -77,6 +79,9 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
   // on this deployment (a real vendor). INERT otherwise, so the Email row is hidden.
   const emailLinkingEnabled = isEmailOtpConfigured();
   const linkedEmail = emailLinkingEnabled ? await getLinkedEmailState() : null;
+  // AUTH-DUAL-IDENTITY-1 — phone is always a first-class method (no vendor gate),
+  // so the Phone row always shows: Connected (masked) or "Add phone".
+  const linkedPhone = await getLinkedPhoneState();
 
   return (
     <AppShell
@@ -148,16 +153,35 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
           </SubmitButton>
         </form>
 
-        {/* Sign-in methods (Gate 3) — phone + OTP is always available; Google is
-            an optional additional method a signed-in user can connect to THIS
-            same account. Disconnect is intentionally not offered yet (MVP) — see
-            the Gate-3 report; showing "Connected" without a remove action can
-            never lock a user out. */}
-        {(googleEnabled || emailLinkingEnabled) && (
-          <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        {/* Sign-in methods — phone is ALWAYS a first-class method; email and Google
+            are additional methods a signed-in user can attach to THIS same account.
+            Disconnect is intentionally not offered yet (MVP): showing "Connected"
+            without a remove action can never lock a user out of their account. */}
+        <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("connectedAccountsTitle")}</h2>
               <p className="mt-1 text-xs text-foreground/50">{t("connectedAccountsSubtitle")}</p>
+            </div>
+
+            {/* AUTH-DUAL-IDENTITY-1 — Phone method. Connected shows the masked number;
+                otherwise "Add phone" opens the OTP ownership-proof flow (for email-first
+                / Google-first accounts), attaching the verified phone to THIS account. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex flex-col text-sm font-medium text-foreground">
+                {t("phoneMethodLabel")}
+                {linkedPhone?.hasPhone && linkedPhone.maskedPhone && (
+                  <span className="text-xs font-normal text-foreground/50" dir="ltr">
+                    {linkedPhone.maskedPhone}
+                  </span>
+                )}
+              </span>
+              {linkedPhone?.hasPhone ? (
+                <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+                  {t("connectedLabel")}
+                </span>
+              ) : (
+                <AddPhoneButton />
+              )}
             </div>
 
             {/* AUTH-EMAIL-LINK-1 — Email sign-in method. Connected shows the masked
@@ -198,8 +222,7 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
                 )}
               </div>
             )}
-          </section>
-        )}
+        </section>
       </div>
     </AppShell>
   );

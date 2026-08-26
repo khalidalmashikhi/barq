@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Příliš mnoho pokusů. Zkuste to prosím později.",
   "addEmailErrorInvalidOtp": "Kód je nesprávný nebo vypršel. Zkuste to znovu.",
   "addEmailErrorUnavailable": "Přihlášení e-mailem není momentálně dostupné.",
-  "addEmailErrorGeneric": "Něco se pokazilo, zkuste to znovu."
+  "addEmailErrorGeneric": "Něco se pokazilo, zkuste to znovu.",
+  "phoneMethodLabel": "Telefon",
+  "addPhoneButton": "Přidat telefon",
+  "addPhoneInputLabel": "Telefonní číslo",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Odeslat ověřovací kód",
+  "addPhoneOtpLabel": "Ověřovací kód",
+  "addPhoneVerifyButton": "Ověřit",
+  "addPhoneCancel": "Zrušit",
+  "addPhoneLoading": "Načítání…",
+  "addPhoneErrorInvalid": "Zadejte platné ománské mobilní číslo.",
+  "addPhoneErrorConflict": "Tento způsob přihlášení je již propojen s jiným účtem.",
+  "addPhoneErrorAlready": "K vašemu účtu je již připojeno telefonní číslo.",
+  "addPhoneErrorRateLimited": "Příliš mnoho pokusů. Zkuste to prosím později.",
+  "addPhoneErrorInvalidOtp": "Kód je nesprávný nebo vypršel. Zkuste to znovu.",
+  "addPhoneErrorUnavailable": "Ověření telefonem není momentálně dostupné.",
+  "addPhoneErrorGeneric": "Něco se pokazilo, zkuste to znovu."
 }

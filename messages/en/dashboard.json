@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Too many attempts. Please try again later.",
   "addEmailErrorInvalidOtp": "That code is incorrect or has expired. Please try again.",
   "addEmailErrorUnavailable": "Email sign-in isn't available right now.",
-  "addEmailErrorGeneric": "Something went wrong, please try again."
+  "addEmailErrorGeneric": "Something went wrong, please try again.",
+  "phoneMethodLabel": "Phone",
+  "addPhoneButton": "Add phone",
+  "addPhoneInputLabel": "Phone number",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Send verification code",
+  "addPhoneOtpLabel": "Verification code",
+  "addPhoneVerifyButton": "Verify",
+  "addPhoneCancel": "Cancel",
+  "addPhoneLoading": "Loading…",
+  "addPhoneErrorInvalid": "Enter a valid Oman mobile number.",
+  "addPhoneErrorConflict": "This sign-in method is already connected to another account.",
+  "addPhoneErrorAlready": "A phone number is already connected to your account.",
+  "addPhoneErrorRateLimited": "Too many attempts. Please try again later.",
+  "addPhoneErrorInvalidOtp": "That code is incorrect or has expired. Please try again.",
+  "addPhoneErrorUnavailable": "Phone verification isn't available right now.",
+  "addPhoneErrorGeneric": "Something went wrong, please try again."
 }

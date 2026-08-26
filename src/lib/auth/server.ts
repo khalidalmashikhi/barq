@@ -306,24 +306,29 @@ export const auth = betterAuth({
       // can no longer see live email codes. resendStrategy falls back to "rotate"
       // under hashing, which is the behavior we want (each send is a fresh code).
       storeOTP: "hashed",
-      // AUTH-EMAIL-OTP-1 — disableSignUp: true makes email OTP SIGN-IN ONLY. An
-      // email-first sign-in would otherwise create a fresh AuthUser -> a fresh BARQ
-      // User via resolveBarqUser (email is never a reconciliation key), duplicating
-      // the identity of a person who already has a phone/Google account. Until
-      // authenticated email-linking exists (AUTH-EMAIL-LINK-1), the ONLY email that
-      // can sign in is one already attached to an AuthUser — so no duplicate
-      // identity can ever be created from an email.
+      // AUTH-DUAL-IDENTITY-1 — email OTP is now a FIRST-CLASS signup method
+      // (disableSignUp: false), mirroring phone OTP. An unknown email that verifies
+      // creates exactly ONE fresh AuthUser (with the real, verified email) which
+      // resolveBarqUser resolves to exactly ONE new BARQ User + Customer (Case C/D,
+      // the phone-less-first path already used by Google) — NO Provider/Admin
+      // privilege, NO merge. An existing linked email resolves the SAME AuthUser ->
+      // SAME User (Case A).
       //
-      // Verified against the installed better-auth@1.6.23 email-otp routes:
-      //   • /sign-in/email-otp: an unknown email hits the createUser branch ONLY
-      //     when !disableSignUp; with disableSignUp it throws INVALID_OTP instead
-      //     (never USER_NOT_FOUND) — no createUser, no session, and indistinguishable
-      //     from a wrong code (anti-enumeration).
-      //   • /email-otp/send-verification-otp: for an unknown email with
-      //     disableSignUp, shouldSendOTP is false, so it returns { success: true }
-      //     WITHOUT sending and deletes the verification — the response is identical
-      //     whether or not the email exists (no enumeration).
-      disableSignUp: true,
+      // ACCEPTED TRADE-OFF (superseding AUTH-EMAIL-OTP-1's sign-in-only stance):
+      // because email is never a reconciliation key, a person who already has a
+      // phone/Google account and signs up fresh with a new email gets a SEPARATE
+      // BARQ account — ownership equivalence cannot be proven at anonymous signup.
+      // Convergence is by EXPLICIT authenticated linking (Add email / Add phone in
+      // Settings), never a silent auto-merge; historical A/B recovery is a separate
+      // dual-proof gate (AUTH-IDENTITY-MERGE-1). The durable send cooldown / daily
+      // cap / per-IP + per-email limits in the hooks below bound the "send OTP to
+      // any address" abuse surface that enabling signup reintroduces.
+      //
+      // Verified against better-auth@1.6.23 email-otp routes: with !disableSignUp,
+      // /sign-in/email-otp createUser runs for an unknown email (one AuthUser), and
+      // /email-otp/send-verification-otp sends for sign-in type (new customers get a
+      // code). storeOTP stays hashed; per-code attempt cap unchanged.
+      disableSignUp: false,
       // AUTH-EMAIL-LINK-1 — enable Better Auth's OTP-based change-email so an
       // AUTHENTICATED user can attach a real, verified email to their CURRENT
       // AuthUser (endpoints /email-otp/request-email-change + /email-otp/change-email,

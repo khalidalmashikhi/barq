@@ -75,6 +75,13 @@ function AddEmailButtonMock() {
   return null;
 }
 vi.mock("@/components/auth/add-email-button", () => ({ AddEmailButton: AddEmailButtonMock }));
+// AUTH-DUAL-IDENTITY-1 — settings page now also renders the phone row (always).
+const getLinkedPhoneStateMock = vi.fn();
+vi.mock("@/lib/auth/linked-phone", () => ({ getLinkedPhoneState: (...a: unknown[]) => getLinkedPhoneStateMock(...a) }));
+function AddPhoneButtonMock() {
+  return null;
+}
+vi.mock("@/components/auth/add-phone-button", () => ({ AddPhoneButton: AddPhoneButtonMock }));
 
 const { default: LoginPage } = await import("@/app/[locale]/login/page");
 const { default: SettingsPage } = await import("@/app/[locale]/dashboard/settings/page");
@@ -125,6 +132,8 @@ describe("Settings — Sign-in methods section", () => {
   beforeEach(() => {
     isEmailOtpConfiguredMock.mockReturnValue(false);
     getLinkedEmailStateMock.mockResolvedValue({ hasRealEmail: false, maskedEmail: null });
+    // Default: phone-less (email/Google-first) so the phone row shows "Add phone".
+    getLinkedPhoneStateMock.mockResolvedValue({ hasPhone: false, maskedPhone: null });
   });
 
   it("shows Connected when the account has Google linked", async () => {
@@ -143,12 +152,24 @@ describe("Settings — Sign-in methods section", () => {
     expect(containsText(tree, "connectedLabel")).toBe(false);
   });
 
-  it("hides the whole section when neither Google nor email is configured", async () => {
+  it("AUTH-DUAL-IDENTITY-1 — section ALWAYS renders (phone row) even without Google/email", async () => {
     isGoogleConfiguredMock.mockReturnValue(false);
     getLinkedProviderIdsMock.mockResolvedValue([]);
     const tree = (await SettingsPage({ searchParams: Promise.resolve({}) })) as ReactElement;
-    expect(containsText(tree, "connectedAccountsTitle")).toBe(false);
-    expect(findByType(tree, ConnectGoogleButtonMock)).toBeNull();
+    expect(containsText(tree, "connectedAccountsTitle")).toBe(true); // section always shown (phone)
+    expect(containsText(tree, "phoneMethodLabel")).toBe(true);
+    expect(findByType(tree, AddPhoneButtonMock)).not.toBeNull(); // phone-less -> Add phone
+    expect(findByType(tree, ConnectGoogleButtonMock)).toBeNull(); // no google row
+    expect(containsText(tree, "emailMethodLabel")).toBe(false); // no email row
+  });
+
+  it("AUTH-DUAL-IDENTITY-1 — masked phone + Connected (no Add phone) when a phone is linked", async () => {
+    isGoogleConfiguredMock.mockReturnValue(false);
+    getLinkedPhoneStateMock.mockResolvedValue({ hasPhone: true, maskedPhone: "********5159" });
+    const tree = (await SettingsPage({ searchParams: Promise.resolve({}) })) as ReactElement;
+    expect(containsText(tree, "********5159")).toBe(true);
+    expect(containsText(tree, "connectedLabel")).toBe(true);
+    expect(findByType(tree, AddPhoneButtonMock)).toBeNull();
   });
 
   // --- AUTH-EMAIL-LINK-1 — email row ---

@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
   "addEmailErrorInvalidOtp": "الرمز غير صحيح أو منتهي الصلاحية. حاول مرة أخرى.",
   "addEmailErrorUnavailable": "تسجيل الدخول عبر البريد الإلكتروني غير متاح حاليًا.",
-  "addEmailErrorGeneric": "حدث خطأ ما، الرجاء المحاولة مرة أخرى."
+  "addEmailErrorGeneric": "حدث خطأ ما، الرجاء المحاولة مرة أخرى.",
+  "phoneMethodLabel": "الهاتف",
+  "addPhoneButton": "إضافة هاتف",
+  "addPhoneInputLabel": "رقم الهاتف",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "إرسال رمز التحقق",
+  "addPhoneOtpLabel": "رمز التحقق",
+  "addPhoneVerifyButton": "تحقق",
+  "addPhoneCancel": "إلغاء",
+  "addPhoneLoading": "جارٍ التحميل…",
+  "addPhoneErrorInvalid": "أدخل رقم هاتف عُماني صالح.",
+  "addPhoneErrorConflict": "طريقة تسجيل الدخول هذه مرتبطة بالفعل بحساب آخر.",
+  "addPhoneErrorAlready": "يوجد رقم هاتف مرتبط بحسابك بالفعل.",
+  "addPhoneErrorRateLimited": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
+  "addPhoneErrorInvalidOtp": "الرمز غير صحيح أو منتهي الصلاحية. حاول مرة أخرى.",
+  "addPhoneErrorUnavailable": "التحقق عبر الهاتف غير متاح حاليًا.",
+  "addPhoneErrorGeneric": "حدث خطأ ما، الرجاء المحاولة مرة أخرى."
 }

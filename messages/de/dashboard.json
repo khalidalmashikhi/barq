@@ -103,5 +103,21 @@
   "addEmailErrorRateLimited": "Zu viele Versuche. Bitte versuche es später erneut.",
   "addEmailErrorInvalidOtp": "Der Code ist falsch oder abgelaufen. Bitte versuche es erneut.",
   "addEmailErrorUnavailable": "Die Anmeldung per E-Mail ist derzeit nicht verfügbar.",
-  "addEmailErrorGeneric": "Etwas ist schiefgelaufen, bitte versuche es erneut."
+  "addEmailErrorGeneric": "Etwas ist schiefgelaufen, bitte versuche es erneut.",
+  "phoneMethodLabel": "Telefon",
+  "addPhoneButton": "Telefon hinzufügen",
+  "addPhoneInputLabel": "Telefonnummer",
+  "addPhoneInputPlaceholder": "+968 9XXX XXXX",
+  "addPhoneSendButton": "Bestätigungscode senden",
+  "addPhoneOtpLabel": "Bestätigungscode",
+  "addPhoneVerifyButton": "Bestätigen",
+  "addPhoneCancel": "Abbrechen",
+  "addPhoneLoading": "Wird geladen…",
+  "addPhoneErrorInvalid": "Gib eine gültige omanische Mobilnummer ein.",
+  "addPhoneErrorConflict": "Diese Anmeldemethode ist bereits mit einem anderen Konto verbunden.",
+  "addPhoneErrorAlready": "Mit deinem Konto ist bereits eine Telefonnummer verbunden.",
+  "addPhoneErrorRateLimited": "Zu viele Versuche. Bitte versuche es später erneut.",
+  "addPhoneErrorInvalidOtp": "Der Code ist falsch oder abgelaufen. Bitte versuche es erneut.",
+  "addPhoneErrorUnavailable": "Die Telefon-Verifizierung ist derzeit nicht verfügbar.",
+  "addPhoneErrorGeneric": "Etwas ist schiefgelaufen, bitte versuche es erneut."
 }
