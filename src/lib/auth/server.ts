@@ -9,7 +9,7 @@ import { OtpDeliveryUnavailableError } from "@/lib/otp/providers/disabled-provid
 import { getOtpConfig } from "@/lib/otp/otp-config";
 import { checkResendCooldown } from "@/lib/otp/check-resend-cooldown";
 import { checkDailySendLimit } from "@/lib/otp/check-daily-send-limit";
-import { normalizeOmanPhone } from "@/lib/otp/normalize-oman-phone";
+import { normalizeInternationalPhone } from "@/lib/phone/normalize-international-phone";
 import { resolveClientIp, hmacRateLimitKey } from "@/lib/rate-limit/client-ip";
 import { consumeRateLimit, sweepExpiredRateLimits } from "@/lib/rate-limit/durable-rate-limiter";
 import {
@@ -348,10 +348,13 @@ export const auth = betterAuth({
   ],
 
   // Root-level before/after hooks — Phase D.4, extended by the P0-1
-  // security gate (Oman phone canonicalization). `hooks.before` now runs
-  // on BOTH /phone-number/send-otp and /phone-number/verify and, as its
-  // FIRST action, canonicalizes the client-supplied phone number to one
-  // authoritative +968 E.164 form (normalizeOmanPhone). It then REWRITES
+  // security gate (phone canonicalization), now INTERNATIONAL
+  // (AUTH-INTERNATIONAL-PHONE-1). `hooks.before` runs on BOTH
+  // /phone-number/send-otp and /phone-number/verify and, as its FIRST
+  // action, canonicalizes the client-supplied phone number to one
+  // authoritative E.164 form via the shared libphonenumber-js authority
+  // (normalizeInternationalPhone, default region Oman so legacy bare
+  // Oman input still yields the exact same +968XXXXXXXX). It then REWRITES
   // ctx.body.phoneNumber to that canonical value via the returned
   // `{ context: { body } }` — confirmed against the installed Better Auth
   // that dispatch.mjs deep-merges a before-hook's `context.body` into the
@@ -360,7 +363,7 @@ export const auth = betterAuth({
   // the plugin's Verification.identifier, Twilio delivery, the verify
   // lookup, and the resulting User identity ALL key on the same canonical
   // number: equivalent textual forms can neither multiply the per-number
-  // rate limits nor fragment identity, and non-Oman / malformed input is
+  // rate limits nor fragment identity, and malformed/invalid input is
   // rejected BEFORE any code is generated or any SMS is sent.
   // (The resend-cooldown check itself is still the piece Better Auth's
   // plugin lacks; `hooks.after` logs verify outcomes — after-hooks run
@@ -459,15 +462,16 @@ export const auth = betterAuth({
       // Missing param: let Better Auth's own validation produce its standard error.
       if (typeof phoneNumberParam !== "string" || phoneNumberParam.trim() === "") return;
 
-      // Authoritative canonicalization (single source of truth). Reject non-Oman /
-      // malformed numbers here — before the cooldown/cap lookups, before any code
-      // is generated, and before Twilio is ever called. Never expose normalization
-      // internals; the client maps the stable code to a localized message.
-      const normalized = normalizeOmanPhone(phoneNumberParam);
+      // Authoritative canonicalization (single source of truth). Reject
+      // malformed / invalid numbers here — before the cooldown/cap lookups, before
+      // any code is generated, and before Twilio is ever called. Never expose
+      // normalization internals; the client maps the stable code to a localized
+      // message. Default region Oman keeps legacy bare-Oman input canonical.
+      const normalized = normalizeInternationalPhone(phoneNumberParam);
       if (!normalized.ok) {
         throw new APIError("BAD_REQUEST", {
           code: "INVALID_PHONE_NUMBER",
-          message: "Enter a valid Oman mobile number.",
+          message: "Enter a valid mobile number.",
         });
       }
       const phone = normalized.e164;

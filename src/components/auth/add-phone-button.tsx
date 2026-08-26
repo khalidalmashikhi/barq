@@ -8,14 +8,14 @@ import { PhoneNumberInput } from "./phone-number-input";
 import { resolveAuthPhone, canRequestOtp } from "./phone-entry";
 import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 
-// AUTH-DUAL-VERIFICATION-1 — the authenticated "Add phone" action (Settings +
-// mandatory onboarding). Now uses the shared country-flag + calling-code picker
-// (PhoneNumberInput) rather than a plain field: the customer picks a country and
-// enters the NATIONAL number, and resolveAuthPhone canonicalizes it to E.164 (Oman
-// -only for now, exactly like the login form). The server (link-phone.ts) re-
-// normalizes as the authority and attaches the verified phone to the SAME AuthUser;
-// this component never mutates AuthUser/User. On success router.refresh() re-renders
-// (Settings shows "Connected"; the onboarding page advances once complete).
+// AUTH-DUAL-VERIFICATION-1 / AUTH-INTERNATIONAL-PHONE-1 — the authenticated "Add
+// phone" action (Settings + mandatory onboarding). Uses the shared country-flag +
+// calling-code picker (PhoneNumberInput): the customer picks any country and enters
+// the NATIONAL number, and resolveAuthPhone canonicalizes it to E.164 via the shared
+// libphonenumber-js authority (Oman is the default, exactly like the login form). The
+// server (link-phone.ts) re-normalizes as the authority and attaches the verified
+// phone to the SAME AuthUser; this component never mutates AuthUser/User. On success
+// router.refresh() re-renders (Settings shows "Connected"; onboarding advances).
 
 const ERROR_KEY = {
   INVALID_PHONE: "addPhoneErrorInvalid",

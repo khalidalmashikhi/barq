@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "./server";
 import { requireAuth, UnauthenticatedError, ForbiddenError } from "./index";
 import { prisma } from "@/lib/db";
-import { normalizeOmanPhone } from "@/lib/otp/normalize-oman-phone";
+import { normalizeInternationalPhone } from "@/lib/phone/normalize-international-phone";
 import { resolveClientIp, hmacRateLimitKey } from "@/lib/rate-limit/client-ip";
 import { consumeRateLimit } from "@/lib/rate-limit/durable-rate-limiter";
 import {
@@ -28,9 +28,10 @@ import { logger } from "@/lib/logger";
 // better-auth@1.6.23) requires a session, rejects a phone already on another user
 // (PHONE_NUMBER_EXIST), and does updateUser(currentAuthUser.id, {phoneNumber,
 // phoneNumberVerified:true}) on the SAME AuthUser. BARQ adds the policy around it:
-// authentication, Oman canonicalization, ACCOUNT_LINK_CONFLICT pre-check (AuthUser
-// AND domain User), the "already has a phone" guard, rate limiting, masked audit,
-// and a domain User.phoneNumber sync so the canonical User row reflects the phone.
+// authentication, international E.164 canonicalization (normalizeInternationalPhone,
+// the same authority used at login), ACCOUNT_LINK_CONFLICT pre-check (AuthUser AND
+// domain User), the "already has a phone" guard, rate limiting, masked audit, and a
+// domain User.phoneNumber sync so the canonical User row reflects the phone.
 //
 // The client calls these server actions; it never mutates AuthUser/User directly.
 
@@ -86,7 +87,7 @@ export async function requestPhoneLink(phoneRaw: string): Promise<PhoneLinkResul
   const ctx = await requireAuthCtx();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
-  const normalized = normalizeOmanPhone(phoneRaw);
+  const normalized = normalizeInternationalPhone(phoneRaw);
   if (!normalized.ok) return { ok: false, error: "INVALID_PHONE" };
   const phone = normalized.e164;
 
@@ -127,7 +128,7 @@ export async function verifyPhoneLink(phoneRaw: string, code: string): Promise<P
   const ctx = await requireAuthCtx();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
-  const normalized = normalizeOmanPhone(phoneRaw);
+  const normalized = normalizeInternationalPhone(phoneRaw);
   if (!normalized.ok) return { ok: false, error: "INVALID_PHONE" };
   const phone = normalized.e164;
   if (typeof code !== "string" || code.trim() === "") return { ok: false, error: "INVALID_OTP" };

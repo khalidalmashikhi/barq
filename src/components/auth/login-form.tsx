@@ -52,15 +52,16 @@ import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 // whichever locale this form is currently rendered under, rather than
 // navigating to a now-dead unprefixed path.
 //
-// GLOBAL PHONE PICKER (Global Phone Entry gate): the single free-text phone input
+// GLOBAL PHONE PICKER (AUTH-INTERNATIONAL-PHONE-1): the single free-text phone input
 // is replaced by PhoneNumberInput (a country selector + national field). BARQ
-// authentication remains OMAN-ONLY — resolveAuthPhone() (which reuses the P0-1
-// canonicalizer) turns the selection into the exact same canonical +968XXXXXXXX
-// identity, and an unsupported country or invalid number NEVER reaches send-otp
-// (the server's P0-1 + P1 remain the authority regardless). The sendOtp/verify
-// call SHAPES ({ phoneNumber, code }) are unchanged — only the phone value's source
-// changed, and `submittedPhone` (the resolved E.164) is reused for send/resend/
-// verify so all three hit one identity.
+// authentication is INTERNATIONAL — resolveAuthPhone() delegates to the shared
+// libphonenumber-js authority, turning the selected country + national number into a
+// canonical E.164 identity (Oman stays the default and its numbers keep the exact
+// +968XXXXXXXX form). An invalid number NEVER reaches send-otp (the server's P0-1 +
+// P1 hooks re-validate as the authority regardless). The sendOtp/verify call SHAPES
+// ({ phoneNumber, code }) are unchanged — only the phone value's source changed, and
+// `submittedPhone` (the resolved E.164) is reused for send/resend/verify so all
+// three hit one identity.
 
 // OTP_LENGTH and the digit-box value logic now live in ./otp-input.ts (pure,
 // unit-tested). The component keeps ownership of React state, refs, and focus.
@@ -271,10 +272,10 @@ export function LoginForm({
     setLoading(true);
     setError(null);
 
-    // Resolve (selected country + national input) into the canonical identity
-    // BEFORE any send. An unsupported country or invalid number NEVER reaches
-    // send-otp (the server's P0-1 also rejects non-Oman). For Oman this reuses the
-    // P0-1 canonicalizer, so the value sent is the exact same +968XXXXXXXX contract.
+    // Resolve (selected country + national input) into the canonical E.164 identity
+    // BEFORE any send. An invalid number NEVER reaches send-otp (the server's
+    // international P0-1 authority re-validates). For Oman the value is the exact same
+    // +968XXXXXXXX contract as before.
     const resolved = resolveAuthPhone(country, nationalNumber);
     if (!resolved.ok) {
       setError(resolved.reason === "COUNTRY_UNSUPPORTED" ? t("phoneAuthNotAvailable") : t("invalidPhoneNumber"));

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// AUTH-DUAL-IDENTITY-1 — orchestration tests for the "Add phone" server actions.
-// Better Auth's phone updatePhoneNumber primitive is mocked at auth.api; these pin
-// BARQ's policy layer: auth required, Oman canonicalization, already-has-phone
-// guard, generic ACCOUNT_LINK_CONFLICT (AuthUser AND domain User, never merge/leak),
-// rate limiting, delegation to auth.api, and the domain User.phoneNumber sync.
-// normalizeOmanPhone runs REAL.
+// AUTH-DUAL-IDENTITY-1 / AUTH-INTERNATIONAL-PHONE-1 — orchestration tests for the
+// "Add phone" server actions. Better Auth's phone updatePhoneNumber primitive is
+// mocked at auth.api; these pin BARQ's policy layer: auth required, international
+// E.164 canonicalization, already-has-phone guard, generic ACCOUNT_LINK_CONFLICT
+// (AuthUser AND domain User, never merge/leak), rate limiting, delegation to
+// auth.api, and the domain User.phoneNumber sync. normalizeInternationalPhone
+// (libphonenumber-js) runs REAL.
 
 vi.mock("server-only", () => ({}));
 
@@ -47,7 +48,8 @@ const { Prisma } = await import("@prisma/client");
 const ME = "authuser-me";
 const MY_USER = "barq-user-me";
 const OTHER = "authuser-other";
-const PHONE = "+96898115159"; // normalizeOmanPhone("98115159")
+const PHONE = "+96898115159"; // normalizeInternationalPhone("98115159") — Oman default
+const SA_PHONE = "+966512345678"; // a valid international number the client sends as E.164
 
 function primeOwners(opts: { authOwner?: string | null; userOwner?: string | null } = {}) {
   authUserFindUniqueMock.mockResolvedValue(opts.authOwner ? { id: opts.authOwner } : null);
@@ -71,10 +73,16 @@ describe("requestPhoneLink", () => {
     expect(sendPhoneOtpMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a malformed / non-Oman number (INVALID_PHONE)", async () => {
+  it("rejects a malformed / invalid number (INVALID_PHONE)", async () => {
     expect(await requestPhoneLink("12345")).toEqual({ ok: false, error: "INVALID_PHONE" });
+    // a malformed UAE number (too many national digits) is invalid, not accepted.
     expect(await requestPhoneLink("+9715012345678")).toEqual({ ok: false, error: "INVALID_PHONE" });
     expect(sendPhoneOtpMock).not.toHaveBeenCalled();
+  });
+
+  it("links a VALID international (Saudi) number the client sends as E.164", async () => {
+    expect(await requestPhoneLink(SA_PHONE)).toEqual({ ok: true });
+    expect(sendPhoneOtpMock).toHaveBeenCalledWith(expect.objectContaining({ body: { phoneNumber: SA_PHONE } }));
   });
 
   it("refuses when the account already has a phone (ALREADY_HAS_PHONE)", async () => {

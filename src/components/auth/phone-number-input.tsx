@@ -11,12 +11,12 @@ import { clsx } from "@/components/ui/clsx";
 // [flag · calling code · ▼] and a national-number input — so the user never
 // retypes "+968". Tapping the country section opens the searchable CountryPicker.
 //
-// OMAN-ONLY AUTH: this component only presents the country; it never decides
+// INTERNATIONAL AUTH: this component only presents the country; it never decides
 // whether a number is sendable — that is resolveAuthPhone()/canRequestOtp() in
-// phone-entry.ts (reusing the P0-1 canonicalizer), consulted by the parent form.
-// When an unsupported country is selected it shows a polished "not available yet"
-// note; the parent disables submit and never calls send-otp. The calling code and
-// number are always shown LTR (numerals read left-to-right in every locale).
+// phone-entry.ts (the shared libphonenumber-js authority), consulted by the parent
+// form. The "not available yet" note is retained defensively for any country flagged
+// unsupported (currently none). The calling code and number are always shown LTR
+// (numerals read left-to-right in every locale).
 
 interface PhoneNumberInputProps {
   country: Country;

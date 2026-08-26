@@ -12,13 +12,10 @@ import { clsx } from "@/components/ui/clsx";
 // Mobile-first: a bottom-sheet on small screens, a centered dialog on desktop
 // (responsive utility classes only — no new design system). Search is LOCAL and
 // API-free (searchCountries): matches English name, Arabic name, ISO code, and
-// calling code (with/without '+'). Oman is enabled; every other country is shown
-// with a "coming soon" chip and is NOT selectable for authentication (authSupported
-// is the single source of truth). No IP/geo detection.
-//
-// The list is intentionally still selectable-to-view for unsupported countries?
-// No — selecting an unsupported country is a no-op for auth: the row is rendered
-// disabled (aria-disabled) so it can never become the active auth country.
+// calling code (with/without '+'). Authentication is INTERNATIONAL: every listed
+// country is selectable (authSupported is true across the registry). The disabled /
+// "coming soon" row treatment below is retained defensively for any country a future
+// gate flags unsupported (currently none). No IP/geo detection.
 
 interface CountryPickerProps {
   open: boolean;
