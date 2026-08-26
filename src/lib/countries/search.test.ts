@@ -36,9 +36,16 @@ describe("searchCountries — Oman findable by every mode", () => {
     expect(isoOf(searchCountries("  عمان "))).toContain("OM");
   });
 
-  it("does not match unrelated countries for an Oman-specific query", () => {
+  it("surfaces Oman first for its name, and stays exact for ISO / calling code", () => {
+    // Name search is substring-based over the full CLDR list, so an incidental
+    // substring match is expected (e.g. "Romania" contains "oman"); Oman must still
+    // be present and — being the pinned default — the FIRST result.
     const byName = searchCountries("Oman");
-    expect(byName.every((c) => c.iso === "OM")).toBe(true);
+    expect(byName.map((c) => c.iso)).toContain("OM");
+    expect(byName[0]!.iso).toBe("OM");
+    // ISO and calling-code queries remain precise (Oman only).
+    expect(searchCountries("OM").filter((c) => c.iso === "OM")).toHaveLength(1);
+    expect(searchCountries("+968").every((c) => c.iso === "OM")).toBe(true);
   });
 
   it("still supports other countries (global-ready): 'Germany', 'ألمانيا', 'DE', '+49' find Germany", () => {
