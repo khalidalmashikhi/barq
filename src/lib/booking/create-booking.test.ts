@@ -27,6 +27,14 @@ vi.mock("@/lib/auth", () => ({
   ForbiddenError: class ForbiddenError extends Error {},
 }));
 
+// AUTH-DUAL-VERIFICATION-1 — createBooking() now enforces the dual-verified
+// customer gate. Mocked here so this file keeps testing createBooking's own logic;
+// the guard has dedicated tests in require-complete-customer.test.ts.
+const requireCompleteCustomerMock = vi.fn();
+vi.mock("@/lib/auth/require-complete-customer", () => ({
+  requireCompleteCustomer: (...args: unknown[]) => requireCompleteCustomerMock(...args),
+}));
+
 const recordBookingCreatedMock = vi.fn();
 const transitionBookingMock = vi.fn();
 const dispatchLifecycleHookMock = vi.fn();

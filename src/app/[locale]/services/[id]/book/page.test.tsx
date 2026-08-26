@@ -26,6 +26,13 @@ vi.mock("@/lib/auth/barq-user", () => ({
   resolveBarqUser: vi.fn().mockResolvedValue({ id: "u1" }),
 }));
 
+// AUTH-DUAL-VERIFICATION-1 — the book page enforces the dual-verified customer gate;
+// mocked to a no-op so these tests exercise the booking page's own behavior.
+const requireCompleteCustomerMock = vi.fn();
+vi.mock("@/lib/auth/require-complete-customer", () => ({
+  requireCompleteCustomer: (...a: unknown[]) => requireCompleteCustomerMock(...a),
+}));
+
 const notFoundMock = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });

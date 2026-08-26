@@ -4,6 +4,7 @@ import { redirect, Link } from "@/i18n/navigation";
 import { Calendar, CalendarX, PackageX, Users, ArrowRight } from "lucide-react";
 import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { resolveBarqUser } from "@/lib/auth/barq-user";
+import { requireCompleteCustomer } from "@/lib/auth/require-complete-customer";
 import { getServiceById, getActivePricesForService } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
@@ -47,6 +48,12 @@ export default async function BookServicePage({ params, searchParams }: Props) {
   // not book. Redirect it to /admin SERVER-SIDE before the booking form renders;
   // createBooking() (via requireCustomer) independently denies it too.
   if (await isActiveAdminSession()) { redirect({ href: "/admin", locale }); return null; }
+
+  // AUTH-DUAL-VERIFICATION-1 — booking is sensitive customer activity: a customer
+  // must have BOTH a verified phone and a verified real email first. An incomplete
+  // customer is sent to /onboarding before the booking form renders (createBooking()
+  // independently re-enforces this on submit).
+  await requireCompleteCustomer();
 
   const fetchedService = await getServiceById(id);
   if (!fetchedService) { notFound(); return null; }

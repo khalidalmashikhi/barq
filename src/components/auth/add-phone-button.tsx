@@ -4,14 +4,18 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { requestPhoneLink, verifyPhoneLink, type PhoneLinkErrorCode } from "@/lib/auth/link-phone";
+import { PhoneNumberInput } from "./phone-number-input";
+import { resolveAuthPhone, canRequestOtp } from "./phone-entry";
+import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 
-// AUTH-DUAL-IDENTITY-1 — the authenticated "Add phone" action for the Settings
-// "Sign-in methods" section (mirror of add-email-button.tsx). Two steps: enter an
-// Oman number -> receive an OTP -> verify. All authority is server-side
-// (src/lib/auth/link-phone.ts); this component never mutates AuthUser/User. On
-// success the phone is attached to the SAME account, so router.refresh() re-renders
-// the section as "Connected". The server canonicalizes the number (Oman-only), so a
-// plain input is sufficient.
+// AUTH-DUAL-VERIFICATION-1 — the authenticated "Add phone" action (Settings +
+// mandatory onboarding). Now uses the shared country-flag + calling-code picker
+// (PhoneNumberInput) rather than a plain field: the customer picks a country and
+// enters the NATIONAL number, and resolveAuthPhone canonicalizes it to E.164 (Oman
+// -only for now, exactly like the login form). The server (link-phone.ts) re-
+// normalizes as the authority and attaches the verified phone to the SAME AuthUser;
+// this component never mutates AuthUser/User. On success router.refresh() re-renders
+// (Settings shows "Connected"; the onboarding page advances once complete).
 
 const ERROR_KEY = {
   INVALID_PHONE: "addPhoneErrorInvalid",
@@ -30,17 +34,29 @@ export function AddPhoneButton() {
   const t = useTranslations("dashboard");
   const router = useRouter();
   const [step, setStep] = useState<Step>("idle");
-  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [nationalNumber, setNationalNumber] = useState("");
+  const [submittedPhone, setSubmittedPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSend(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
-    const result = await requestPhoneLink(phone);
+
+    // Resolve (country + national input) to canonical E.164 BEFORE any request; an
+    // unsupported country / invalid number never reaches the server.
+    const resolved = resolveAuthPhone(country, nationalNumber);
+    if (!resolved.ok) {
+      setError(t("addPhoneErrorInvalid"));
+      return;
+    }
+
+    setLoading(true);
+    const result = await requestPhoneLink(resolved.e164);
     if (result.ok) {
+      setSubmittedPhone(resolved.e164);
       setStep("code");
     } else {
       setError(t(ERROR_KEY[result.error]));
@@ -52,7 +68,7 @@ export function AddPhoneButton() {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    const result = await verifyPhoneLink(phone, otp);
+    const result = await verifyPhoneLink(submittedPhone, otp);
     if (result.ok) {
       router.refresh();
     } else {
@@ -63,7 +79,8 @@ export function AddPhoneButton() {
 
   function reset() {
     setStep("idle");
-    setPhone("");
+    setNationalNumber("");
+    setSubmittedPhone("");
     setOtp("");
     setError(null);
   }
@@ -81,28 +98,24 @@ export function AddPhoneButton() {
   }
 
   return (
-    <div className="flex w-full flex-col items-stretch gap-2 sm:max-w-xs">
+    <div className="flex w-full flex-col items-stretch gap-2 sm:max-w-sm">
       {step === "phone" ? (
         <form onSubmit={handleSend} className="flex flex-col gap-2">
-          <label htmlFor="linkPhone" className="sr-only">
+          <label htmlFor="linkPhone" className="text-xs font-medium text-foreground/70">
             {t("addPhoneInputLabel")}
           </label>
-          <input
-            id="linkPhone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            dir="ltr"
-            value={phone}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
-            placeholder={t("addPhoneInputPlaceholder")}
+          <PhoneNumberInput
+            country={country}
+            nationalNumber={nationalNumber}
+            onCountryChange={setCountry}
+            onNationalNumberChange={setNationalNumber}
             disabled={loading}
-            className="h-11 rounded-xl border border-border bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            inputId="linkPhone"
           />
           <div className="flex items-center gap-2">
             <button
               type="submit"
-              disabled={loading || phone.trim() === ""}
+              disabled={loading || !canRequestOtp(country, nationalNumber)}
               className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {loading ? t("addPhoneLoading") : t("addPhoneSendButton")}

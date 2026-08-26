@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireCompleteCustomer } from "@/lib/auth/require-complete-customer";
 import { isValidUuid } from "@/lib/uuid";
 import { recordBookingCreated, transitionBooking } from "@/lib/booking/lifecycle";
 import { dispatchLifecycleHook } from "@/lib/booking/lifecycle";
@@ -98,6 +99,12 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     }
     throw error;
   }
+
+  // AUTH-DUAL-VERIFICATION-1 — a customer must have BOTH a verified phone and a
+  // verified real email before booking. Incomplete customers are redirected to
+  // /onboarding here too (defense-in-depth; the book page already redirects before
+  // the form renders). Same central authority — no ad-hoc credential check here.
+  await requireCompleteCustomer();
 
   // Production Hardening — Rate Limiting. Keyed on the authenticated
   // customer's own id (mirrors this codebase's existing OTP rate limits
