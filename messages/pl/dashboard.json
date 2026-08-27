@@ -125,5 +125,9 @@
   "convergeContinue": "Kontynuuj łączenie konta",
   "convergeSuccess": "Twoje metody logowania zostały połączone w jedno konto BARQ. Możesz logować się telefonem lub e-mailem.",
   "convergeDone": "Kontynuuj",
-  "convergeSupport": "Tego konta nie można połączyć automatycznie. Aby dokończyć, skontaktuj się z pomocą techniczną."
+  "convergeSupport": "Tego konta nie można połączyć automatycznie. Aby dokończyć, skontaktuj się z pomocą techniczną.",
+  "convergeChoiceTitle": "Ten numer należy do innego konta",
+  "convergeChoiceSubtitle": "Możesz potwierdzić, że jest Twój, i połączyć obie metody logowania w jedno konto, albo użyć innego numeru.",
+  "convergeChoiceVerify": "Wyślij kod i połącz konto",
+  "convergeChoiceDifferent": "Użyj innego numeru telefonu"
 }

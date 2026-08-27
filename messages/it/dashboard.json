@@ -125,5 +125,9 @@
   "convergeContinue": "Continua l'unificazione dell'account",
   "convergeSuccess": "I tuoi metodi di accesso sono stati unificati in un unico account BARQ. Puoi accedere con telefono o email.",
   "convergeDone": "Continua",
-  "convergeSupport": "Questo account non può essere unificato automaticamente. Contatta l'assistenza per completarlo."
+  "convergeSupport": "Questo account non può essere unificato automaticamente. Contatta l'assistenza per completarlo.",
+  "convergeChoiceTitle": "Questo numero appartiene a un altro account",
+  "convergeChoiceSubtitle": "Puoi verificare che sia tuo e unificare entrambi i metodi di accesso in un unico account, oppure usare un altro numero.",
+  "convergeChoiceVerify": "Invia il codice e collega l'account",
+  "convergeChoiceDifferent": "Usa un altro numero di telefono"
 }

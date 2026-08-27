@@ -125,5 +125,9 @@
   "convergeContinue": "Zusammenführung fortsetzen",
   "convergeSuccess": "Deine Anmeldemethoden wurden in einem BARQ-Konto zusammengeführt. Du kannst dich mit Telefon oder E-Mail anmelden.",
   "convergeDone": "Weiter",
-  "convergeSupport": "Dieses Konto kann nicht automatisch zusammengeführt werden. Bitte kontaktiere den Support, um dies abzuschließen."
+  "convergeSupport": "Dieses Konto kann nicht automatisch zusammengeführt werden. Bitte kontaktiere den Support, um dies abzuschließen.",
+  "convergeChoiceTitle": "Diese Nummer gehört zu einem anderen Konto",
+  "convergeChoiceSubtitle": "Du kannst bestätigen, dass sie dir gehört, und beide Anmeldemethoden in einem Konto zusammenführen, oder eine andere Nummer verwenden.",
+  "convergeChoiceVerify": "Code senden und Konto verknüpfen",
+  "convergeChoiceDifferent": "Eine andere Telefonnummer verwenden"
 }

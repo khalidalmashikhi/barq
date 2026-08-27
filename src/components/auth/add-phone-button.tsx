@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { requestPhoneLink, verifyPhoneLink, type PhoneLinkErrorCode } from "@/lib/auth/link-phone";
-import { offerIdentityConvergence, convergeCustomerIdentityByPhone } from "@/lib/auth/identity-convergence";
+import { assessIdentityConvergence, offerIdentityConvergence, convergeCustomerIdentityByPhone } from "@/lib/auth/identity-convergence";
 import { PhoneNumberInput } from "./phone-number-input";
 import { resolveAuthPhone, canRequestOtp } from "./phone-entry";
+import { decideAfterConflict, clearedPhoneEntry, type AddPhoneStep } from "./phone-conflict-flow";
 import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 
 // AUTH-DUAL-VERIFICATION-1 / AUTH-INTERNATIONAL-PHONE-1 — the authenticated "Add
@@ -20,11 +21,14 @@ import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 //
 // AUTH-IDENTITY-CONVERGENCE-1 — when the entered phone already belongs to another
 // BARQ identity, the server returns ACCOUNT_LINK_CONFLICT (security guard). Instead of
-// dead-ending, we offer a dual-proof convergence: offerIdentityConvergence() decides
-// (server-side, no PII) whether this is a safe Customer-only case; if so it sends a
-// proof OTP to the phone and we collect it, then convergeCustomerIdentityByPhone()
-// verifies ownership and unifies the two identities. Blocked/privileged cases show a
-// generic "contact support" message only — never any detail about the other account.
+// dead-ending, we assess (assessIdentityConvergence, server-side, NO OTP, no PII)
+// whether this is a safe Customer-only case. If so the customer is shown THREE choices
+// and NO OTP is sent yet: (1) verify ownership + converge — only this calls
+// offerIdentityConvergence() to send the proof OTP, then convergeCustomerIdentityByPhone()
+// unifies the identities; (2) use a different phone number — clears all pending
+// phone/convergence/proof state and returns to the normal form, sending nothing and
+// mutating nothing; (3) cancel. Blocked/privileged cases show a generic "contact
+// support" message only — never any detail about the other account.
 
 const ERROR_KEY = {
   INVALID_PHONE: "addPhoneErrorInvalid",
@@ -37,12 +41,10 @@ const ERROR_KEY = {
   UNKNOWN_ERROR: "addPhoneErrorGeneric",
 } as const satisfies Record<PhoneLinkErrorCode, string>;
 
-type Step = "idle" | "phone" | "code" | "convergeCode" | "converged" | "support";
-
 export function AddPhoneButton() {
   const t = useTranslations("dashboard");
   const router = useRouter();
-  const [step, setStep] = useState<Step>("idle");
+  const [step, setStep] = useState<AddPhoneStep>("idle");
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [nationalNumber, setNationalNumber] = useState("");
   const [submittedPhone, setSubmittedPhone] = useState("");
@@ -71,22 +73,17 @@ export function AddPhoneButton() {
       return;
     }
 
-    // The phone belongs to another BARQ identity. Offer safe dual-proof convergence
-    // rather than dead-ending — the server decides (no PII) whether it is safe.
+    // The phone belongs to another BARQ identity. Assess (server-side, NO OTP, no PII)
+    // whether safe convergence is possible, then present the customer a choice. No OTP
+    // is sent to the conflicted number here — only if they explicitly choose to verify.
     if (result.error === "ACCOUNT_LINK_CONFLICT") {
-      const offer = await offerIdentityConvergence(resolved.e164);
-      setSubmittedPhone(resolved.e164);
-      if (offer.status === "OWNERSHIP_VERIFICATION_REQUIRED") {
-        setOtp("");
-        setStep("convergeCode");
-      } else if (offer.status === "SUPPORT_REQUIRED") {
-        setStep("support");
-      } else if (offer.status === "RATE_LIMITED") {
-        setError(t("addPhoneErrorRateLimited"));
-      } else if (offer.status === "OTP_DELIVERY_UNAVAILABLE") {
-        setError(t("addPhoneErrorUnavailable"));
+      const assessment = await assessIdentityConvergence(resolved.e164);
+      const decision = decideAfterConflict(assessment.status);
+      if (decision.kind === "step") {
+        setSubmittedPhone(resolved.e164);
+        setStep(decision.step);
       } else {
-        setError(t("addPhoneErrorGeneric"));
+        setError(t(decision.errorKey));
       }
       setLoading(false);
       return;
@@ -94,6 +91,40 @@ export function AddPhoneButton() {
 
     setError(t(ERROR_KEY[result.error]));
     setLoading(false);
+  }
+
+  // Choice 1 — verify ownership and converge. This is the ONLY path that sends an OTP
+  // to the conflicted number, and only on the customer's explicit consent.
+  async function handleConvergeVerifyRequest() {
+    setLoading(true);
+    setError(null);
+    const offer = await offerIdentityConvergence(submittedPhone);
+    if (offer.status === "OWNERSHIP_VERIFICATION_REQUIRED") {
+      setOtp("");
+      setStep("convergeCode");
+    } else if (offer.status === "SUPPORT_REQUIRED") {
+      setStep("support");
+    } else if (offer.status === "RATE_LIMITED") {
+      setError(t("addPhoneErrorRateLimited"));
+    } else if (offer.status === "OTP_DELIVERY_UNAVAILABLE") {
+      setError(t("addPhoneErrorUnavailable"));
+    } else {
+      setError(t("addPhoneErrorGeneric"));
+    }
+    setLoading(false);
+  }
+
+  // Choice 2 — use a different phone number. Clears every pending phone / convergence /
+  // proof value (no ACCOUNT_LINK_CONFLICT is retained) and returns to the normal Add
+  // Phone form. Sends nothing and mutates nothing.
+  function handleUseDifferentPhone() {
+    const cleared = clearedPhoneEntry();
+    setNationalNumber(cleared.nationalNumber);
+    setSubmittedPhone(cleared.submittedPhone);
+    setOtp(cleared.otp);
+    setError(cleared.error);
+    setCountry(DEFAULT_COUNTRY);
+    setStep("phone");
   }
 
   async function handleVerify(event: React.FormEvent) {
@@ -208,6 +239,41 @@ export function AddPhoneButton() {
             </button>
           </div>
         </form>
+      )}
+
+      {step === "convergeChoice" && (
+        <div className="flex flex-col gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{t("convergeChoiceTitle")}</h3>
+            <p className="mt-0.5 text-xs text-foreground/60">{t("convergeChoiceSubtitle")}</p>
+          </div>
+          <div className="flex flex-col items-stretch gap-2">
+            <button
+              type="button"
+              onClick={handleConvergeVerifyRequest}
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {loading ? t("addPhoneLoading") : t("convergeChoiceVerify")}
+            </button>
+            <button
+              type="button"
+              onClick={handleUseDifferentPhone}
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 disabled:opacity-50"
+            >
+              {t("convergeChoiceDifferent")}
+            </button>
+            <button type="button" onClick={reset} disabled={loading} className="text-sm text-foreground/60 hover:underline">
+              {t("addPhoneCancel")}
+            </button>
+          </div>
+          {error && (
+            <span role="alert" className="text-xs text-danger">
+              {error}
+            </span>
+          )}
+        </div>
       )}
 
       {step === "convergeCode" && (

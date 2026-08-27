@@ -125,5 +125,9 @@
   "convergeContinue": "Continue unifying account",
   "convergeSuccess": "Your sign-in methods have been unified into one BARQ account. You can sign in with your phone or email.",
   "convergeDone": "Continue",
-  "convergeSupport": "This account can't be unified automatically. Please contact support to complete it."
+  "convergeSupport": "This account can't be unified automatically. Please contact support to complete it.",
+  "convergeChoiceTitle": "This number belongs to another account",
+  "convergeChoiceSubtitle": "You can verify that you own it and unify both sign-in methods into one account, or use a different number.",
+  "convergeChoiceVerify": "Send code and link account",
+  "convergeChoiceDifferent": "Use a different phone number"
 }

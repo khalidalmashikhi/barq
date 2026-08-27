@@ -49,6 +49,16 @@ export type ConvergenceOfferStatus =
 
 export type ConvergenceOffer = { status: ConvergenceOfferStatus };
 
+export type ConvergenceAssessmentStatus =
+  | "CONVERGENCE_AVAILABLE" // eligible; the caller may present the choice then send the proof OTP
+  | "SUPPORT_REQUIRED" // owned by another, but not safely auto-convergeable
+  | "NOT_APPLICABLE" // P is not owned by another identity
+  | "NOT_AUTHENTICATED"
+  | "INVALID_PHONE"
+  | "UNKNOWN_ERROR";
+
+export type ConvergenceAssessment = { status: ConvergenceAssessmentStatus };
+
 export type ConvergeErrorCode =
   | "NOT_AUTHENTICATED"
   | "INVALID_PHONE"
@@ -134,11 +144,36 @@ function writeAudit(action: string, entityId: string, actorId: string | null, ex
 }
 
 /**
- * Step 1 (offer): the authenticated caller wants to add phone P, which BARQ has
- * detected belongs to another identity. Decide whether safe dual-proof convergence is
- * possible. If so, send a proof OTP to P and return OWNERSHIP_VERIFICATION_REQUIRED;
- * otherwise a generic SUPPORT_REQUIRED (no OTP, no PII). NON-conflict inputs return
- * NOT_APPLICABLE so the normal Add-phone flow proceeds.
+ * Read-only assessment: is safe dual-proof convergence AVAILABLE for phone P? Sends NO
+ * OTP and mutates nothing — it exists so the UI can present an explicit choice (verify
+ * + converge / use a different number / cancel) BEFORE any OTP is sent to a number that
+ * belongs to another identity. CONVERGENCE_AVAILABLE when eligible; a generic
+ * SUPPORT_REQUIRED when owned-but-unsafe (no PII); NOT_APPLICABLE when P is not owned by
+ * another identity (the normal Add-phone flow handles it).
+ */
+export async function assessIdentityConvergence(phoneRaw: string): Promise<ConvergenceAssessment> {
+  const me = await currentIdentity();
+  if ("error" in me) return { status: "NOT_AUTHENTICATED" };
+
+  const normalized = normalizeInternationalPhone(phoneRaw);
+  if (!normalized.ok) return { status: "INVALID_PHONE" };
+  const phone = normalized.e164;
+
+  const ownerUserId = await findPhoneOwnerUserId(prisma, phone);
+  if (!ownerUserId || ownerUserId === me.userId) return { status: "NOT_APPLICABLE" };
+
+  const [current, owner] = await Promise.all([loadSide(prisma, me.userId), loadSide(prisma, ownerUserId)]);
+  if (!current || !owner) return { status: "SUPPORT_REQUIRED" };
+
+  return assessEligibility(current, owner).eligible ? { status: "CONVERGENCE_AVAILABLE" } : { status: "SUPPORT_REQUIRED" };
+}
+
+/**
+ * Step 2 (offer): the customer chose to verify ownership and converge. Re-assess
+ * (fail-closed) and, if still eligible, send the proof OTP to P and return
+ * OWNERSHIP_VERIFICATION_REQUIRED; otherwise a generic SUPPORT_REQUIRED (no PII).
+ * NON-conflict inputs return NOT_APPLICABLE. This is the ONLY place an OTP is sent to
+ * the conflicted number, and only after the customer's explicit consent.
  */
 export async function offerIdentityConvergence(phoneRaw: string): Promise<ConvergenceOffer> {
   const me = await currentIdentity();

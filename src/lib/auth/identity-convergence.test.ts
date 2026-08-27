@@ -140,7 +140,9 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-const { offerIdentityConvergence, convergeCustomerIdentityByPhone } = await import("./identity-convergence");
+const { assessIdentityConvergence, offerIdentityConvergence, convergeCustomerIdentityByPhone } = await import(
+  "./identity-convergence"
+);
 
 const PHONE = "+96891112222";
 
@@ -182,6 +184,50 @@ beforeEach(() => {
   verifyPhoneMock.mockResolvedValue({ status: true });
   txThrows.willThrowP2002 = false;
   setStore([{ ...B }, { ...A }]);
+});
+
+describe("assessIdentityConvergence — read-only, NO OTP, NO mutation (three-choice gate)", () => {
+  it("eligible conflict → CONVERGENCE_AVAILABLE, sends no OTP and mutates nothing", async () => {
+    const res = await assessIdentityConvergence(PHONE);
+    expect(res).toEqual({ status: "CONVERGENCE_AVAILABLE" });
+    expect(sendOtpMock).not.toHaveBeenCalled();
+    expect(authUserUpdate).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(sessionDeleteMany).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("owned by another but privileged → generic SUPPORT_REQUIRED, still no OTP/mutation, no PII", async () => {
+    setStore([{ ...B }, { ...A, privilege: true }]);
+    const res = await assessIdentityConvergence(PHONE);
+    expect(res).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(sendOtpMock).not.toHaveBeenCalled();
+    expect(JSON.stringify(res)).not.toContain("example.com");
+    expect(JSON.stringify(res)).not.toContain(PHONE);
+  });
+
+  it("a phone not owned by another identity → NOT_APPLICABLE (normal Add-phone flow)", async () => {
+    setStore([{ ...B }]); // nobody owns PHONE
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "NOT_APPLICABLE" });
+    expect(sendOtpMock).not.toHaveBeenCalled();
+  });
+
+  it("unauthenticated → NOT_AUTHENTICATED", async () => {
+    requireAuthMock.mockRejectedValue(new UnauthenticatedError());
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "NOT_AUTHENTICATED" });
+    expect(sendOtpMock).not.toHaveBeenCalled();
+  });
+
+  it("a SECOND conflicting phone re-enters the convergence-choice state (CONVERGENCE_AVAILABLE again)", async () => {
+    const SECOND = "+96895556666";
+    setStore([
+      { ...B },
+      { ...A },
+      { ...A, id: "A2", authUserId: "aA2", phoneNumber: SECOND, authPhone: SECOND },
+    ]);
+    expect(await assessIdentityConvergence(SECOND)).toEqual({ status: "CONVERGENCE_AVAILABLE" });
+    expect(sendOtpMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("offerIdentityConvergence", () => {

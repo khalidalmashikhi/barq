@@ -125,5 +125,9 @@
   "convergeContinue": "Pokračovat ve sjednocení účtu",
   "convergeSuccess": "Vaše způsoby přihlášení byly sjednoceny do jednoho účtu BARQ. Můžete se přihlásit telefonem nebo e-mailem.",
   "convergeDone": "Pokračovat",
-  "convergeSupport": "Tento účet nelze sjednotit automaticky. Pro dokončení prosím kontaktujte podporu."
+  "convergeSupport": "Tento účet nelze sjednotit automaticky. Pro dokončení prosím kontaktujte podporu.",
+  "convergeChoiceTitle": "Toto číslo patří k jinému účtu",
+  "convergeChoiceSubtitle": "Můžete ověřit, že vám patří, a sjednotit oba způsoby přihlášení do jednoho účtu, nebo použít jiné číslo.",
+  "convergeChoiceVerify": "Odeslat kód a propojit účet",
+  "convergeChoiceDifferent": "Použít jiné telefonní číslo"
 }
