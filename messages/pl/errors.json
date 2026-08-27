@@ -2,6 +2,7 @@
   "phase0Placeholder": "[pl/errors] Phase 0 infrastructure placeholder (Polish) — not yet translated",
   "invalidInput": "Nieprawidłowe dane żądania",
   "noCustomerProfile": "Musisz uzupełnić profil klienta, zanim dokończysz tę rezerwację. Skontaktuj się z pomocą techniczną, jeśli ten komunikat będzie się powtarzał.",
+  "customerIncomplete": "Przed rezerwacją potwierdź swój adres e-mail.",
   "serviceUnavailable": "Ta atrakcja nie jest obecnie dostępna do rezerwacji",
   "priceUnavailable": "Wybrana opcja cenowa nie jest dostępna dla tej atrakcji",
   "slotUnavailable": "Wybrany termin nie jest już dostępny",

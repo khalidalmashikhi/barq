@@ -95,6 +95,11 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   // Not reachable from provider accept/reject/start/complete — treated as
   // unexpected internal conditions rather than normal rejections.
   NO_CUSTOMER_PROFILE: "INTERNAL_ERROR",
+  // PLATFORM-CUSTOMER-CREDENTIALS-API-1 — customer-create-only, exactly like
+  // NO_CUSTOMER_PROFILE above it: a provider accepting or rejecting a booking is never
+  // gated on the CUSTOMER's credential completeness, so reaching this here would be a
+  // real internal fault rather than something a provider could act on.
+  CUSTOMER_INCOMPLETE: "INTERNAL_ERROR",
   SERVICE_UNAVAILABLE: "INTERNAL_ERROR",
   PRICE_UNAVAILABLE: "INTERNAL_ERROR",
   // BOOKING-SLOT-AUTHORITY — customer-create-only: a provider accepting, rejecting,

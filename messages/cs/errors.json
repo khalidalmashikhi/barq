@@ -2,6 +2,7 @@
   "phase0Placeholder": "[cs/errors] Phase 0 infrastructure placeholder (Czech) — not yet translated",
   "invalidInput": "Neplatná data požadavku",
   "noCustomerProfile": "Před dokončením této rezervace musíte doplnit svůj zákaznický profil. Pokud tato zpráva přetrvává, kontaktujte podporu.",
+  "customerIncomplete": "Před rezervací prosím ověřte svůj e-mail.",
   "serviceUnavailable": "Tento zážitek momentálně není možné rezervovat",
   "priceUnavailable": "Vybraná cenová možnost není pro tento zážitek dostupná",
   "slotUnavailable": "Vybraný časový termín již není k dispozici",

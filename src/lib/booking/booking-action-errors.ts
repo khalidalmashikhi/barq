@@ -20,6 +20,11 @@ import "server-only";
 export type BookingActionErrorCode =
   | "INVALID_INPUT"
   | "NO_CUSTOMER_PROFILE"
+  // PLATFORM-CUSTOMER-CREDENTIALS-API-1 — the customer exists but has not completed
+  // dual verification (a verified phone AND a real verified email). Distinct from
+  // NO_CUSTOMER_PROFILE, which means there is no Customer row at all: this one is
+  // actionable by the customer, and the API must say so rather than redirect.
+  | "CUSTOMER_INCOMPLETE"
   | "NO_PROVIDER_PROFILE"
   | "SERVICE_UNAVAILABLE"
   | "PRICE_UNAVAILABLE"

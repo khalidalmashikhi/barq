@@ -133,4 +133,89 @@ describe("GET /api/v1/me/bookings", () => {
       expect(booking.assignedVehicle.vehicleType).toBe("SEDAN");
     });
   });
+
+  // PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — what a NATIVE client actually receives.
+  //
+  // Before this gate, createBooking() enforced dual verification by redirecting, so a
+  // phone-only Android customer got a thrown NEXT_REDIRECT — followed by the HTTP client
+  // into an HTML page and surfacing as an unexplained "something went wrong". These
+  // tests pin the replacement: an ordinary, readable, localized JSON refusal.
+});
+
+
+// PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — POST behaviour, at top level: this is a
+// create-booking contract, not a listing one.
+describe("POST /api/v1/me/bookings — incomplete customer", () => {
+    describe("refusal contract", () => {
+    beforeEach(() => {
+      h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: { id: "u1" } });
+      vi.mocked(createBooking).mockResolvedValue({
+        ok: false,
+        error: "CUSTOMER_INCOMPLETE",
+      } as never);
+      // File-wide spy: clear the count so the assertion below measures THIS request
+      // rather than every booking read the suite has ever made.
+      vi.mocked(getBookingDetail).mockClear();
+    });
+
+    function post(locale: string) {
+      return POST(
+        new Request("http://x/api/v1/me/bookings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept-Language": locale },
+          body: JSON.stringify({ serviceId: "s1", priceId: "p1" }),
+        })
+      );
+    }
+
+    it("answers 403 with the stable CUSTOMER_INCOMPLETE code", async () => {
+      const res = await post("en");
+
+      expect(res.status).toBe(403);
+      expect((await res.json()).error.code).toBe("CUSTOMER_INCOMPLETE");
+    });
+
+    /**
+     * NOT A REDIRECT. This is the whole point of the gate: no 3xx, no Location header,
+     * and nothing that would send a native HTTP client to an HTML onboarding page.
+     */
+    it("is not a redirect and carries no Location header", async () => {
+      const res = await post("en");
+
+      expect(res.status).toBe(403);
+      // The real assertion: NOT a 3xx. A redirect is what broke the native client.
+      expect(res.status >= 300 && res.status < 400).toBe(false);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.get("content-type")).toContain("application/json");
+    });
+
+    it("leaks no NEXT_REDIRECT digest or onboarding path", async () => {
+      const body = JSON.stringify(await (await post("en")).json());
+
+      for (const forbidden of ["NEXT_REDIRECT", "digest", "/onboarding", "<!DOCTYPE", "<html"]) {
+        expect(body).not.toContain(forbidden);
+      }
+    });
+
+    it("localizes the message in English", async () => {
+      expect((await (await post("en")).json()).error.message).toBe(
+        "Please verify your email address before booking."
+      );
+    });
+
+    it("localizes the message in Arabic while the code stays identical", async () => {
+      const en = await (await post("en")).json();
+      const ar = await (await post("ar")).json();
+
+      expect(ar.error.message).toBe("يرجى تأكيد بريدك الإلكتروني قبل الحجز.");
+      expect(ar.error.code).toBe(en.error.code);
+      expect(ar.error.message).not.toBe(en.error.message);
+    });
+
+    it("creates nothing and never reads a booking back", async () => {
+      await post("en");
+
+      expect(getBookingDetail).not.toHaveBeenCalled();
+    });
+  });
 });

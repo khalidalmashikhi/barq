@@ -2,6 +2,7 @@
   "phase0Placeholder": "[de/errors] Phase 0 infrastructure placeholder (German) — not yet translated",
   "invalidInput": "Ungültige Anfragedaten",
   "noCustomerProfile": "Sie müssen Ihr Kundenprofil vervollständigen, bevor Sie diese Buchung abschließen können. Wenden Sie sich an den Support, falls diese Meldung weiterhin erscheint.",
+  "customerIncomplete": "Bitte bestätige deine E-Mail-Adresse, bevor du buchst.",
   "serviceUnavailable": "Dieses Erlebnis ist derzeit nicht buchbar",
   "priceUnavailable": "Die ausgewählte Preisoption ist für dieses Erlebnis nicht verfügbar",
   "slotUnavailable": "Das ausgewählte Zeitfenster ist nicht mehr verfügbar",

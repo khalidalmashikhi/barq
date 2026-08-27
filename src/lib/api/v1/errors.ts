@@ -25,6 +25,11 @@ export type ApiErrorCode =
   // EXISTING BookingActionErrorCode meanings onto the wire unchanged (mapped in
   // src/lib/api/v1/booking-errors.ts); ar/en messages mirror messages/*/errors.json.
   | "NO_CUSTOMER_PROFILE"
+  // PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — the customer has not completed dual
+  // verification (a verified phone AND a real verified email). Distinct from
+  // NO_CUSTOMER_PROFILE, which means there is no Customer row at all. This gate makes
+  // the refusal READABLE; the API remedy for satisfying it is a separate gate.
+  | "CUSTOMER_INCOMPLETE"
   | "NOT_FOUND"
   | "SLOT_FULL"
   | "CONCURRENT_MODIFICATION"
@@ -110,6 +115,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   NO_PROVIDER_PROFILE: 403,
   PROVIDER_NOT_APPROVED: 403,
   NO_CUSTOMER_PROFILE: 403,
+  CUSTOMER_INCOMPLETE: 403,
   NOT_FOUND: 404,
   SLOT_FULL: 409,
   CONCURRENT_MODIFICATION: 409,
@@ -172,6 +178,11 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   NO_CUSTOMER_PROFILE: {
     en: "You need to complete your customer profile before finishing this booking. Contact support if this message persists.",
     ar: "يلزم إكمال الملف الشخصي كعميل قبل إتمام الحجز. تواصل مع الدعم إذا استمرت هذه الرسالة.",
+  },
+  // PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — actionable, unlike NO_CUSTOMER_PROFILE.
+  CUSTOMER_INCOMPLETE: {
+    en: "Please verify your email address before booking.",
+    ar: "يرجى تأكيد بريدك الإلكتروني قبل الحجز.",
   },
   NOT_FOUND: { en: "The requested resource was not found.", ar: "المورد المطلوب غير موجود." },
   SLOT_FULL: { en: "Sorry, the remaining capacity for this slot was just taken.", ar: "للأسف، اكتملت السعة المتاحة لهذا الموعد للتو." },

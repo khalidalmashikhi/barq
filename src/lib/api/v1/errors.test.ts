@@ -79,3 +79,61 @@ describe("apiError (HTTP)", () => {
     expect(apiError("INTERNAL_ERROR").status).toBe(500);
   });
 });
+
+// PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — the wire contract for an incomplete customer.
+describe("CUSTOMER_INCOMPLETE — the incomplete-customer contract", () => {
+  it("is 403: authenticated, but not currently permitted", () => {
+    // Asserted through the REAL response rather than the private status table: the
+    // status a client receives is the contract, and apiError() is what produces it.
+    //
+    // Same status as its neighbours NO_CUSTOMER_PROFILE / NO_PROVIDER_PROFILE, which
+    // mean the same kind of thing. NOT 422: nothing about the REQUEST is malformed, and
+    // a client must not think it can retry by changing the body.
+    expect(apiError("CUSTOMER_INCOMPLETE", { locale: "en" }).status).toBe(403);
+    expect(apiError("CUSTOMER_INCOMPLETE", { locale: "en" }).status).toBe(
+      apiError("NO_CUSTOMER_PROFILE", { locale: "en" }).status
+    );
+  });
+
+  it("carries a curated English message", () => {
+    expect(apiErrorMessage("CUSTOMER_INCOMPLETE", "en")).toBe(
+      "Please verify your email address before booking."
+    );
+  });
+
+  it("carries a curated Arabic message", () => {
+    const ar = apiErrorMessage("CUSTOMER_INCOMPLETE", "ar");
+    expect(ar).toBe("يرجى تأكيد بريدك الإلكتروني قبل الحجز.");
+    expect(ar).not.toBe(apiErrorMessage("CUSTOMER_INCOMPLETE", "en"));
+  });
+
+  /**
+   * THE CODE IS THE STABLE HALF. A client branches on it, so it must be byte-identical
+   * in every language while only the prose changes.
+   */
+  it("keeps the machine code identical across locales", () => {
+    const en = buildApiErrorBody("CUSTOMER_INCOMPLETE", { locale: "en" });
+    const ar = buildApiErrorBody("CUSTOMER_INCOMPLETE", { locale: "ar" });
+
+    expect(en.error.code).toBe("CUSTOMER_INCOMPLETE");
+    expect(ar.error.code).toBe("CUSTOMER_INCOMPLETE");
+    expect(en.error.message).not.toBe(ar.error.message);
+  });
+
+  /**
+   * NOTHING ABOUT THE AUTH INTERNALS. The message must not name the synthetic domain,
+   * the provider, the session, or anything that would describe HOW completeness is
+   * decided — and it must never carry a Next redirect digest.
+   */
+  it("leaks no auth internals and no redirect digest", () => {
+    for (const locale of ["en", "ar"] as const) {
+      const serialized = JSON.stringify(buildApiErrorBody("CUSTOMER_INCOMPLETE", { locale }));
+      for (const forbidden of [
+        "NEXT_REDIRECT", "digest", "onboarding", "phone.barq.internal",
+        "authUserId", "emailVerified", "better-auth", "Location",
+      ]) {
+        expect(serialized).not.toContain(forbidden);
+      }
+    }
+  });
+});

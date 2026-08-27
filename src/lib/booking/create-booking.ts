@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
-import { requireCompleteCustomer } from "@/lib/auth/require-complete-customer";
+import { isCustomerCompleteForAction } from "@/lib/auth/require-complete-customer";
 import { isValidUuid } from "@/lib/uuid";
 import { recordBookingCreated, transitionBooking } from "@/lib/booking/lifecycle";
 import { dispatchLifecycleHook } from "@/lib/booking/lifecycle";
@@ -101,10 +101,18 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   }
 
   // AUTH-DUAL-VERIFICATION-1 — a customer must have BOTH a verified phone and a
-  // verified real email before booking. Incomplete customers are redirected to
-  // /onboarding here too (defense-in-depth; the book page already redirects before
-  // the form renders). Same central authority — no ad-hoc credential check here.
-  await requireCompleteCustomer();
+  // verified real email before booking. Same central authority as the page guards; no
+  // ad-hoc credential check here, and the rule itself is unchanged.
+  //
+  // PLATFORM-CUSTOMER-CREDENTIALS-API-1 — this used to REDIRECT. createBooking() is
+  // shared by the Web form and by POST /api/v1/me/bookings, and a redirect is a
+  // browser instruction: the native client received a thrown NEXT_REDIRECT instead of
+  // an answer. It now returns a domain error, and each transport presents it its own
+  // way — Web still redirects at the layout and book page before the form is ever
+  // shown, so a browser cannot normally reach this branch at all.
+  if (!(await isCustomerCompleteForAction())) {
+    return { ok: false, error: "CUSTOMER_INCOMPLETE" };
+  }
 
   // Production Hardening — Rate Limiting. Keyed on the authenticated
   // customer's own id (mirrors this codebase's existing OTP rate limits

@@ -5,6 +5,10 @@ describe("toApiBookingErrorCode", () => {
   it("maps customer-reachable domain codes 1:1 to API codes", () => {
     expect(toApiBookingErrorCode("INVALID_INPUT")).toBe("INVALID_INPUT");
     expect(toApiBookingErrorCode("NO_CUSTOMER_PROFILE")).toBe("NO_CUSTOMER_PROFILE");
+    // PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — customer-reachable and ACTIONABLE, so it
+    // maps 1:1 rather than collapsing into INTERNAL_ERROR. A native client reads this
+    // code to know the booking was refused for a reason the customer can resolve.
+    expect(toApiBookingErrorCode("CUSTOMER_INCOMPLETE")).toBe("CUSTOMER_INCOMPLETE");
     expect(toApiBookingErrorCode("SERVICE_UNAVAILABLE")).toBe("SERVICE_UNAVAILABLE");
     expect(toApiBookingErrorCode("PRICE_UNAVAILABLE")).toBe("PRICE_UNAVAILABLE");
     // BOOKING-SLOT-AUTHORITY — three DISTINCT slot codes. Collapsing any pair would

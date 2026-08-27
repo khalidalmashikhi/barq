@@ -77,6 +77,11 @@ describe("providerBookingErrorResponse", () => {
     expect(await read(providerBookingErrorResponse("UNKNOWN_ERROR", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
     // A customer-only code that can't occur on these endpoints → unexpected internal.
     expect(await read(providerBookingErrorResponse("SLOT_FULL", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
+    // PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — same discipline. A provider accepting or
+    // rejecting a booking is never gated on the CUSTOMER's credential completeness, so
+    // this code is unreachable here, and a provider endpoint must not advertise a
+    // customer-only rejection as though the provider could act on it.
+    expect(await read(providerBookingErrorResponse("CUSTOMER_INCOMPLETE", "en"))).toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
     // BOOKING-VEHICLE-1 — acceptance vehicle-assignment outcomes (422), plus the concurrent race (409).
     expect(await read(providerBookingErrorResponse("VEHICLE_REQUIRED", "en"))).toMatchObject({ status: 422, code: "VEHICLE_REQUIRED" });
     expect(await read(providerBookingErrorResponse("VEHICLE_NOT_IN_SERVICE_POOL", "en"))).toMatchObject({ status: 422, code: "VEHICLE_NOT_IN_SERVICE_POOL" });

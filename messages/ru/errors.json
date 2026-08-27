@@ -2,6 +2,7 @@
   "phase0Placeholder": "[ru/errors] Phase 0 infrastructure placeholder (Russian) — not yet translated",
   "invalidInput": "Неверные данные запроса",
   "noCustomerProfile": "Прежде чем завершить это бронирование, заполните свой профиль клиента. Если это сообщение появляется снова, обратитесь в службу поддержки.",
+  "customerIncomplete": "Пожалуйста, подтвердите эл. почту перед бронированием.",
   "serviceUnavailable": "Это впечатление в настоящее время недоступно для бронирования",
   "priceUnavailable": "Выбранный вариант цены недоступен для этого впечатления",
   "slotUnavailable": "Выбранное время больше недоступно",

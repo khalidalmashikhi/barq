@@ -30,9 +30,9 @@ vi.mock("@/lib/auth", () => ({
 // AUTH-DUAL-VERIFICATION-1 — createBooking() now enforces the dual-verified
 // customer gate. Mocked here so this file keeps testing createBooking's own logic;
 // the guard has dedicated tests in require-complete-customer.test.ts.
-const requireCompleteCustomerMock = vi.fn();
+const isCustomerCompleteForActionMock = vi.fn();
 vi.mock("@/lib/auth/require-complete-customer", () => ({
-  requireCompleteCustomer: (...args: unknown[]) => requireCompleteCustomerMock(...args),
+  isCustomerCompleteForAction: (...args: unknown[]) => isCustomerCompleteForActionMock(...args),
 }));
 
 const recordBookingCreatedMock = vi.fn();
@@ -105,6 +105,12 @@ afterEach(() => {
   serviceRequiresSlotMock.mockResolvedValue(false);
   priceFindFirstMock.mockReset();
   bookingCreateMock.mockReset();
+  // Reset the CALL COUNT too, not just the behaviour: without this the spy accumulates
+  // across the whole file and any "called once" assertion silently measures every test.
+  isCustomerCompleteForActionMock.mockReset();
+  // Default: a COMPLETE customer, so every pre-existing test keeps describing the
+  // booking it was written for. The incomplete case is exercised explicitly below.
+  isCustomerCompleteForActionMock.mockResolvedValue(true);
   availabilityFindFirstMock.mockReset();
   bookingFindFirstMock.mockReset();
   executeRawMock.mockReset();
@@ -363,6 +369,66 @@ describe("createBooking", () => {
       requireCustomerMock.mockResolvedValue({ customer: { id: "a-different-customer-id" } });
       const second = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
       expect(second).toEqual({ ok: true, bookingId: "new-booking-id" });
+    });
+  });
+
+  // PLATFORM-BOOKING-INCOMPLETE-ERROR-1 — the root cause, and its replacement.
+  //
+  // The dual-verification RULE is correct and unchanged. What was wrong is that
+  // createBooking() enforced it by REDIRECTING: a browser navigation instruction, not
+  // an answer. POST /api/v1/me/bookings therefore handed a native client a thrown
+  // NEXT_REDIRECT it could neither read nor act on. It now returns a domain error, and
+  // each transport presents that its own way.
+  describe("incomplete customer (dual-verification gate)", () => {
+    it("returns CUSTOMER_INCOMPLETE rather than navigating anywhere", async () => {
+      // A real, resolved customer — the gate sits after requireCustomer(), so this is
+      // someone who HAS a Customer row and is refused purely on credential state.
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      isCustomerCompleteForActionMock.mockResolvedValue(false);
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(result).toEqual({ ok: false, error: "CUSTOMER_INCOMPLETE" });
+    });
+
+    /**
+     * ZERO SIDE EFFECTS. A customer who may not book must leave no trace: no booking
+     * row, no capacity consumed, no payment, no lifecycle event. The check runs before
+     * any write, and this is what proves it stays there.
+     */
+    it("writes nothing at all when it refuses", async () => {
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      isCustomerCompleteForActionMock.mockResolvedValue(false);
+
+      await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(bookingCreateMock).not.toHaveBeenCalled();
+      expect(recordBookingCreatedMock).not.toHaveBeenCalled();
+      expect(transitionBookingMock).not.toHaveBeenCalled();
+      expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+    });
+
+    it("still creates a booking for a complete customer", async () => {
+      isCustomerCompleteForActionMock.mockResolvedValue(true);
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+      transitionBookingMock.mockResolvedValue({ hook: "context" });
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+    });
+
+    /** The completeness gate is consulted exactly once per attempt. */
+    it("consults the shared authority, not an ad-hoc credential check", async () => {
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      isCustomerCompleteForActionMock.mockResolvedValue(false);
+
+      await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+      expect(isCustomerCompleteForActionMock).toHaveBeenCalledTimes(1);
     });
   });
 });
