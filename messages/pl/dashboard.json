@@ -119,5 +119,11 @@
   "addPhoneErrorRateLimited": "Zbyt wiele prób. Spróbuj ponownie później.",
   "addPhoneErrorInvalidOtp": "Kod jest nieprawidłowy lub wygasł. Spróbuj ponownie.",
   "addPhoneErrorUnavailable": "Weryfikacja telefoniczna jest obecnie niedostępna.",
-  "addPhoneErrorGeneric": "Coś poszło nie tak, spróbuj ponownie."
+  "addPhoneErrorGeneric": "Coś poszło nie tak, spróbuj ponownie.",
+  "convergeTitle": "Ujednolić konto",
+  "convergeSubtitle": "Ta metoda logowania jest powiązana z innym kontem BARQ. Aby połączyć obie metody logowania w jedno konto, musimy potwierdzić, że należy do Ciebie. Wprowadź kod wysłany na ten numer.",
+  "convergeContinue": "Kontynuuj łączenie konta",
+  "convergeSuccess": "Twoje metody logowania zostały połączone w jedno konto BARQ. Możesz logować się telefonem lub e-mailem.",
+  "convergeDone": "Kontynuuj",
+  "convergeSupport": "Tego konta nie można połączyć automatycznie. Aby dokończyć, skontaktuj się z pomocą techniczną."
 }

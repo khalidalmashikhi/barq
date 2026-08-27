@@ -119,5 +119,11 @@
   "addPhoneErrorRateLimited": "Too many attempts. Please try again later.",
   "addPhoneErrorInvalidOtp": "That code is incorrect or has expired. Please try again.",
   "addPhoneErrorUnavailable": "Phone verification isn't available right now.",
-  "addPhoneErrorGeneric": "Something went wrong, please try again."
+  "addPhoneErrorGeneric": "Something went wrong, please try again.",
+  "convergeTitle": "Unify your account",
+  "convergeSubtitle": "This sign-in method is linked to another BARQ account. To unify both sign-in methods into one account, we need to verify that you own it. Enter the code sent to this number.",
+  "convergeContinue": "Continue unifying account",
+  "convergeSuccess": "Your sign-in methods have been unified into one BARQ account. You can sign in with your phone or email.",
+  "convergeDone": "Continue",
+  "convergeSupport": "This account can't be unified automatically. Please contact support to complete it."
 }

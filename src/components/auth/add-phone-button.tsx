@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { requestPhoneLink, verifyPhoneLink, type PhoneLinkErrorCode } from "@/lib/auth/link-phone";
+import { offerIdentityConvergence, convergeCustomerIdentityByPhone } from "@/lib/auth/identity-convergence";
 import { PhoneNumberInput } from "./phone-number-input";
 import { resolveAuthPhone, canRequestOtp } from "./phone-entry";
 import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
@@ -16,6 +17,14 @@ import { DEFAULT_COUNTRY, type Country } from "@/lib/countries/registry";
 // server (link-phone.ts) re-normalizes as the authority and attaches the verified
 // phone to the SAME AuthUser; this component never mutates AuthUser/User. On success
 // router.refresh() re-renders (Settings shows "Connected"; onboarding advances).
+//
+// AUTH-IDENTITY-CONVERGENCE-1 — when the entered phone already belongs to another
+// BARQ identity, the server returns ACCOUNT_LINK_CONFLICT (security guard). Instead of
+// dead-ending, we offer a dual-proof convergence: offerIdentityConvergence() decides
+// (server-side, no PII) whether this is a safe Customer-only case; if so it sends a
+// proof OTP to the phone and we collect it, then convergeCustomerIdentityByPhone()
+// verifies ownership and unifies the two identities. Blocked/privileged cases show a
+// generic "contact support" message only — never any detail about the other account.
 
 const ERROR_KEY = {
   INVALID_PHONE: "addPhoneErrorInvalid",
@@ -28,7 +37,7 @@ const ERROR_KEY = {
   UNKNOWN_ERROR: "addPhoneErrorGeneric",
 } as const satisfies Record<PhoneLinkErrorCode, string>;
 
-type Step = "idle" | "phone" | "code";
+type Step = "idle" | "phone" | "code" | "convergeCode" | "converged" | "support";
 
 export function AddPhoneButton() {
   const t = useTranslations("dashboard");
@@ -58,9 +67,32 @@ export function AddPhoneButton() {
     if (result.ok) {
       setSubmittedPhone(resolved.e164);
       setStep("code");
-    } else {
-      setError(t(ERROR_KEY[result.error]));
+      setLoading(false);
+      return;
     }
+
+    // The phone belongs to another BARQ identity. Offer safe dual-proof convergence
+    // rather than dead-ending — the server decides (no PII) whether it is safe.
+    if (result.error === "ACCOUNT_LINK_CONFLICT") {
+      const offer = await offerIdentityConvergence(resolved.e164);
+      setSubmittedPhone(resolved.e164);
+      if (offer.status === "OWNERSHIP_VERIFICATION_REQUIRED") {
+        setOtp("");
+        setStep("convergeCode");
+      } else if (offer.status === "SUPPORT_REQUIRED") {
+        setStep("support");
+      } else if (offer.status === "RATE_LIMITED") {
+        setError(t("addPhoneErrorRateLimited"));
+      } else if (offer.status === "OTP_DELIVERY_UNAVAILABLE") {
+        setError(t("addPhoneErrorUnavailable"));
+      } else {
+        setError(t("addPhoneErrorGeneric"));
+      }
+      setLoading(false);
+      return;
+    }
+
+    setError(t(ERROR_KEY[result.error]));
     setLoading(false);
   }
 
@@ -73,6 +105,25 @@ export function AddPhoneButton() {
       router.refresh();
     } else {
       setError(t(ERROR_KEY[result.error]));
+    }
+    setLoading(false);
+  }
+
+  async function handleConverge(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    const result = await convergeCustomerIdentityByPhone(submittedPhone, otp);
+    if (result.ok) {
+      setStep("converged");
+    } else if (result.error === "SUPPORT_REQUIRED") {
+      setStep("support");
+    } else if (result.error === "INVALID_OTP") {
+      setError(t("addPhoneErrorInvalidOtp"));
+    } else if (result.error === "RATE_LIMITED") {
+      setError(t("addPhoneErrorRateLimited"));
+    } else {
+      setError(t("addPhoneErrorGeneric"));
     }
     setLoading(false);
   }
@@ -99,7 +150,7 @@ export function AddPhoneButton() {
 
   return (
     <div className="flex w-full flex-col items-stretch gap-2 sm:max-w-sm">
-      {step === "phone" ? (
+      {step === "phone" && (
         <form onSubmit={handleSend} className="flex flex-col gap-2">
           <label htmlFor="linkPhone" className="text-xs font-medium text-foreground/70">
             {t("addPhoneInputLabel")}
@@ -125,7 +176,9 @@ export function AddPhoneButton() {
             </button>
           </div>
         </form>
-      ) : (
+      )}
+
+      {step === "code" && (
         <form onSubmit={handleVerify} className="flex flex-col gap-2">
           <label htmlFor="linkPhoneOtp" className="sr-only">
             {t("addPhoneOtpLabel")}
@@ -155,6 +208,68 @@ export function AddPhoneButton() {
             </button>
           </div>
         </form>
+      )}
+
+      {step === "convergeCode" && (
+        <form onSubmit={handleConverge} className="flex flex-col gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{t("convergeTitle")}</h3>
+            <p className="mt-0.5 text-xs text-foreground/60">{t("convergeSubtitle")}</p>
+          </div>
+          <label htmlFor="convergeOtp" className="sr-only">
+            {t("addPhoneOtpLabel")}
+          </label>
+          <input
+            id="convergeOtp"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            dir="ltr"
+            value={otp}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtp(e.target.value)}
+            placeholder={t("addPhoneOtpLabel")}
+            disabled={loading}
+            className="h-11 rounded-xl border border-border bg-background/60 px-3 text-center text-sm tracking-widest text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={loading || otp.trim() === ""}
+              className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {loading ? t("addPhoneLoading") : t("convergeContinue")}
+            </button>
+            <button type="button" onClick={reset} className="text-sm text-foreground/60 hover:underline">
+              {t("addPhoneCancel")}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {step === "converged" && (
+        <div className="flex flex-col gap-3">
+          <p role="status" className="text-sm font-medium text-foreground">
+            {t("convergeSuccess")}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="inline-flex w-fit items-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            {t("convergeDone")}
+          </button>
+        </div>
+      )}
+
+      {step === "support" && (
+        <div className="flex flex-col gap-3">
+          <p role="alert" className="text-sm text-foreground/80">
+            {t("convergeSupport")}
+          </p>
+          <button type="button" onClick={reset} className="w-fit text-sm text-foreground/60 hover:underline">
+            {t("addPhoneCancel")}
+          </button>
+        </div>
       )}
 
       {error && (

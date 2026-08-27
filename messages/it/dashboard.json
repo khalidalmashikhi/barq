@@ -119,5 +119,11 @@
   "addPhoneErrorRateLimited": "Troppi tentativi. Riprova più tardi.",
   "addPhoneErrorInvalidOtp": "Il codice è errato o scaduto. Riprova.",
   "addPhoneErrorUnavailable": "La verifica telefonica non è disponibile al momento.",
-  "addPhoneErrorGeneric": "Si è verificato un errore, riprova."
+  "addPhoneErrorGeneric": "Si è verificato un errore, riprova.",
+  "convergeTitle": "Unifica il tuo account",
+  "convergeSubtitle": "Questo metodo di accesso è collegato a un altro account BARQ. Per unificare entrambi i metodi di accesso in un unico account, dobbiamo verificare che ti appartenga. Inserisci il codice inviato a questo numero.",
+  "convergeContinue": "Continua l'unificazione dell'account",
+  "convergeSuccess": "I tuoi metodi di accesso sono stati unificati in un unico account BARQ. Puoi accedere con telefono o email.",
+  "convergeDone": "Continua",
+  "convergeSupport": "Questo account non può essere unificato automaticamente. Contatta l'assistenza per completarlo."
 }

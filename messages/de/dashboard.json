@@ -119,5 +119,11 @@
   "addPhoneErrorRateLimited": "Zu viele Versuche. Bitte versuche es später erneut.",
   "addPhoneErrorInvalidOtp": "Der Code ist falsch oder abgelaufen. Bitte versuche es erneut.",
   "addPhoneErrorUnavailable": "Die Telefon-Verifizierung ist derzeit nicht verfügbar.",
-  "addPhoneErrorGeneric": "Etwas ist schiefgelaufen, bitte versuche es erneut."
+  "addPhoneErrorGeneric": "Etwas ist schiefgelaufen, bitte versuche es erneut.",
+  "convergeTitle": "Konto zusammenführen",
+  "convergeSubtitle": "Diese Anmeldemethode ist mit einem anderen BARQ-Konto verknüpft. Um beide Anmeldemethoden in einem Konto zusammenzuführen, müssen wir bestätigen, dass sie Ihnen gehört. Gib den an diese Nummer gesendeten Code ein.",
+  "convergeContinue": "Zusammenführung fortsetzen",
+  "convergeSuccess": "Deine Anmeldemethoden wurden in einem BARQ-Konto zusammengeführt. Du kannst dich mit Telefon oder E-Mail anmelden.",
+  "convergeDone": "Weiter",
+  "convergeSupport": "Dieses Konto kann nicht automatisch zusammengeführt werden. Bitte kontaktiere den Support, um dies abzuschließen."
 }

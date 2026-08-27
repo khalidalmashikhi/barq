@@ -119,5 +119,11 @@
   "addPhoneErrorRateLimited": "Příliš mnoho pokusů. Zkuste to prosím později.",
   "addPhoneErrorInvalidOtp": "Kód je nesprávný nebo vypršel. Zkuste to znovu.",
   "addPhoneErrorUnavailable": "Ověření telefonem není momentálně dostupné.",
-  "addPhoneErrorGeneric": "Něco se pokazilo, zkuste to znovu."
+  "addPhoneErrorGeneric": "Něco se pokazilo, zkuste to znovu.",
+  "convergeTitle": "Sjednotit účet",
+  "convergeSubtitle": "Tento způsob přihlášení je propojen s jiným účtem BARQ. Abychom oba způsoby přihlášení sjednotili do jednoho účtu, musíme ověřit, že vám patří. Zadejte kód zaslaný na toto číslo.",
+  "convergeContinue": "Pokračovat ve sjednocení účtu",
+  "convergeSuccess": "Vaše způsoby přihlášení byly sjednoceny do jednoho účtu BARQ. Můžete se přihlásit telefonem nebo e-mailem.",
+  "convergeDone": "Pokračovat",
+  "convergeSupport": "Tento účet nelze sjednotit automaticky. Pro dokončení prosím kontaktujte podporu."
 }
