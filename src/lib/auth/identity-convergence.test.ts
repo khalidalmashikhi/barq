@@ -38,7 +38,15 @@ vi.mock("@/lib/otp/otp-rate-limit-config", () => ({
   otpVerifyIpKey: (k: string) => `v:${k}`,
 }));
 vi.mock("@/lib/otp/audit", () => ({ maskPhoneNumber: (p: string) => `***${p.slice(-4)}` }));
-vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+const loggerWarnMock = vi.fn();
+vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: (...a: unknown[]) => loggerWarnMock(...a), error: vi.fn() } }));
+
+// The internal diagnostic reason emitted for the most recent SUPPORT_REQUIRED (never
+// returned to the browser — see the assessment logging in identity-convergence.ts).
+function lastAssessmentReason(): string | undefined {
+  const call = [...loggerWarnMock.mock.calls].reverse().find((c) => c[0] === "auth.identity_convergence_assessment");
+  return call?.[1]?.reason as string | undefined;
+}
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 const auditCreateMock = vi.fn();
@@ -49,7 +57,7 @@ vi.mock("@/lib/audit/record-audit-event", () => ({
 // ---- prisma mock: a small in-memory identity store ------------------------------
 type Rec = {
   id: string;
-  authUserId: string;
+  authUserId: string | null;
   status: string;
   createdAt: Date;
   phoneNumber: string | null;
@@ -60,6 +68,7 @@ type Rec = {
   privilege?: boolean; // provider row
   staffRow?: boolean;
   adminRow?: boolean;
+  danglingAuthUser?: boolean; // authUserId set but the AuthUser row is missing (topology defect)
   hasCustomer?: boolean;
   customerId?: string | null;
   history?: boolean;
@@ -75,25 +84,36 @@ const sessionDeleteMany = vi.fn();
 const auditLog = { create: (x: unknown) => auditCreateMock(x) };
 
 function makeUserFindUnique() {
-  return vi.fn(async (args: { where: { id?: string; phoneNumber?: string }; select?: unknown; include?: unknown }) => {
-    if (args.where.phoneNumber && args.select) {
-      const r = Object.values(store).find((x) => x.phoneNumber === args.where.phoneNumber);
-      return r ? { id: r.id } : null;
-    }
-    const r = args.where.id ? store[args.where.id] : undefined;
+  return vi.fn(async (args: { where: { id?: string; phoneNumber?: string }; select?: Record<string, unknown>; include?: unknown }) => {
+    const r = args.where.id
+      ? store[args.where.id]
+      : args.where.phoneNumber
+        ? Object.values(store).find((x) => x.phoneNumber === args.where.phoneNumber)
+        : undefined;
     if (!r) return null;
+    // Projection-only queries (findPhoneOwnerUserId fallback + diagnoseLoadFailure).
+    if (args.select && !args.include) {
+      const out: Record<string, unknown> = {};
+      if (args.select.id) out.id = r.id;
+      if (args.select.authUserId) out.authUserId = r.authUserId;
+      return out;
+    }
+    // Full include (loadSide). A User with authUserId:null has NO authUser relation.
     return {
       id: r.id,
       phoneNumber: r.phoneNumber,
       status: r.status,
       createdAt: r.createdAt,
-      authUser: {
-        id: r.authUserId,
-        email: r.authEmail,
-        emailVerified: r.authEmailVerified,
-        phoneNumber: r.authPhone,
-        phoneNumberVerified: r.authPhoneVerified,
-      },
+      authUser:
+        r.authUserId === null || r.danglingAuthUser
+          ? null
+          : {
+              id: r.authUserId,
+              email: r.authEmail,
+              emailVerified: r.authEmailVerified,
+              phoneNumber: r.authPhone,
+              phoneNumberVerified: r.authPhoneVerified,
+            },
       providerLink: r.privilege ? { id: "p" } : null,
       staff: r.staffRow ? { id: "s" } : null,
       admin: r.adminRow ? { id: "a" } : null,
@@ -429,5 +449,70 @@ describe("AUTH-LEGACY-CONVERGENCE-1 — legacy phone owner without a Customer", 
     expect(userUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ data: { status: "DEACTIVATED" } }));
     expect(sessionDeleteMany).not.toHaveBeenCalled();
     expect(sendOtpMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("AUTH-CONVERGENCE-DIAGNOSTIC-1 — internal-only SUPPORT_REQUIRED reasons", () => {
+  // A historical User with a verified phone on User.phoneNumber but NO AuthUser bridge.
+  const legacyNoAuth: Rec = {
+    id: "Aleg",
+    authUserId: null,
+    status: "ACTIVE",
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    phoneNumber: PHONE,
+    authEmail: null,
+    authEmailVerified: false,
+    authPhone: null, // no AuthUser owns the phone
+    authPhoneVerified: false,
+    hasCustomer: false,
+  };
+
+  it("legacy owner (User with authUserId:null) → SUPPORT_REQUIRED + LEGACY_OWNER_NO_AUTHUSER", async () => {
+    setStore([{ ...B }, { ...legacyNoAuth }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("LEGACY_OWNER_NO_AUTHUSER");
+  });
+
+  it("privileged pair → SUPPORT_REQUIRED + PRIVILEGED_IDENTITY", async () => {
+    setStore([{ ...B }, { ...A, privilege: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("PRIVILEGED_IDENTITY");
+  });
+
+  it("both meaningful history → SUPPORT_REQUIRED + BOTH_HISTORY", async () => {
+    setStore([{ ...B, history: true }, { ...A, history: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("BOTH_HISTORY");
+  });
+
+  it("owner topology mismatch (authUserId set, AuthUser row missing) → SUPPORT_REQUIRED + OWNER_TOPOLOGY_MISMATCH", async () => {
+    const dangling: Rec = { ...A, id: "Adng", authUserId: "aAdng", authPhone: null, danglingAuthUser: true };
+    setStore([{ ...B }, dangling]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("OWNER_TOPOLOGY_MISMATCH");
+  });
+
+  it("eligible legacy-with-AuthUser case → CONVERGENCE_AVAILABLE and NO failure diagnostic logged", async () => {
+    setStore([{ ...B }, { ...A, hasCustomer: false }]); // A-claimed legacy: AuthUser present, no Customer
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "CONVERGENCE_AVAILABLE" });
+    expect(lastAssessmentReason()).toBeUndefined();
+  });
+
+  it("the browser/user-facing result NEVER carries the internal reason", async () => {
+    setStore([{ ...B }, { ...legacyNoAuth }]);
+    const res = await assessIdentityConvergence(PHONE);
+    expect(res).toEqual({ status: "SUPPORT_REQUIRED" }); // exactly this shape — no `reason` field
+    expect(Object.keys(res)).toEqual(["status"]);
+    expect(JSON.stringify(res)).not.toContain("LEGACY_OWNER_NO_AUTHUSER");
+  });
+
+  it("diagnostic assessment sends zero OTP and performs zero identity mutation", async () => {
+    setStore([{ ...B }, { ...legacyNoAuth }]);
+    await assessIdentityConvergence(PHONE);
+    expect(sendOtpMock).not.toHaveBeenCalled();
+    expect(authUserUpdate).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(sessionDeleteMany).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
   });
 });

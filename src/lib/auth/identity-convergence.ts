@@ -143,13 +143,52 @@ function writeAudit(action: string, entityId: string, actorId: string | null, ex
   return recordAuditEvent({ actorType: "CUSTOMER", actorId, action, entityType: "User", entityId, newValue: extra }, db);
 }
 
+// AUTH-CONVERGENCE-DIAGNOSTIC-1 — an INTERNAL-ONLY, non-PII reason for why an
+// assessment fail-closes to SUPPORT_REQUIRED. It is never returned to the browser and
+// never changes the user-facing status or the decision path; it only makes the exact
+// blocking condition observable in server logs (needed to diagnose the live staging
+// pair). Exported for server-side testability.
+export type AssessmentDiagnosticReason =
+  | "CURRENT_SIDE_LOAD_FAILED"
+  | "OWNER_SIDE_LOAD_FAILED"
+  | "LEGACY_OWNER_NO_AUTHUSER"
+  | "OWNER_TOPOLOGY_MISMATCH"
+  | "PRIVILEGED_IDENTITY"
+  | "BOTH_HISTORY"
+  | "NOT_CUSTOMER"
+  | "SAME_IDENTITY"
+  | "UNKNOWN_FAIL_CLOSED";
+
+const ELIGIBILITY_DIAGNOSTIC: Record<string, AssessmentDiagnosticReason> = {
+  PRIVILEGE: "PRIVILEGED_IDENTITY",
+  BOTH_HISTORY: "BOTH_HISTORY",
+  NOT_CUSTOMER: "NOT_CUSTOMER",
+  SAME_IDENTITY: "SAME_IDENTITY",
+};
+
+// Read-only re-inspection of WHY loadSide returned null for a side — never mutates and
+// never changes the (already-SUPPORT_REQUIRED) decision. loadSide yields null only when
+// a User is missing or has no AuthUser bridge; this separates those cases.
+async function diagnoseLoadFailure(currentUserId: string, ownerUserId: string): Promise<AssessmentDiagnosticReason> {
+  const cur = await prisma.user.findUnique({ where: { id: currentUserId }, select: { authUserId: true } });
+  if (!cur || cur.authUserId === null) return "CURRENT_SIDE_LOAD_FAILED";
+  const own = await prisma.user.findUnique({ where: { id: ownerUserId }, select: { authUserId: true } });
+  if (!own) return "OWNER_SIDE_LOAD_FAILED";
+  // The prime legacy case: a historical User with a verified phone but no AuthUser bridge.
+  if (own.authUserId === null) return "LEGACY_OWNER_NO_AUTHUSER";
+  // A bridge id is set yet loadSide's authUser relation came back null → a dangling /
+  // inconsistent AuthUser bridge; never auto-converge across it.
+  return "OWNER_TOPOLOGY_MISMATCH";
+}
+
 /**
  * Read-only assessment: is safe dual-proof convergence AVAILABLE for phone P? Sends NO
  * OTP and mutates nothing — it exists so the UI can present an explicit choice (verify
  * + converge / use a different number / cancel) BEFORE any OTP is sent to a number that
  * belongs to another identity. CONVERGENCE_AVAILABLE when eligible; a generic
  * SUPPORT_REQUIRED when owned-but-unsafe (no PII); NOT_APPLICABLE when P is not owned by
- * another identity (the normal Add-phone flow handles it).
+ * another identity (the normal Add-phone flow handles it). On any SUPPORT_REQUIRED it
+ * logs an internal-only, non-PII diagnostic reason (never returned to the browser).
  */
 export async function assessIdentityConvergence(phoneRaw: string): Promise<ConvergenceAssessment> {
   const me = await currentIdentity();
@@ -163,9 +202,17 @@ export async function assessIdentityConvergence(phoneRaw: string): Promise<Conve
   if (!ownerUserId || ownerUserId === me.userId) return { status: "NOT_APPLICABLE" };
 
   const [current, owner] = await Promise.all([loadSide(prisma, me.userId), loadSide(prisma, ownerUserId)]);
-  if (!current || !owner) return { status: "SUPPORT_REQUIRED" };
+  if (!current || !owner) {
+    const reason = await diagnoseLoadFailure(me.userId, ownerUserId);
+    logger.warn("auth.identity_convergence_assessment", { reason, phoneNumber: maskPhoneNumber(phone) });
+    return { status: "SUPPORT_REQUIRED" };
+  }
 
-  return assessEligibility(current, owner).eligible ? { status: "CONVERGENCE_AVAILABLE" } : { status: "SUPPORT_REQUIRED" };
+  const elig = assessEligibility(current, owner);
+  if (elig.eligible) return { status: "CONVERGENCE_AVAILABLE" };
+  const reason = ELIGIBILITY_DIAGNOSTIC[elig.reason] ?? "UNKNOWN_FAIL_CLOSED";
+  logger.warn("auth.identity_convergence_assessment", { reason, phoneNumber: maskPhoneNumber(phone) });
+  return { status: "SUPPORT_REQUIRED" };
 }
 
 /**
