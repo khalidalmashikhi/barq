@@ -57,7 +57,9 @@ type Rec = {
   authEmailVerified: boolean;
   authPhone: string | null;
   authPhoneVerified: boolean;
-  privilege?: boolean;
+  privilege?: boolean; // provider row
+  staffRow?: boolean;
+  adminRow?: boolean;
   hasCustomer?: boolean;
   customerId?: string | null;
   history?: boolean;
@@ -93,8 +95,8 @@ function makeUserFindUnique() {
         phoneNumberVerified: r.authPhoneVerified,
       },
       providerLink: r.privilege ? { id: "p" } : null,
-      staff: null,
-      admin: null,
+      staff: r.staffRow ? { id: "s" } : null,
+      admin: r.adminRow ? { id: "a" } : null,
       customer:
         r.hasCustomer === false
           ? null
@@ -353,5 +355,79 @@ describe("convergeCustomerIdentityByPhone", () => {
     const res = await convergeCustomerIdentityByPhone(PHONE, "123456");
     expect(JSON.stringify(res)).not.toContain("example.com");
     expect(JSON.stringify(res)).not.toContain(PHONE);
+  });
+});
+
+describe("AUTH-LEGACY-CONVERGENCE-1 — legacy phone owner without a Customer", () => {
+  // A-claimed legacy owner: an AuthUser bridge exists (authUserId set) + verified phone,
+  // but NO Customer (predates the Customer-profile model). Current B is a full customer.
+  const legacyA: Rec = { ...A, hasCustomer: false };
+
+  it("(#1) legacy owner without Customer + no incompatible history → CONVERGENCE_AVAILABLE", async () => {
+    setStore([{ ...B }, { ...legacyA }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "CONVERGENCE_AVAILABLE" });
+  });
+
+  it("(#2) that assessment sends NO OTP and mutates nothing", async () => {
+    setStore([{ ...B }, { ...legacyA }]);
+    await assessIdentityConvergence(PHONE);
+    expect(sendOtpMock).not.toHaveBeenCalled();
+    expect(authUserUpdate).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it("(#4) legacy owner with a Provider row → SUPPORT_REQUIRED", async () => {
+    setStore([{ ...B }, { ...legacyA, privilege: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+  });
+
+  it("(#5) legacy owner with a Staff row → SUPPORT_REQUIRED", async () => {
+    setStore([{ ...B }, { ...legacyA, staffRow: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+  });
+
+  it("(#6) legacy owner with an Admin row → SUPPORT_REQUIRED", async () => {
+    setStore([{ ...B }, { ...legacyA, adminRow: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+  });
+
+  it("(#7) current B with any privileged profile → SUPPORT_REQUIRED", async () => {
+    setStore([{ ...B, staffRow: true }, { ...legacyA }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+  });
+
+  it("(#8) both full customers hold meaningful history → SUPPORT_REQUIRED", async () => {
+    setStore([{ ...B, history: true }, { ...A, history: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+  });
+
+  it("(#12) successful legacy convergence: B survives (phone moved), A deactivated, sessions killed, no privilege transfer", async () => {
+    setStore([{ ...B }, { ...legacyA }]);
+    const res = await convergeCustomerIdentityByPhone(PHONE, "123456");
+    expect(res).toEqual({ ok: true });
+    // phone released from legacy loser A, claimed by survivor B
+    expect(authUserUpdate).toHaveBeenCalledWith({ where: { id: "aA" }, data: { phoneNumber: null, phoneNumberVerified: false } });
+    expect(authUserUpdate).toHaveBeenCalledWith({ where: { id: "aB" }, data: { phoneNumber: PHONE, phoneNumberVerified: true } });
+    expect(userUpdate).toHaveBeenCalledWith({ where: { id: "B" }, data: { phoneNumber: PHONE, phoneNumberVerified: true } });
+    // survivor B keeps its real email — no email move
+    expect(authUserUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ email: null }) }));
+    // loser A retained + deactivated, sessions invalidated, relations re-parented
+    expect(userUpdate).toHaveBeenCalledWith({ where: { id: "A" }, data: { status: "DEACTIVATED" } });
+    expect(sessionDeleteMany).toHaveBeenCalledWith({ where: { userId: "aA" } });
+    expect(notifUpdateMany).toHaveBeenCalledWith({ where: { userId: "A" }, data: { userId: "B" } });
+    // no privilege ever written
+    expect(auditCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "identity.convergence_completed" }) })
+    );
+  });
+
+  it("(#11) convergence never runs on assessment or OTP-send — only the explicit converge action mutates", async () => {
+    setStore([{ ...B }, { ...legacyA }]);
+    await assessIdentityConvergence(PHONE); // choice screen
+    await offerIdentityConvergence(PHONE); // choice 1: send OTP only
+    // Neither step deactivated anyone or invalidated sessions — only the OTP was sent.
+    expect(userUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ data: { status: "DEACTIVATED" } }));
+    expect(sessionDeleteMany).not.toHaveBeenCalled();
+    expect(sendOtpMock).toHaveBeenCalledTimes(1);
   });
 });

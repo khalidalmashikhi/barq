@@ -52,15 +52,36 @@ describe("assessEligibility — blocking rules", () => {
     expect(r).toEqual({ eligible: false, reason: "PRIVILEGE" });
   });
 
-  it("blocks when either identity is not a Customer", () => {
-    expect(assessEligibility(side({ userId: "B", hasCustomer: false }), phoneSide).eligible).toBe(false);
-    expect(assessEligibility(emailSide, side({ userId: "A", hasCustomer: false })).eligible).toBe(false);
+  it("blocks only when NEITHER identity is a full customer (no valid survivor)", () => {
+    const r = assessEligibility(
+      side({ userId: "B", hasCustomer: false }),
+      side({ userId: "A", hasCustomer: false })
+    );
+    expect(r).toEqual({ eligible: false, reason: "NOT_CUSTOMER" });
   });
 
-  it("blocks when BOTH identities hold meaningful history", () => {
+  it("AUTH-LEGACY-CONVERGENCE-1: a single Customer-less legacy owner is the LOSER, not a blocker", () => {
+    // Current B is a full customer; legacy owner A has a verified phone but no Customer.
+    const legacyOwner = side({ userId: "A", authUserId: "aA", hasCustomer: false, authPhone: "+96891112222", authPhoneVerified: true });
+    const r = assessEligibility(side({ userId: "B", hasCustomer: true }), legacyOwner);
+    expect(r.eligible).toBe(true);
+    if (r.eligible) {
+      expect(r.survivor.userId).toBe("B"); // the full customer survives
+      expect(r.loser.userId).toBe("A"); // the legacy Customer-less identity loses
+    }
+  });
+
+  it("a Customer-less legacy owner still BLOCKS when it carries a privileged profile", () => {
+    for (const priv of [{ hasPrivilege: true }] as const) {
+      const owner = side({ userId: "A", hasCustomer: false, ...priv });
+      expect(assessEligibility(side({ userId: "B", hasCustomer: true }), owner)).toEqual({ eligible: false, reason: "PRIVILEGE" });
+    }
+  });
+
+  it("blocks when BOTH full customers hold meaningful history", () => {
     const r = assessEligibility(
-      side({ userId: "B", hasMeaningfulHistory: true }),
-      side({ userId: "A", hasMeaningfulHistory: true })
+      side({ userId: "B", hasCustomer: true, hasMeaningfulHistory: true }),
+      side({ userId: "A", hasCustomer: true, hasMeaningfulHistory: true })
     );
     expect(r).toEqual({ eligible: false, reason: "BOTH_HISTORY" });
   });
