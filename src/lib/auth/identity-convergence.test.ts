@@ -473,10 +473,22 @@ describe("AUTH-CONVERGENCE-DIAGNOSTIC-1 — internal-only SUPPORT_REQUIRED reaso
     expect(lastAssessmentReason()).toBe("LEGACY_OWNER_NO_AUTHUSER");
   });
 
-  it("privileged pair → SUPPORT_REQUIRED + PRIVILEGED_IDENTITY", async () => {
+  it("owner-only privileged → SUPPORT_REQUIRED + PRIVILEGED_OWNER", async () => {
     setStore([{ ...B }, { ...A, privilege: true }]);
     expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("PRIVILEGED_IDENTITY");
+    expect(lastAssessmentReason()).toBe("PRIVILEGED_OWNER");
+  });
+
+  it("current-only privileged → SUPPORT_REQUIRED + PRIVILEGED_CURRENT", async () => {
+    setStore([{ ...B, staffRow: true }, { ...A }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("PRIVILEGED_CURRENT");
+  });
+
+  it("both privileged → SUPPORT_REQUIRED + PRIVILEGED_BOTH", async () => {
+    setStore([{ ...B, adminRow: true }, { ...A, privilege: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("PRIVILEGED_BOTH");
   });
 
   it("both meaningful history → SUPPORT_REQUIRED + BOTH_HISTORY", async () => {

@@ -153,18 +153,25 @@ export type AssessmentDiagnosticReason =
   | "OWNER_SIDE_LOAD_FAILED"
   | "LEGACY_OWNER_NO_AUTHUSER"
   | "OWNER_TOPOLOGY_MISMATCH"
-  | "PRIVILEGED_IDENTITY"
+  | "PRIVILEGED_CURRENT" // the current (email-first) identity holds a Provider/Staff/Admin row
+  | "PRIVILEGED_OWNER" // the historical phone-owner identity holds one
+  | "PRIVILEGED_BOTH"
   | "BOTH_HISTORY"
   | "NOT_CUSTOMER"
   | "SAME_IDENTITY"
   | "UNKNOWN_FAIL_CLOSED";
 
 const ELIGIBILITY_DIAGNOSTIC: Record<string, AssessmentDiagnosticReason> = {
-  PRIVILEGE: "PRIVILEGED_IDENTITY",
   BOTH_HISTORY: "BOTH_HISTORY",
   NOT_CUSTOMER: "NOT_CUSTOMER",
   SAME_IDENTITY: "SAME_IDENTITY",
 };
+
+/** Which side of the pair holds the privileged profile (no role/id — just the side). */
+function privilegeSide(current: IdentitySide, owner: IdentitySide): AssessmentDiagnosticReason {
+  if (current.hasPrivilege && owner.hasPrivilege) return "PRIVILEGED_BOTH";
+  return current.hasPrivilege ? "PRIVILEGED_CURRENT" : "PRIVILEGED_OWNER";
+}
 
 // Read-only re-inspection of WHY loadSide returned null for a side — never mutates and
 // never changes the (already-SUPPORT_REQUIRED) decision. loadSide yields null only when
@@ -210,7 +217,8 @@ export async function assessIdentityConvergence(phoneRaw: string): Promise<Conve
 
   const elig = assessEligibility(current, owner);
   if (elig.eligible) return { status: "CONVERGENCE_AVAILABLE" };
-  const reason = ELIGIBILITY_DIAGNOSTIC[elig.reason] ?? "UNKNOWN_FAIL_CLOSED";
+  const reason =
+    elig.reason === "PRIVILEGE" ? privilegeSide(current, owner) : (ELIGIBILITY_DIAGNOSTIC[elig.reason] ?? "UNKNOWN_FAIL_CLOSED");
   logger.warn("auth.identity_convergence_assessment", { reason, phoneNumber: maskPhoneNumber(phone) });
   return { status: "SUPPORT_REQUIRED" };
 }
