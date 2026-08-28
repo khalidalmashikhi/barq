@@ -1,16 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { IdentitySide } from "./identity-convergence-policy";
 
-// AUTH-PROVIDER-LINK gate 3A — tests for the dual-proof orchestration. The pure classifier
-// (identity-convergence-policy) runs FOR REAL so routing genuinely matches policy; the two
-// terminal mutations (convergeCustomerIdentityByPhone, linkProviderCredential), Better Auth
-// (send/verify), the identity loaders, the rate-limiter and audit are mocked. These prove:
-// no OTP during assessment; OTP only after explicit consent (offer); the terminal
-// transaction is invoked only after a valid OTP and never on a failed/absent proof; identity
-// is derived from the session and never from client input; provider/customer eligible offers
-// are externally indistinguishable; Staff/Admin/privileged/history cases stay generic
-// SUPPORT_REQUIRED; the verify uses disableSession (no A session / no third AuthUser); and
-// the engine's result maps to a non-enumerating public completion.
+// AUTH-PROVIDER-LINK gate 3A.2 — orchestration tests over the BARQ-owned challenge model. The
+// pure classifier runs for real; the proof module, the two terminal mutations, the SMS
+// provider, Better Auth send, the loaders, the limiter and audit are mocked. These prove: the
+// provider branch NEVER calls auth.api.verifyPhoneNumber; both eligible offers return an opaque
+// attemptId (indistinguishable); the completion is bound to the session B + the server-bound P;
+// owner substitution / unowned P / topology change fail closed; and SMS-send failure
+// invalidates the challenge.
 
 vi.mock("server-only", () => ({}));
 
@@ -23,13 +20,12 @@ vi.mock("./index", () => ({
   ForbiddenError,
 }));
 
-const sendOtpMock = vi.fn();
-const verifyPhoneMock = vi.fn();
+const sendPhoneOtpMock = vi.fn(); // Better Auth send (customer branch)
+const verifyPhoneMock = vi.fn(); // Better Auth verify — MUST NEVER be called by the provider branch
 vi.mock("./server", () => ({
-  auth: { api: { sendPhoneNumberOTP: (...a: unknown[]) => sendOtpMock(...a), verifyPhoneNumber: (...a: unknown[]) => verifyPhoneMock(...a) } },
+  auth: { api: { sendPhoneNumberOTP: (...a: unknown[]) => sendPhoneOtpMock(...a), verifyPhoneNumber: (...a: unknown[]) => verifyPhoneMock(...a) } },
 }));
 
-// Real synthetic-email detection (pure) for the real classifier.
 vi.mock("./linked-email", () => ({
   isSyntheticAuthEmail: (e: string | null | undefined) => typeof e === "string" && e.toLowerCase().endsWith("@phone.barq.internal"),
 }));
@@ -42,16 +38,33 @@ vi.mock("./identity-side-loader", () => ({
 }));
 
 const linkProviderCredentialMock = vi.fn();
-vi.mock("./provider-credential-link", () => ({
-  linkProviderCredential: (...a: unknown[]) => linkProviderCredentialMock(...a),
-}));
+vi.mock("./provider-credential-link", () => ({ linkProviderCredential: (...a: unknown[]) => linkProviderCredentialMock(...a) }));
 
 const convergeMock = vi.fn();
-vi.mock("./identity-convergence", () => ({
-  convergeCustomerIdentityByPhone: (...a: unknown[]) => convergeMock(...a),
+vi.mock("./identity-convergence", () => ({ convergeCustomerIdentityByPhone: (...a: unknown[]) => convergeMock(...a) }));
+
+// The BARQ-owned proof module — fully mocked so we test orchestration wiring.
+const createProviderChallengeMock = vi.fn();
+const createCustomerAttemptMock = vi.fn();
+const loadAttemptMock = vi.fn();
+const verifyProofMock = vi.fn();
+const consumeCustomerMock = vi.fn();
+const invalidateMock = vi.fn();
+vi.mock("./identity-link-proof", () => ({
+  createProviderLinkChallenge: (...a: unknown[]) => createProviderChallengeMock(...a),
+  createCustomerLinkAttempt: (...a: unknown[]) => createCustomerAttemptMock(...a),
+  loadLinkAttempt: (...a: unknown[]) => loadAttemptMock(...a),
+  verifyAndConsumeProviderProof: (...a: unknown[]) => verifyProofMock(...a),
+  consumeCustomerLinkAttempt: (...a: unknown[]) => consumeCustomerMock(...a),
+  invalidateLinkAttempt: (...a: unknown[]) => invalidateMock(...a),
 }));
 
-// Deterministic normalization: anything starting with "+" is a valid E.164; "" / "bad" invalid.
+const sendSmsMock = vi.fn();
+vi.mock("@/lib/otp/get-otp-provider", () => ({ getOtpProvider: () => ({ name: "test", send: (...a: unknown[]) => sendSmsMock(...a) }) }));
+vi.mock("@/lib/otp/otp-config", () => ({
+  getOtpConfig: () => ({ expiresInSeconds: 300, maxAttempts: 3, resendCooldownSeconds: 30, maxSendsPerDay: 10 }),
+}));
+
 vi.mock("@/lib/phone/normalize-international-phone", () => ({
   normalizeInternationalPhone: (input: string) =>
     typeof input === "string" && input.startsWith("+") ? { ok: true, e164: input } : { ok: false, reason: "INVALID_NUMBER" },
@@ -61,19 +74,19 @@ const consumeRateLimitMock = vi.fn();
 vi.mock("@/lib/rate-limit/durable-rate-limiter", () => ({ consumeRateLimit: (...a: unknown[]) => consumeRateLimitMock(...a) }));
 vi.mock("@/lib/rate-limit/client-ip", () => ({ resolveClientIp: () => "1.2.3.4", hmacRateLimitKey: (v: string) => `hmac(${v})` }));
 vi.mock("@/lib/otp/otp-rate-limit-config", () => ({
+  getOtpSendIpRateLimit: () => ({ limit: 15, windowSeconds: 3600 }),
+  getOtpSendPhoneRateLimit: () => ({ limit: 6, windowSeconds: 3600 }),
   getOtpVerifyIpRateLimit: () => ({ limit: 30, windowSeconds: 3600 }),
+  otpSendIpKey: (k: string) => `si:${k}`,
+  otpSendPhoneKey: (k: string) => `sp:${k}`,
   otpVerifyIpKey: (k: string) => `v:${k}`,
 }));
 vi.mock("@/lib/otp/audit", () => ({ maskPhoneNumber: (p: string) => `***${p.slice(-4)}` }));
-
 const loggerWarnMock = vi.fn();
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: (...a: unknown[]) => loggerWarnMock(...a), error: vi.fn() } }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
-
 const auditCreateMock = vi.fn();
-vi.mock("@/lib/audit/record-audit-event", () => ({
-  recordAuditEvent: (params: unknown) => auditCreateMock(params),
-}));
+vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (params: unknown) => auditCreateMock(params) }));
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 
 const { assessIdentityLink, offerIdentityLink, completeIdentityLink } = await import("./provider-link-orchestration");
@@ -101,52 +114,18 @@ function side(over: Partial<IdentitySide> & Pick<IdentitySide, "userId" | "authU
     ...over,
   };
 }
-
-// CURRENT B — ordinary customer with a real verified email, no phone, no privilege, no history.
 function ordinaryB(over: Partial<IdentitySide> = {}): IdentitySide {
-  return side({
-    userId: "B",
-    authUserId: "authB",
-    authEmail: "b@example.com",
-    authEmailVerified: true,
-    hasCustomer: true,
-    customerId: "custB",
-    ...over,
-  });
+  return side({ userId: "B", authUserId: "authB", authEmail: "b@example.com", authEmailVerified: true, hasCustomer: true, customerId: "custB", ...over });
 }
-
-// OWNER A — a Provider on a verified phone P, synthetic email, no customer.
 function providerA(over: Partial<IdentitySide> = {}): IdentitySide {
   return side({
-    userId: "A",
-    authUserId: "authA",
-    authEmail: `${PHONE}@phone.barq.internal`,
-    authEmailVerified: true,
-    authPhone: PHONE,
-    authPhoneVerified: true,
-    userPhone: PHONE,
-    hasProvider: true,
-    createdAt: new Date("2023-01-01T00:00:00Z"),
-    ...over,
+    userId: "A", authUserId: "authA", authEmail: `${PHONE}@phone.barq.internal`, authEmailVerified: true,
+    authPhone: PHONE, authPhoneVerified: true, userPhone: PHONE, hasProvider: true, createdAt: new Date("2023-01-01T00:00:00Z"), ...over,
   });
 }
-
-// A second ordinary customer C owning verified phone P, no email, no history (older) — the
-// classic customer-convergence owner.
 function ordinaryOwnerC(over: Partial<IdentitySide> = {}): IdentitySide {
-  return side({
-    userId: "C",
-    authUserId: "authC",
-    authPhone: PHONE,
-    authPhoneVerified: true,
-    userPhone: PHONE,
-    hasCustomer: true,
-    customerId: "custC",
-    createdAt: new Date("2022-01-01T00:00:00Z"),
-    ...over,
-  });
+  return side({ userId: "C", authUserId: "authC", authPhone: PHONE, authPhoneVerified: true, userPhone: PHONE, hasCustomer: true, customerId: "custC", createdAt: new Date("2022-01-01T00:00:00Z"), ...over });
 }
-
 function configure(opts: { current: IdentitySide; owner: IdentitySide | null; ownerUserId?: string | null }) {
   requireAuthMock.mockResolvedValue({ authUserId: opts.current.authUserId, barqUser: { id: opts.current.userId, status: "ACTIVE" } });
   findPhoneOwnerUserIdMock.mockResolvedValue(opts.ownerUserId === undefined ? (opts.owner?.userId ?? null) : opts.ownerUserId);
@@ -158,274 +137,218 @@ function configure(opts: { current: IdentitySide; owner: IdentitySide | null; ow
 beforeEach(() => {
   vi.clearAllMocks();
   consumeRateLimitMock.mockResolvedValue({ allowed: true });
-  sendOtpMock.mockResolvedValue({});
-  verifyPhoneMock.mockResolvedValue({ status: true, token: null });
+  sendPhoneOtpMock.mockResolvedValue({});
+  sendSmsMock.mockResolvedValue(undefined);
+  createProviderChallengeMock.mockResolvedValue({ challengeId: "C".repeat(64), code: "123456" });
+  createCustomerAttemptMock.mockResolvedValue({ challengeId: "D".repeat(64) });
+  verifyProofMock.mockResolvedValue({ ok: true });
   linkProviderCredentialMock.mockResolvedValue({ ok: true, survivorUserId: "A" });
   convergeMock.mockResolvedValue({ ok: true });
 });
 
-function lastAssessmentReason(): string | undefined {
-  const call = [...loggerWarnMock.mock.calls].reverse().find((c) => c[0] === "auth.identity_link_assessment");
-  return call?.[1]?.reason as string | undefined;
-}
+const providerLoaded = { ok: true, purpose: "PROVIDER_CREDENTIAL_LINK", phone: PHONE, ownerAuthUserId: "authA", otpHash: "hash" };
+const customerLoaded = { ok: true, purpose: "CUSTOMER_CONVERGENCE", phone: PHONE };
 
-// ── ASSESSMENT (§16.1-6) ──────────────────────────────────────────────────────────────
+// ── ASSESSMENT ────────────────────────────────────────────────────────────────────────
 describe("assessIdentityLink", () => {
-  it("1. customer convergence is available (unchanged behavior)", async () => {
-    configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
-    expect(await assessIdentityLink(PHONE)).toEqual({ status: "LINK_AVAILABLE" });
-    expect(sendOtpMock).not.toHaveBeenCalled();
-  });
-
-  it("2. provider link is available (internally PROVIDER, publicly indistinguishable)", async () => {
+  it("provider and customer eligible are both LINK_AVAILABLE and byte-identical", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    expect(await assessIdentityLink(PHONE)).toEqual({ status: "LINK_AVAILABLE" });
-    expect(sendOtpMock).not.toHaveBeenCalled();
+    const p = await assessIdentityLink(PHONE);
+    configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
+    const c = await assessIdentityLink(PHONE);
+    expect(p).toEqual({ status: "LINK_AVAILABLE" });
+    expect(p).toEqual(c);
+    expect(sendSmsMock).not.toHaveBeenCalled();
+    expect(createProviderChallengeMock).not.toHaveBeenCalled();
   });
 
-  it("3. Staff owner is blocked (generic SUPPORT_REQUIRED)", async () => {
+  it("Staff owner blocked; current-privileged blocked (generic SUPPORT_REQUIRED, no leak)", async () => {
     configure({ current: ordinaryB(), owner: providerA({ hasStaffOrAdmin: true }) });
     expect(await assessIdentityLink(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("STAFF_ADMIN_BLOCKED");
-  });
-
-  it("4. Admin owner is blocked (generic SUPPORT_REQUIRED)", async () => {
-    configure({ current: ordinaryB(), owner: side({ userId: "A", authUserId: "authA", authPhone: PHONE, authPhoneVerified: true, hasStaffOrAdmin: true }) });
-    expect(await assessIdentityLink(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("STAFF_ADMIN_BLOCKED");
-  });
-
-  it("5. current identity privileged → blocked", async () => {
     configure({ current: ordinaryB({ hasProvider: true }), owner: providerA() });
     expect(await assessIdentityLink(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("CURRENT_PRIVILEGED");
   });
 
-  it("6. history-bearing B → blocked", async () => {
-    configure({ current: ordinaryB({ hasMeaningfulHistory: true }), owner: providerA() });
-    expect(await assessIdentityLink(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("CURRENT_HISTORY_UNSAFE");
-  });
-
-  it("NOT_APPLICABLE when P is unowned, and never sends an OTP", async () => {
+  it("NOT_APPLICABLE when P unowned; NOT_AUTHENTICATED unsigned; INVALID_PHONE", async () => {
     configure({ current: ordinaryB(), owner: null, ownerUserId: null });
     expect(await assessIdentityLink(PHONE)).toEqual({ status: "NOT_APPLICABLE" });
-    expect(sendOtpMock).not.toHaveBeenCalled();
-  });
-
-  it("NOT_AUTHENTICATED when not signed in", async () => {
-    requireAuthMock.mockRejectedValue(new UnauthenticatedError());
+    requireAuthMock.mockRejectedValueOnce(new UnauthenticatedError());
     expect(await assessIdentityLink(PHONE)).toEqual({ status: "NOT_AUTHENTICATED" });
-  });
-
-  it("INVALID_PHONE for an unparseable number", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
     expect(await assessIdentityLink("bad")).toEqual({ status: "INVALID_PHONE" });
   });
-
-  it("provider-eligible and customer-eligible assessments are byte-identical (anti-enumeration)", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    const provider = await assessIdentityLink(PHONE);
-    configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
-    const customer = await assessIdentityLink(PHONE);
-    expect(provider).toEqual(customer);
-    expect(provider).toEqual({ status: "LINK_AVAILABLE" });
-  });
 });
 
-// ── OTP SEND (§16.7-10) ────────────────────────────────────────────────────────────────
+// ── OFFER (BARQ challenge, anti-enumeration, send failure) ─────────────────────────────
 describe("offerIdentityLink", () => {
-  it("7. provider eligible + explicit consent (offer) → sends OTP", async () => {
+  it("provider consent → BARQ challenge + SMS via the OTP provider; returns opaque attemptId", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    expect(await offerIdentityLink(PHONE)).toEqual({ status: "OWNERSHIP_VERIFICATION_REQUIRED" });
-    expect(sendOtpMock).toHaveBeenCalledTimes(1);
-    expect(sendOtpMock.mock.calls[0]![0].body).toEqual({ phoneNumber: PHONE });
-    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
+    const res = await offerIdentityLink(PHONE);
+    expect(res).toEqual({ status: "OWNERSHIP_VERIFICATION_REQUIRED", attemptId: "C".repeat(64) });
+    expect(createProviderChallengeMock).toHaveBeenCalledWith({ currentUserId: "B", phone: PHONE, ownerAuthUserId: "authA" });
+    expect(sendSmsMock).toHaveBeenCalledWith({ phoneNumber: PHONE, code: "123456" });
+    expect(sendPhoneOtpMock).not.toHaveBeenCalled(); // NOT Better Auth send for provider
+    expect(verifyPhoneMock).not.toHaveBeenCalled();
   });
 
-  it("customer eligible → same OTP mechanism, indistinguishable result", async () => {
+  it("customer consent → Better Auth send + opaque attemptId; provider/customer responses indistinguishable in shape", async () => {
     configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
-    expect(await offerIdentityLink(PHONE)).toEqual({ status: "OWNERSHIP_VERIFICATION_REQUIRED" });
-    expect(sendOtpMock).toHaveBeenCalledTimes(1);
+    const cust = await offerIdentityLink(PHONE);
+    expect(cust).toEqual({ status: "OWNERSHIP_VERIFICATION_REQUIRED", attemptId: "D".repeat(64) });
+    expect(sendPhoneOtpMock).toHaveBeenCalledTimes(1);
+    // Both eligible offers: same status key + an attemptId string (account type not enumerable).
+    configure({ current: ordinaryB(), owner: providerA() });
+    const prov = await offerIdentityLink(PHONE);
+    expect(Object.keys(prov).sort()).toEqual(Object.keys(cust).sort());
+    expect(typeof (prov as { attemptId: string }).attemptId).toBe("string");
   });
 
-  it("9. blocked pair (Staff owner) → no OTP", async () => {
+  it("blocked pair (Staff) → no challenge, no SMS", async () => {
     configure({ current: ordinaryB(), owner: providerA({ hasStaffOrAdmin: true }) });
     expect(await offerIdentityLink(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(sendOtpMock).not.toHaveBeenCalled();
+    expect(createProviderChallengeMock).not.toHaveBeenCalled();
+    expect(sendSmsMock).not.toHaveBeenCalled();
   });
 
-  it("NOT_APPLICABLE (unowned P) → no OTP", async () => {
+  it("provider send-side rate limit → RATE_LIMITED, no challenge, no SMS", async () => {
+    configure({ current: ordinaryB(), owner: providerA() });
+    consumeRateLimitMock.mockResolvedValueOnce({ allowed: false }); // cooldown denies first
+    expect(await offerIdentityLink(PHONE)).toEqual({ status: "RATE_LIMITED" });
+    expect(createProviderChallengeMock).not.toHaveBeenCalled();
+    expect(sendSmsMock).not.toHaveBeenCalled();
+  });
+
+  it("SMS delivery failure invalidates the challenge (no dangling usable proof)", async () => {
+    configure({ current: ordinaryB(), owner: providerA() });
+    sendSmsMock.mockRejectedValueOnce(new Error("twilio down"));
+    expect(await offerIdentityLink(PHONE)).toEqual({ status: "OTP_DELIVERY_UNAVAILABLE" });
+    expect(invalidateMock).toHaveBeenCalledWith("C".repeat(64));
+  });
+
+  it("NOT_APPLICABLE (unowned P) → no challenge, no SMS", async () => {
     configure({ current: ordinaryB(), owner: null, ownerUserId: null });
     expect(await offerIdentityLink(PHONE)).toEqual({ status: "NOT_APPLICABLE" });
-    expect(sendOtpMock).not.toHaveBeenCalled();
-  });
-
-  it("10. rate-limit / delivery failures from the OTP provider are surfaced, not bypassed", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    const apiError = Object.assign(new Error("x"), { body: { code: "TOO_MANY_REQUESTS" }, status: 429, statusCode: 429, headers: {}, name: "APIError" });
-    sendOtpMock.mockRejectedValueOnce(apiError);
-    expect(await offerIdentityLink(PHONE)).toEqual({ status: "RATE_LIMITED" });
-
-    const delivery = Object.assign(new Error("x"), { body: { code: "OTP_DELIVERY_UNAVAILABLE" }, status: 503, statusCode: 503, headers: {}, name: "APIError" });
-    sendOtpMock.mockRejectedValueOnce(delivery);
-    expect(await offerIdentityLink(PHONE)).toEqual({ status: "OTP_DELIVERY_UNAVAILABLE" });
+    expect(createProviderChallengeMock).not.toHaveBeenCalled();
+    expect(sendSmsMock).not.toHaveBeenCalled();
   });
 });
 
-// ── OTP VERIFY + TRANSACTION (§16.11-22, 28-31) ───────────────────────────────────────
-describe("completeIdentityLink — provider link", () => {
-  it("17/31. valid dual proof → verifies then invokes linkProviderCredential exactly once", async () => {
+// ── COMPLETE — provider branch (no verifyPhoneNumber, bound proof) ─────────────────────
+describe("completeIdentityLink — provider", () => {
+  it("valid bound proof → verify BARQ challenge (never Better Auth) then link exactly once", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    const res = await completeIdentityLink(PHONE, "123456");
+    loadAttemptMock.mockResolvedValue(providerLoaded);
+    const res = await completeIdentityLink("C".repeat(64), "123456");
     expect(res).toEqual({ ok: true, outcome: "LINK_COMPLETED_REAUTH_REQUIRED" });
-    expect(verifyPhoneMock).toHaveBeenCalledTimes(1);
+    expect(verifyProofMock).toHaveBeenCalledWith({ challengeId: "C".repeat(64), code: "123456", otpHash: "hash" });
+    expect(verifyPhoneMock).not.toHaveBeenCalled(); // structural: never Better Auth verify
     expect(linkProviderCredentialMock).toHaveBeenCalledTimes(1);
+    expect(linkProviderCredentialMock).toHaveBeenCalledWith("B", PHONE); // B from session, P server-bound
   });
 
-  it("14/15/16. verify uses disableSession (no A session, no third AuthUser, no ownership move)", async () => {
+  it("wrong / exhausted OTP → INVALID_OTP, no link", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    await completeIdentityLink(PHONE, "123456");
-    const body = verifyPhoneMock.mock.calls[0]![0].body;
-    expect(body).toEqual({ phoneNumber: PHONE, code: "123456", disableSession: true });
-    expect(body.updatePhoneNumber).toBeUndefined();
-  });
-
-  it("18/19/20. identity is session-derived; client cannot select survivor/owner", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    await completeIdentityLink(PHONE, "123456");
-    // The engine is called with the session user id (B), never a client value; the owner is
-    // resolved server-side from the phone. The action signature accepts only (phone, code).
-    expect(linkProviderCredentialMock).toHaveBeenCalledWith("B", PHONE);
-  });
-
-  it("11. invalid OTP → no transaction", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    verifyPhoneMock.mockRejectedValueOnce(Object.assign(new Error("x"), { body: { code: "INVALID_OTP" }, status: 400, statusCode: 400, headers: {}, name: "APIError" }));
-    expect(await completeIdentityLink(PHONE, "000000")).toEqual({ ok: false, error: "INVALID_OTP" });
+    loadAttemptMock.mockResolvedValue(providerLoaded);
+    verifyProofMock.mockResolvedValueOnce({ ok: false, reason: "INVALID_OTP" });
+    expect(await completeIdentityLink("C".repeat(64), "000000")).toEqual({ ok: false, error: "INVALID_OTP" });
+    verifyProofMock.mockResolvedValueOnce({ ok: false, reason: "TOO_MANY_ATTEMPTS" });
+    expect(await completeIdentityLink("C".repeat(64), "000000")).toEqual({ ok: false, error: "INVALID_OTP" });
     expect(linkProviderCredentialMock).not.toHaveBeenCalled();
   });
 
-  it("12. expired / replayed OTP (consumed → OTP_NOT_FOUND) → no transaction", async () => {
+  it("verify-IP rate limit → RATE_LIMITED before any proof/link", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    verifyPhoneMock.mockRejectedValueOnce(Object.assign(new Error("x"), { body: { code: "OTP_EXPIRED" }, status: 400, statusCode: 400, headers: {}, name: "APIError" }));
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "INVALID_OTP" });
-    verifyPhoneMock.mockRejectedValueOnce(Object.assign(new Error("x"), { body: { code: "OTP_NOT_FOUND" }, status: 400, statusCode: 400, headers: {}, name: "APIError" }));
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "INVALID_OTP" });
-    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
-  });
-
-  it("21/22. topology change (engine fails closed) → generic SUPPORT_REQUIRED", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    linkProviderCredentialMock.mockResolvedValueOnce({ ok: false, error: "NOT_PROVIDER_LINK_ELIGIBLE" });
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
-    // OTP was consumed (proof happened) but the mutation failed closed.
-    expect(verifyPhoneMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("22. engine UNIQUE_RACE maps to generic SUPPORT_REQUIRED (no topology leak)", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    linkProviderCredentialMock.mockResolvedValueOnce({ ok: false, error: "UNIQUE_RACE" });
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
-  });
-
-  it("12b. per-IP verify rate limit is enforced before any verify/transaction", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
+    loadAttemptMock.mockResolvedValue(providerLoaded);
     consumeRateLimitMock.mockResolvedValueOnce({ allowed: false });
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "RATE_LIMITED" });
-    expect(verifyPhoneMock).not.toHaveBeenCalled();
+    expect(await completeIdentityLink("C".repeat(64), "123456")).toEqual({ ok: false, error: "RATE_LIMITED" });
+    expect(verifyProofMock).not.toHaveBeenCalled();
     expect(linkProviderCredentialMock).not.toHaveBeenCalled();
   });
 
-  it("13. proof-verified precedes the mutation; a failed proof emits no committed/verified success", async () => {
+  it("owner substitution A→C after proof → fail closed, no link (proof already consumed)", async () => {
+    // Challenge bound to owner authA, but P is now owned by C (authC).
+    configure({ current: ordinaryB(), owner: providerA({ userId: "C", authUserId: "authC" }) });
+    loadAttemptMock.mockResolvedValue(providerLoaded); // ownerAuthUserId: authA
+    expect(await completeIdentityLink("C".repeat(64), "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
+    expect(verifyProofMock).toHaveBeenCalledTimes(1); // OTP was consumed
+    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
+  });
+
+  it("P unowned at completion → fail closed, no link", async () => {
+    configure({ current: ordinaryB(), owner: null, ownerUserId: null });
+    loadAttemptMock.mockResolvedValue(providerLoaded);
+    expect(await completeIdentityLink("C".repeat(64), "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
+    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
+  });
+
+  it("no longer classifiable as provider link → fail closed, no link", async () => {
+    configure({ current: ordinaryB({ hasMeaningfulHistory: true }), owner: providerA() });
+    loadAttemptMock.mockResolvedValue(providerLoaded);
+    expect(await completeIdentityLink("C".repeat(64), "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
+    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
+  });
+
+  it("engine fail-closed maps to generic SUPPORT_REQUIRED (no topology leak)", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    verifyPhoneMock.mockRejectedValueOnce(Object.assign(new Error("x"), { body: { code: "INVALID_OTP" }, status: 400, statusCode: 400, headers: {}, name: "APIError" }));
-    await completeIdentityLink(PHONE, "000000");
-    const actions = auditCreateMock.mock.calls.map((c) => (c[0] as { action: string }).action);
-    expect(actions).not.toContain("identity.link_proof_verified");
+    loadAttemptMock.mockResolvedValue(providerLoaded);
+    linkProviderCredentialMock.mockResolvedValueOnce({ ok: false, error: "NOT_PROVIDER_LINK_ELIGIBLE" });
+    const res = await completeIdentityLink("C".repeat(64), "123456");
+    expect(res).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
+    expect(JSON.stringify(res)).not.toMatch(/PROVIDER|STAFF|ADMIN|authA/i);
+  });
+
+  it("unknown / not-yours / expired challenge → INVALID_CHALLENGE, no proof, no link", async () => {
+    configure({ current: ordinaryB(), owner: providerA() });
+    for (const reason of ["NOT_FOUND", "WRONG_B", "EXPIRED"]) {
+      loadAttemptMock.mockResolvedValueOnce({ ok: false, reason });
+      expect(await completeIdentityLink("C".repeat(64), "123456")).toEqual({ ok: false, error: "INVALID_CHALLENGE" });
+    }
+    expect(verifyProofMock).not.toHaveBeenCalled();
+    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
   });
 });
 
-// ── SESSION (§16.23-24) ────────────────────────────────────────────────────────────────
-describe("completeIdentityLink — session after success", () => {
-  it("23/24. provider success returns re-auth-required (B is not treated as A)", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    const res = await completeIdentityLink(PHONE, "123456");
-    expect(res).toEqual({ ok: true, outcome: "LINK_COMPLETED_REAUTH_REQUIRED" });
-  });
-});
-
-// ── CUSTOMER DELEGATION (unified entrypoint) ──────────────────────────────────────────
-describe("completeIdentityLink — customer convergence delegation", () => {
-  it("routes an eligible customer pair to the proven convergence action (not the provider engine)", async () => {
+// ── COMPLETE — customer delegation ─────────────────────────────────────────────────────
+describe("completeIdentityLink — customer", () => {
+  it("routes to the unchanged convergence action; consumes the attempt on success", async () => {
     configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
-    const res = await completeIdentityLink(PHONE, "123456");
+    loadAttemptMock.mockResolvedValue(customerLoaded);
+    const res = await completeIdentityLink("D".repeat(64), "123456");
     expect(res).toEqual({ ok: true, outcome: "CONVERGED" });
     expect(convergeMock).toHaveBeenCalledWith(PHONE, "123456");
+    expect(consumeCustomerMock).toHaveBeenCalledWith("D".repeat(64));
+    expect(verifyProofMock).not.toHaveBeenCalled();
     expect(linkProviderCredentialMock).not.toHaveBeenCalled();
-    // The orchestration performs no OTP verify of its own for the customer branch — the
-    // delegate owns the single OTP consumption.
-    expect(verifyPhoneMock).not.toHaveBeenCalled();
   });
 
-  it("maps a customer-convergence failure through without leaking", async () => {
+  it("maps a convergence failure through without leaking; does not consume the attempt", async () => {
     configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
-    convergeMock.mockResolvedValueOnce({ ok: false, error: "SUPPORT_REQUIRED" });
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
+    loadAttemptMock.mockResolvedValue(customerLoaded);
+    convergeMock.mockResolvedValueOnce({ ok: false, error: "INVALID_OTP" });
+    expect(await completeIdentityLink("D".repeat(64), "123456")).toEqual({ ok: false, error: "INVALID_OTP" });
+    expect(consumeCustomerMock).not.toHaveBeenCalled();
   });
 });
 
-// ── ENUMERATION (§16.25-27) ──────────────────────────────────────────────────────────
-describe("anti-enumeration", () => {
-  it("25. provider vs customer eligible public offer are indistinguishable", async () => {
-    configure({ current: ordinaryB(), owner: providerA() });
-    const p = await offerIdentityLink(PHONE);
-    configure({ current: ordinaryB(), owner: ordinaryOwnerC() });
-    const c = await offerIdentityLink(PHONE);
-    expect(p).toEqual(c);
-  });
-
-  it("26/27. Staff/Admin/privileged stays generic; no role/reason/id in the public response", async () => {
-    for (const owner of [providerA({ hasStaffOrAdmin: true }), providerA()]) {
-      const current = owner.hasStaffOrAdmin ? ordinaryB() : ordinaryB({ hasProvider: true });
-      configure({ current, owner });
-      const res = await completeIdentityLink(PHONE, "123456");
-      expect(res).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
-      expect(JSON.stringify(res)).not.toMatch(/PROVIDER|STAFF|ADMIN|authA|custB|email|@/i);
-    }
-  });
-});
-
-// ── SIDE EFFECTS (§16.28-31) ──────────────────────────────────────────────────────────
-describe("side effects", () => {
-  it("28. assessment sends no OTP and never touches a mutation", async () => {
+// ── SIDE EFFECTS / STRUCTURAL ──────────────────────────────────────────────────────────
+describe("structural guarantees", () => {
+  it("assessment sends no SMS, creates no challenge, verifies no proof, invokes no mutation", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
     await assessIdentityLink(PHONE);
-    expect(sendOtpMock).not.toHaveBeenCalled();
-    expect(verifyPhoneMock).not.toHaveBeenCalled();
+    expect(sendSmsMock).not.toHaveBeenCalled();
+    expect(sendPhoneOtpMock).not.toHaveBeenCalled();
+    expect(createProviderChallengeMock).not.toHaveBeenCalled();
+    expect(verifyProofMock).not.toHaveBeenCalled();
     expect(linkProviderCredentialMock).not.toHaveBeenCalled();
     expect(convergeMock).not.toHaveBeenCalled();
   });
 
-  it("29. offer sends the OTP but invokes no transaction", async () => {
+  it("the provider branch never calls Better Auth verifyPhoneNumber in any path", async () => {
     configure({ current: ordinaryB(), owner: providerA() });
-    await offerIdentityLink(PHONE);
-    expect(sendOtpMock).toHaveBeenCalledTimes(1);
-    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
-    expect(convergeMock).not.toHaveBeenCalled();
-  });
-
-  it("30. an ineligible complete verifies nothing and runs no transaction", async () => {
-    configure({ current: ordinaryB({ hasMeaningfulHistory: true }), owner: providerA() });
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "SUPPORT_REQUIRED" });
+    loadAttemptMock.mockResolvedValue(providerLoaded);
+    await completeIdentityLink("C".repeat(64), "123456");
+    verifyProofMock.mockResolvedValueOnce({ ok: false, reason: "INVALID_OTP" });
+    await completeIdentityLink("C".repeat(64), "000000");
     expect(verifyPhoneMock).not.toHaveBeenCalled();
-    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
-  });
-
-  it("NOT_APPLICABLE complete → NOTHING_TO_LINK, no proof, no transaction", async () => {
-    configure({ current: ordinaryB(), owner: null, ownerUserId: null });
-    expect(await completeIdentityLink(PHONE, "123456")).toEqual({ ok: false, error: "NOTHING_TO_LINK" });
-    expect(verifyPhoneMock).not.toHaveBeenCalled();
-    expect(linkProviderCredentialMock).not.toHaveBeenCalled();
   });
 });

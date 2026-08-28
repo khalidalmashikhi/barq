@@ -9,51 +9,55 @@ import { prisma } from "@/lib/db";
 import { normalizeInternationalPhone } from "@/lib/phone/normalize-international-phone";
 import { classifyConvergence } from "./identity-convergence-policy";
 import { loadIdentitySide as loadSide, findPhoneOwnerUserId } from "./identity-side-loader";
-import { linkProviderCredential, type ProviderLinkError } from "./provider-credential-link";
+import { linkProviderCredential } from "./provider-credential-link";
 import { convergeCustomerIdentityByPhone } from "./identity-convergence";
+import {
+  createProviderLinkChallenge,
+  createCustomerLinkAttempt,
+  loadLinkAttempt,
+  verifyAndConsumeProviderProof,
+  consumeCustomerLinkAttempt,
+  invalidateLinkAttempt,
+} from "./identity-link-proof";
+import { getOtpProvider } from "@/lib/otp/get-otp-provider";
+import { getOtpConfig } from "@/lib/otp/otp-config";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveClientIp, hmacRateLimitKey } from "@/lib/rate-limit/client-ip";
 import { consumeRateLimit } from "@/lib/rate-limit/durable-rate-limiter";
-import { getOtpVerifyIpRateLimit, otpVerifyIpKey } from "@/lib/otp/otp-rate-limit-config";
+import {
+  getOtpSendIpRateLimit,
+  getOtpSendPhoneRateLimit,
+  getOtpVerifyIpRateLimit,
+  otpSendIpKey,
+  otpSendPhoneKey,
+  otpVerifyIpKey,
+} from "@/lib/otp/otp-rate-limit-config";
 import { maskPhoneNumber } from "@/lib/otp/audit";
 import { logger } from "@/lib/logger";
 
-// AUTH-PROVIDER-LINK gate 3A — the DUAL-PROOF ORCHESTRATION that sits between the phone
-// conflict and the two DISTINCT terminal mutations:
-//   • customer convergence  → convergeCustomerIdentityByPhone (unchanged, proven)
-//   • provider credential link → linkProviderCredential (gate-2 engine)
+// AUTH-PROVIDER-LINK gate 3A / 3A.2 — the dual-proof ORCHESTRATION between the phone conflict
+// and the two DISTINCT terminal mutations (customer convergence vs provider credential link).
 //
-// It is a thin, security-first coordinator. It owns NO credential mutation of its own; it
-// only (1) assesses eligibility, (2) — after the caller's EXPLICIT consent, modelled as a
-// separate offer() call — sends ONE fresh phone OTP to the conflicted number, (3) verifies
-// that OTP WITHOUT switching identity/session, and (4) invokes the correct terminal
-// mutation. Every identity/topology decision is server-derived from the live session; the
-// client supplies only a phone and (to complete) an OTP.
+// 3A.2 replaces the provider branch's Better Auth verifyPhoneNumber proof with a BARQ-owned,
+// purpose-/B-/P-/attempt-bound challenge (identity-link-proof.ts) that structurally cannot
+// create an AuthUser or session and cannot be reused cross-purpose. The customer branch's
+// mutation (convergeCustomerIdentityByPhone) is UNCHANGED; it only gains an opaque attempt
+// wrapper so its public offer response is indistinguishable from the provider branch's.
 //
-// Dual proof: (proof #1) the authenticated live session proves control of the CURRENT
-// identity B — re-resolved from the session on every call, NEVER taken from client input;
-// (proof #2) a fresh single-use Phone OTP on the conflicted number P proves control of the
-// owner A. The OTP is verified with `disableSession: true` and no `updatePhoneNumber`, so
-// (verified against better-auth@1.6.23 phone-number/routes.mjs) proving P: creates NO
-// session for A, sets NO cookie, leaves B's session untouched, does NOT move P's ownership,
-// and — because P already has an owner — does NOT take the signUpOnVerification branch, so
-// no third AuthUser is created. It only consumes the OTP (single-use / expiring /
-// attempt-capped) and idempotently re-marks A's already-verified flag.
+// Contract: assess (read-only) → offer (after explicit consent; sends ONE OTP and returns an
+// opaque verification attempt id for EITHER route) → complete(attemptId, code) (dual proof:
+// live session = B; OTP = control of P; server re-derives P/owner/purpose/eligibility from the
+// bound challenge + session — the client supplies only the opaque id + the code). Provider-
+// and customer-eligible offers are externally indistinguishable; blocked/privileged cases
+// collapse to a generic SUPPORT_REQUIRED with no role/owner/id leak.
 //
-// Anti-enumeration (§8): a provider-credential-link-eligible conflict and an ordinary
-// customer-convergence-eligible conflict are EXTERNALLY INDISTINGUISHABLE at the
-// conflict/consent stage — both return LINK_AVAILABLE from assess and
-// OWNERSHIP_VERIFICATION_REQUIRED from offer. The public response NEVER reveals
-// Provider/Staff/Admin, owner metadata, or internal ids. Blocked sensitive cases collapse
-// to a generic SUPPORT_REQUIRED. Internally, the exact classification is logged (no PII).
-//
-// NOTE (gate 3A scope): this module is NOT wired to any UI/onboarding screen — that is
-// gate 3B. It must not be invoked live with a real OTP in this gate.
+// NOTE (gate scope): this module is NOT wired to any UI (that is gate 3B) and must not be
+// invoked live with a real OTP in this gate.
 
 export type LinkAssessmentStatus =
-  | "LINK_AVAILABLE" // eligible (customer convergence OR provider credential link) — indistinguishable
-  | "SUPPORT_REQUIRED" // owned by another, but not safely self-service linkable
-  | "NOT_APPLICABLE" // P is not owned by another identity — normal Add-phone handles it
+  | "LINK_AVAILABLE"
+  | "SUPPORT_REQUIRED"
+  | "NOT_APPLICABLE"
   | "NOT_AUTHENTICATED"
   | "INVALID_PHONE"
   | "UNKNOWN_ERROR";
@@ -61,7 +65,7 @@ export type LinkAssessmentStatus =
 export type LinkAssessment = { status: LinkAssessmentStatus };
 
 export type LinkOfferStatus =
-  | "OWNERSHIP_VERIFICATION_REQUIRED" // eligible; a proof OTP was sent to P
+  | "OWNERSHIP_VERIFICATION_REQUIRED"
   | "SUPPORT_REQUIRED"
   | "NOT_APPLICABLE"
   | "NOT_AUTHENTICATED"
@@ -70,21 +74,18 @@ export type LinkOfferStatus =
   | "OTP_DELIVERY_UNAVAILABLE"
   | "UNKNOWN_ERROR";
 
-export type LinkOffer = { status: LinkOfferStatus };
+// The opaque verification attempt id is returned for BOTH eligible routes (never anything
+// route-specific), so the public offer response is indistinguishable by account type.
+export type LinkOffer = { status: "OWNERSHIP_VERIFICATION_REQUIRED"; attemptId: string } | { status: Exclude<LinkOfferStatus, "OWNERSHIP_VERIFICATION_REQUIRED"> };
 
-export type LinkOutcome =
-  | "CONVERGED" // customer convergence completed (session may remain valid)
-  | "LINK_COMPLETED_REAUTH_REQUIRED"; // provider link completed; B retired + sessions killed → re-auth as A
-
+export type LinkOutcome = "CONVERGED" | "LINK_COMPLETED_REAUTH_REQUIRED";
 export type LinkCompletionError =
   | "NOT_AUTHENTICATED"
-  | "INVALID_PHONE"
-  | "INVALID_OTP"
+  | "INVALID_CHALLENGE" // unknown / not-yours / expired attempt
+  | "INVALID_OTP" // wrong code / attempts exhausted / already consumed
   | "RATE_LIMITED"
-  | "SUPPORT_REQUIRED"
-  | "NOTHING_TO_LINK"
+  | "SUPPORT_REQUIRED" // owner substitution / topology / engine fail-closed (generic, no leak)
   | "UNKNOWN_ERROR";
-
 export type LinkCompletion = { ok: true; outcome: LinkOutcome } | { ok: false; error: LinkCompletionError };
 
 type Me = { userId: string; authUserId: string };
@@ -101,17 +102,13 @@ async function currentIdentity(): Promise<Me | { error: "NOT_AUTHENTICATED" }> {
 
 type LinkRoute =
   | { route: "CUSTOMER" }
-  | { route: "PROVIDER"; ownerUserId: string }
+  | { route: "PROVIDER"; ownerUserId: string; ownerAuthUserId: string }
   | { route: "SUPPORT"; reason: string }
   | { route: "NOT_APPLICABLE" };
 
-/**
- * Read-only routing: which safe operation (if any) applies to the (session B, owner-of-P)
- * pair? Never mutates and never sends an OTP. PROVIDER is returned only when the classifier
- * says PROVIDER_CREDENTIAL_LINK with the OWNER as survivor (so B can never be the survivor)
- * AND the owner still verifiably owns P — the same facts re-asserted again inside the
- * gate-2 transaction.
- */
+/** Read-only routing from the (session B, owner-of-P) pair. PROVIDER only when the classifier
+ *  says PROVIDER_CREDENTIAL_LINK with the OWNER as survivor and the owner still verifiably
+ *  owns P — the same facts re-asserted at completion and again inside the gate-2 transaction. */
 async function routeFor(me: Me, phone: string): Promise<LinkRoute> {
   const ownerUserId = await findPhoneOwnerUserId(prisma, phone);
   if (!ownerUserId || ownerUserId === me.userId) return { route: "NOT_APPLICABLE" };
@@ -127,7 +124,7 @@ async function routeFor(me: Me, phone: string): Promise<LinkRoute> {
     owner.authPhone === phone &&
     owner.authPhoneVerified
   ) {
-    return { route: "PROVIDER", ownerUserId };
+    return { route: "PROVIDER", ownerUserId, ownerAuthUserId: owner.authUserId };
   }
   const reason = decision.kind === "PROVIDER_CREDENTIAL_LINK" ? "PROVIDER_TOPOLOGY_MISMATCH" : decision.reason;
   return { route: "SUPPORT", reason };
@@ -139,24 +136,15 @@ function logSupport(reason: string, phone: string) {
 
 function writeAudit(action: string, me: Me, extra: Prisma.InputJsonObject) {
   return recordAuditEvent(
-    {
-      actorType: "CUSTOMER",
-      actorId: me.userId,
-      action,
-      entityType: "User",
-      entityId: me.userId,
-      newValue: extra,
-    },
+    { actorType: "CUSTOMER", actorId: me.userId, action, entityType: "User", entityId: me.userId, newValue: extra },
     prisma
   );
 }
 
 /**
- * Step 1 — read-only assessment. Sends NO OTP and mutates nothing. Returns LINK_AVAILABLE
- * for BOTH an eligible customer convergence and an eligible provider credential link
- * (indistinguishable); a generic SUPPORT_REQUIRED when owned-but-unsafe; NOT_APPLICABLE
- * when P is not owned by another identity. On SUPPORT_REQUIRED it logs an internal-only,
- * non-PII reason (never returned to the browser).
+ * Step 1 — read-only assessment. Sends NO OTP and mutates nothing. LINK_AVAILABLE for BOTH an
+ * eligible customer convergence AND an eligible provider credential link (indistinguishable);
+ * generic SUPPORT_REQUIRED when owned-but-unsafe; NOT_APPLICABLE when P is unowned.
  */
 export async function assessIdentityLink(phoneRaw: string): Promise<LinkAssessment> {
   const me = await currentIdentity();
@@ -179,11 +167,36 @@ export async function assessIdentityLink(phoneRaw: string): Promise<LinkAssessme
   }
 }
 
+// Provider-link send protections. The provider branch sends its OWN OTP (bypassing Better
+// Auth's send hook), so it must re-apply the same durable abuse controls the hook applies to
+// /phone-number/send-otp, plus a per-B ceiling. All keys are HMAC/opaque (no raw PII).
+async function applyProviderSendLimits(me: Me, phone: string): Promise<boolean> {
+  const secret = process.env.BETTER_AUTH_SECRET ?? "";
+  const ipKey = hmacRateLimitKey(resolveClientIp(await headers()), secret);
+  const phoneKey = hmacRateLimitKey(phone, secret);
+  const { resendCooldownSeconds, maxSendsPerDay } = getOtpConfig();
+  const sendIp = getOtpSendIpRateLimit();
+  const sendPhone = getOtpSendPhoneRateLimit();
+
+  // Cheap per-phone cooldown + per-B daily ceiling first, then the shared durable per-IP /
+  // per-phone caps (same keys/budget as the Better Auth send path). Fail-closed on any error.
+  const cooldown = await consumeRateLimit(`identity-link:send:cooldown:${phoneKey}`, 1, resendCooldownSeconds);
+  if (!cooldown.allowed) return false;
+  const perUser = await consumeRateLimit(`identity-link:send:user:${me.userId}`, maxSendsPerDay, 86400);
+  if (!perUser.allowed) return false;
+  const ipSend = await consumeRateLimit(otpSendIpKey(ipKey), sendIp.limit, sendIp.windowSeconds);
+  if (!ipSend.allowed) return false;
+  const phoneSend = await consumeRateLimit(otpSendPhoneKey(phoneKey), sendPhone.limit, sendPhone.windowSeconds);
+  if (!phoneSend.allowed) return false;
+  return true;
+}
+
 /**
- * Step 2 (offer) — the caller EXPLICITLY consented to prove ownership and link. Re-route
- * (fail-closed) and, if still eligible (either operation), send ONE proof OTP to P and
- * return OWNERSHIP_VERIFICATION_REQUIRED; otherwise a generic SUPPORT_REQUIRED (no PII).
- * This is the ONLY place an OTP is sent to the conflicted number, and only after consent.
+ * Step 2 (offer) — after the caller's EXPLICIT consent. Re-routes fail-closed and, if eligible,
+ * creates a bound challenge, sends ONE OTP, and returns an opaque attempt id (for EITHER route,
+ * so account type is not enumerable). This is the only place an OTP is sent to the conflicted
+ * number. For the provider route the OTP is BARQ-owned (identity-link-proof); for the customer
+ * route it is Better Auth's, verified later by the unchanged convergence delegate.
  */
 export async function offerIdentityLink(phoneRaw: string): Promise<LinkOffer> {
   const me = await currentIdentity();
@@ -201,11 +214,33 @@ export async function offerIdentityLink(phoneRaw: string): Promise<LinkOffer> {
     return { status: "SUPPORT_REQUIRED" };
   }
 
-  // Eligible (CUSTOMER or PROVIDER): send the ownership-proof OTP through the normal
-  // provider (its own rate-limit + delivery hooks apply). Reveal nothing about the owner.
+  if (routed.route === "PROVIDER") {
+    if (!(await applyProviderSendLimits(me, phone))) return { status: "RATE_LIMITED" };
+    const { challengeId, code } = await createProviderLinkChallenge({
+      currentUserId: me.userId,
+      phone,
+      ownerAuthUserId: routed.ownerAuthUserId,
+    });
+    try {
+      await getOtpProvider().send({ phoneNumber: phone, code });
+    } catch {
+      // The OTP never reached the user — the challenge must not remain usable.
+      await invalidateLinkAttempt(challengeId);
+      logger.warn("auth.identity_link_send_failed", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(phone) });
+      return { status: "OTP_DELIVERY_UNAVAILABLE" };
+    }
+    await writeAudit("identity.link_offered", me, { phone: maskPhoneNumber(phone), route: "PROVIDER" });
+    logger.info("auth.identity_link_offered", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(phone) });
+    return { status: "OWNERSHIP_VERIFICATION_REQUIRED", attemptId: challengeId };
+  }
+
+  // CUSTOMER route: Better Auth sends the OTP (its own send hook applies the rate limits); the
+  // attempt row is only an opaque, B/P-bound wrapper so the public response matches PROVIDER.
+  const { challengeId } = await createCustomerLinkAttempt({ currentUserId: me.userId, phone });
   try {
     await auth.api.sendPhoneNumberOTP({ body: { phoneNumber: phone }, headers: await headers() });
   } catch (error) {
+    await invalidateLinkAttempt(challengeId);
     if (isAPIError(error)) {
       const code = (error.body as { code?: string } | undefined)?.code;
       if (code === "TOO_MANY_REQUESTS") return { status: "RATE_LIMITED" };
@@ -213,44 +248,35 @@ export async function offerIdentityLink(phoneRaw: string): Promise<LinkOffer> {
     }
     return { status: "UNKNOWN_ERROR" };
   }
-
-  await writeAudit("identity.link_offered", me, { phone: maskPhoneNumber(phone), route: routed.route });
+  await writeAudit("identity.link_offered", me, { phone: maskPhoneNumber(phone), route: "CUSTOMER" });
   logger.info("auth.identity_link_offered", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(phone) });
-  return { status: "OWNERSHIP_VERIFICATION_REQUIRED" };
+  return { status: "OWNERSHIP_VERIFICATION_REQUIRED", attemptId: challengeId };
 }
 
 /**
- * Step 3 (complete) — dual proof + the terminal mutation. Proof #1 is the live session
- * (re-resolved here, never client-supplied). Proof #2 is the fresh OTP on P. The route is
- * re-derived server-side and each terminal mutation independently re-asserts every
- * invariant (customer convergence in its own transaction; provider link in the gate-2
- * transaction) — assessment is never authorization.
+ * Step 3 (complete) — dual proof + terminal mutation. Proof #1 is the live session (B, never
+ * client-supplied). Proof #2 is the OTP, verified against the opaque bound challenge. The phone,
+ * owner, purpose and eligibility are re-derived server-side from the challenge + session; the
+ * client submits only the attempt id and the code. No auth.api.verifyPhoneNumber for the
+ * provider branch. Every terminal mutation independently re-asserts its invariants.
  */
-export async function completeIdentityLink(phoneRaw: string, code: string): Promise<LinkCompletion> {
+export async function completeIdentityLink(attemptId: string, code: string): Promise<LinkCompletion> {
   const me = await currentIdentity();
   if ("error" in me) return { ok: false, error: "NOT_AUTHENTICATED" };
-
-  const normalized = normalizeInternationalPhone(phoneRaw);
-  if (!normalized.ok) return { ok: false, error: "INVALID_PHONE" };
-  const phone = normalized.e164;
   if (typeof code !== "string" || code.trim() === "") return { ok: false, error: "INVALID_OTP" };
 
-  const routed = await routeFor(me, phone);
+  const loaded = await loadLinkAttempt(attemptId, me.userId);
+  if (!loaded.ok) return { ok: false, error: "INVALID_CHALLENGE" }; // NOT_FOUND / WRONG_B / EXPIRED — generic
 
-  if (routed.route === "NOT_APPLICABLE") return { ok: false, error: "NOTHING_TO_LINK" };
-  if (routed.route === "SUPPORT") {
-    // No OTP was consumed — no verification is performed for an ineligible pair.
-    logSupport(routed.reason, phone);
-    return { ok: false, error: "SUPPORT_REQUIRED" };
+  if (loaded.purpose === "CUSTOMER_CONVERGENCE") {
+    // Delegate to the unchanged customer-convergence action (its own per-IP verify limit + OTP
+    // verify + atomic transaction + audit). One OTP consumption; attempt row is cleaned up.
+    const result = mapCustomerResult(await convergeCustomerIdentityByPhone(loaded.phone, code));
+    if (result.ok) await consumeCustomerLinkAttempt(attemptId);
+    return result;
   }
 
-  if (routed.route === "CUSTOMER") {
-    // Delegate to the proven, unchanged customer-convergence action (its own per-IP verify
-    // rate-limit + OTP verify + atomic transaction + audit). One OTP consumption.
-    return mapCustomerResult(await convergeCustomerIdentityByPhone(phone, code));
-  }
-
-  // PROVIDER credential link.
+  // PROVIDER route.
   // Per-IP verify rate-limit (mirror of the customer path / the /phone-number/verify hook).
   const secret = process.env.BETTER_AUTH_SECRET ?? "";
   const ipKey = hmacRateLimitKey(resolveClientIp(await headers()), secret);
@@ -259,65 +285,50 @@ export async function completeIdentityLink(phoneRaw: string, code: string): Prom
     return { ok: false, error: "RATE_LIMITED" };
   }
 
-  // Prove control of P. disableSession + no updatePhoneNumber → verifies + consumes the OTP
-  // WITHOUT creating a session for A, setting any cookie, moving P, or creating a third
-  // AuthUser (P has a verified Provider owner, re-asserted in routeFor immediately above and
-  // again inside the transaction).
-  try {
-    await auth.api.verifyPhoneNumber({ body: { phoneNumber: phone, code, disableSession: true }, headers: await headers() });
-  } catch (error) {
-    return { ok: false, error: mapVerifyError(error) };
+  // Verify the OTP against the bound challenge and ATOMICALLY consume it (single-use even if the
+  // downstream transaction later fails). No user/session/ownership mutation is possible here.
+  const proof = await verifyAndConsumeProviderProof({ challengeId: attemptId, code, otpHash: loaded.otpHash });
+  if (!proof.ok) {
+    // INVALID_OTP / TOO_MANY_ATTEMPTS / ALREADY_CONSUMED → one generic proof-failure code.
+    logger.warn("auth.identity_link_proof_failed", { authUserId: me.authUserId, reason: proof.reason });
+    return { ok: false, error: "INVALID_OTP" };
+  }
+  await writeAudit("identity.link_proof_verified", me, { phone: maskPhoneNumber(loaded.phone) });
+
+  // Owner-substitution + eligibility re-assert (defense in depth; the gate-2 engine re-asserts
+  // again in-tx). If P became unowned, changed owner (A→C), or is no longer a provider-link,
+  // fail closed generically — the consumed challenge is spent (user requests a fresh one).
+  const ownerUserId = await findPhoneOwnerUserId(prisma, loaded.phone);
+  if (!ownerUserId) return { ok: false, error: "SUPPORT_REQUIRED" };
+  const [current, owner] = await Promise.all([loadSide(prisma, me.userId), loadSide(prisma, ownerUserId)]);
+  if (!current || !owner || owner.authUserId !== loaded.ownerAuthUserId) return { ok: false, error: "SUPPORT_REQUIRED" };
+  const decision = classifyConvergence(current, owner);
+  if (decision.kind !== "PROVIDER_CREDENTIAL_LINK" || decision.survivor.userId !== owner.userId) {
+    return { ok: false, error: "SUPPORT_REQUIRED" };
   }
 
-  await writeAudit("identity.link_proof_verified", me, { phone: maskPhoneNumber(phone) });
-
-  // Terminal mutation: the gate-2 engine independently re-asserts every invariant inside
-  // its own transaction and fails closed with no partial writes. Identity is server-derived
-  // (me.userId from the session); the client cannot choose survivor/owner/privilege.
-  const result = await linkProviderCredential(me.userId, phone);
+  const result = await linkProviderCredential(me.userId, loaded.phone);
   if (!result.ok) {
+    // Every engine error collapses to one generic reason (no topology/role leak); logged internally.
     await writeAudit("identity.link_failed", me, { code: result.error });
-    logger.warn("auth.identity_link_failed", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(phone) });
-    return { ok: false, error: mapProviderLinkError(result.error) };
+    logger.warn("auth.identity_link_failed", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(loaded.phone) });
+    return { ok: false, error: "SUPPORT_REQUIRED" };
   }
-
-  // Success: B is retired and its sessions are invalidated by the engine; there is NO A
-  // session. The caller must re-authenticate as A. We never silently switch/impersonate A.
-  logger.info("auth.identity_link_completed", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(phone) });
+  // B is retired + its sessions killed by the engine; there is NO A session. The caller must
+  // re-authenticate as A — we never silently switch/impersonate A.
+  logger.info("auth.identity_link_completed", { authUserId: me.authUserId, phoneNumber: maskPhoneNumber(loaded.phone) });
   return { ok: true, outcome: "LINK_COMPLETED_REAUTH_REQUIRED" };
 }
 
-/** Map the customer-convergence action result into the unified completion contract. */
 function mapCustomerResult(result: { ok: true } | { ok: false; error: string }): LinkCompletion {
   if (result.ok) return { ok: true, outcome: "CONVERGED" };
   const map: Record<string, LinkCompletionError> = {
     NOT_AUTHENTICATED: "NOT_AUTHENTICATED",
-    INVALID_PHONE: "INVALID_PHONE",
+    INVALID_PHONE: "SUPPORT_REQUIRED", // phone is server-bound, not client input
     INVALID_OTP: "INVALID_OTP",
     RATE_LIMITED: "RATE_LIMITED",
     SUPPORT_REQUIRED: "SUPPORT_REQUIRED",
-    NOTHING_TO_CONVERGE: "NOTHING_TO_LINK",
+    NOTHING_TO_CONVERGE: "SUPPORT_REQUIRED",
   };
   return { ok: false, error: map[result.error] ?? "UNKNOWN_ERROR" };
-}
-
-/** Map a gate-2 engine error to a non-enumerating public completion error (no topology/role leak). */
-function mapProviderLinkError(error: ProviderLinkError): LinkCompletionError {
-  if (error === "INVALID_PHONE") return "INVALID_PHONE";
-  // OWNER_NOT_FOUND / SAME_IDENTITY / LOAD_FAILED / OWNER_PHONE_CHANGED /
-  // NOT_PROVIDER_LINK_ELIGIBLE / SURVIVOR_HAS_EMAIL / LOSER_NOT_LINKABLE / UNIQUE_RACE /
-  // UNKNOWN_ERROR → one generic reason. The precise code is logged internally only.
-  return "SUPPORT_REQUIRED";
-}
-
-/** Map a Better Auth phone-verify failure to a stable, non-leaking BARQ code. */
-function mapVerifyError(error: unknown): LinkCompletionError {
-  if (isAPIError(error)) {
-    const code = (error.body as { code?: string } | undefined)?.code;
-    if (code === "INVALID_OTP" || code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS" || code === "OTP_NOT_FOUND")
-      return "INVALID_OTP";
-    if (code === "TOO_MANY_REQUESTS") return "RATE_LIMITED";
-    if (code === "INVALID_PHONE_NUMBER") return "INVALID_PHONE";
-  }
-  return "INVALID_OTP";
 }
