@@ -7,7 +7,7 @@ import { auth } from "./server";
 import { requireAuth, UnauthenticatedError, ForbiddenError } from "./index";
 import { prisma } from "@/lib/db";
 import { normalizeInternationalPhone } from "@/lib/phone/normalize-international-phone";
-import { assessEligibility, hasRealVerifiedEmail, type IdentitySide } from "./identity-convergence-policy";
+import { assessEligibility, hasRealVerifiedEmail, classifyConvergence, type IdentitySide } from "./identity-convergence-policy";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveClientIp, hmacRateLimitKey } from "@/lib/rate-limit/client-ip";
 import { consumeRateLimit } from "@/lib/rate-limit/durable-rate-limiter";
@@ -123,6 +123,8 @@ async function loadSide(db: DbClient, userId: string): Promise<IdentitySide | nu
     authPhone: user.authUser.phoneNumber,
     authPhoneVerified: user.authUser.phoneNumberVerified,
     hasPrivilege: user.providerLink !== null || user.staff !== null || user.admin !== null,
+    hasProvider: user.providerLink !== null,
+    hasStaffOrAdmin: user.staff !== null || user.admin !== null,
     hasCustomer: user.customer !== null,
     customerId: c?.id ?? null,
     hasMeaningfulHistory,
@@ -153,25 +155,19 @@ export type AssessmentDiagnosticReason =
   | "OWNER_SIDE_LOAD_FAILED"
   | "LEGACY_OWNER_NO_AUTHUSER"
   | "OWNER_TOPOLOGY_MISMATCH"
-  | "PRIVILEGED_CURRENT" // the current (email-first) identity holds a Provider/Staff/Admin row
-  | "PRIVILEGED_OWNER" // the historical phone-owner identity holds one
-  | "PRIVILEGED_BOTH"
+  // AUTH-PROVIDER-LINK gate 1 — classification outcomes (internal only). A Provider-only
+  // owner + safe ordinary B is now recognised as PROVIDER_CREDENTIAL_LINK_AVAILABLE
+  // (public status stays SUPPORT_REQUIRED until the link operation ships in a later gate).
+  | "PROVIDER_CREDENTIAL_LINK_AVAILABLE"
+  | "STAFF_ADMIN_BLOCKED"
+  | "CURRENT_PRIVILEGED"
+  | "CURRENT_HISTORY_UNSAFE"
+  | "OWNER_NOT_LINKABLE"
   | "BOTH_HISTORY"
   | "NOT_CUSTOMER"
   | "SAME_IDENTITY"
+  | "NOT_ELIGIBLE"
   | "UNKNOWN_FAIL_CLOSED";
-
-const ELIGIBILITY_DIAGNOSTIC: Record<string, AssessmentDiagnosticReason> = {
-  BOTH_HISTORY: "BOTH_HISTORY",
-  NOT_CUSTOMER: "NOT_CUSTOMER",
-  SAME_IDENTITY: "SAME_IDENTITY",
-};
-
-/** Which side of the pair holds the privileged profile (no role/id — just the side). */
-function privilegeSide(current: IdentitySide, owner: IdentitySide): AssessmentDiagnosticReason {
-  if (current.hasPrivilege && owner.hasPrivilege) return "PRIVILEGED_BOTH";
-  return current.hasPrivilege ? "PRIVILEGED_CURRENT" : "PRIVILEGED_OWNER";
-}
 
 // Read-only re-inspection of WHY loadSide returned null for a side — never mutates and
 // never changes the (already-SUPPORT_REQUIRED) decision. loadSide yields null only when
@@ -215,10 +211,14 @@ export async function assessIdentityConvergence(phoneRaw: string): Promise<Conve
     return { status: "SUPPORT_REQUIRED" };
   }
 
-  const elig = assessEligibility(current, owner);
-  if (elig.eligible) return { status: "CONVERGENCE_AVAILABLE" };
-  const reason =
-    elig.reason === "PRIVILEGE" ? privilegeSide(current, owner) : (ELIGIBILITY_DIAGNOSTIC[elig.reason] ?? "UNKNOWN_FAIL_CLOSED");
+  // AUTH-PROVIDER-LINK gate 1 — classify (customer-convergence vs provider credential
+  // link vs support). PUBLIC behavior is unchanged: only a CUSTOMER_CONVERGENCE is
+  // offered (CONVERGENCE_AVAILABLE); a PROVIDER_CREDENTIAL_LINK is recognised INTERNALLY
+  // but still returns the generic SUPPORT_REQUIRED (the link operation + UX ship later).
+  const decision = classifyConvergence(current, owner);
+  if (decision.kind === "CUSTOMER_CONVERGENCE") return { status: "CONVERGENCE_AVAILABLE" };
+  const reason: AssessmentDiagnosticReason =
+    decision.kind === "PROVIDER_CREDENTIAL_LINK" ? "PROVIDER_CREDENTIAL_LINK_AVAILABLE" : decision.reason;
   logger.warn("auth.identity_convergence_assessment", { reason, phoneNumber: maskPhoneNumber(phone) });
   return { status: "SUPPORT_REQUIRED" };
 }

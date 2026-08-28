@@ -473,22 +473,34 @@ describe("AUTH-CONVERGENCE-DIAGNOSTIC-1 — internal-only SUPPORT_REQUIRED reaso
     expect(lastAssessmentReason()).toBe("LEGACY_OWNER_NO_AUTHUSER");
   });
 
-  it("owner-only privileged → SUPPORT_REQUIRED + PRIVILEGED_OWNER", async () => {
-    setStore([{ ...B }, { ...A, privilege: true }]);
+  it("PROVIDER owner + safe ordinary B → public SUPPORT_REQUIRED + internal PROVIDER_CREDENTIAL_LINK_AVAILABLE", async () => {
+    setStore([{ ...B }, { ...A, privilege: true }]); // A.privilege → a Provider row
     expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("PRIVILEGED_OWNER");
+    expect(lastAssessmentReason()).toBe("PROVIDER_CREDENTIAL_LINK_AVAILABLE");
   });
 
-  it("current-only privileged → SUPPORT_REQUIRED + PRIVILEGED_CURRENT", async () => {
+  it("current B holds a Staff row → SUPPORT_REQUIRED + STAFF_ADMIN_BLOCKED", async () => {
     setStore([{ ...B, staffRow: true }, { ...A }]);
     expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("PRIVILEGED_CURRENT");
+    expect(lastAssessmentReason()).toBe("STAFF_ADMIN_BLOCKED");
   });
 
-  it("both privileged → SUPPORT_REQUIRED + PRIVILEGED_BOTH", async () => {
+  it("current B holds an Admin row (owner also a Provider) → SUPPORT_REQUIRED + STAFF_ADMIN_BLOCKED", async () => {
     setStore([{ ...B, adminRow: true }, { ...A, privilege: true }]);
     expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
-    expect(lastAssessmentReason()).toBe("PRIVILEGED_BOTH");
+    expect(lastAssessmentReason()).toBe("STAFF_ADMIN_BLOCKED");
+  });
+
+  it("PROVIDER owner + B with unsafe history → SUPPORT_REQUIRED + CURRENT_HISTORY_UNSAFE", async () => {
+    setStore([{ ...B, history: true }, { ...A, privilege: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("CURRENT_HISTORY_UNSAFE");
+  });
+
+  it("Provider+Staff owner → SUPPORT_REQUIRED + STAFF_ADMIN_BLOCKED (no self-service)", async () => {
+    setStore([{ ...B }, { ...A, privilege: true, staffRow: true }]);
+    expect(await assessIdentityConvergence(PHONE)).toEqual({ status: "SUPPORT_REQUIRED" });
+    expect(lastAssessmentReason()).toBe("STAFF_ADMIN_BLOCKED");
   });
 
   it("both meaningful history → SUPPORT_REQUIRED + BOTH_HISTORY", async () => {

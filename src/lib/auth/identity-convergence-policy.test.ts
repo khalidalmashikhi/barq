@@ -5,12 +5,16 @@ vi.mock("./linked-email", () => ({
   isSyntheticAuthEmail: (e: string | null | undefined) => typeof e === "string" && e.toLowerCase().endsWith("@phone.barq.internal"),
 }));
 
-const { assessEligibility, hasRealVerifiedEmail } = await import("./identity-convergence-policy");
+const { assessEligibility, hasRealVerifiedEmail, classifyConvergence, isSafeToRetire } = await import(
+  "./identity-convergence-policy"
+);
 type IdentitySide = import("./identity-convergence-policy").IdentitySide;
 
-// AUTH-IDENTITY-CONVERGENCE-1 — pure policy: survivor determination + eligibility.
+// AUTH-IDENTITY-CONVERGENCE-1 / AUTH-PROVIDER-LINK gate 1 — pure policy.
 
 function side(over: Partial<IdentitySide>): IdentitySide {
+  const hasProvider = over.hasProvider ?? false;
+  const hasStaffOrAdmin = over.hasStaffOrAdmin ?? false;
   return {
     userId: "u-x",
     authUserId: "a-x",
@@ -21,11 +25,14 @@ function side(over: Partial<IdentitySide>): IdentitySide {
     authEmailVerified: false,
     authPhone: null,
     authPhoneVerified: false,
-    hasPrivilege: false,
     hasCustomer: true,
     customerId: "c-x",
     hasMeaningfulHistory: false,
     ...over,
+    // Keep the privilege trio internally consistent: any role OR an explicit hasPrivilege.
+    hasProvider,
+    hasStaffOrAdmin,
+    hasPrivilege: hasProvider || hasStaffOrAdmin || over.hasPrivilege === true,
   };
 }
 
@@ -118,5 +125,89 @@ describe("assessEligibility — survivor determinism", () => {
     // current = older, owner = newer → older (current) survives
     const r2 = assessEligibility(older, newer);
     expect(r2.eligible && r2.survivor.userId).toBe("A");
+  });
+});
+
+describe("classifyConvergence — customer convergence vs provider credential link (gate 1)", () => {
+  const ordinaryB = side({ userId: "B", authUserId: "aB", authEmail: "b@x.com", authEmailVerified: true, hasCustomer: true });
+  const providerA = side({
+    userId: "A",
+    authUserId: "aA",
+    authPhone: "+96891112222",
+    authPhoneVerified: true,
+    hasProvider: true,
+    hasCustomer: false,
+  });
+
+  it("ordinary customer owner → CUSTOMER_CONVERGENCE (unchanged)", () => {
+    const ownerCustomer = side({ userId: "A", authUserId: "aA", authPhone: "+96891112222", authPhoneVerified: true, hasMeaningfulHistory: true });
+    const r = classifyConvergence(ordinaryB, ownerCustomer);
+    expect(r.kind).toBe("CUSTOMER_CONVERGENCE");
+  });
+
+  it("Provider owner + safe ordinary B → PROVIDER_CREDENTIAL_LINK (provider survives)", () => {
+    const r = classifyConvergence(ordinaryB, providerA);
+    expect(r.kind).toBe("PROVIDER_CREDENTIAL_LINK");
+    if (r.kind === "PROVIDER_CREDENTIAL_LINK") {
+      expect(r.survivor.userId).toBe("A"); // the provider survives
+      expect(r.loser.userId).toBe("B");
+    }
+  });
+
+  it("Provider owner + B with meaningful history → SUPPORT_REQUIRED / CURRENT_HISTORY_UNSAFE", () => {
+    const r = classifyConvergence(side({ ...ordinaryB, hasMeaningfulHistory: true }), providerA);
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "CURRENT_HISTORY_UNSAFE" });
+  });
+
+  it("Provider owner + B is itself a Provider → SUPPORT_REQUIRED / CURRENT_PRIVILEGED", () => {
+    const r = classifyConvergence(side({ ...ordinaryB, hasProvider: true }), providerA);
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "CURRENT_PRIVILEGED" });
+  });
+
+  it("Provider owner + B Staff → SUPPORT_REQUIRED / STAFF_ADMIN_BLOCKED", () => {
+    const r = classifyConvergence(side({ ...ordinaryB, hasStaffOrAdmin: true }), providerA);
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "STAFF_ADMIN_BLOCKED" });
+  });
+
+  it("Provider owner + B without a real email → SUPPORT_REQUIRED / OWNER_NOT_LINKABLE", () => {
+    const r = classifyConvergence(side({ userId: "B", authUserId: "aB", authEmail: null, hasCustomer: true }), providerA);
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "OWNER_NOT_LINKABLE" });
+  });
+
+  it("Provider+Staff owner → SUPPORT_REQUIRED / STAFF_ADMIN_BLOCKED (no self-service)", () => {
+    const r = classifyConvergence(ordinaryB, side({ ...providerA, hasStaffOrAdmin: true }));
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "STAFF_ADMIN_BLOCKED" });
+  });
+
+  it("Provider+Admin owner → SUPPORT_REQUIRED / STAFF_ADMIN_BLOCKED", () => {
+    const r = classifyConvergence(ordinaryB, side({ ...providerA, hasStaffOrAdmin: true }));
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "STAFF_ADMIN_BLOCKED" });
+  });
+
+  it("Staff-only owner → SUPPORT_REQUIRED / STAFF_ADMIN_BLOCKED", () => {
+    const staffOwner = side({ userId: "A", authUserId: "aA", authPhone: "+96891112222", authPhoneVerified: true, hasStaffOrAdmin: true, hasCustomer: false });
+    expect(classifyConvergence(ordinaryB, staffOwner)).toEqual({ kind: "SUPPORT_REQUIRED", reason: "STAFF_ADMIN_BLOCKED" });
+  });
+
+  it("Admin-only owner → SUPPORT_REQUIRED / STAFF_ADMIN_BLOCKED", () => {
+    const adminOwner = side({ userId: "A", authUserId: "aA", authPhone: "+96891112222", authPhoneVerified: true, hasStaffOrAdmin: true, hasCustomer: false });
+    expect(classifyConvergence(ordinaryB, adminOwner)).toEqual({ kind: "SUPPORT_REQUIRED", reason: "STAFF_ADMIN_BLOCKED" });
+  });
+
+  it("both full customers, both history → SUPPORT_REQUIRED / BOTH_HISTORY (customer reason preserved)", () => {
+    const r = classifyConvergence(
+      side({ userId: "B", authUserId: "aB", hasCustomer: true, hasMeaningfulHistory: true }),
+      side({ userId: "A", authUserId: "aA", hasCustomer: true, hasMeaningfulHistory: true })
+    );
+    expect(r).toEqual({ kind: "SUPPORT_REQUIRED", reason: "BOTH_HISTORY" });
+  });
+});
+
+describe("isSafeToRetire", () => {
+  it("true only for a non-privileged, zero-history identity", () => {
+    expect(isSafeToRetire(side({ hasCustomer: true }))).toBe(true);
+    expect(isSafeToRetire(side({ hasProvider: true }))).toBe(false);
+    expect(isSafeToRetire(side({ hasStaffOrAdmin: true }))).toBe(false);
+    expect(isSafeToRetire(side({ hasMeaningfulHistory: true }))).toBe(false);
   });
 });
