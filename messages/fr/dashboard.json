@@ -129,5 +129,9 @@
   "convergeChoiceTitle": "Ce numéro appartient à un autre compte",
   "convergeChoiceSubtitle": "Vous pouvez vérifier qu'il vous appartient et unifier les deux méthodes de connexion en un seul compte, ou utiliser un autre numéro.",
   "convergeChoiceVerify": "Envoyer le code et lier le compte",
-  "convergeChoiceDifferent": "Utiliser un autre numéro de téléphone"
+  "convergeChoiceDifferent": "Utiliser un autre numéro de téléphone",
+  "linkReauthMessage": "Vos méthodes de connexion ont été liées avec succès. Pour votre sécurité, veuillez vous reconnecter.",
+  "linkReauthButton": "Se connecter",
+  "convergeResend": "Renvoyer le code",
+  "convergeExpired": "Le code a expiré. Veuillez en demander un nouveau."
 }

@@ -129,5 +129,9 @@
   "convergeChoiceTitle": "Toto číslo patří k jinému účtu",
   "convergeChoiceSubtitle": "Můžete ověřit, že vám patří, a sjednotit oba způsoby přihlášení do jednoho účtu, nebo použít jiné číslo.",
   "convergeChoiceVerify": "Odeslat kód a propojit účet",
-  "convergeChoiceDifferent": "Použít jiné telefonní číslo"
+  "convergeChoiceDifferent": "Použít jiné telefonní číslo",
+  "linkReauthMessage": "Vaše metody přihlášení byly úspěšně propojeny. Z bezpečnostních důvodů se prosím přihlaste znovu.",
+  "linkReauthButton": "Přihlásit se",
+  "convergeResend": "Odeslat kód znovu",
+  "convergeExpired": "Platnost kódu vypršela. Vyžádejte si nový."
 }

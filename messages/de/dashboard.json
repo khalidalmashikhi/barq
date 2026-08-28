@@ -129,5 +129,9 @@
   "convergeChoiceTitle": "Diese Nummer gehört zu einem anderen Konto",
   "convergeChoiceSubtitle": "Du kannst bestätigen, dass sie dir gehört, und beide Anmeldemethoden in einem Konto zusammenführen, oder eine andere Nummer verwenden.",
   "convergeChoiceVerify": "Code senden und Konto verknüpfen",
-  "convergeChoiceDifferent": "Eine andere Telefonnummer verwenden"
+  "convergeChoiceDifferent": "Eine andere Telefonnummer verwenden",
+  "linkReauthMessage": "Deine Anmeldemethoden wurden erfolgreich verknüpft. Bitte melde dich aus Sicherheitsgründen erneut an.",
+  "linkReauthButton": "Anmelden",
+  "convergeResend": "Code erneut senden",
+  "convergeExpired": "Der Code ist abgelaufen. Bitte fordere einen neuen an."
 }

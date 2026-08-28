@@ -129,5 +129,9 @@
   "convergeChoiceTitle": "Ten numer należy do innego konta",
   "convergeChoiceSubtitle": "Możesz potwierdzić, że jest Twój, i połączyć obie metody logowania w jedno konto, albo użyć innego numeru.",
   "convergeChoiceVerify": "Wyślij kod i połącz konto",
-  "convergeChoiceDifferent": "Użyj innego numeru telefonu"
+  "convergeChoiceDifferent": "Użyj innego numeru telefonu",
+  "linkReauthMessage": "Twoje metody logowania zostały pomyślnie połączone. Ze względów bezpieczeństwa zaloguj się ponownie.",
+  "linkReauthButton": "Zaloguj się",
+  "convergeResend": "Wyślij kod ponownie",
+  "convergeExpired": "Kod wygasł. Poproś o nowy."
 }

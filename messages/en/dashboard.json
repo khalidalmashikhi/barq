@@ -129,5 +129,9 @@
   "convergeChoiceTitle": "This number belongs to another account",
   "convergeChoiceSubtitle": "You can verify that you own it and unify both sign-in methods into one account, or use a different number.",
   "convergeChoiceVerify": "Send code and link account",
-  "convergeChoiceDifferent": "Use a different phone number"
+  "convergeChoiceDifferent": "Use a different phone number",
+  "linkReauthMessage": "Your sign-in methods were linked successfully. For security, please sign in again.",
+  "linkReauthButton": "Sign in",
+  "convergeResend": "Resend code",
+  "convergeExpired": "The code has expired. Please request a new one."
 }

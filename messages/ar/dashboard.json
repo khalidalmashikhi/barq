@@ -129,5 +129,9 @@
   "convergeChoiceTitle": "هذا الرقم مرتبط بحساب آخر",
   "convergeChoiceSubtitle": "يمكنك التحقق من ملكيتك له وتوحيد طريقتَي تسجيل الدخول في حساب واحد، أو استخدام رقم آخر.",
   "convergeChoiceVerify": "إرسال رمز التحقق وربط الحساب",
-  "convergeChoiceDifferent": "استخدام رقم هاتف آخر"
+  "convergeChoiceDifferent": "استخدام رقم هاتف آخر",
+  "linkReauthMessage": "تم ربط طرق تسجيل الدخول بنجاح. لحماية حسابك، سجّل الدخول مرة أخرى.",
+  "linkReauthButton": "تسجيل الدخول",
+  "convergeResend": "إعادة إرسال الرمز",
+  "convergeExpired": "انتهت صلاحية الرمز. يرجى طلب رمز جديد."
 }
