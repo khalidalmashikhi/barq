@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Globe, MessageCircle } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { Logo } from "@/components/ui/logo";
@@ -74,7 +75,16 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
     <div className="flex items-center justify-between border-b border-border bg-card px-4 py-4 sm:px-8">
       <div className="flex items-center gap-2">
         {navItems && roleLabel && <AppMobileNav navItems={navItems} roleLabel={roleLabel} />}
-        <Logo variant="mark" className="h-8 max-w-[90px]" />
+        {/* The wordmark returns to the current role's own home (the first nav item's
+            destination — /dashboard for a customer, /provider or /admin otherwise), so
+            it is never a customer-only "Home" imposed on other roles. */}
+        {navItems?.[0]?.href ? (
+          <Link href={navItems[0].href} className="rounded focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <Logo variant="mark" className="h-8 max-w-[90px]" />
+          </Link>
+        ) : (
+          <Logo variant="mark" className="h-8 max-w-[90px]" />
+        )}
       </div>
 
       {centerContent}

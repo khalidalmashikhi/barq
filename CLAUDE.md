@@ -45,6 +45,6 @@ BARQ (Arabic: **برق** — never "بارق") is a multi-language tourism marke
 
 The numbered `docs/` subdirectories (`00-foundation/` … `11-release/`) are the versioned, ADR-gated architecture record — update those through the ADR/RFC process in `docs/00-foundation/PROJECT_RULES.md`. `docs/project-memory/` is living working memory — update it freely as you learn things, no ADR gate required.
 
-## Known, deliberately-unfixed inconsistency
+## Brand spelling (resolved)
 
-`messages/ar/landing.json` uses the incorrect spelling **"بارق"** in 13 places; `messages/ar/common.json`'s `appName` correctly uses **"برق"**. Do not silently fix this in an unrelated task — it's tracked in `docs/project-memory/13-OPEN-QUESTIONS.md` for a dedicated content-correction pass.
+The Arabic brand name is **"برق"** (never "بارق"). A prior note flagged ~13 incorrect **"بارق"** spellings in `messages/ar/landing.json`; a repository-wide check during the Customer Experience Polish gate found **zero** occurrences of "بارق" anywhere under `messages/` — every Arabic brand mention already uses the correct "برق". The inconsistency is fixed; keep it that way.

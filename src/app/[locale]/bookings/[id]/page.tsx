@@ -210,12 +210,12 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
 
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
           <div>
-            <h2 className="text-sm font-medium text-foreground">{t("cancellationPolicyTitle")}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-foreground/60">{t("cancellationPolicyBody")}</p>
+            <h2 className="text-sm font-semibold text-foreground">{t("cancellationPolicyTitle")}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-foreground/70">{t("cancellationPolicyBody")}</p>
           </div>
           <div>
-            <h2 className="text-sm font-medium text-foreground">{t("refundNoticeTitle")}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-foreground/60">{t("refundNoticeBody")}</p>
+            <h2 className="text-sm font-semibold text-foreground">{t("refundNoticeTitle")}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-foreground/70">{t("refundNoticeBody")}</p>
           </div>
         </div>
 

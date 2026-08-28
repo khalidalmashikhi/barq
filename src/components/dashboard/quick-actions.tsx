@@ -1,43 +1,38 @@
-import { PlusCircle, Search, Settings2, MessageCircle } from "lucide-react";
+import { Compass, CalendarCheck, CreditCard, Settings2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Link } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
-// Quick actions — visually polished, per explicit "everything should
-// feel alive, no fake admin panels" feedback (the previous grey/
-// disabled treatment itself read as unfinished, which this turn's
-// feedback specifically flagged as a problem). No onClick handler is
-// attached — these don't claim to do anything they can't actually do
-// (no Booking/Search/Settings/Support feature exists yet), but they
-// also don't visually announce themselves as broken. This is a
-// deliberate middle ground between "fake interactive controls that
-// silently do nothing" and "an obviously disabled admin-panel grid" —
-// documented honestly here, not surfaced as a visible warning label in
-// the UI itself.
+// Quick actions — Customer Experience Polish. These are now REAL shortcuts to
+// existing customer destinations (services catalogue, bookings, payments,
+// settings), each a working link — not the former inert, handler-less tiles.
+// Every href points at a route that actually exists.
 
 export async function QuickActions() {
   const t = await getServerTranslator("dashboard");
 
   const actions = [
-    { label: t("actionNewBooking"), icon: PlusCircle },
-    { label: t("actionSearchExperience"), icon: Search },
-    { label: t("navSettings"), icon: Settings2 },
-    { label: t("supportLabel"), icon: MessageCircle },
+    { label: t("actionSearchExperience"), href: "/services", icon: Compass },
+    { label: t("navBookings"), href: "/bookings", icon: CalendarCheck },
+    { label: t("navPayments"), href: "/payments", icon: CreditCard },
+    { label: t("navSettings"), href: "/dashboard/settings", icon: Settings2 },
   ];
 
   return (
     <Card hoverLift={false}>
-      <h3 className="text-sm font-medium text-foreground/70">{t("quickActionsTitle")}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{t("quickActionsTitle")}</h3>
       <div className="mt-5 grid grid-cols-2 gap-3">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
-            <div
-              key={action.label}
-              className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background px-4 py-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-premium"
+            <Link
+              key={action.href}
+              href={action.href}
+              className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background px-4 py-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-premium focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <Icon size={20} strokeWidth={1.75} className="text-primary" />
-              <span className="text-xs font-medium text-foreground/70">{action.label}</span>
-            </div>
+              <span className="text-sm font-medium text-foreground">{action.label}</span>
+            </Link>
           );
         })}
       </div>

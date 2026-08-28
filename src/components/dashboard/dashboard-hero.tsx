@@ -1,10 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Search, MapPin, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { DestinationImage, DESTINATION_IMAGES } from "./destination-image";
 
+// Customer Home hero — Customer Experience Polish. Replaces the former disabled
+// "search" bar (a non-functional control presented as the primary action) with a
+// warm greeting and a REAL primary call to action that links to the working
+// services catalogue (/services). No fake/disabled controls; the greeting carries
+// no fabricated personalization.
 export function DashboardHero() {
   const t = useTranslations("dashboard");
 
@@ -14,58 +19,22 @@ export function DashboardHero() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="relative overflow-hidden"
-      style={{ height: 420 }}
+      style={{ height: 360 }}
     >
       <DestinationImage src={DESTINATION_IMAGES.salalah} alt={t("heroImageAlt")} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
       <div aria-hidden className="absolute inset-0 bg-luxury-gradient opacity-40" />
 
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
-        <h1 className="max-w-2xl text-3xl font-semibold text-white sm:text-4xl">
-          {t("heroTitle")}
-        </h1>
-        <p className="mt-3 text-lg text-white/75">{t("heroSubtitle")}</p>
+        <h1 className="max-w-2xl text-3xl font-semibold text-white sm:text-4xl">{t("heroTitle")}</h1>
+        <p className="mt-3 max-w-xl text-lg text-white/80">{t("heroSubtitle")}</p>
 
-        <div className="mx-auto mt-8 flex w-full max-w-2xl items-center gap-2 rounded-full bg-white p-2.5 shadow-premium-lg">
-          <Search size={20} strokeWidth={1.75} className="ms-3 text-foreground/40" />
-          <input
-            type="search"
-            placeholder={t("heroSearchPlaceholder")}
-            className="w-full bg-transparent px-1 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:outline-none"
-            disabled
-          />
-          <span className="hidden h-6 w-px bg-border sm:block" />
-          <button
-            type="button"
-            disabled
-            aria-disabled
-            title={t("comingSoonLabel")}
-            className="hidden cursor-not-allowed items-center gap-1.5 px-3 text-sm text-foreground/35 sm:flex"
-            aria-label={t("locationLabel")}
-          >
-            <MapPin size={16} strokeWidth={1.75} />
-            {t("locationLabel")}
-          </button>
-          <button
-            type="button"
-            disabled
-            aria-disabled
-            title={t("comingSoonLabel")}
-            className="hidden cursor-not-allowed rounded-full p-2.5 text-foreground/35 sm:flex"
-            aria-label={t("filterLabel")}
-          >
-            <SlidersHorizontal size={16} strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
-            disabled
-            aria-disabled
-            title={t("comingSoonLabel")}
-            className="shrink-0 cursor-not-allowed rounded-full bg-foreground/10 px-6 py-2.5 text-sm font-medium text-foreground/35"
-          >
-            {t("searchButtonLabel")}
-          </button>
-        </div>
+        <Link
+          href="/services"
+          className="mt-8 inline-flex items-center rounded-full bg-white px-7 py-3.5 text-base font-medium text-primary shadow-premium-lg transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white/60"
+        >
+          {t("homeExploreCta")}
+        </Link>
       </div>
     </motion.div>
   );

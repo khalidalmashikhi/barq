@@ -164,7 +164,7 @@ export async function ServiceDetailView({
                         {isToday ? t("todayLabel") : formatDate(date, locale, { weekday: "long", day: "numeric", month: "long" })}
                       </span>
                       <span className="text-sm text-foreground/60">{formatDate(date, locale, { hour: "2-digit", minute: "2-digit" })}</span>
-                      <span className="text-xs text-primary">{slot.remainingSeats} {tBooking("remainingSeatsLabel")}</span>
+                      <span className="text-sm font-medium text-primary">{slot.remainingSeats} {tBooking("remainingSeatsLabel")}</span>
                     </div>
                   );
                 })}
@@ -221,7 +221,7 @@ export async function ServiceDetailView({
         <div className="lg:col-span-1">
           <div className="flex flex-col gap-3 lg:sticky lg:top-24">
             <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-premium-lg">
-              <p className="text-xs text-foreground/50">{tBooking("priceLabel")}</p>
+              <p className="text-xs font-medium text-foreground/60">{tBooking("priceLabel")}</p>
               {/* Price with its display unit appended when present (Gate 4). Unit is
                   display metadata only — no total is computed from it. */}
               <p className="mt-1 text-3xl font-bold tracking-tight text-primary">{priceDisplay ?? t("priceUnavailableLabel")}</p>

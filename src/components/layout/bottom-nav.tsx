@@ -49,7 +49,7 @@ export function BottomNav({ isAuthenticated }: { isAuthenticated: boolean }) {
               <Link
                 href={tab.href}
                 aria-current={tab.active ? "page" : undefined}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+                className={`flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                   tab.active ? "text-primary" : "text-foreground/55 hover:text-foreground"
                 }`}
               >

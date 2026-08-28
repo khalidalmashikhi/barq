@@ -56,6 +56,14 @@ body {
   color: var(--color-foreground);
 }
 
+/* Arabic reads more comfortably with slightly looser leading than the Latin
+   default. Scoped to RTL so Latin layouts are untouched; applied to running
+   prose (not headings/controls, which carry their own line-height) to lift
+   Arabic paragraph readability without changing layout density. */
+[dir="rtl"] p {
+  line-height: 1.85;
+}
+
 /* Premium surface treatments — Visual Identity Redesign.
    Named utilities rather than one-off inline gradients repeated across
    components, so the "premium" look stays consistent and centrally

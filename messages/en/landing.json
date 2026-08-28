@@ -17,7 +17,7 @@
   "hero": {
     "eyebrow": "Oman's tourism marketplace",
     "title": "What would you like to book in Oman?",
-    "subtitle": "Discover and book tourism services from trusted locals and companies — cars, guides, tours, transfers, marine trips and more.",
+    "subtitle": "Book tourism services from trusted locals and companies: cars, guides, tours, transfers, and marine trips.",
     "searchPlaceholder": "Search cars, guides, tours, experiences…",
     "searchButton": "Search",
     "ctaPrimary": "Explore Experiences",
@@ -133,7 +133,7 @@
     "button": "Start offering"
   },
   "footer": {
-    "tagline": "Oman's premium tourism marketplace.",
+    "tagline": "Book tourism services across Oman.",
     "browseHeading": "Explore",
     "companyHeading": "Company",
     "aboutLink": "About BARQ",

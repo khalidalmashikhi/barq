@@ -150,15 +150,15 @@ export default async function DashboardPage() {
 
         {data.awaitingReviewCount > 0 && <AwaitingReviewNudge count={data.awaitingReviewCount} />}
 
-        <CustomerKpiRow
-          totalBookings={data.bookingStatusCounts.total}
-          activeBookings={data.bookingStatusCounts.active}
-          completedBookings={data.bookingStatusCounts.completed}
-          cancelledBookings={data.bookingStatusCounts.cancelled}
-          reviewsGiven={data.reviewsGivenCount}
-          awaitingReview={data.awaitingReviewCount}
-          unreadNotifications={data.notificationsCount}
-        />
+        {/* Customer Experience Polish — the upcoming trip is a returning customer's
+            highest-value block, so it now sits near the top (above discovery and the
+            account stat grid) instead of being buried below them. */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <RecentBookingsTimeline bookings={data.upcomingBookings} />
+          </div>
+          <QuickActions />
+        </div>
 
         <div>
           <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -207,16 +207,21 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <RecentBookingsTimeline bookings={data.upcomingBookings} />
-          </div>
-          <QuickActions />
-        </div>
+        {/* Account stat grid — demoted below discovery so the Home reads as a
+            marketplace, not a back-office overview. */}
+        <CustomerKpiRow
+          totalBookings={data.bookingStatusCounts.total}
+          activeBookings={data.bookingStatusCounts.active}
+          completedBookings={data.bookingStatusCounts.completed}
+          cancelledBookings={data.bookingStatusCounts.cancelled}
+          reviewsGiven={data.reviewsGivenCount}
+          awaitingReview={data.awaitingReviewCount}
+          unreadNotifications={data.notificationsCount}
+        />
 
         <RecentBookingsList bookings={data.recentBookings} />
 
-        <p className="text-center text-xs text-foreground/20">{t("accountIdLabel", { id: barqUserId })}</p>
+        <p className="text-center text-xs text-foreground/40">{t("accountIdLabel", { id: barqUserId })}</p>
       </div>
 
       <DashboardFooter />
