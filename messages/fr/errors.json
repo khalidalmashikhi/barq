@@ -30,5 +30,6 @@
   "scheduleRequired": "Définissez une heure de début et de fin avant d'accepter cette réservation",
   "invalidSchedule": "L'heure de début et de fin est invalide",
   "vehicleBusy": "Le véhicule sélectionné est déjà affecté à une autre réservation pendant cette période",
-  "pricingUnitNotBookable": "Cette option tarifaire n'est pas encore disponible à la réservation."
+  "pricingUnitNotBookable": "Cette option tarifaire n'est pas encore disponible à la réservation.",
+  "bookingPricingInvalid": "Cette réservation ne peut pas être traitée pour le moment en raison d'un problème de tarification. Veuillez contacter le support."
 }

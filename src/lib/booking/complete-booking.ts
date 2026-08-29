@@ -9,6 +9,7 @@ import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycl
 import { releaseVehicleReservationForBooking } from "@/lib/booking/vehicle-reservation";
 import { generateInvoiceNumber } from "@/lib/invoicing/generate-invoice-number";
 import { buildInvoiceContent } from "@/lib/invoicing/build-invoice-content";
+import { resolveBookingChargeMoney } from "@/lib/booking/pricing/resolve-booking-money";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -79,20 +80,32 @@ export async function completeBooking(bookingId: string): Promise<CompleteBookin
       return { ok: false, error: "BOOKING_NOT_COMPLETABLE" };
     }
 
+    // DOWNSTREAM MONEY ALIGNMENT — the invoice records the ONE authoritative amount (a LEGACY
+    // booking's historical unit snapshot; a TOTALIZED booking's total). Resolve BEFORE the
+    // transaction; an INVALID/ABSENT snapshot FAILS CLOSED (no completion, no false invoice)
+    // rather than invoicing a wrong or unit-only amount. In practice a booking reaching
+    // completion already passed acceptance's identical check, so this only guards corrupt data.
+    const charge = resolveBookingChargeMoney(booking);
+    if (!charge.ok) {
+      logger.warn("completeBooking.unresolvable_money", { bookingId: booking.id, reason: charge.reason });
+      return { ok: false, error: "BOOKING_PRICING_INVALID" };
+    }
+
     const hookContext = await prisma.$transaction(async (tx) => {
       const ctx = await transitionBooking(
         { bookingId: booking.id, toStatus: "COMPLETED", actorType: "PROVIDER", actorId: provider.id },
         tx
       );
 
-      if (booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency !== null) {
+      {
         const payment = await tx.payment.findUnique({ where: { bookingId: booking.id } });
         const serviceName = booking.service.name as { ar: string; en: string };
         const invoiceNumber = await generateInvoiceNumber({}, tx);
         const content = buildInvoiceContent({
           serviceName,
-          amount: booking.priceSnapshotAmount.toString(),
-          currency: booking.priceSnapshotCurrency,
+          // The authoritative booking total (Decimal), not the unit price.
+          amount: charge.money.total.toString(),
+          currency: charge.money.currency,
         });
 
         await tx.invoice.create({

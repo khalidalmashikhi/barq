@@ -21,6 +21,9 @@ vi.mock("next-intl/server", () => ({
 const groupByMock = vi.fn();
 const findManyServiceMock = vi.fn();
 const findManyAvailabilityMock = vi.fn();
+// DOWNSTREAM MONEY ALIGNMENT — revenue now sums the effective total via a raw $queryRaw
+// (aggregateEffectiveBookingTotalByCurrency), not a groupBy _sum.
+const queryRawMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -33,6 +36,7 @@ vi.mock("@/lib/db", () => ({
     service: {
       findMany: (...args: unknown[]) => findManyServiceMock(...args),
     },
+    $queryRaw: (...args: unknown[]) => queryRawMock(...args),
   },
 }));
 
@@ -43,6 +47,7 @@ afterEach(() => {
   groupByMock.mockReset();
   findManyServiceMock.mockReset();
   findManyAvailabilityMock.mockReset();
+  queryRawMock.mockReset();
 });
 
 describe("getProviderMetrics — bookingsByStatus", () => {
@@ -58,8 +63,8 @@ describe("getProviderMetrics — bookingsByStatus", () => {
         { status: "CANCELLED", _count: 2 },
         { status: "REJECTED", _count: 1 },
       ])
-      .mockResolvedValueOnce([]) // priceSnapshotCurrency revenue groupBy
       .mockResolvedValueOnce([]); // top services groupBy
+    queryRawMock.mockResolvedValue([]); // effective-total revenue
     findManyAvailabilityMock.mockResolvedValue([]);
     findManyServiceMock.mockResolvedValue([]);
 
@@ -78,7 +83,8 @@ describe("getProviderMetrics — bookingsByStatus", () => {
 
   it("returns an empty breakdown for a provider with zero bookings, never a padded zero-count list", async () => {
     requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
-    groupByMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    groupByMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    queryRawMock.mockResolvedValue([]);
     findManyAvailabilityMock.mockResolvedValue([]);
     findManyServiceMock.mockResolvedValue([]);
 

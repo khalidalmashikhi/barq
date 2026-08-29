@@ -54,8 +54,12 @@ vi.mock("@/lib/db", () => ({
     booking: { groupBy: (...a: unknown[]) => bookingGroupByMock(...a), count: (...a: unknown[]) => bookingCountMock(...a) },
     review: { count: (...a: unknown[]) => reviewCountMock(...a), findMany: (...a: unknown[]) => reviewFindManyMock(...a) },
     rating: { aggregate: (...a: unknown[]) => ratingAggregateMock(...a) },
+    // DOWNSTREAM MONEY ALIGNMENT — GMV now sums the effective total via $queryRaw.
+    $queryRaw: (...a: unknown[]) => queryRawMock(...a),
   },
 }));
+
+const queryRawMock = vi.fn();
 
 const { getAdminOverview } = await import("./get-admin-overview");
 
@@ -73,6 +77,7 @@ function setDefaults() {
   providerCountMock.mockResolvedValue(0);
   serviceCountMock.mockResolvedValue(0);
   bookingGroupByMock.mockResolvedValue([]);
+  queryRawMock.mockResolvedValue([]);
   bookingCountMock.mockResolvedValue(0);
   reviewCountMock.mockResolvedValue(0);
   ratingAggregateMock.mockResolvedValue({ _avg: { value: null } });
@@ -136,15 +141,11 @@ describe("getAdminOverview", () => {
 
   it("keeps completed gross revenue separate per currency — never a merged/converted total", async () => {
     setDefaults();
-    bookingGroupByMock.mockImplementation((args: { by: string[] }) => {
-      if (args.by.includes("priceSnapshotCurrency") && args.by.length === 1) {
-        return Promise.resolve([
-          { priceSnapshotCurrency: "OMR", _sum: { priceSnapshotAmount: "120.00" } },
-          { priceSnapshotCurrency: "USD", _sum: { priceSnapshotAmount: "50.00" } },
-        ]);
-      }
-      return Promise.resolve([]);
-    });
+    // Effective-total GMV via $queryRaw (COALESCE(total, unit)) — separate per currency.
+    queryRawMock.mockResolvedValue([
+      { currency: "OMR", sum: "120.00", avg: "60.00", count: 2n },
+      { currency: "USD", sum: "50.00", avg: "50.00", count: 1n },
+    ]);
 
     const result = await getAdminOverview();
 

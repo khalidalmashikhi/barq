@@ -30,5 +30,6 @@
   "scheduleRequired": "Imposta un orario di inizio e di fine prima di accettare questa prenotazione",
   "invalidSchedule": "L'orario di inizio e di fine non è valido",
   "vehicleBusy": "Il veicolo selezionato è già assegnato a un'altra prenotazione in questo periodo",
-  "pricingUnitNotBookable": "Questa opzione di prezzo non è ancora prenotabile."
+  "pricingUnitNotBookable": "Questa opzione di prezzo non è ancora prenotabile.",
+  "bookingPricingInvalid": "Questa prenotazione non può essere elaborata al momento a causa di un problema di prezzo. Contatta l'assistenza."
 }

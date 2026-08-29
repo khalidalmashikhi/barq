@@ -97,6 +97,9 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   // BOOKING-INTERVAL-1 — provider acceptance operational-schedule outcomes (422).
   SCHEDULE_REQUIRED: "SCHEDULE_REQUIRED",
   INVALID_SCHEDULE: "INVALID_SCHEDULE",
+  // DOWNSTREAM MONEY ALIGNMENT — the booking's money snapshot won't resolve to a chargeable
+  // total (corrupt/absent); accept/complete fail closed. The booking cannot be actioned as-is.
+  BOOKING_PRICING_INVALID: "BOOKING_NOT_ACTIONABLE",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
   // Not reachable from provider accept/reject/start/complete — treated as
   // unexpected internal conditions rather than normal rejections.

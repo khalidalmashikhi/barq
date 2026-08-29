@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { transitionContract, dispatchContractHook, BookingContractNotFoundError, type ContractHookContext } from "./lifecycle";
 import { getContractTemplate, type ContractTemplateKey } from "./templates/get-contract-template";
 import type { BilingualText, ContractRenderContext } from "./templates/template";
+import { resolveBookingChargeMoney } from "@/lib/booking/pricing/resolve-booking-money";
 
 // Contract generation — Phase E.2. Renders the contract's template
 // against its Booking's real data and transitions DRAFT -> GENERATED
@@ -53,6 +54,14 @@ export async function generateContractContent(params: GenerateContractContentPar
     serviceName: toBilingualText(contract.booking.service.name),
     providerName: toBilingualText(contract.booking.provider.businessName),
     priceAmount: contract.booking.priceSnapshotAmount?.toString() ?? "0",
+    // The contract's authoritative amount is the effective total (unit × quantity for a
+    // totalized booking; the historical unit for a legacy one). A contract is a document, not
+    // a charge, so an unresolvable snapshot falls back to the unit rather than blocking
+    // generation (a confirmed booking already passed acceptance's fail-closed money check).
+    bookingTotal: (() => {
+      const charge = resolveBookingChargeMoney(contract.booking);
+      return charge.ok ? charge.money.total.toString() : contract.booking.priceSnapshotAmount?.toString() ?? "0";
+    })(),
     priceCurrency: contract.booking.priceSnapshotCurrency ?? "OMR",
     seats: contract.booking.seats,
     generatedAt,

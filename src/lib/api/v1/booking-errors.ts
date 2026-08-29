@@ -49,6 +49,8 @@ const CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   // BOOKING-INTERVAL-1 — provider-acceptance-only; never from customer create/cancel.
   SCHEDULE_REQUIRED: "INTERNAL_ERROR",
   INVALID_SCHEDULE: "INTERNAL_ERROR",
+  // Provider accept/complete-only; never from customer create/cancel.
+  BOOKING_PRICING_INVALID: "INTERNAL_ERROR",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
 };
 

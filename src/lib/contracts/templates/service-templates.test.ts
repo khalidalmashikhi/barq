@@ -18,6 +18,7 @@ const context: ContractRenderContext = {
   serviceName: { ar: "جولة سياحية", en: "City Tour" },
   providerName: { ar: "شركة الرحلات", en: "Travel Co" },
   priceAmount: "45.00",
+  bookingTotal: "135.00",
   priceCurrency: "OMR",
   seats: 3,
   generatedAt: new Date("2026-07-20T00:00:00Z"),

@@ -30,5 +30,6 @@
   "scheduleRequired": "Legen Sie eine Start- und Endzeit fest, bevor Sie diese Buchung annehmen",
   "invalidSchedule": "Start- und Endzeit sind ungültig",
   "vehicleBusy": "Das ausgewählte Fahrzeug ist in diesem Zeitraum bereits einer anderen Buchung zugewiesen",
-  "pricingUnitNotBookable": "Diese Preisoption ist noch nicht buchbar."
+  "pricingUnitNotBookable": "Diese Preisoption ist noch nicht buchbar.",
+  "bookingPricingInvalid": "Diese Buchung kann derzeit wegen eines Preisproblems nicht verarbeitet werden. Bitte wenden Sie sich an den Support."
 }

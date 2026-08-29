@@ -157,6 +157,37 @@ describe("completeBooking", () => {
     expect(dispatchLifecycleHookMock).toHaveBeenCalledWith(hookContext);
   });
 
+  it("DOWNSTREAM MONEY ALIGNMENT — a TOTALIZED booking invoices the authoritative TOTAL (50), not the unit (10)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      status: "IN_PROGRESS",
+      priceSnapshotAmount: "10",
+      priceSnapshotCurrency: "OMR",
+      pricingUnitSnapshot: "PER_PERSON",
+      billableQuantitySnapshot: 5,
+      bookingTotalSnapshot: "50",
+      service: { name: { ar: "جولة", en: "Desert Tour" } },
+    });
+    canCompleteBookingMock.mockReturnValue(true);
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "COMPLETED" });
+    paymentFindUniqueMock.mockResolvedValue({ id: "payment-1", bookingId: BOOKING_ID });
+    generateInvoiceNumberMock.mockResolvedValue("BARQ-2026-000002");
+    buildInvoiceContentMock.mockReturnValue({ ar: "محتوى", en: "content" });
+    invoiceCreateMock.mockResolvedValue({});
+    releaseVehicleMock.mockResolvedValue({ released: 1 });
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+
+    await completeBooking(BOOKING_ID);
+
+    expect(buildInvoiceContentMock).toHaveBeenCalledWith({
+      serviceName: { ar: "جولة", en: "Desert Tour" },
+      amount: "50",
+      currency: "OMR",
+    });
+  });
+
   it("creates the Invoice with a null paymentId when no Payment row exists for the booking", async () => {
     requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     bookingFindUniqueMock.mockResolvedValue({
@@ -183,7 +214,7 @@ describe("completeBooking", () => {
     });
   });
 
-  it("does not create an Invoice when the booking somehow has no price snapshot", async () => {
+  it("FAILS CLOSED with BOOKING_PRICING_INVALID when the booking has no resolvable money (no completion, no Invoice)", async () => {
     requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     bookingFindUniqueMock.mockResolvedValue({
       id: BOOKING_ID,
@@ -199,7 +230,9 @@ describe("completeBooking", () => {
 
     const result = await completeBooking(BOOKING_ID);
 
-    expect(result).toEqual({ ok: true });
+    // An ABSENT money snapshot fails closed BEFORE the transaction — no completion, no invoice.
+    expect(result).toEqual({ ok: false, error: "BOOKING_PRICING_INVALID" });
     expect(invoiceCreateMock).not.toHaveBeenCalled();
+    expect(transitionBookingMock).not.toHaveBeenCalled();
   });
 });

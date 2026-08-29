@@ -1,10 +1,15 @@
 import "server-only";
+import { Prisma, type BookingStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
-import type { BookingStatus } from "@prisma/client";
+import { EFFECTIVE_BOOKING_TOTAL } from "@/lib/booking/pricing/effective-total-aggregate";
 import { getOmanTodayRangeUtc } from "./get-provider-overview";
+
+const ROUNDING = Prisma.Decimal.ROUND_HALF_UP;
+const money = (d: Prisma.Decimal | null | undefined) =>
+  (d ? new Prisma.Decimal(d) : new Prisma.Decimal(0)).toDecimalPlaces(2, ROUNDING).toFixed(2);
 
 // Provider Billing & Earnings Foundation.
 //
@@ -110,15 +115,17 @@ function getOmanMonthStartUtc(now: Date): Date {
   );
 }
 
-type BucketTotals = { sumPrice: number; sumCommission: number; count: number; avgPrice: number };
+// DOWNSTREAM MONEY ALIGNMENT — all monetary accumulation is Prisma.Decimal, never JS number
+// (the prior version summed via Number()/+= and toFixed). Gross is the EFFECTIVE booking total.
+type BucketTotals = { sumPrice: Prisma.Decimal; sumCommission: Prisma.Decimal; count: number; avgPrice: Prisma.Decimal };
 
 function emptyBucketTotals(): BucketTotals {
-  return { sumPrice: 0, sumCommission: 0, count: 0, avgPrice: 0 };
+  return { sumPrice: new Prisma.Decimal(0), sumCommission: new Prisma.Decimal(0), count: 0, avgPrice: new Prisma.Decimal(0) };
 }
 
-function toSortedCurrencyAmounts(entries: Array<[string, number]>): CurrencyAmount[] {
+function toSortedCurrencyAmounts(entries: Array<[string, Prisma.Decimal]>): CurrencyAmount[] {
   return entries
-    .map(([currency, amount]) => ({ amount: amount.toFixed(2), currency }))
+    .map(([currency, amount]) => ({ amount: money(amount), currency }))
     .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
@@ -132,45 +139,47 @@ export async function getProviderEarnings(): Promise<ProviderEarningsSummary> {
   const { start: todayStart, end: todayEnd } = getOmanTodayRangeUtc(now);
   const monthStart = getOmanMonthStartUtc(now);
 
+  // Sums use the EFFECTIVE booking total (COALESCE(bookingTotalSnapshot, priceSnapshotAmount))
+  // via raw SQL — Prisma's groupBy _sum cannot express the COALESCE. Commission (already a
+  // snapshot) is summed alongside for "Estimated Net". One grouped query per shape; SUM/AVG
+  // ignore NULLs. `status = 'COMPLETED'` is a literal; the bucket list is parameterized.
+  type StatusRow = { status: BookingStatus; currency: string | null; sumtotal: Prisma.Decimal | null; sumcommission: Prisma.Decimal | null; avgtotal: Prisma.Decimal | null; count: bigint };
+  type CurrencySumRow = { currency: string | null; sumtotal: Prisma.Decimal | null };
+  type ServiceRow = { serviceId: string; currency: string | null; sumtotal: Prisma.Decimal | null; avgtotal: Prisma.Decimal | null; count: bigint };
+
   const [statusCurrencyRows, todayRows, monthRows, serviceRows] = await Promise.all([
-    // One query answers Gross Revenue, Estimated Net Earnings,
-    // Cancelled/Lost Revenue, Pending Revenue, and Average Booking
-    // Value all at once — folded by bucket below — rather than one
-    // query per metric.
-    prisma.booking.groupBy({
-      by: ["status", "priceSnapshotCurrency"],
-      where: { providerId, status: { in: BUCKETED_STATUSES }, priceSnapshotAmount: { not: null } },
-      _sum: { priceSnapshotAmount: true, commissionSnapshotAmount: true },
-      _avg: { priceSnapshotAmount: true },
-      _count: true,
-    }),
-    prisma.booking.groupBy({
-      by: ["priceSnapshotCurrency"],
-      where: {
-        providerId,
-        status: "COMPLETED",
-        confirmedAt: { gte: todayStart, lt: todayEnd },
-        priceSnapshotAmount: { not: null },
-      },
-      _sum: { priceSnapshotAmount: true },
-    }),
-    prisma.booking.groupBy({
-      by: ["priceSnapshotCurrency"],
-      where: {
-        providerId,
-        status: "COMPLETED",
-        confirmedAt: { gte: monthStart },
-        priceSnapshotAmount: { not: null },
-      },
-      _sum: { priceSnapshotAmount: true },
-    }),
-    prisma.booking.groupBy({
-      by: ["serviceId", "priceSnapshotCurrency"],
-      where: { providerId, status: "COMPLETED", priceSnapshotAmount: { not: null } },
-      _sum: { priceSnapshotAmount: true },
-      _avg: { priceSnapshotAmount: true },
-      _count: true,
-    }),
+    prisma.$queryRaw<StatusRow[]>(Prisma.sql`
+      SELECT status, "priceSnapshotCurrency" AS currency,
+             SUM(${EFFECTIVE_BOOKING_TOTAL}) AS sumtotal,
+             SUM("commissionSnapshotAmount") AS sumcommission,
+             AVG(${EFFECTIVE_BOOKING_TOTAL}) AS avgtotal,
+             COUNT(*) AS count
+      FROM "bookings"
+      WHERE "providerId" = ${providerId}::uuid AND status::text IN (${Prisma.join(BUCKETED_STATUSES)})
+      GROUP BY status, "priceSnapshotCurrency"
+    `),
+    prisma.$queryRaw<CurrencySumRow[]>(Prisma.sql`
+      SELECT "priceSnapshotCurrency" AS currency, SUM(${EFFECTIVE_BOOKING_TOTAL}) AS sumtotal
+      FROM "bookings"
+      WHERE "providerId" = ${providerId}::uuid AND status = 'COMPLETED'
+        AND "confirmedAt" >= ${todayStart} AND "confirmedAt" < ${todayEnd}
+      GROUP BY "priceSnapshotCurrency"
+    `),
+    prisma.$queryRaw<CurrencySumRow[]>(Prisma.sql`
+      SELECT "priceSnapshotCurrency" AS currency, SUM(${EFFECTIVE_BOOKING_TOTAL}) AS sumtotal
+      FROM "bookings"
+      WHERE "providerId" = ${providerId}::uuid AND status = 'COMPLETED' AND "confirmedAt" >= ${monthStart}
+      GROUP BY "priceSnapshotCurrency"
+    `),
+    prisma.$queryRaw<ServiceRow[]>(Prisma.sql`
+      SELECT "serviceId", "priceSnapshotCurrency" AS currency,
+             SUM(${EFFECTIVE_BOOKING_TOTAL}) AS sumtotal,
+             AVG(${EFFECTIVE_BOOKING_TOTAL}) AS avgtotal,
+             COUNT(*) AS count
+      FROM "bookings"
+      WHERE "providerId" = ${providerId}::uuid AND status = 'COMPLETED'
+      GROUP BY "serviceId", "priceSnapshotCurrency"
+    `),
   ]);
 
   const buckets: Record<RevenueBucket, Map<string, BucketTotals>> = {
@@ -180,22 +189,18 @@ export async function getProviderEarnings(): Promise<ProviderEarningsSummary> {
   };
 
   for (const row of statusCurrencyRows) {
-    const currency = row.priceSnapshotCurrency;
+    const currency = row.currency;
     const bucketName = STATUS_TO_BUCKET[row.status];
     if (!currency || !bucketName) continue;
 
     const totals = buckets[bucketName].get(currency) ?? emptyBucketTotals();
-    totals.sumPrice += Number(row._sum.priceSnapshotAmount ?? 0);
-    totals.sumCommission += Number(row._sum.commissionSnapshotAmount ?? 0);
-    totals.count += row._count;
-    // Only ever meaningful for the "completed" bucket, which maps from
-    // exactly one status (COMPLETED) — a direct assignment here is
-    // correct because Postgres already computed the right average for
-    // that specific (status, currency) group; it is never read for the
-    // cancelledOrRejected/pending buckets, which each fold two or three
-    // statuses together and could not average correctly this way.
-    if (row._avg.priceSnapshotAmount !== null) {
-      totals.avgPrice = Number(row._avg.priceSnapshotAmount);
+    totals.sumPrice = totals.sumPrice.plus(row.sumtotal ?? 0);
+    totals.sumCommission = totals.sumCommission.plus(row.sumcommission ?? 0);
+    totals.count += Number(row.count);
+    // Only meaningful for the "completed" bucket (a single status); never read for the
+    // multi-status buckets. Postgres already averaged the effective total for this group.
+    if (row.avgtotal !== null) {
+      totals.avgPrice = new Prisma.Decimal(row.avgtotal);
     }
     buckets[bucketName].set(currency, totals);
   }
@@ -204,7 +209,7 @@ export async function getProviderEarnings(): Promise<ProviderEarningsSummary> {
     Array.from(buckets.completed.entries()).map(([currency, t]) => [currency, t.sumPrice])
   );
   const estimatedNetEarningsByCurrency = toSortedCurrencyAmounts(
-    Array.from(buckets.completed.entries()).map(([currency, t]) => [currency, t.sumPrice - t.sumCommission])
+    Array.from(buckets.completed.entries()).map(([currency, t]) => [currency, t.sumPrice.minus(t.sumCommission)])
   );
   const cancelledLostRevenueByCurrency = toSortedCurrencyAmounts(
     Array.from(buckets.cancelledOrRejected.entries()).map(([currency, t]) => [currency, t.sumPrice])
@@ -217,13 +222,13 @@ export async function getProviderEarnings(): Promise<ProviderEarningsSummary> {
   );
 
   const grossRevenueTodayByCurrency: CurrencyAmount[] = todayRows
-    .filter((row) => row.priceSnapshotCurrency && row._sum.priceSnapshotAmount !== null)
-    .map((row) => ({ amount: String(row._sum.priceSnapshotAmount), currency: row.priceSnapshotCurrency as string }))
+    .filter((row) => row.currency && row.sumtotal !== null)
+    .map((row) => ({ amount: money(row.sumtotal), currency: row.currency as string }))
     .sort((a, b) => a.currency.localeCompare(b.currency));
 
   const grossRevenueThisMonthByCurrency: CurrencyAmount[] = monthRows
-    .filter((row) => row.priceSnapshotCurrency && row._sum.priceSnapshotAmount !== null)
-    .map((row) => ({ amount: String(row._sum.priceSnapshotAmount), currency: row.priceSnapshotCurrency as string }))
+    .filter((row) => row.currency && row.sumtotal !== null)
+    .map((row) => ({ amount: money(row.sumtotal), currency: row.currency as string }))
     .sort((a, b) => a.currency.localeCompare(b.currency));
 
   const serviceIds = Array.from(new Set(serviceRows.map((row) => row.serviceId)));
@@ -234,15 +239,15 @@ export async function getProviderEarnings(): Promise<ProviderEarningsSummary> {
 
   const revenueByServiceMap = new Map<string, ProviderServiceRevenueItem[]>();
   for (const row of serviceRows) {
-    const currency = row.priceSnapshotCurrency;
-    if (!currency || row._sum.priceSnapshotAmount === null) continue;
+    const currency = row.currency;
+    if (!currency || row.sumtotal === null) continue;
 
     const item: ProviderServiceRevenueItem = {
       serviceId: row.serviceId,
       serviceName: serviceNameById.get(row.serviceId) ?? fallbackServiceName,
-      completedBookingsCount: row._count,
-      totalRevenue: Number(row._sum.priceSnapshotAmount).toFixed(2),
-      averageBookingValue: Number(row._avg.priceSnapshotAmount ?? 0).toFixed(2),
+      completedBookingsCount: Number(row.count),
+      totalRevenue: money(row.sumtotal),
+      averageBookingValue: money(row.avgtotal),
     };
     const list = revenueByServiceMap.get(currency) ?? [];
     list.push(item);

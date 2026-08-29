@@ -77,6 +77,12 @@ export type BookingActionErrorCode =
   // Distinct from SLOT_REQUIRED (the customer's create-time "no Availability slot" outcome).
   | "SCHEDULE_REQUIRED"
   | "INVALID_SCHEDULE"
+  // DOWNSTREAM MONEY ALIGNMENT — a booking's money snapshot could not be resolved into an
+  // authoritative amount to charge/record (a corrupt totalized snapshot, or no money at all).
+  // Financial actions (accept/complete) FAIL CLOSED rather than charge from a bad snapshot or
+  // silently downgrade to the unit price. Generic and customer/provider-safe — no resolver
+  // internals leak.
+  | "BOOKING_PRICING_INVALID"
   | "RATE_LIMITED"
   | "UNKNOWN_ERROR";
 
@@ -105,6 +111,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "VEHICLE_BUSY",
   "SCHEDULE_REQUIRED",
   "INVALID_SCHEDULE",
+  "BOOKING_PRICING_INVALID",
   "RATE_LIMITED",
   "UNKNOWN_ERROR",
 ];

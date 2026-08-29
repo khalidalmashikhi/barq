@@ -30,5 +30,6 @@
   "scheduleRequired": "Ustaw czas rozpoczęcia i zakończenia przed zaakceptowaniem tej rezerwacji",
   "invalidSchedule": "Czas rozpoczęcia i zakończenia jest nieprawidłowy",
   "vehicleBusy": "Wybrany pojazd jest już przypisany do innej rezerwacji w tym czasie",
-  "pricingUnitNotBookable": "Ta opcja cenowa nie jest jeszcze dostępna do rezerwacji."
+  "pricingUnitNotBookable": "Ta opcja cenowa nie jest jeszcze dostępna do rezerwacji.",
+  "bookingPricingInvalid": "Tej rezerwacji nie można teraz przetworzyć z powodu problemu z ceną. Skontaktuj się z pomocą techniczną."
 }

@@ -44,6 +44,7 @@ const BOOKING_ERROR_TRANSLATION_KEYS = {
   VEHICLE_BUSY: "vehicleBusy",
   SCHEDULE_REQUIRED: "scheduleRequired",
   INVALID_SCHEDULE: "invalidSchedule",
+  BOOKING_PRICING_INVALID: "bookingPricingInvalid",
   RATE_LIMITED: "rateLimited",
   UNKNOWN_ERROR: "unknownError",
 } as const satisfies Record<BookingActionErrorCode, string>;

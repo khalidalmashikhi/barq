@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Prisma } from "@prisma/client";
-import { resolveBookingMoney, type BookingMoneyInput } from "./resolve-booking-money";
+import { resolveBookingMoney, resolveBookingChargeMoney, type BookingMoneyInput } from "./resolve-booking-money";
 
 const base: BookingMoneyInput = {
   priceSnapshotAmount: null,
@@ -114,5 +114,51 @@ describe("resolveBookingMoney — INVALID (total present but companions incohere
   ] as const)("is INVALID when %s", (_label, override) => {
     const m = resolveBookingMoney({ ...good, ...(override as Partial<BookingMoneyInput>) });
     expect(m.state).toBe("INVALID");
+  });
+});
+
+describe("resolveBookingChargeMoney (financial seam)", () => {
+  it("LEGACY (total NULL) charges the historical unit — never × seats", () => {
+    const r = resolveBookingChargeMoney({
+      priceSnapshotAmount: "10",
+      priceSnapshotCurrency: "OMR",
+      pricingUnitSnapshot: null,
+      billableQuantitySnapshot: null,
+      bookingTotalSnapshot: null,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("unreachable");
+    expect(r.money.total.toFixed(2)).toBe("10.00");
+    expect(r.money.currency).toBe("OMR");
+  });
+
+  it("TOTALIZED charges the authoritative total", () => {
+    const r = resolveBookingChargeMoney({
+      priceSnapshotAmount: "10",
+      priceSnapshotCurrency: "OMR",
+      pricingUnitSnapshot: "PER_PERSON",
+      billableQuantitySnapshot: 5,
+      bookingTotalSnapshot: "50",
+    });
+    if (!r.ok) throw new Error("expected ok");
+    expect(r.money.total.toFixed(2)).toBe("50.00");
+  });
+
+  it("FAILS CLOSED for INVALID (total present, companion corrupt) — never downgrades to unit", () => {
+    const r = resolveBookingChargeMoney({
+      priceSnapshotAmount: "10",
+      priceSnapshotCurrency: "OMR",
+      pricingUnitSnapshot: null, // corrupt: total but no unit code
+      billableQuantitySnapshot: 5,
+      bookingTotalSnapshot: "50",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("FAILS CLOSED for ABSENT (no money) and for a LEGACY row with no currency", () => {
+    expect(resolveBookingChargeMoney(base).ok).toBe(false); // ABSENT
+    expect(
+      resolveBookingChargeMoney({ ...base, priceSnapshotAmount: "10", priceSnapshotCurrency: null }).ok
+    ).toBe(false); // legacy without currency
   });
 });

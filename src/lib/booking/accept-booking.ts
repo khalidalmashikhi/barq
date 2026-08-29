@@ -12,6 +12,7 @@ import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycl
 // must compare against the SAME class transitionBooking() actually throws.
 import { ConcurrentBookingModificationError } from "@/lib/booking/lifecycle/errors";
 import { calculateCommissionAmount } from "@/lib/booking/calculate-commission";
+import { resolveBookingChargeMoney } from "@/lib/booking/pricing/resolve-booking-money";
 import { getPaymentGatewayProvider } from "@/lib/payments/gateway/get-payment-gateway-provider";
 import {
   resolveVehicleAssignmentForAcceptance,
@@ -169,6 +170,19 @@ export async function acceptBooking(
       return { ok: false, error: "BOOKING_NOT_PENDING" };
     }
 
+    // DOWNSTREAM MONEY ALIGNMENT — resolve the ONE authoritative amount to charge/record BEFORE
+    // any financial side effect (gateway initiation, commission, Payment). A LEGACY booking
+    // charges its historical unit snapshot; a TOTALIZED booking charges its authoritative total;
+    // an INVALID/ABSENT snapshot FAILS CLOSED here (no transition, no artifacts) rather than
+    // charging a wrong amount or silently downgrading to the unit price.
+    const charge = resolveBookingChargeMoney(booking);
+    if (!charge.ok) {
+      logger.warn("acceptBooking.unresolvable_money", { bookingId: booking.id, reason: charge.reason });
+      return { ok: false, error: "BOOKING_PRICING_INVALID" };
+    }
+    const bookingTotal = charge.money.total;
+    const bookingCurrency = charge.money.currency;
+
     // BOOKING-VEHICLE-1 — resolve the vehicle assignment BEFORE payment initiation, so an
     // invalid/ineligible vehicle never creates a gateway intent (§7). Non-tour / GUIDE_ONLY
     // resolve to { vehicleId: null } and leave acceptance byte-for-byte unchanged.
@@ -207,14 +221,13 @@ export async function acceptBooking(
     // Obtain the gateway and consume its result — this action no longer
     // decides the initiation status itself. Computed before the
     // transaction starts (see this file's own module comment for why).
-    const paymentInitiation =
-      booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency !== null
-        ? await getPaymentGatewayProvider().initiate({
-            bookingId: booking.id,
-            amount: booking.priceSnapshotAmount.toString(),
-            currency: booking.priceSnapshotCurrency,
-          })
-        : null;
+    // Same authoritative total feeds the gateway, commission, and Payment — never three
+    // separate derivations. Gateway stays inert (no-op provider); only the AMOUNT is aligned.
+    const paymentInitiation = await getPaymentGatewayProvider().initiate({
+      bookingId: booking.id,
+      amount: bookingTotal.toString(),
+      currency: bookingCurrency,
+    });
 
     const hookContext = await prisma.$transaction(async (tx) => {
       const ctx = await transitionBooking(
@@ -226,29 +239,28 @@ export async function acceptBooking(
         where: { providerId: booking.providerId, status: "ACTIVE" },
       });
 
-      if (commission && booking.priceSnapshotAmount !== null) {
+      if (commission) {
         await tx.booking.update({
           where: { id: booking.id },
           data: {
             commissionSnapshotTier: commission.tier,
-            commissionSnapshotAmount: calculateCommissionAmount(booking.priceSnapshotAmount.toString(), commission.tier),
+            // Commission on the authoritative booking TOTAL (Decimal), not the unit price.
+            commissionSnapshotAmount: calculateCommissionAmount(bookingTotal, commission.tier),
           },
         });
-      } else if (!commission) {
+      } else {
         logger.warn("acceptBooking.no_active_commission", { bookingId: booking.id, providerId: booking.providerId });
       }
 
-      if (paymentInitiation && booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency !== null) {
-        await tx.payment.create({
-          data: {
-            bookingId: booking.id,
-            amount: booking.priceSnapshotAmount,
-            currency: booking.priceSnapshotCurrency,
-            status: paymentInitiation.status,
-            providerReference: paymentInitiation.providerReference ?? null,
-          },
-        });
-      }
+      await tx.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: bookingTotal,
+          currency: bookingCurrency,
+          status: paymentInitiation.status,
+          providerReference: paymentInitiation.providerReference ?? null,
+        },
+      });
 
       // BOOKING-VEHICLE-1 — persist the committed vehicle in the SAME transaction as
       // CONFIRMED, re-checking eligibility INSIDE the tx first (TOCTOU: a vehicle eligible

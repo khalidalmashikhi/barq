@@ -187,19 +187,17 @@ describe("acceptBooking", () => {
 
     expect(result).toEqual({ ok: true });
     expect(commissionFindFirstMock).toHaveBeenCalledWith({ where: { providerId: "provider-1", status: "ACTIVE" } });
+    // Commission = effective total (15, LEGACY) × 10% = 1.50, Decimal-safe.
     expect(bookingUpdateMock).toHaveBeenCalledWith({
       where: { id: BOOKING_ID },
       data: { commissionSnapshotTier: "TIER_10", commissionSnapshotAmount: "1.50" },
     });
-    expect(paymentCreateMock).toHaveBeenCalledWith({
-      data: {
-        bookingId: BOOKING_ID,
-        amount: { toString: expect.any(Function) },
-        currency: "OMR",
-        status: "INITIATED",
-        providerReference: null,
-      },
-    });
+    // Payment.amount is now the resolved effective total (a Prisma.Decimal); assert its value.
+    const paymentData = (paymentCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    expect((paymentData.amount as { toString(): string }).toString()).toBe("15");
+    expect(paymentData.currency).toBe("OMR");
+    expect(paymentData.status).toBe("INITIATED");
+    expect(paymentData.providerReference).toBeNull();
     expect(dispatchLifecycleHookMock).toHaveBeenCalledWith(hookContext);
   });
 
@@ -292,7 +290,7 @@ describe("acceptBooking", () => {
     });
   });
 
-  it("does not create a Payment when the booking somehow has no price snapshot", async () => {
+  it("FAILS CLOSED with BOOKING_PRICING_INVALID when the booking has no resolvable money (no transition, no Payment)", async () => {
     requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
     bookingFindUniqueMock.mockResolvedValue({
       id: BOOKING_ID,
@@ -308,8 +306,11 @@ describe("acceptBooking", () => {
 
     const result = await acceptBooking(BOOKING_ID);
 
-    expect(result).toEqual({ ok: true });
+    // DOWNSTREAM MONEY ALIGNMENT — an ABSENT money snapshot can no longer be accepted; it fails
+    // closed BEFORE any transition, gateway initiation, commission, or Payment.
+    expect(result).toEqual({ ok: false, error: "BOOKING_PRICING_INVALID" });
     expect(paymentCreateMock).not.toHaveBeenCalled();
+    expect(transitionBookingMock).not.toHaveBeenCalled();
   });
 
   // --- BOOKING-VEHICLE-1 ------------------------------------------------------
@@ -606,5 +607,62 @@ describe("acceptBooking", () => {
 
     expect(result).toEqual({ ok: true });
     expect(reserveVehicleMock).not.toHaveBeenCalled();
+  });
+});
+
+// DOWNSTREAM MONEY ALIGNMENT — the resolved effective total drives commission + Payment + gateway.
+describe("acceptBooking — money alignment", () => {
+  it("TOTALIZED booking: commission + Payment + gateway all use the TOTAL (50), not the unit (10)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: "10",
+      priceSnapshotCurrency: "OMR",
+      pricingUnitSnapshot: "PER_PERSON",
+      billableQuantitySnapshot: 5,
+      bookingTotalSnapshot: "50",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue({ providerId: "provider-1", tier: "TIER_12", status: "ACTIVE" });
+    bookingUpdateMock.mockResolvedValue({});
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+
+    const result = await acceptBooking(BOOKING_ID);
+
+    expect(result).toEqual({ ok: true });
+    // Commission on the TOTAL: 50 × 12% = 6.00.
+    expect(bookingUpdateMock).toHaveBeenCalledWith({
+      where: { id: BOOKING_ID },
+      data: { commissionSnapshotTier: "TIER_12", commissionSnapshotAmount: "6.00" },
+    });
+    const paymentData = (paymentCreateMock.mock.calls[0]![0]).data;
+    expect((paymentData.amount).toString()).toBe("50");
+    expect(paymentData.currency).toBe("OMR");
+  });
+
+  it("INVALID snapshot (total present, pricingUnit NULL) FAILS CLOSED — no transition, no Payment, no commission", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: "10",
+      priceSnapshotCurrency: "OMR",
+      pricingUnitSnapshot: null,
+      billableQuantitySnapshot: 5,
+      bookingTotalSnapshot: "50",
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+
+    const result = await acceptBooking(BOOKING_ID);
+
+    expect(result).toEqual({ ok: false, error: "BOOKING_PRICING_INVALID" });
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+    expect(paymentCreateMock).not.toHaveBeenCalled();
+    expect(bookingUpdateMock).not.toHaveBeenCalled();
   });
 });

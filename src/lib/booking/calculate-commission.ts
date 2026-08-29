@@ -1,5 +1,5 @@
 import "server-only";
-import type { CommissionTier } from "@prisma/client";
+import { Prisma, type CommissionTier } from "@prisma/client";
 
 // Commission calculation — Phase 2.11 (Checkout Foundation).
 //
@@ -30,13 +30,27 @@ import type { CommissionTier } from "@prisma/client";
 // this uses the column's real precision directly rather than
 // replicating that harmless but misleading seed-script quirk.
 
-const COMMISSION_TIER_RATES: Record<CommissionTier, number> = {
-  TIER_12: 0.12,
-  TIER_10: 0.1,
-  TIER_8: 0.08,
+// Rates as exact decimal strings (not JS floats) — GLOSSARY.md term 19 (12% / 10% / 8%).
+const COMMISSION_TIER_RATES: Record<CommissionTier, string> = {
+  TIER_12: "0.12",
+  TIER_10: "0.10",
+  TIER_8: "0.08",
 };
 
-export function calculateCommissionAmount(priceAmount: string | number, tier: CommissionTier): string {
-  const price = typeof priceAmount === "string" ? Number(priceAmount) : priceAmount;
-  return (price * COMMISSION_TIER_RATES[tier]).toFixed(2);
+// Canonical money rounding — the SAME policy as the pricing foundation's calculateBookingTotal
+// (2dp, ROUND_HALF_UP). Applied once at the boundary.
+const ROUNDING = Prisma.Decimal.ROUND_HALF_UP;
+
+/**
+ * Commission = the authoritative BOOKING TOTAL × the provider's tier rate, computed with
+ * Prisma.Decimal end-to-end (NEVER Number()/parseFloat/float multiply). The argument is the
+ * booking total (resolveBookingChargeMoney().total), NOT a unit price — the caller must pass
+ * the effective total so a multi-quantity booking is commissioned on what the customer actually
+ * owes, not the per-unit price. Returns a 2dp decimal string for Booking.commissionSnapshotAmount.
+ */
+export function calculateCommissionAmount(bookingTotal: Prisma.Decimal | string | number, tier: CommissionTier): string {
+  return new Prisma.Decimal(bookingTotal)
+    .mul(new Prisma.Decimal(COMMISSION_TIER_RATES[tier]))
+    .toDecimalPlaces(2, ROUNDING)
+    .toFixed(2);
 }

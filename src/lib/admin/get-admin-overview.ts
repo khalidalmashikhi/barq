@@ -1,6 +1,8 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { aggregateEffectiveBookingTotalByCurrency } from "@/lib/booking/pricing/effective-total-aggregate";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { foldBookingStatusCounts, type FoldedBookingStatusCounts } from "@/lib/dashboard/fold-booking-status-counts";
@@ -141,11 +143,11 @@ export async function getAdminOverview(): Promise<AdminOverviewData> {
       where: { review: { moderationState: "PUBLISHED" } },
       _avg: { value: true },
     }),
-    prisma.booking.groupBy({
-      by: ["priceSnapshotCurrency"],
-      where: { status: "COMPLETED", priceSnapshotAmount: { not: null } },
-      _sum: { priceSnapshotAmount: true },
-    }),
+    // DOWNSTREAM MONEY ALIGNMENT — platform GMV (gross completed booking value) now sums the
+    // EFFECTIVE booking total per currency via the shared seam, so multi-quantity totalized
+    // bookings count their real total. Legacy rows keep unit semantics. This is gross booking
+    // value, NOT BARQ commission revenue (a distinct concept — unchanged here).
+    aggregateEffectiveBookingTotalByCurrency(Prisma.sql`status = 'COMPLETED'`),
     checkDatabaseHealth(),
     prisma.booking.count({ where: { createdAt: { gte: todayStart, lt: todayEnd } } }),
     prisma.customer.findMany({
@@ -202,8 +204,7 @@ export async function getAdminOverview(): Promise<AdminOverviewData> {
   }));
 
   const completedGrossRevenueByCurrency: CurrencyAmount[] = revenueRows
-    .filter((row) => row.priceSnapshotCurrency && row._sum.priceSnapshotAmount !== null)
-    .map((row) => ({ amount: String(row._sum.priceSnapshotAmount), currency: row.priceSnapshotCurrency as string }))
+    .map((row) => ({ amount: row.sum, currency: row.currency }))
     .sort((a, b) => a.currency.localeCompare(b.currency));
 
   return {

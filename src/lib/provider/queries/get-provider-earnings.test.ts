@@ -22,14 +22,14 @@ vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
 }));
 
-const groupByMock = vi.fn();
+const queryRawMock = vi.fn();
 const findManyServiceMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    booking: {
-      groupBy: (...args: unknown[]) => groupByMock(...args),
-    },
+    // DOWNSTREAM MONEY ALIGNMENT — the 4 grouped queries are now raw $queryRaw summing the
+    // effective total (COALESCE(bookingTotalSnapshot, priceSnapshotAmount)), not groupBy _sum.
+    $queryRaw: (...args: unknown[]) => queryRawMock(...args),
     service: {
       findMany: (...args: unknown[]) => findManyServiceMock(...args),
     },
@@ -40,24 +40,31 @@ const { getProviderEarnings } = await import("./get-provider-earnings");
 
 afterEach(() => {
   requireProviderMock.mockReset();
-  groupByMock.mockReset();
+  queryRawMock.mockReset();
   findManyServiceMock.mockReset();
 });
 
-// The module issues exactly 4 groupBy calls, in this order, inside one
-// Promise.all: status+currency buckets, today revenue, this-month
-// revenue, revenue-by-service.
+// The module issues exactly 4 $queryRaw calls, in this order, inside one Promise.all:
+// status+currency buckets, today revenue, this-month revenue, revenue-by-service. Tests still
+// pass rows in the readable old groupBy shape; this harness maps them to the raw-row column
+// names the module reads (sumtotal/sumcommission/avgtotal/count, currency), so gross reflects
+// the EFFECTIVE total. `sumtotal` is fed from the test's priceSnapshotAmount for readability.
+type OldRow = { status?: string; serviceId?: string; priceSnapshotCurrency: string | null; _sum: { priceSnapshotAmount: unknown; commissionSnapshotAmount?: unknown }; _avg?: { priceSnapshotAmount: unknown }; _count?: number };
+const mapStatus = (r: OldRow) => ({ status: r.status, currency: r.priceSnapshotCurrency, sumtotal: r._sum.priceSnapshotAmount, sumcommission: r._sum.commissionSnapshotAmount ?? null, avgtotal: r._avg?.priceSnapshotAmount ?? null, count: r._count ?? 0 });
+const mapCurrency = (r: OldRow) => ({ currency: r.priceSnapshotCurrency, sumtotal: r._sum.priceSnapshotAmount });
+const mapService = (r: OldRow) => ({ serviceId: r.serviceId, currency: r.priceSnapshotCurrency, sumtotal: r._sum.priceSnapshotAmount, avgtotal: r._avg?.priceSnapshotAmount ?? null, count: r._count ?? 0 });
+
 function mockGroupByCalls(
-  statusCurrencyRows: unknown[],
-  todayRows: unknown[] = [],
-  monthRows: unknown[] = [],
-  serviceRows: unknown[] = []
+  statusCurrencyRows: OldRow[],
+  todayRows: OldRow[] = [],
+  monthRows: OldRow[] = [],
+  serviceRows: OldRow[] = []
 ) {
-  groupByMock
-    .mockResolvedValueOnce(statusCurrencyRows)
-    .mockResolvedValueOnce(todayRows)
-    .mockResolvedValueOnce(monthRows)
-    .mockResolvedValueOnce(serviceRows);
+  queryRawMock
+    .mockResolvedValueOnce(statusCurrencyRows.map(mapStatus))
+    .mockResolvedValueOnce(todayRows.map(mapCurrency))
+    .mockResolvedValueOnce(monthRows.map(mapCurrency))
+    .mockResolvedValueOnce(serviceRows.map(mapService));
 }
 
 describe("getProviderEarnings — multi-currency grouping", () => {
@@ -199,17 +206,18 @@ describe("getProviderEarnings — confirmedAt date boundaries", () => {
 
     const earnings = await getProviderEarnings();
 
-    expect(earnings.grossRevenueTodayByCurrency).toEqual([{ amount: "5", currency: "OMR" }]);
-    expect(earnings.grossRevenueThisMonthByCurrency).toEqual([{ amount: "25", currency: "OMR" }]);
+    expect(earnings.grossRevenueTodayByCurrency).toEqual([{ amount: "5.00", currency: "OMR" }]);
+    expect(earnings.grossRevenueThisMonthByCurrency).toEqual([{ amount: "25.00", currency: "OMR" }]);
 
-    const todayCallArgs = groupByMock.mock.calls[1]![0] as { where: Record<string, unknown> };
-    const monthCallArgs = groupByMock.mock.calls[2]![0] as { where: Record<string, unknown> };
-    expect(todayCallArgs.where).toHaveProperty("confirmedAt");
-    expect(todayCallArgs.where).not.toHaveProperty("createdAt");
-    expect(monthCallArgs.where).toHaveProperty("confirmedAt");
-    expect(monthCallArgs.where).not.toHaveProperty("createdAt");
-    expect(todayCallArgs.where.status).toBe("COMPLETED");
-    expect(monthCallArgs.where.status).toBe("COMPLETED");
+    // The today/month revenue queries scope by confirmedAt (never createdAt) and COMPLETED —
+    // now asserted against the raw SQL text of the 2nd and 3rd $queryRaw calls.
+    const todaySql = (queryRawMock.mock.calls[1]![0] as { sql: string }).sql;
+    const monthSql = (queryRawMock.mock.calls[2]![0] as { sql: string }).sql;
+    for (const sql of [todaySql, monthSql]) {
+      expect(sql).toContain("confirmedAt");
+      expect(sql).not.toContain("createdAt");
+      expect(sql).toContain("status = 'COMPLETED'");
+    }
   });
 });
 

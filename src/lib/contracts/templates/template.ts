@@ -38,7 +38,11 @@ export interface ContractRenderContext {
   contractNumber: string;
   serviceName: BilingualText;
   providerName: BilingualText;
+  /// Per-unit price at booking time (Booking.priceSnapshotAmount) — shown as "unit price".
   priceAmount: string;
+  /// DOWNSTREAM MONEY ALIGNMENT — the authoritative effective BOOKING TOTAL (a LEGACY booking's
+  /// historical unit snapshot; a TOTALIZED booking's total). The contract's real amount.
+  bookingTotal: string;
   priceCurrency: string;
   seats: number;
   generatedAt: Date;

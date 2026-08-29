@@ -31,8 +31,8 @@ function baseSections(context: ContractRenderContext): ContractContent["sections
     {
       heading: { ar: "تفاصيل الحجز", en: "Booking Details" },
       body: {
-        ar: `عدد المقاعد: ${context.seats}. السعر: ${context.priceAmount} ${context.priceCurrency}. رقم العقد: ${context.contractNumber}. تاريخ الإصدار: ${formatDate(context.generatedAt)}.`,
-        en: `Seats: ${context.seats}. Price: ${context.priceAmount} ${context.priceCurrency}. Contract Number: ${context.contractNumber}. Issue Date: ${formatDate(context.generatedAt)}.`,
+        ar: `عدد المقاعد: ${context.seats}. سعر الوحدة: ${context.priceAmount} ${context.priceCurrency}. الإجمالي: ${context.bookingTotal} ${context.priceCurrency}. رقم العقد: ${context.contractNumber}. تاريخ الإصدار: ${formatDate(context.generatedAt)}.`,
+        en: `Seats: ${context.seats}. Unit price: ${context.priceAmount} ${context.priceCurrency}. Total: ${context.bookingTotal} ${context.priceCurrency}. Contract Number: ${context.contractNumber}. Issue Date: ${formatDate(context.generatedAt)}.`,
       },
     },
   ];

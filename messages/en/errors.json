@@ -30,5 +30,6 @@
   "scheduleRequired": "Set a start and end time before accepting this booking",
   "invalidSchedule": "The start and end time are invalid",
   "vehicleBusy": "The selected vehicle is already assigned to another booking during this time",
-  "pricingUnitNotBookable": "This pricing option is not available for booking yet."
+  "pricingUnitNotBookable": "This pricing option is not available for booking yet.",
+  "bookingPricingInvalid": "This booking can't be processed right now due to a pricing issue. Please contact support."
 }

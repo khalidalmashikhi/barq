@@ -1,9 +1,10 @@
 import "server-only";
+import { Prisma, type BookingStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
-import type { BookingStatus } from "@prisma/client";
+import { aggregateEffectiveBookingTotalByCurrency } from "@/lib/booking/pricing/effective-total-aggregate";
 
 // Provider Metrics — Phase F.3 (KPI Cards, Revenue/Occupancy summary).
 //
@@ -82,11 +83,13 @@ export async function getProviderMetrics(): Promise<ProviderMetrics> {
       where: { providerId },
       _count: true,
     }),
-    prisma.booking.groupBy({
-      by: ["priceSnapshotCurrency"],
-      where: { providerId, status: "COMPLETED", priceSnapshotAmount: { not: null } },
-      _sum: { priceSnapshotAmount: true },
-    }),
+    // DOWNSTREAM MONEY ALIGNMENT — completed gross revenue now sums the EFFECTIVE booking total
+    // (COALESCE(bookingTotalSnapshot, priceSnapshotAmount)) per currency, via the shared seam,
+    // so a multi-quantity totalized booking counts its real total (not the unit price). Legacy
+    // rows keep unit semantics. This is GMV/gross booking value, NOT provider net (unchanged).
+    aggregateEffectiveBookingTotalByCurrency(
+      Prisma.sql`"providerId" = ${providerId}::uuid AND status = 'COMPLETED'`
+    ),
     prisma.availability.findMany({
       where: { service: { providerId }, startTime: { gt: now }, state: { not: "CANCELLED" } },
       select: { capacity: true, bookedCount: true },
@@ -111,12 +114,10 @@ export async function getProviderMetrics(): Promise<ProviderMetrics> {
   const completionRate = totalBookingsCount > 0 ? completedBookingsCount / totalBookingsCount : null;
   const cancellationRate = totalBookingsCount > 0 ? cancelledBookingsCount / totalBookingsCount : null;
 
-  const totalRevenueByCurrency = revenueByCurrency
-    .filter((row) => row.priceSnapshotCurrency && row._sum.priceSnapshotAmount !== null)
-    .map((row) => ({
-      amount: String(row._sum.priceSnapshotAmount),
-      currency: row.priceSnapshotCurrency as string,
-    }));
+  const totalRevenueByCurrency = revenueByCurrency.map((row) => ({
+    amount: row.sum,
+    currency: row.currency,
+  }));
 
   const totalCapacity = occupancyRows.reduce((sum, row) => sum + row.capacity, 0);
   const totalBooked = occupancyRows.reduce((sum, row) => sum + row.bookedCount, 0);
