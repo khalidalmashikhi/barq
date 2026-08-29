@@ -29,7 +29,7 @@ export async function BookingTrustPanel() {
           </span>
           <div className="flex flex-col">
             <span className="text-sm font-medium text-foreground">{t(labelKey)}</span>
-            <span className="text-xs leading-relaxed text-foreground/55">{t(descKey)}</span>
+            <span className="text-sm leading-relaxed text-foreground/65">{t(descKey)}</span>
           </div>
         </div>
       ))}

@@ -26,7 +26,7 @@ export async function SafetyInfo() {
               <Icon size={16} strokeWidth={1.75} />
             </span>
             <h3 className="mt-3 text-sm font-medium text-foreground">{t(titleKey)}</h3>
-            <p className="mt-1 text-xs leading-relaxed text-foreground/60">{t(bodyKey)}</p>
+            <p className="mt-1 text-sm leading-relaxed text-foreground/70">{t(bodyKey)}</p>
           </div>
         ))}
       </div>

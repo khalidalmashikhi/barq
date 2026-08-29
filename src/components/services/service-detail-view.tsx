@@ -226,7 +226,7 @@ export async function ServiceDetailView({
                   display metadata only — no total is computed from it. */}
               <p className="mt-1 text-3xl font-bold tracking-tight text-primary">{priceDisplay ?? t("priceUnavailableLabel")}</p>
               {slots.length > 0 && (
-                <p className="mt-2 text-xs text-foreground/50">{t("slotsAvailableLabel", { count: slots.length })}</p>
+                <p className="mt-2 text-sm text-foreground/65">{t("slotsAvailableLabel", { count: slots.length })}</p>
               )}
               {mode === "public" ? (
                 <Link

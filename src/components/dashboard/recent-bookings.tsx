@@ -43,7 +43,7 @@ export async function RecentBookingsTimeline({ bookings }: RecentBookingsTimelin
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">{booking.serviceName}</p>
-                  <p className="mt-0.5 text-xs text-foreground/40">
+                  <p className="mt-0.5 text-xs text-foreground/60">
                     {booking.confirmedAt
                       ? formatDate(new Date(booking.confirmedAt), locale, { day: "numeric", month: "long" })
                       : "—"}

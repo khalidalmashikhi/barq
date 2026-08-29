@@ -53,7 +53,7 @@ export async function RecentBookingsList({ bookings }: RecentBookingsListProps) 
               >
                 <div>
                   <p className="font-medium text-foreground">{booking.serviceName}</p>
-                  <p className="mt-0.5 text-xs text-foreground/40">
+                  <p className="mt-0.5 text-xs text-foreground/60">
                     {formatDate(new Date(booking.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}
                     {booking.priceSnapshot ? ` · ${booking.priceSnapshot}` : ""}
                   </p>

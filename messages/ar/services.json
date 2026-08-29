@@ -81,7 +81,7 @@
   "safetyProviderTitle": "مسؤوليات المزود",
   "safetyProviderBody": "يتحمل المزود مسؤولية تقديم التجربة بأمان وإبلاغك مسبقاً بأي تغيير في نقطة اللقاء أو الموعد.",
   "safetyMeetingPointTitle": "إرشادات نقطة اللقاء",
-  "safetyMeetingPointBody": "تأكد دائماً من نقطة اللقاء والموعد الدقيقين مع المزود قبل يوم التجربة — عرض الخريطة التفصيلي قريباً.",
+  "safetyMeetingPointBody": "تأكد دائماً من نقطة اللقاء والموعد الدقيقين مع المزود قبل يوم التجربة. سيتوفر عرض الخريطة التفصيلي قريباً.",
   "shareLabel": "مشاركة",
   "shareExperienceText": "اطّلع على {serviceName} على برق",
   "shareProviderText": "اطّلع على {providerName} على برق",

@@ -29,7 +29,7 @@ export async function DashboardFooter() {
           <Facebook size={16} strokeWidth={1.75} className="text-foreground/40" />
         </div>
       </div>
-      <p className="border-t border-border py-4 text-center text-xs text-foreground/30">
+      <p className="border-t border-border py-4 text-center text-xs text-foreground/50">
         {t("copyrightText", { year: new Date().getFullYear() })}
       </p>
     </footer>

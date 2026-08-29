@@ -57,7 +57,7 @@ export function HomeServiceCard({ href, name, coverUrl, locationLabel, priceLabe
         <h3 className="line-clamp-2 text-base font-semibold leading-snug tracking-tight text-foreground">{name}</h3>
 
         {locationLabel ? (
-          <span className="flex items-center gap-1 text-xs text-foreground/50">
+          <span className="flex items-center gap-1 text-xs text-foreground/65">
             <MapPin size={13} strokeWidth={1.75} aria-hidden />
             {locationLabel}
           </span>

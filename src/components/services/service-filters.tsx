@@ -237,7 +237,7 @@ export async function ServiceFilters({
 
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-foreground/40">{t("activeFiltersLabel")}</span>
+          <span className="text-xs text-foreground/60">{t("activeFiltersLabel")}</span>
           {chips.map((chip) => (
             <Link
               key={chip.key}

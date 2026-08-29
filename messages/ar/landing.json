@@ -2,7 +2,7 @@
   "nav": {
     "home": "الرئيسية",
     "explore": "استكشف",
-    "bookings": "حجوزاتي",
+    "bookings": "الحجوزات",
     "notifications": "الإشعارات",
     "account": "حسابي",
     "marketplaceNavLabel": "تنقّل السوق",
@@ -144,8 +144,8 @@
     "cookiesLink": "سياسة ملفات تعريف الارتباط",
     "rightsReserved": "جميع الحقوق محفوظة.",
     "partnersHeading": "للشركاء",
-    "joinAsProvider": "انضم كمزوّد خدمة",
-    "providerLogin": "دخول المزوّدين",
+    "joinAsProvider": "انضم كمزود خدمة",
+    "providerLogin": "دخول المزودين",
     "adminStaffPortal": "بوابة الإدارة والموظفين"
   },
   "discoveryExperiences": "تجارب ومغامرات",
