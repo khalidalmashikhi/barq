@@ -29,5 +29,6 @@
   "bookingStateConflict": "This booking was just updated. Please try again",
   "scheduleRequired": "Set a start and end time before accepting this booking",
   "invalidSchedule": "The start and end time are invalid",
-  "vehicleBusy": "The selected vehicle is already assigned to another booking during this time"
+  "vehicleBusy": "The selected vehicle is already assigned to another booking during this time",
+  "pricingUnitNotBookable": "This pricing option is not available for booking yet."
 }

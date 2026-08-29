@@ -29,5 +29,6 @@
   "bookingStateConflict": "Cette réservation vient d'être mise à jour. Veuillez réessayer",
   "scheduleRequired": "Définissez une heure de début et de fin avant d'accepter cette réservation",
   "invalidSchedule": "L'heure de début et de fin est invalide",
-  "vehicleBusy": "Le véhicule sélectionné est déjà affecté à une autre réservation pendant cette période"
+  "vehicleBusy": "Le véhicule sélectionné est déjà affecté à une autre réservation pendant cette période",
+  "pricingUnitNotBookable": "Cette option tarifaire n'est pas encore disponible à la réservation."
 }

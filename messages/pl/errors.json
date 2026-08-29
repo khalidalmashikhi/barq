@@ -29,5 +29,6 @@
   "bookingStateConflict": "Ta rezerwacja została właśnie zaktualizowana. Spróbuj ponownie",
   "scheduleRequired": "Ustaw czas rozpoczęcia i zakończenia przed zaakceptowaniem tej rezerwacji",
   "invalidSchedule": "Czas rozpoczęcia i zakończenia jest nieprawidłowy",
-  "vehicleBusy": "Wybrany pojazd jest już przypisany do innej rezerwacji w tym czasie"
+  "vehicleBusy": "Wybrany pojazd jest już przypisany do innej rezerwacji w tym czasie",
+  "pricingUnitNotBookable": "Ta opcja cenowa nie jest jeszcze dostępna do rezerwacji."
 }

@@ -39,6 +39,12 @@ export type BookingActionErrorCode =
   // bounds for this service (minBookingSeats/maxBookingSeats). A per-BOOKING quantity rule,
   // distinct from SLOT_FULL (a slot's total capacity race).
   | "BOOKING_QUANTITY_OUT_OF_RANGE"
+  // BOOKING TOTAL CALCULATION — the selected price's pricing unit cannot yet produce an
+  // authoritative booking total: either a duration-based unit BARQ does not price yet
+  // (PER_DAY/PER_HOUR) or a price with an unrecognized/NULL unit. Fail-closed: no booking is
+  // created and the unit price is NEVER used as a substitute total. Customer-facing as a
+  // generic "this pricing option is not bookable yet" (no internal calculator code leaks).
+  | "PRICING_UNIT_NOT_BOOKABLE"
   | "DUPLICATE_BOOKING"
   | "BOOKING_NOT_FOUND"
   | "BOOKING_NOT_CANCELLABLE"
@@ -81,6 +87,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "SERVICE_UNAVAILABLE",
   "PRICE_UNAVAILABLE",
   "BOOKING_QUANTITY_OUT_OF_RANGE",
+  "PRICING_UNIT_NOT_BOOKABLE",
   "SLOT_REQUIRED",
   "SLOT_UNAVAILABLE",
   "SLOT_FULL",

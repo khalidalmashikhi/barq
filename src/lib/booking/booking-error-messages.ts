@@ -26,6 +26,7 @@ const BOOKING_ERROR_TRANSLATION_KEYS = {
   SERVICE_UNAVAILABLE: "serviceUnavailable",
   PRICE_UNAVAILABLE: "priceUnavailable",
   BOOKING_QUANTITY_OUT_OF_RANGE: "bookingQuantityOutOfRange",
+  PRICING_UNIT_NOT_BOOKABLE: "pricingUnitNotBookable",
   SLOT_REQUIRED: "slotRequired",
   SLOT_UNAVAILABLE: "slotUnavailable",
   SLOT_FULL: "slotFull",

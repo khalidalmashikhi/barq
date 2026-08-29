@@ -129,7 +129,7 @@ describe("createBooking", () => {
   it("creates a booking on the happy path (no slot selected)", async () => {
     requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
     transitionBookingMock.mockResolvedValue({ hook: "context" });
 
@@ -142,7 +142,7 @@ describe("createBooking", () => {
   it("BOOKING-VEHICLE-1 — a customer can NEVER set the vehicle: a client vehicleId field is ignored", async () => {
     requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
     transitionBookingMock.mockResolvedValue({ hook: "context" });
 
@@ -191,7 +191,7 @@ describe("createBooking", () => {
     function slotBasedService() {
       requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
       serviceRequiresSlotMock.mockResolvedValue(true);
@@ -315,7 +315,7 @@ describe("createBooking", () => {
     it("a slotless booking is created with no operational interval", async () => {
       requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
       serviceRequiresSlotMock.mockResolvedValue(false);
@@ -342,7 +342,7 @@ describe("createBooking", () => {
       vi.stubEnv("RATE_LIMIT_BOOKING_CREATE_MAX", "1");
       requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
 
@@ -358,7 +358,7 @@ describe("createBooking", () => {
     it("tracks the limit per customer, not globally", async () => {
       vi.stubEnv("RATE_LIMIT_BOOKING_CREATE_MAX", "1");
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
 
@@ -412,7 +412,7 @@ describe("createBooking", () => {
       isCustomerCompleteForActionMock.mockResolvedValue(true);
       requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
-      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
 
@@ -442,7 +442,7 @@ describe("createBooking", () => {
     function boundedService(bounds: { minBookingSeats: number | null; maxBookingSeats: number | null }) {
       requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED", ...bounds });
-      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
     }
@@ -495,5 +495,120 @@ describe("createBooking", () => {
 
       expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
     });
+  });
+});
+
+// BOOKING TOTAL CALCULATION — the authoritative pricing snapshot written atomically at create.
+describe("createBooking — authoritative pricing snapshot", () => {
+  // A slotless, bookable service with a given ACTIVE price. Slotless so the create path
+  // reaches booking.create without an availability lookup.
+  function priced(price: { amount: string; currency?: string; pricingUnit: string | null }) {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: price.amount, currency: price.currency ?? "OMR", pricingUnit: price.pricingUnit, status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+  }
+
+  function createdData() {
+    return (bookingCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+  }
+  function total(data: Record<string, unknown>) {
+    // bookingTotalSnapshot is a Prisma.Decimal — normalize to a 2dp string for assertion.
+    return (data.bookingTotalSnapshot as { toFixed: (n: number) => string }).toFixed(2);
+  }
+
+  it("PER_PERSON: unit 10 × seats 1 → unit 10, quantity 1, total 10", async () => {
+    priced({ amount: "10", pricingUnit: "PER_PERSON" });
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "1" }));
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    const d = createdData();
+    expect(String(d.priceSnapshotAmount)).toBe("10"); // UNIT price, unchanged
+    expect(d.pricingUnitSnapshot).toBe("PER_PERSON");
+    expect(d.billableQuantitySnapshot).toBe(1);
+    expect(total(d)).toBe("10.00");
+  });
+
+  it("PER_PERSON: unit 10 × seats 5 → quantity 5, total 50 (priceSnapshotAmount stays the UNIT 10)", async () => {
+    priced({ amount: "10", pricingUnit: "PER_PERSON" });
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "5" }));
+    const d = createdData();
+    expect(String(d.priceSnapshotAmount)).toBe("10"); // NEVER the total
+    expect(d.billableQuantitySnapshot).toBe(5);
+    expect(total(d)).toBe("50.00");
+  });
+
+  it("PER_PERSON: Decimal 10.25 × 3 → total 30.75 (no float artifact)", async () => {
+    priced({ amount: "10.25", pricingUnit: "PER_PERSON" });
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "3" }));
+    expect(total(createdData())).toBe("30.75");
+  });
+
+  it("PER_BOOKING: unit 10, seats 5 → billable quantity 1, total 10 (fixed; seats never multiplies)", async () => {
+    priced({ amount: "10", pricingUnit: "PER_BOOKING" });
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "5" }));
+    const d = createdData();
+    expect(d.billableQuantitySnapshot).toBe(1);
+    expect(total(d)).toBe("10.00");
+    expect(d.seats).toBe(5); // capacity/passenger quantity is unchanged
+  });
+
+  it("PER_TRIP: unit 25, seats 4 → billable 1, total 25", async () => {
+    priced({ amount: "25", pricingUnit: "PER_TRIP" });
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "4" }));
+    const d = createdData();
+    expect(d.billableQuantitySnapshot).toBe(1);
+    expect(total(d)).toBe("25.00");
+  });
+
+  it("PER_VEHICLE: unit 95, seats 4 passengers → billable 1, total 95; seats stays 4 (capacity separate)", async () => {
+    priced({ amount: "95", pricingUnit: "PER_VEHICLE" });
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "4" }));
+    const d = createdData();
+    expect(d.billableQuantitySnapshot).toBe(1);
+    expect(total(d)).toBe("95.00");
+    expect(d.seats).toBe(4);
+  });
+});
+
+describe("createBooking — unpriceable units fail closed (no booking, no total guessed)", () => {
+  function priced(pricingUnit: string | null) {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit, status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+  }
+
+  it.each(["PER_DAY", "PER_HOUR"])("rejects %s with PRICING_UNIT_NOT_BOOKABLE and creates nothing", async (unit) => {
+    priced(unit);
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "2" }));
+    expect(r).toEqual({ ok: false, error: "PRICING_UNIT_NOT_BOOKABLE" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown pricing unit with PRICING_UNIT_NOT_BOOKABLE", async () => {
+    priced("PER_LIGHT_YEAR");
+    expect(await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID })))
+      .toEqual({ ok: false, error: "PRICING_UNIT_NOT_BOOKABLE" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a NULL pricing unit (never defaulted to PER_BOOKING)", async () => {
+    priced(null);
+    expect(await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID })))
+      .toEqual({ ok: false, error: "PRICING_UNIT_NOT_BOOKABLE" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+
+  // Failure atomicity — a pricing failure mutates NOTHING (checked before the capacity guard).
+  it("writes nothing at all on a pricing failure: no capacity mutation, no lifecycle, no notification", async () => {
+    priced("PER_DAY");
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: AVAILABILITY_ID, seats: "2" }));
+    expect(executeRawMock).not.toHaveBeenCalled();     // no bookedCount increment
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+    expect(recordBookingCreatedMock).not.toHaveBeenCalled();
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
   });
 });

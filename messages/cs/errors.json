@@ -29,5 +29,6 @@
   "bookingStateConflict": "Tato rezervace byla právě aktualizována. Zkuste to znovu",
   "scheduleRequired": "Před přijetím této rezervace nastavte čas začátku a konce",
   "invalidSchedule": "Čas začátku a konce je neplatný",
-  "vehicleBusy": "Vybrané vozidlo je v tuto dobu již přiřazeno k jiné rezervaci"
+  "vehicleBusy": "Vybrané vozidlo je v tuto dobu již přiřazeno k jiné rezervaci",
+  "pricingUnitNotBookable": "Tato cenová možnost zatím není k dispozici pro rezervaci."
 }

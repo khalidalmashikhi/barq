@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit/rate-limiter";
 import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { getBookingCreateRateLimit } from "@/lib/rate-limit/rate-limit-config";
+import { calculateBookingTotal } from "@/lib/booking/pricing/calculate-booking-total";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
 // Create booking — Engineering Sprint (Availability Engine).
@@ -185,6 +186,39 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: false, error: "BOOKING_QUANTITY_OUT_OF_RANGE" };
   }
 
+  // BOOKING TOTAL CALCULATION — compute the authoritative booking total from the SERVER-read
+  // price + validated seats, BEFORE the transaction (so a pricing failure creates no rows and,
+  // per §23, never mutates capacity). The calculator is the sole pricing authority; nothing
+  // here re-derives a total. seats is the quantity INPUT — the calculator decides the billable
+  // multiplier per unit (× seats for PER_PERSON, × 1 for the fixed units). Deterministic, so
+  // computing here and persisting inside the tx is safe.
+  const pricing = calculateBookingTotal({
+    unitAmount: price.amount,
+    currency: price.currency,
+    pricingUnit: price.pricingUnit ?? "",
+    bookingQuantity: seats,
+  });
+  if (!pricing.ok) {
+    // FAIL CLOSED — the unit price is NEVER substituted as a total.
+    //  - UNSUPPORTED_BILLABLE_DURATION (PER_DAY/PER_HOUR) and UNKNOWN_PRICING_UNIT (an
+    //    unrecognized or NULL unit): a generic, customer-safe "not bookable yet" — no internal
+    //    calculator code leaks. UNKNOWN also signals a mis-configured price, so log it.
+    //  - INVALID_UNIT_AMOUNT: a corrupt stored price (should not occur for a validated Price);
+    //    fail closed as PRICE_UNAVAILABLE.
+    //  - INVALID_QUANTITY: unreachable (seats is already a validated positive integer above);
+    //    mapped defensively to INVALID_INPUT.
+    if (pricing.error === "UNKNOWN_PRICING_UNIT" || pricing.error === "INVALID_UNIT_AMOUNT") {
+      logger.warn("createBooking.unpriceable", { serviceId: service.id, priceId: price.id, reason: pricing.error });
+    }
+    const errorCode: BookingActionErrorCode =
+      pricing.error === "UNSUPPORTED_BILLABLE_DURATION" || pricing.error === "UNKNOWN_PRICING_UNIT"
+        ? "PRICING_UNIT_NOT_BOOKABLE"
+        : pricing.error === "INVALID_UNIT_AMOUNT"
+          ? "PRICE_UNAVAILABLE"
+          : "INVALID_INPUT";
+    return { ok: false, error: errorCode };
+  }
+
   // BOOKING-INTERVAL-1 — for a slot-based booking, the operational interval is snapshotted
   // from the selected Availability here at create (both instants, or neither). Slot times are
   // frozen once a booking references the slot, but snapshotting onto the Booking makes the
@@ -273,6 +307,14 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
           availabilityId,
           priceSnapshotAmount: price.amount,
           priceSnapshotCurrency: price.currency,
+          // BOOKING TOTAL CALCULATION — the authoritative, immutable pricing snapshot, written
+          // ATOMICALLY with the booking (never patched afterwards). priceSnapshotAmount stays the
+          // UNIT price; these three add the totalized model. bookingTotalSnapshot is the Decimal
+          // total straight from the calculator (no Decimal→Number→Decimal round-trip). A future
+          // Price edit must never be re-read to recompute this historical total.
+          pricingUnitSnapshot: pricing.value.pricingUnit,
+          billableQuantitySnapshot: pricing.value.billableQuantity,
+          bookingTotalSnapshot: pricing.value.total,
           // BOOKING-INTERVAL-1 — slot-based bookings carry the operational interval from
           // create; slotless bookings stay null until the provider schedules at acceptance.
           ...(slotInterval
