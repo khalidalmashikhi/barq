@@ -8,6 +8,7 @@ import { Clock, MapPin, Star } from "lucide-react";
 import { clsx } from "@/components/ui/clsx";
 import { DestinationImage } from "./destination-image";
 import { BrandPattern, getBrandPatternTone } from "@/components/ui/brand-pattern";
+import { bookabilityLabelKey, isBookable, type Bookability } from "@/lib/services/bookability";
 
 // Service (experience) card — the customer-facing marketplace listing card.
 //
@@ -27,6 +28,11 @@ type ExperienceCardProps = {
   title: string;
   providerName: string;
   price?: string | null;
+  /** When true, `price` is a floor — the card prefixes it with "From" (headline min). */
+  priceIsFrom?: boolean;
+  /** Discovery & Detail Truthfulness — the shared, server-derived availability state.
+   *  Absent → no availability line (surfaces without the data are unchanged). */
+  availability?: Bookability;
   location?: string;
   rating?: number;
   duration?: string;
@@ -54,6 +60,8 @@ export function ExperienceCard({
   title,
   providerName,
   price,
+  priceIsFrom = false,
+  availability,
   location,
   rating,
   duration,
@@ -66,6 +74,7 @@ export function ExperienceCard({
 }: ExperienceCardProps) {
   const isHorizontal = layout === "horizontal";
   const tServices = useTranslations("services");
+  const priceLabel = price ? (priceIsFrom ? tServices("fromPrice", { price }) : price) : tServices("priceUnavailableLabel");
 
   return (
     <Link
@@ -161,9 +170,24 @@ export function ExperienceCard({
                 </span>
               ) : null}
 
-              <span className="text-sm font-semibold text-primary">
-                {price ?? tServices("priceUnavailableLabel")}
-              </span>
+              <span className="text-sm font-semibold text-primary">{priceLabel}</span>
+
+              {/* Compact, truthful availability signal (Discovery & Detail Truthfulness).
+                  One line, a dot + short label — never a seat count, never "today". */}
+              {availability ? (
+                <span
+                  className={clsx(
+                    "flex items-center gap-1.5 text-xs font-medium",
+                    isBookable(availability) ? "text-success" : "text-foreground/45"
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className={clsx("h-1.5 w-1.5 rounded-full", isBookable(availability) ? "bg-success" : "bg-foreground/30")}
+                  />
+                  {tServices(bookabilityLabelKey(availability))}
+                </span>
+              ) : null}
             </div>
 
             {/* Non-interactive affordance — the whole card is the link. */}

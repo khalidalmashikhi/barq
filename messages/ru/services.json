@@ -107,5 +107,14 @@
   "startInstructionsTitle": "Как начинается",
   "inclusionsTitle": "Что включено",
   "exclusionsTitle": "Не включено",
-  "requirementsTitle": "Что взять с собой"
+  "requirementsTitle": "Что взять с собой",
+  "fromPrice": "От {price}",
+  "availabilityBookable": "Есть даты",
+  "availabilityOpen": "Доступно",
+  "availabilityNone": "Нет доступных дат",
+  "availabilityUnavailable": "Недоступно",
+  "noDatesCtaLabel": "Нет доступных дат",
+  "noDatesCtaHint": "Скоро могут появиться новые даты.",
+  "unavailableCtaLabel": "Сейчас недоступно",
+  "unavailableCtaHint": "Это впечатление сейчас нельзя забронировать."
 }

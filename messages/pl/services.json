@@ -107,5 +107,14 @@
   "startInstructionsTitle": "Jak się zaczyna",
   "inclusionsTitle": "Co jest wliczone",
   "exclusionsTitle": "Nie wliczone",
-  "requirementsTitle": "Co zabrać"
+  "requirementsTitle": "Co zabrać",
+  "fromPrice": "Od {price}",
+  "availabilityBookable": "Dostępne terminy",
+  "availabilityOpen": "Dostępne",
+  "availabilityNone": "Brak dostępnych terminów",
+  "availabilityUnavailable": "Niedostępne",
+  "noDatesCtaLabel": "Brak dostępnych terminów",
+  "noDatesCtaHint": "Wkrótce mogą pojawić się nowe terminy.",
+  "unavailableCtaLabel": "Obecnie niedostępne",
+  "unavailableCtaHint": "Tego doświadczenia nie można teraz zarezerwować."
 }

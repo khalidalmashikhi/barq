@@ -32,19 +32,24 @@ describe("toServiceSummaryDTO", () => {
       providerId: "p1",
       providerName: "Desert Co",
       price: "25 OMR",
+      priceIsFrom: true,
       regionCode: "DHOFAR",
       pricingUnit: "PER_PERSON",
+      bookability: "BOOKABLE_NOW",
       coverUrl: "https://cdn/x.jpg",
       createdAt: new Date("2026-01-02T03:04:05.000Z"),
     });
+    // EXACT equality — this is the wire allow-list, so a leaked internal field must fail here.
     expect(dto).toEqual({
       id: "s1",
       name: "Desert Safari",
       providerId: "p1",
       providerName: "Desert Co",
       price: { amount: "25.00", currency: "OMR" },
+      priceIsFrom: true,
       regionCode: "DHOFAR",
       pricingUnit: "PER_PERSON",
+      bookability: "BOOKABLE_NOW",
       coverUrl: "https://cdn/x.jpg",
       createdAt: "2026-01-02T03:04:05.000Z",
     });
@@ -58,12 +63,16 @@ describe("toServiceSummaryDTO", () => {
       providerId: "p1",
       providerName: "pn",
       price: null,
+      priceIsFrom: false,
       regionCode: null,
       pricingUnit: null,
+      bookability: "UNAVAILABLE",
       coverUrl: null,
       createdAt: new Date("2026-01-02T00:00:00.000Z"),
     });
     expect(dto.price).toBeNull();
+    expect(dto.priceIsFrom).toBe(false);
+    expect(dto.bookability).toBe("UNAVAILABLE");
   });
 });
 
@@ -79,6 +88,7 @@ describe("toServiceDetailDTO", () => {
         providerDescription: "pdesc",
         providerStatus: "APPROVED",
         price: "25 OMR",
+        priceIsFrom: true,
         regionCode: "DHOFAR",
         pricingUnit: "PER_PERSON",
         coverUrl: "https://cdn/c.jpg",
@@ -124,7 +134,7 @@ describe("toServiceDetailDTO", () => {
       {
         id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
         providerDescription: "", providerStatus: "UNDER_REVIEW", price: null,
-        regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+        regionCode: null, pricingUnit: null, priceIsFrom: false, coverUrl: null, gallery: [],
         info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
       },
       [],
@@ -148,7 +158,7 @@ describe("toServiceDetailDTO", () => {
       {
         id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
         providerDescription: "", providerStatus: "APPROVED", price: null,
-        regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+        regionCode: null, pricingUnit: null, priceIsFrom: false, coverUrl: null, gallery: [],
         info, createdAt: new Date("2026-01-02T00:00:00.000Z"),
       },
       [],
@@ -163,7 +173,7 @@ describe("toServiceDetailDTO", () => {
       {
         id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
         providerDescription: "", providerStatus: "APPROVED", price: null,
-        regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+        regionCode: null, pricingUnit: null, priceIsFrom: false, coverUrl: null, gallery: [],
         info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
       },
       [],
@@ -184,7 +194,7 @@ describe("toServiceDetailDTO", () => {
     const base = {
       id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
       providerDescription: "", providerStatus: "APPROVED", price: null,
-      regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+      regionCode: null, pricingUnit: null, priceIsFrom: false, coverUrl: null, gallery: [],
       info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
     };
     // Omitted → null (non-tour service).
@@ -223,7 +233,7 @@ describe("toServiceDetailDTO — vehicleTypeLabel", () => {
     const base = {
       id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
       providerDescription: "", providerStatus: "APPROVED", price: null,
-      regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+      regionCode: null, pricingUnit: null, priceIsFrom: false, coverUrl: null, gallery: [],
       info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
     };
 

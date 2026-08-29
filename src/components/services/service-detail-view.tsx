@@ -3,6 +3,7 @@ import { getLocale } from "next-intl/server";
 import { Calendar, Clock, MapPin, BadgeCheck, Share2, Users, Check, X, ClipboardList } from "lucide-react";
 import type { ServiceDetail, RelatedService, ServiceRatingAggregate } from "@/lib/services/get-service-detail";
 import { describeDuration } from "@/lib/services/duration";
+import { isBookable, type Bookability } from "@/lib/services/bookability";
 import type { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import type { ReviewItem } from "@/components/services/reviews-section";
 import { ServiceGallery } from "@/components/services/service-gallery";
@@ -44,6 +45,11 @@ type ServiceDetailViewProps = {
   ratingAggregate: ServiceRatingAggregate;
   serviceUrl: string;
   mode: PreviewMode;
+  /// Discovery & Detail Truthfulness — the shared, server-derived bookability state,
+  /// so a slot-required service with no bookable slots (or no price) does NOT show an
+  /// active "Book now" that dead-ends. Optional: when omitted the CTA behaves as before
+  /// (treated as bookable) — every real caller passes it.
+  bookability?: Bookability;
 };
 
 export async function ServiceDetailView({
@@ -54,6 +60,7 @@ export async function ServiceDetailView({
   reviews,
   serviceUrl,
   mode,
+  bookability,
 }: ServiceDetailViewProps) {
   const t = await getServerTranslator("services");
   const tBooking = await getServerTranslator("booking");
@@ -85,6 +92,14 @@ export async function ServiceDetailView({
     service.price && unitKey
       ? tCommon("priceWithUnit", { price: service.price, unit: tCommon(unitKey) })
       : service.price;
+
+  // Discovery & Detail Truthfulness — the CTA reflects real bookability. A slot-required
+  // service with nothing bookable (or no price) shows an HONEST disabled state with a
+  // reason instead of an active "Book now" that dead-ends on the booking page (which is
+  // already fail-closed). Omitted bookability keeps the prior always-active behaviour.
+  const canBook = bookability === undefined || isBookable(bookability);
+  const unavailableCtaLabel = bookability === "NO_CURRENT_AVAILABILITY" ? t("noDatesCtaLabel") : t("unavailableCtaLabel");
+  const unavailableCtaHint = bookability === "NO_CURRENT_AVAILABILITY" ? t("noDatesCtaHint") : t("unavailableCtaHint");
 
   return (
     <>
@@ -280,7 +295,7 @@ export async function ServiceDetailView({
               <h2 className="mb-5 text-lg font-semibold text-foreground">{t("moreFromProviderLabel")}</h2>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {relatedServices.map((related) => (
-                  <ExperienceCard key={related.id} serviceId={related.id} title={related.name} providerName={related.providerName} price={related.price} coverImageUrl={related.coverUrl} imageAspect="premium" />
+                  <ExperienceCard key={related.id} serviceId={related.id} title={related.name} providerName={related.providerName} price={related.price} priceIsFrom={related.priceIsFrom} coverImageUrl={related.coverUrl} imageAspect="premium" />
                 ))}
               </div>
             </div>
@@ -312,12 +327,25 @@ export async function ServiceDetailView({
                 <p className="mt-2 text-sm text-foreground/65">{t("slotsAvailableLabel", { count: slots.length })}</p>
               )}
               {mode === "public" ? (
-                <Link
-                  href={`/services/${service.id}/book`}
-                  className="mt-4 block w-full rounded-full bg-primary px-6 py-2.5 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  {t("bookNowButton")}
-                </Link>
+                canBook ? (
+                  <Link
+                    href={`/services/${service.id}/book`}
+                    className="mt-4 block w-full rounded-full bg-primary px-6 py-2.5 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    {t("bookNowButton")}
+                  </Link>
+                ) : (
+                  // HONEST unavailable state — no dead-end link into the booking flow.
+                  <>
+                    <span
+                      aria-disabled="true"
+                      className="mt-4 block w-full cursor-not-allowed rounded-full bg-foreground/10 px-6 py-2.5 text-center text-sm font-medium text-foreground/50"
+                    >
+                      {unavailableCtaLabel}
+                    </span>
+                    <p className="mt-2 text-xs text-foreground/50">{unavailableCtaHint}</p>
+                  </>
+                )
               ) : (
                 // PREVIEW: no active booking path. A disabled placeholder keeps
                 // the visual layout identical while exposing no booking flow or

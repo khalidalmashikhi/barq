@@ -8,6 +8,8 @@ import {
   getServiceRatingAggregate,
 } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
+import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
+import { deriveBookability } from "@/lib/services/bookability";
 import { getPublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
 import { ServiceDetailView } from "@/components/services/service-detail-view";
 import { TourVehicleSection } from "@/components/tour-template/tour-vehicle-section";
@@ -62,7 +64,7 @@ export default async function ServiceDetailPage({ params }: Props) {
   if (!fetchedService) { notFound(); return null; }
   const service = fetchedService;
 
-  const [relatedServices, slots, providerPublishedServicesCount, reviews, ratingAggregate, tourVehicleSummary] = await Promise.all([
+  const [relatedServices, slots, providerPublishedServicesCount, reviews, ratingAggregate, tourVehicleSummary, requiresSlot] = await Promise.all([
     getRelatedServices(service.id, service.providerId),
     getAvailableSlots(service.id),
     getProviderPublishedServicesCount(service.providerId),
@@ -70,7 +72,17 @@ export default async function ServiceDetailPage({ params }: Props) {
     getServiceRatingAggregate(service.id),
     // TOUR-VEHICLE-3 — customer-safe tour vehicle summary (null for non-tour / GUIDE_ONLY).
     getPublicTourVehicleSummary(service.id),
+    serviceRequiresSlot(service.id),
   ]);
+
+  // Discovery & Detail Truthfulness — the shared bookability state, from the SAME
+  // authorities the booking page fail-closes on. `service.price` is the headline (null
+  // only when there is no ACTIVE price). Feeds an honest CTA (no zero-slot dead-end).
+  const bookability = deriveBookability({
+    hasActivePrice: service.price !== null,
+    requiresSlot,
+    hasBookableSlot: slots.length > 0,
+  });
 
   const t = await getServerTranslator("services");
   const locale = await getLocale();
@@ -112,6 +124,7 @@ export default async function ServiceDetailPage({ params }: Props) {
           ratingAggregate={ratingAggregate}
           serviceUrl={serviceUrl}
           mode="public"
+          bookability={bookability}
         />
         {/* TOUR-VEHICLE-3 — customer-safe tour vehicle presentation (tours with transport
             only). Composes the guidingContent promise with currently-eligible pooled

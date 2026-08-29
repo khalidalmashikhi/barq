@@ -1,7 +1,11 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { resolveHeadlinePrice } from "./headline-price";
+import { deriveBookability } from "./bookability";
+import { getServiceSlotFacts } from "./bookability-facts";
 import type { ServiceListItem } from "./get-services";
 
 // Unified Preview System (provider row) — PUBLISHED-only service read for the
@@ -26,7 +30,7 @@ type ServiceRow = {
   providerId: string;
   regionCode?: string | null;
   provider: { businessName: unknown };
-  prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
+  prices: Array<{ id: string; amount: unknown; currency: string; pricingUnit?: string | null; createdAt: Date }>;
   mediaAssets: Array<{ url: string }>;
   createdAt: Date;
 };
@@ -54,26 +58,46 @@ export async function getProviderPublishedServicesForPreview(
       take: PREVIEW_PAGE_SIZE,
       include: {
         provider: true,
-        prices: { where: { status: "ACTIVE" }, take: 1 },
+        prices: {
+          where: { status: "ACTIVE" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, amount: true, currency: true, pricingUnit: true, createdAt: true },
+        },
         mediaAssets: { where: { kind: "COVER" }, take: 1, select: { url: true } },
       },
     }),
   ]);
 
-  const items: ServiceListItem[] = (services as ServiceRow[]).map((service) => ({
-    id: service.id,
-    name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
-    providerId: service.providerId,
-    providerName:
-      extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
-    price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
-    // Same Gate-3 exposure as the public getServices() reader (identical shape):
-    // regionCode is a Service scalar; pricingUnit rides the same ACTIVE price row.
-    regionCode: service.regionCode ?? null,
-    pricingUnit: service.prices[0] ? (service.prices[0].pricingUnit ?? null) : null,
-    coverUrl: service.mediaAssets[0]?.url ?? null,
-    createdAt: service.createdAt,
-  }));
+  const rows = services as ServiceRow[];
+  // Batched bookability so the provider preview shows the SAME availability truth the
+  // public storefront card will (identical ServiceListItem shape).
+  const slotFacts = await getServiceSlotFacts(rows.map((row) => row.id));
+
+  const items: ServiceListItem[] = rows.map((service) => {
+    const headline = resolveHeadlinePrice(
+      service.prices.map((p) => ({ id: p.id, amount: p.amount as Prisma.Decimal, currency: p.currency, pricingUnit: p.pricingUnit ?? null, createdAt: p.createdAt }))
+    );
+    return {
+      id: service.id,
+      name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+      providerId: service.providerId,
+      providerName:
+        extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
+      price: headline ? `${headline.amount} ${headline.currency}` : null,
+      priceIsFrom: headline?.isFrom ?? false,
+      // Same Gate-3 exposure as the public getServices() reader (identical shape):
+      // regionCode is a Service scalar; pricingUnit rides the same headline price row.
+      regionCode: service.regionCode ?? null,
+      pricingUnit: headline?.pricingUnit ?? null,
+      bookability: deriveBookability({
+        hasActivePrice: headline !== null,
+        requiresSlot: slotFacts.requiresSlot.has(service.id),
+        hasBookableSlot: slotFacts.hasBookableSlot.has(service.id),
+      }),
+      coverUrl: service.mediaAssets[0]?.url ?? null,
+      createdAt: service.createdAt,
+    };
+  });
 
   return {
     items,

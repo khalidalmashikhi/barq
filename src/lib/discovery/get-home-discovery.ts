@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import type { Locale } from "@/i18n/locales";
 import { getServices, type ServiceListItem } from "@/lib/services/get-services";
+import type { Bookability } from "@/lib/services/bookability";
 import { publicCategoryWhere } from "@/lib/categories/public-category-rule";
 import { DISCOVERY_GROUPS, ALL_DISCOVERY_CATEGORY_SLUGS, type DiscoveryGroupKey } from "./discovery-groups";
 import { REGION_CODES, isValidRegionCode, regionLabelKey } from "@/lib/regions";
@@ -25,6 +26,11 @@ export type DiscoveryCard = {
   coverUrl: string | null;
   regionCode: string | null;
   price: string | null;
+  // Discovery & Detail Truthfulness — `priceIsFrom` lets the card show "From X" only
+  // when there really is a range (the Home card previously hard-coded "From {price}").
+  // `bookability` is the shared, server-derived availability state (never a raw blocker).
+  priceIsFrom: boolean;
+  bookability: Bookability;
 };
 
 export type DiscoveryGroupPreview = {
@@ -48,7 +54,15 @@ export type HomeDiscovery = {
 };
 
 function toCard(item: ServiceListItem): DiscoveryCard {
-  return { id: item.id, name: item.name, coverUrl: item.coverUrl, regionCode: item.regionCode, price: item.price };
+  return {
+    id: item.id,
+    name: item.name,
+    coverUrl: item.coverUrl,
+    regionCode: item.regionCode,
+    price: item.price,
+    priceIsFrom: item.priceIsFrom,
+    bookability: item.bookability,
+  };
 }
 
 function governorates(): HomeGovernorate[] {

@@ -107,5 +107,14 @@
   "startInstructionsTitle": "So beginnt es",
   "inclusionsTitle": "Inbegriffen",
   "exclusionsTitle": "Nicht inbegriffen",
-  "requirementsTitle": "Was mitbringen"
+  "requirementsTitle": "Was mitbringen",
+  "fromPrice": "Ab {price}",
+  "availabilityBookable": "Verfügbare Termine",
+  "availabilityOpen": "Verfügbar",
+  "availabilityNone": "Keine Termine verfügbar",
+  "availabilityUnavailable": "Nicht verfügbar",
+  "noDatesCtaLabel": "Keine verfügbaren Termine",
+  "noDatesCtaHint": "Neue Termine könnten bald hinzukommen.",
+  "unavailableCtaLabel": "Derzeit nicht verfügbar",
+  "unavailableCtaHint": "Dieses Erlebnis kann derzeit nicht gebucht werden."
 }

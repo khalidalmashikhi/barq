@@ -18,6 +18,7 @@ vi.mock("next-intl/server", () => ({
 const findManyMock = vi.fn();
 const countMock = vi.fn();
 const queryRawMock = vi.fn();
+const availabilityFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -27,6 +28,10 @@ vi.mock("@/lib/db", () => ({
     },
     provider: {
       findMany: vi.fn(),
+    },
+    // Discovery & Detail Truthfulness — getServiceSlotFacts batches over this.
+    availability: {
+      findMany: (...args: unknown[]) => availabilityFindManyMock(...args),
     },
     $queryRaw: (...args: unknown[]) => queryRawMock(...args),
   },
@@ -39,7 +44,24 @@ afterEach(() => {
   findManyMock.mockReset();
   countMock.mockReset();
   queryRawMock.mockReset();
+  availabilityFindManyMock.mockReset();
 });
+
+// A service row shaped like the getServices include (all ACTIVE prices, ordered).
+type PriceSeed = { id: string; amount: string; currency: string; pricingUnit?: string | null; createdAt: Date };
+function serviceRow(id: string, prices: PriceSeed[], regionCode: string | null = null) {
+  return {
+    id,
+    name: { en: `svc-${id}`, ar: `svc-${id}` },
+    providerId: "p1",
+    regionCode,
+    provider: { businessName: { en: "Prov", ar: "Prov" } },
+    prices,
+    mediaAssets: [],
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
+const d = (iso: string) => new Date(iso);
 
 const PROVIDER_GATE = { status: "APPROVED", visible: true };
 
@@ -415,5 +437,102 @@ describe("getServices — governorate (region) filter (Gate 4)", () => {
         regionCode: "MUSCAT",
       },
     });
+  });
+});
+
+// DISCOVERY & DETAIL TRUTHFULNESS — deterministic headline min price + shared bookability.
+const S1 = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
+const S2 = "019f4e4e-80b8-7cf2-b043-916c71648fcb";
+
+describe("getServices — headline price (deterministic minimum)", () => {
+  it("shows the MIN active price and marks it 'from' when there is more than one", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    availabilityFindManyMock.mockResolvedValue([]); // not slot-based
+    findManyMock.mockResolvedValue([
+      serviceRow(S1, [
+        { id: "pr1", amount: "40", currency: "OMR", pricingUnit: "PER_DAY", createdAt: d("2026-01-01") },
+        { id: "pr2", amount: "15", currency: "OMR", pricingUnit: "PER_PERSON", createdAt: d("2026-01-02") },
+      ]),
+    ]);
+
+    const { items } = await getServices({});
+    expect(items[0]!.price).toBe("15 OMR");
+    expect(items[0]!.priceIsFrom).toBe(true);
+    expect(items[0]!.pricingUnit).toBe("PER_PERSON"); // unit of the MIN row
+  });
+
+  it("a single active price is shown bare (never 'from')", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    availabilityFindManyMock.mockResolvedValue([]);
+    findManyMock.mockResolvedValue([
+      serviceRow(S1, [{ id: "pr1", amount: "25", currency: "OMR", pricingUnit: "PER_PERSON", createdAt: d("2026-01-01") }]),
+    ]);
+
+    const { items } = await getServices({});
+    expect(items[0]!.price).toBe("25 OMR");
+    expect(items[0]!.priceIsFrom).toBe(false);
+  });
+
+  it("price sort is keyed on the deterministic minimum (not an arbitrary row)", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(2);
+    availabilityFindManyMock.mockResolvedValue([]);
+    // S1's min is 40, S2's min is 15 — ascending must place S2 first regardless of row order.
+    findManyMock.mockResolvedValue([
+      serviceRow(S1, [{ id: "a", amount: "40", currency: "OMR", createdAt: d("2026-01-01") }]),
+      serviceRow(S2, [{ id: "b", amount: "15", currency: "OMR", createdAt: d("2026-01-01") }]),
+    ]);
+
+    const { items } = await getServices({ sort: "price_asc" });
+    expect(items.map((i) => i.id)).toEqual([S2, S1]);
+  });
+});
+
+describe("getServices — bookability projection", () => {
+  it("BOOKABLE_NOW for a slot-based service with a free future slot", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([serviceRow(S1, [{ id: "pr1", amount: "25", currency: "OMR", createdAt: d("2026-01-01") }])]);
+    availabilityFindManyMock
+      .mockResolvedValueOnce([{ serviceId: S1 }]) // declared → slot-based
+      .mockResolvedValueOnce([{ serviceId: S1, capacity: 5, bookedCount: 1 }]); // a free seat
+
+    const { items } = await getServices({});
+    expect(items[0]!.bookability).toBe("BOOKABLE_NOW");
+  });
+
+  it("NO_CURRENT_AVAILABILITY for a slot-based service whose only future slot is full", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([serviceRow(S1, [{ id: "pr1", amount: "25", currency: "OMR", createdAt: d("2026-01-01") }])]);
+    availabilityFindManyMock
+      .mockResolvedValueOnce([{ serviceId: S1 }])
+      .mockResolvedValueOnce([{ serviceId: S1, capacity: 4, bookedCount: 4 }]);
+
+    const { items } = await getServices({});
+    expect(items[0]!.bookability).toBe("NO_CURRENT_AVAILABILITY");
+  });
+
+  it("SLOTLESS_BOOKABLE for a priced service with no declared availability", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([serviceRow(S1, [{ id: "pr1", amount: "25", currency: "OMR", createdAt: d("2026-01-01") }])]);
+    availabilityFindManyMock.mockResolvedValue([]);
+
+    const { items } = await getServices({});
+    expect(items[0]!.bookability).toBe("SLOTLESS_BOOKABLE");
+  });
+
+  it("UNAVAILABLE for a service with no active price", async () => {
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([serviceRow(S1, [])]);
+    availabilityFindManyMock.mockResolvedValue([]);
+
+    const { items } = await getServices({});
+    expect(items[0]!.price).toBeNull();
+    expect(items[0]!.bookability).toBe("UNAVAILABLE");
   });
 });

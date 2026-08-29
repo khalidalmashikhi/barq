@@ -1,4 +1,5 @@
 import type { ServiceListItem } from "@/lib/services/get-services";
+import type { Bookability } from "@/lib/services/bookability";
 import type { ServiceDetail, ActivePriceOption } from "@/lib/services/get-service-detail";
 import type { ServiceInfoLocalized } from "@/lib/services/service-info";
 import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
@@ -45,8 +46,15 @@ export interface ServiceSummaryDTO {
   providerId: string;
   providerName: string;
   price: MoneyDTO | null;
+  /// True when `price` is a floor ("From X") because more than one ACTIVE price exists
+  /// in the primary currency; false for a single price. Server-derived (resolveHeadlinePrice).
+  priceIsFrom: boolean;
   regionCode: string | null;
   pricingUnit: string | null;
+  /// Shared, server-derived availability state (Discovery & Detail Truthfulness) — a
+  /// customer-safe SEMANTIC state (BOOKABLE_NOW / SLOTLESS_BOOKABLE /
+  /// NO_CURRENT_AVAILABILITY / UNAVAILABLE), never a raw internal blocker code.
+  bookability: Bookability;
   coverUrl: string | null;
   createdAt: string; // ISO-8601
 }
@@ -58,8 +66,10 @@ export function toServiceSummaryDTO(item: ServiceListItem): ServiceSummaryDTO {
     providerId: item.providerId,
     providerName: item.providerName,
     price: parseMoneyString(item.price),
+    priceIsFrom: item.priceIsFrom,
     regionCode: item.regionCode,
     pricingUnit: item.pricingUnit,
+    bookability: item.bookability,
     coverUrl: item.coverUrl,
     createdAt: item.createdAt.toISOString(),
   };
@@ -134,6 +144,9 @@ export interface ServiceDetailDTO {
   /** Convenience flag derived from providerStatus === "APPROVED" (the public "Verified Provider" badge). */
   providerVerified: boolean;
   price: MoneyDTO | null;
+  /** True when `price` is a floor ("From X") because the service has more than one ACTIVE
+   *  price in its primary currency. The full per-option list is `activePrices`. */
+  priceIsFrom: boolean;
   regionCode: string | null;
   pricingUnit: string | null;
   coverUrl: string | null;
@@ -172,6 +185,7 @@ export function toServiceDetailDTO(
     providerStatus: detail.providerStatus,
     providerVerified: detail.providerStatus === "APPROVED",
     price: parseMoneyString(detail.price),
+    priceIsFrom: detail.priceIsFrom,
     regionCode: detail.regionCode,
     pricingUnit: detail.pricingUnit,
     coverUrl: detail.coverUrl,

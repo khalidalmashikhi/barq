@@ -19,14 +19,19 @@ type HomeServiceCardProps = {
   coverUrl: string | null;
   /** Already-localized governorate label, or null when the region is unknown. */
   locationLabel: string | null;
-  /** Already-localized "From {price}" label, or null when no active price. */
+  /** Already-localized price label — "From {price}" only when it's really a floor,
+   *  otherwise the bare price; null when no active price. */
   priceLabel: string | null;
+  /** Already-localized compact availability label (Discovery & Detail Truthfulness),
+   *  or null to show none. `available` only tints it (bookable vs muted). */
+  availabilityLabel?: string | null;
+  available?: boolean;
   /** Fallback-pattern seed so cards look stable/distinct without a cover. */
   seed: string;
   className?: string;
 };
 
-export function HomeServiceCard({ href, name, coverUrl, locationLabel, priceLabel, seed, className }: HomeServiceCardProps) {
+export function HomeServiceCard({ href, name, coverUrl, locationLabel, priceLabel, availabilityLabel = null, available = false, seed, className }: HomeServiceCardProps) {
   return (
     <Link
       href={href}
@@ -64,6 +69,14 @@ export function HomeServiceCard({ href, name, coverUrl, locationLabel, priceLabe
         ) : null}
 
         {priceLabel ? <span className="mt-1 text-sm font-semibold text-primary">{priceLabel}</span> : null}
+
+        {/* Compact, truthful availability signal — one line, a dot + short label. */}
+        {availabilityLabel ? (
+          <span className={clsx("flex items-center gap-1.5 text-xs font-medium", available ? "text-success" : "text-foreground/45")}>
+            <span aria-hidden className={clsx("h-1.5 w-1.5 rounded-full", available ? "bg-success" : "bg-foreground/30")} />
+            {availabilityLabel}
+          </span>
+        ) : null}
       </div>
     </Link>
   );

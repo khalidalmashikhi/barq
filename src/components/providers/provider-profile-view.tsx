@@ -182,6 +182,8 @@ export async function ProviderProfileView({
               title={service.name}
               providerName={service.providerName}
               price={service.price}
+              priceIsFrom={service.priceIsFrom}
+              availability={service.bookability}
               imageAspect="premium"
             />
           ))}

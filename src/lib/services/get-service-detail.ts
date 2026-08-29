@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
@@ -6,6 +7,7 @@ import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { pricingUnitLabelKey } from "@/lib/pricing-units";
 import { readServiceInfo, localizeServiceInfo, type ServiceInfoLocalized } from "./service-info";
+import { resolveHeadlinePrice } from "./headline-price";
 import type { Locale } from "@/i18n/locales";
 import type { ReviewItem } from "@/components/services/reviews-section";
 
@@ -30,6 +32,11 @@ export type ServiceDetail = {
   /// "verified" flag.
   providerStatus: string;
   price: string | null;
+  // Discovery & Detail Truthfulness — `price` is the deterministic MINIMUM within the
+  // service's primary currency (resolveHeadlinePrice), and `priceIsFrom` is true when
+  // more than one ACTIVE price exists in that currency, so the summary can show "From X"
+  // honestly (the full per-option list still comes from getActivePricesForService).
+  priceIsFrom: boolean;
   // Discovery/display metadata (Core Service Enrichment, Gate 3). Both are raw
   // governed CODES (or null for legacy/unset rows), never localized — a consumer
   // maps them to display labels via i18n. pricingUnit describes the basis of
@@ -53,6 +60,7 @@ export type RelatedService = {
   name: string;
   providerName: string;
   price: string | null;
+  priceIsFrom: boolean;
   coverUrl: string | null;
 };
 
@@ -70,10 +78,23 @@ type ServiceDetailRow = {
   minBookingSeats?: number | null;
   maxBookingSeats?: number | null;
   provider: { businessName: unknown; businessDescription: unknown; status: string };
-  prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
+  prices: Array<{ id: string; amount: unknown; currency: string; pricingUnit?: string | null; createdAt: Date }>;
   mediaAssets?: Array<{ url: string; kind?: string }>;
   createdAt: Date;
 };
+
+// Shared headline derivation — the deterministic minimum within the primary currency,
+// formatted as the same "amount currency" string the cards/detail already display.
+function headlineFrom(prices: ServiceDetailRow["prices"]): { price: string | null; priceIsFrom: boolean; pricingUnit: string | null } {
+  const headline = resolveHeadlinePrice(
+    prices.map((p) => ({ id: p.id, amount: p.amount as Prisma.Decimal, currency: p.currency, pricingUnit: p.pricingUnit ?? null, createdAt: p.createdAt }))
+  );
+  return {
+    price: headline ? `${headline.amount} ${headline.currency}` : null,
+    priceIsFrom: headline?.isFrom ?? false,
+    pricingUnit: headline?.pricingUnit ?? null,
+  };
+}
 
 export type ActivePriceOption = {
   id: string;
@@ -151,6 +172,7 @@ function mapServiceDetailRow(row: ServiceDetailRow, locale: Locale): ServiceDeta
   const mediaAssets = row.mediaAssets ?? [];
   const coverUrl = mediaAssets.find((m) => m.kind === "COVER")?.url ?? null;
   const gallery = mediaAssets.filter((m) => m.kind === "GALLERY").map((m) => m.url);
+  const headline = headlineFrom(row.prices);
 
   return {
     id: row.id,
@@ -160,12 +182,14 @@ function mapServiceDetailRow(row: ServiceDetailRow, locale: Locale): ServiceDeta
     providerName: extractLocalizedText(row.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     providerDescription: extractLocalizedText(row.provider.businessDescription, locale),
     providerStatus: row.provider.status,
-    price: row.prices[0] ? `${row.prices[0].amount} ${row.prices[0].currency}` : null,
-    // regionCode is a Service scalar; pricingUnit rides the SAME ACTIVE price row
-    // as `price` above (prices[0]) so amount/currency/unit never come from
-    // different rows. Both null-tolerant for legacy/unset data.
+    // Deterministic MINIMUM within the primary currency, with its own unit — never an
+    // arbitrary unordered prices[0]. The per-option list (getActivePricesForService) is
+    // where a customer sees every price; this is the single headline.
+    price: headline.price,
+    priceIsFrom: headline.priceIsFrom,
+    // regionCode is a Service scalar; pricingUnit rides the SAME headline (min) price row.
     regionCode: row.regionCode ?? null,
-    pricingUnit: row.prices[0] ? (row.prices[0].pricingUnit ?? null) : null,
+    pricingUnit: headline.pricingUnit,
     coverUrl,
     gallery,
     info: localizeServiceInfo(
@@ -204,7 +228,11 @@ export async function getServiceById(id: string, localeOverride?: Locale): Promi
     where: { id, status: "PUBLISHED", provider: { status: "APPROVED", visible: true } },
     include: {
       provider: true,
-      prices: { where: { status: "ACTIVE" }, take: 1 },
+      prices: {
+        where: { status: "ACTIVE" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, amount: true, currency: true, pricingUnit: true, createdAt: true },
+      },
       // Cover + gallery in one bounded, ordered include (no N+1). Capped at
       // 1 cover + MAX_SERVICE_GALLERY_ITEMS gallery images at write time.
       mediaAssets: { orderBy: { createdAt: "asc" }, select: { url: true, kind: true } },
@@ -229,7 +257,11 @@ export async function getServiceForPreview(id: string): Promise<ServiceDetail | 
     where: { id },
     include: {
       provider: true,
-      prices: { where: { status: "ACTIVE" }, take: 1 },
+      prices: {
+        where: { status: "ACTIVE" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, amount: true, currency: true, pricingUnit: true, createdAt: true },
+      },
       mediaAssets: { orderBy: { createdAt: "asc" }, select: { url: true, kind: true } },
     },
   });
@@ -252,6 +284,11 @@ export async function getRelatedServices(serviceId: string, providerId: string):
   const services = await prisma.service.findMany({
     where: {
       status: "PUBLISHED",
+      // Discovery & Detail Truthfulness — apply the SAME provider-visibility gate the
+      // listing and detail readers use. Without it a related-services strip could surface
+      // a sibling service whose provider was later suspended/hidden (same-provider scope
+      // limited the blast radius, but the omission was a real truthfulness gap).
+      provider: { status: "APPROVED", visible: true },
       providerId,
       id: { not: serviceId },
     },
@@ -259,18 +296,26 @@ export async function getRelatedServices(serviceId: string, providerId: string):
     orderBy: { createdAt: "desc" },
     include: {
       provider: true,
-      prices: { where: { status: "ACTIVE" }, take: 1 },
+      prices: {
+        where: { status: "ACTIVE" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, amount: true, currency: true, pricingUnit: true, createdAt: true },
+      },
       mediaAssets: { where: { kind: "COVER" }, take: 1, select: { url: true } },
     },
   });
 
-  return (services as ServiceDetailRow[]).map((service) => ({
-    id: service.id,
-    name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
-    providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
-    price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
-    coverUrl: service.mediaAssets?.[0]?.url ?? null,
-  }));
+  return (services as ServiceDetailRow[]).map((service) => {
+    const headline = headlineFrom(service.prices);
+    return {
+      id: service.id,
+      name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+      providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
+      price: headline.price,
+      priceIsFrom: headline.priceIsFrom,
+      coverUrl: service.mediaAssets?.[0]?.url ?? null,
+    };
+  });
 }
 
 // Phase 4.1 ("Complete the Booking Lifecycle") — wires the already-

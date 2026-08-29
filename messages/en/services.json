@@ -107,5 +107,14 @@
   "startInstructionsTitle": "How it starts",
   "inclusionsTitle": "What's included",
   "exclusionsTitle": "Not included",
-  "requirementsTitle": "What to bring"
+  "requirementsTitle": "What to bring",
+  "fromPrice": "From {price}",
+  "availabilityBookable": "Available dates",
+  "availabilityOpen": "Available",
+  "availabilityNone": "No dates available",
+  "availabilityUnavailable": "Unavailable",
+  "noDatesCtaLabel": "No available dates",
+  "noDatesCtaHint": "New dates may be added soon.",
+  "unavailableCtaLabel": "Currently unavailable",
+  "unavailableCtaHint": "This experience can't be booked right now."
 }

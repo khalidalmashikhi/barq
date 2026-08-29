@@ -34,12 +34,15 @@ const card = (over: Partial<Record<string, unknown>>) => ({
   coverUrl: "cover-a",
   regionCode: "DHOFAR",
   price: "10.00 OMR",
+  priceIsFrom: false,
+  bookability: "BOOKABLE_NOW",
   ...over,
 });
 
 describe("SelectedForYou", () => {
-  it("renders one minimal card per recommended item, with resolved region + price labels", async () => {
-    const el = await SelectedForYou({ items: [card({}) as never] });
+  it("renders one minimal card per recommended item, with resolved region + availability", async () => {
+    // A genuine floor (multiple prices) → "From"; and the shared availability signal.
+    const el = await SelectedForYou({ items: [card({ priceIsFrom: true }) as never] });
     const cards = collectCards(el);
     expect(cards).toHaveLength(1);
     expect(cards[0]!.props).toMatchObject({
@@ -48,8 +51,23 @@ describe("SelectedForYou", () => {
       coverUrl: "cover-a",
       locationLabel: "governorate.DHOFAR",
       priceLabel: "home.priceFrom:10.00 OMR",
+      availabilityLabel: "availabilityBookable",
+      available: true,
       seed: "a",
     });
+  });
+
+  it("shows the bare price (never 'From') when there is only one price", async () => {
+    const el = await SelectedForYou({ items: [card({ priceIsFrom: false }) as never] });
+    const [c] = collectCards(el);
+    expect(c!.props.priceLabel).toBe("10.00 OMR");
+  });
+
+  it("tints and labels availability from the shared state (muted when not bookable)", async () => {
+    const el = await SelectedForYou({ items: [card({ bookability: "NO_CURRENT_AVAILABILITY" }) as never] });
+    const [c] = collectCards(el);
+    expect(c!.props.availabilityLabel).toBe("availabilityNone");
+    expect(c!.props.available).toBe(false);
   });
 
   it("omits location/price labels for items missing region/price (never fabricated)", async () => {

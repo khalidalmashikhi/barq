@@ -41,6 +41,8 @@ export async function FeaturedExperiencesSection() {
               title={service.name}
               providerName={service.providerName}
               price={service.price}
+              priceIsFrom={service.priceIsFrom}
+              availability={service.bookability}
               imageAspect="premium"
             />
           ))}

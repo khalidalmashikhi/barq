@@ -11,6 +11,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const findFirstMock = vi.fn();
+const serviceFindManyMock = vi.fn();
 
 const priceFindManyMock = vi.fn();
 
@@ -18,6 +19,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     service: {
       findFirst: (...args: unknown[]) => findFirstMock(...args),
+      findMany: (...args: unknown[]) => serviceFindManyMock(...args),
     },
     price: {
       findMany: (...args: unknown[]) => priceFindManyMock(...args),
@@ -64,12 +66,13 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-const { getServiceById, getActivePricesForService } = await import("./get-service-detail");
+const { getServiceById, getActivePricesForService, getRelatedServices } = await import("./get-service-detail");
 
 const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
 afterEach(() => {
   findFirstMock.mockReset();
+  serviceFindManyMock.mockReset();
   priceFindManyMock.mockReset();
   requestedLocale = null;
   usedExplicitLocale = false;
@@ -153,6 +156,64 @@ describe("getServiceById", () => {
       expect(result?.pricingUnit).toBeNull();
       expect(result?.price).toBeNull();
     });
+
+    // DISCOVERY & DETAIL TRUTHFULNESS — the detail headline is the deterministic MINIMUM.
+    it("shows the minimum active price as the headline and marks it 'from'", async () => {
+      findFirstMock.mockResolvedValue(
+        row({
+          prices: [
+            { id: "a", amount: "40", currency: "OMR", pricingUnit: "PER_DAY", createdAt: new Date("2026-01-01") },
+            { id: "b", amount: "15", currency: "OMR", pricingUnit: "PER_PERSON", createdAt: new Date("2026-01-02") },
+          ],
+        })
+      );
+
+      const result = await getServiceById(SERVICE_ID);
+
+      expect(result?.price).toBe("15 OMR");
+      expect(result?.priceIsFrom).toBe(true);
+      expect(result?.pricingUnit).toBe("PER_PERSON");
+    });
+  });
+});
+
+// DISCOVERY & DETAIL TRUTHFULNESS — related services must apply the same provider gate.
+describe("getRelatedServices", () => {
+  it("scopes to PUBLISHED services from APPROVED, visible providers (same gate as the listing)", async () => {
+    serviceFindManyMock.mockResolvedValue([]);
+
+    await getRelatedServices(SERVICE_ID, "provider-1");
+
+    expect(serviceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: "PUBLISHED",
+          provider: { status: "APPROVED", visible: true },
+          providerId: "provider-1",
+          id: { not: SERVICE_ID },
+        },
+      })
+    );
+  });
+
+  it("maps the headline minimum price + priceIsFrom for each related service", async () => {
+    serviceFindManyMock.mockResolvedValue([
+      {
+        id: "rel-1",
+        name: { en: "Rel", ar: "قريب" },
+        provider: { businessName: { en: "Co", ar: "شركة" } },
+        prices: [
+          { id: "a", amount: "30", currency: "OMR", pricingUnit: "PER_PERSON", createdAt: new Date("2026-01-01") },
+          { id: "b", amount: "12", currency: "OMR", pricingUnit: "PER_PERSON", createdAt: new Date("2026-01-02") },
+        ],
+        mediaAssets: [],
+      },
+    ]);
+
+    const [related] = await getRelatedServices(SERVICE_ID, "provider-1");
+
+    expect(related!.price).toBe("12 OMR");
+    expect(related!.priceIsFrom).toBe(true);
   });
 });
 

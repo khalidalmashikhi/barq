@@ -3,6 +3,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { resolveHeadlinePrice } from "./headline-price";
+import { deriveBookability, type Bookability } from "./bookability";
+import { getServiceSlotFacts } from "./bookability-facts";
 import type { Locale } from "@/i18n/locales";
 
 // Services listing query — Engineering Sprint (Services Marketplace).
@@ -110,13 +113,23 @@ export type ServiceListItem = {
   providerId: string;
   providerName: string;
   price: string | null;
+  // Discovery & Detail Truthfulness — `price` is now the deterministic MINIMUM within
+  // the service's primary currency (resolveHeadlinePrice), never an arbitrary ACTIVE
+  // row. `priceIsFrom` is true when more than one ACTIVE price exists in that currency,
+  // so the card can honestly show "From X" (a floor) vs a bare single price.
+  priceIsFrom: boolean;
   // Discovery/display metadata (Core Service Enrichment, Gate 3). Raw governed
   // CODES (or null for legacy/unset rows), never localized. pricingUnit is read
-  // from the SAME ACTIVE Price row as `price` and is display metadata only — it
-  // does not affect totals or booking. Exposed here for a future Gate-4 Explore
-  // filter / card label; no presentation is applied at this layer.
+  // from the SAME ACTIVE Price row as the headline `price` and is display metadata
+  // only — it does not affect totals or booking.
   regionCode: string | null;
   pricingUnit: string | null;
+  // Discovery & Detail Truthfulness — the shared, server-derived bookability state so a
+  // card can honestly signal availability and never disagree with the detail page.
+  // Every listed service is PUBLISHED with a visible provider, so in practice this is
+  // BOOKABLE_NOW / SLOTLESS_BOOKABLE / NO_CURRENT_AVAILABILITY (UNAVAILABLE only when a
+  // published service somehow has no ACTIVE price).
+  bookability: Bookability;
   // Service cover image (Media Foundation, Gap C) — the ONE cover per card,
   // fetched via a bounded relational include (batched by Prisma, never N+1).
   coverUrl: string | null;
@@ -337,7 +350,15 @@ export async function getServices(
       take: pageSize,
       include: {
         provider: true,
-        prices: { where: { status: "ACTIVE" }, take: 1 },
+        // ALL active prices (not an arbitrary take:1) so the headline can be the real
+        // minimum — resolveHeadlinePrice. Deterministically ordered so the primary
+        // currency (earliest) and tie-breaks are stable. Still one batched include for
+        // the whole page (a service has only a handful of active prices).
+        prices: {
+          where: { status: "ACTIVE" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, amount: true, currency: true, pricingUnit: true, createdAt: true },
+        },
         // Only the single COVER needed for the card — never the whole gallery
         // (Rule 8). Prisma batches this include, so it stays one extra query
         // for the whole page, not one per service.
@@ -352,37 +373,62 @@ export async function getServices(
     providerId: string;
     regionCode?: string | null;
     provider: { businessName: unknown };
-    prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
+    prices: Array<{ id: string; amount: unknown; currency: string; pricingUnit?: string | null; createdAt: Date }>;
     mediaAssets: Array<{ url: string }>;
     createdAt: Date;
   };
 
-  let items: ServiceListItem[] = (services as ServiceRow[]).map((service) => ({
-    id: service.id,
-    name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
-    providerId: service.providerId,
-    providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
-    price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
-    // regionCode is a Service scalar; pricingUnit rides the SAME ACTIVE price row
-    // as `price` (prices[0]). Both null-tolerant for legacy/unset data.
-    regionCode: service.regionCode ?? null,
-    pricingUnit: service.prices[0] ? (service.prices[0].pricingUnit ?? null) : null,
-    coverUrl: service.mediaAssets[0]?.url ?? null,
-    createdAt: service.createdAt,
-  }));
+  const rows = services as ServiceRow[];
 
-  // Price sorting done in application code after fetch, since it sorts
-  // on a joined ACTIVE Price row (0 or 1 per service), not a direct
-  // Service column — a real limitation of the current schema shape,
-  // not a shortcut. Acceptable at this page size (paginated, not
-  // sorting the full table); flagged if this ever needs to scale past
-  // that.
+  // Batched, page-scoped bookability facts — TWO bounded queries for the whole page,
+  // never one per service (see getServiceSlotFacts). The card's availability signal and
+  // the detail CTA both flow from deriveBookability, so they cannot disagree.
+  const slotFacts = await getServiceSlotFacts(rows.map((row) => row.id));
+
+  let items: ServiceListItem[] = rows.map((service) => {
+    const headline = resolveHeadlinePrice(
+      service.prices.map((p) => ({ id: p.id, amount: p.amount as Prisma.Decimal, currency: p.currency, pricingUnit: p.pricingUnit ?? null, createdAt: p.createdAt }))
+    );
+    return {
+      id: service.id,
+      name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+      providerId: service.providerId,
+      providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
+      // Deterministic MINIMUM within the primary currency (never an arbitrary prices[0]).
+      price: headline ? `${headline.amount} ${headline.currency}` : null,
+      priceIsFrom: headline?.isFrom ?? false,
+      // regionCode is a Service scalar; pricingUnit rides the SAME headline (min) price row.
+      regionCode: service.regionCode ?? null,
+      pricingUnit: headline?.pricingUnit ?? null,
+      bookability: deriveBookability({
+        hasActivePrice: headline !== null,
+        requiresSlot: slotFacts.requiresSlot.has(service.id),
+        hasBookableSlot: slotFacts.hasBookableSlot.has(service.id),
+      }),
+      coverUrl: service.mediaAssets[0]?.url ?? null,
+      createdAt: service.createdAt,
+    };
+  });
+
+  // Price sorting is applied in application code after fetch, keyed on the deterministic
+  // headline MINIMUM (resolveHeadlinePrice) — this fixes the previous run-to-run
+  // instability where the key was an arbitrary unordered prices[0]. A stable id
+  // tie-break keeps equal prices in a fixed order.
+  //
+  // DOCUMENTED LIMITATION, not fixed here (would need a raw-SQL MIN-price join windowed
+  // ORDER BY, or a denormalized sortable column — a query/schema change deliberately out
+  // of this gate's scope): this sorts only the current page's rows, so it is NOT a
+  // globally-correct ordering across pages. And the numeric key is currency-blind — safe
+  // in this single-currency-per-service marketplace, but it would mis-rank a genuinely
+  // multi-currency service (the same integrity gap resolveHeadlinePrice flags via
+  // `multiCurrency`). Both are reported, not silently papered over.
   if (filters.sort === "price_asc" || filters.sort === "price_desc") {
     const direction = filters.sort === "price_asc" ? 1 : -1;
     items = [...items].sort((a, b) => {
       const priceA = a.price ? parseFloat(a.price) : Number.POSITIVE_INFINITY;
       const priceB = b.price ? parseFloat(b.price) : Number.POSITIVE_INFINITY;
-      return (priceA - priceB) * direction;
+      if (priceA !== priceB) return (priceA - priceB) * direction;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
   }
 

@@ -107,5 +107,14 @@
   "startInstructionsTitle": "Jak to začíná",
   "inclusionsTitle": "Co je zahrnuto",
   "exclusionsTitle": "Není zahrnuto",
-  "requirementsTitle": "Co si vzít"
+  "requirementsTitle": "Co si vzít",
+  "fromPrice": "Od {price}",
+  "availabilityBookable": "Dostupné termíny",
+  "availabilityOpen": "Dostupné",
+  "availabilityNone": "Žádné volné termíny",
+  "availabilityUnavailable": "Nedostupné",
+  "noDatesCtaLabel": "Žádné volné termíny",
+  "noDatesCtaHint": "Brzy mohou být přidány nové termíny.",
+  "unavailableCtaLabel": "Momentálně nedostupné",
+  "unavailableCtaHint": "Tento zážitek nyní nelze rezervovat."
 }

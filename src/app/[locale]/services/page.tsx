@@ -227,6 +227,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
                   title={service.name}
                   providerName={service.providerName}
                   price={priceDisplay}
+                  priceIsFrom={service.priceIsFrom}
+                  availability={service.bookability}
                   location={regionKey ? tCommon(regionKey) : undefined}
                   coverImageUrl={service.coverUrl}
                   imageAspect="premium"

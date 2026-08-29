@@ -8,7 +8,10 @@ function LinkMock() {
   return null;
 }
 vi.mock("@/i18n/navigation", () => ({ Link: LinkMock }));
-vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k }));
+// Echoes the key, and appends the price for ICU calls so "From {price}" threading is visible.
+vi.mock("next-intl", () => ({
+  useTranslations: () => (k: string, p?: Record<string, unknown>) => (p?.price ? `${k}:${p.price}` : k),
+}));
 vi.mock("framer-motion", () => ({
   motion: { article: (props: Record<string, unknown>) => ({ __article: true, props }) },
 }));
@@ -50,5 +53,36 @@ describe("ExperienceCard", () => {
     expect(linkCount).toBe(1); // exactly one navigational element
     expect(linkHref).toBe("/services/svc-1");
     expect(buttonCount).toBe(0); // no favorite button, no nested raw anchor
+  });
+
+  // DISCOVERY & DETAIL TRUTHFULNESS — truthful "From" prefix and a compact availability signal.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function strings(tree: any): string[] {
+    const out: string[] = [];
+    walk(tree, (n) => {
+      const c = n.props?.children;
+      if (typeof c === "string") out.push(c);
+      if (Array.isArray(c)) for (const x of c) if (typeof x === "string") out.push(x);
+    });
+    return out;
+  }
+
+  it("prefixes the price with 'From' ONLY when priceIsFrom is set", () => {
+    const withFrom = strings(ExperienceCard({ serviceId: "s", title: "t", providerName: "p", price: "10 OMR", priceIsFrom: true }));
+    expect(withFrom).toContain("fromPrice:10 OMR");
+
+    const bare = strings(ExperienceCard({ serviceId: "s", title: "t", providerName: "p", price: "10 OMR", priceIsFrom: false }));
+    expect(bare).toContain("10 OMR");
+    expect(bare).not.toContain("fromPrice:10 OMR");
+  });
+
+  it("renders the shared availability label when given a state, and nothing when omitted", () => {
+    const withAvail = strings(ExperienceCard({ serviceId: "s", title: "t", providerName: "p", price: "10 OMR", availability: "BOOKABLE_NOW" }));
+    expect(withAvail).toContain("availabilityBookable");
+
+    const none = strings(ExperienceCard({ serviceId: "s", title: "t", providerName: "p", price: "10 OMR" }));
+    for (const key of ["availabilityBookable", "availabilityOpen", "availabilityNone", "availabilityUnavailable"]) {
+      expect(none).not.toContain(key);
+    }
   });
 });

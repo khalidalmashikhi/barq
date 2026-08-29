@@ -176,6 +176,8 @@ export default async function DashboardPage() {
                   title={service.name}
                   providerName={service.providerName}
                   price={service.price}
+                  priceIsFrom={service.priceIsFrom}
+                  availability={service.bookability}
                 />
               ))}
             </div>
@@ -201,6 +203,8 @@ export default async function DashboardPage() {
                   title={service.name}
                   providerName={service.providerName}
                   price={service.price}
+                  priceIsFrom={service.priceIsFrom}
+                  availability={service.bookability}
                 />
               ))}
             </div>

@@ -191,3 +191,50 @@ describe("ServiceDetailView service-information sections", () => {
     }
   });
 });
+
+// DISCOVERY & DETAIL TRUTHFULNESS — the public CTA must reflect real bookability and
+// never send a customer into a booking dead-end.
+describe("ServiceDetailView booking CTA by bookability (public)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function collectStrings(tree: any): string[] {
+    const out: string[] = [];
+    collect(tree, (n) => {
+      const c = n.props?.children;
+      if (typeof c === "string") out.push(c);
+      if (Array.isArray(c)) for (const x of c) if (typeof x === "string") out.push(x);
+    });
+    return out;
+  }
+
+  it("BOOKABLE_NOW → active Book link, no disabled CTA", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public", bookability: "BOOKABLE_NOW" })) as ReactElement;
+    expect(findBookLink(tree)).toBe(true);
+    expect(findDisabledCta(tree)).toBe(false);
+  });
+
+  it("SLOTLESS_BOOKABLE → active Book link (a request-style booking is still bookable)", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public", bookability: "SLOTLESS_BOOKABLE" })) as ReactElement;
+    expect(findBookLink(tree)).toBe(true);
+  });
+
+  it("NO_CURRENT_AVAILABILITY → NO Book link; honest disabled state with the no-dates reason", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public", bookability: "NO_CURRENT_AVAILABILITY" })) as ReactElement;
+    expect(findBookLink(tree)).toBe(false);
+    expect(findDisabledCta(tree)).toBe(true);
+    const text = collectStrings(tree).join(" | ");
+    expect(text).toContain("noDatesCtaLabel");
+    expect(text).not.toContain("bookNowButton"); // the active label is gone
+  });
+
+  it("UNAVAILABLE → NO Book link; disabled with the unavailable reason", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public", bookability: "UNAVAILABLE" })) as ReactElement;
+    expect(findBookLink(tree)).toBe(false);
+    expect(findDisabledCta(tree)).toBe(true);
+    expect(collectStrings(tree).join(" | ")).toContain("unavailableCtaLabel");
+  });
+
+  it("omitted bookability keeps the prior always-active behaviour (backward-compatible)", async () => {
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public" })) as ReactElement;
+    expect(findBookLink(tree)).toBe(true);
+  });
+});

@@ -107,5 +107,14 @@
   "startInstructionsTitle": "كيف تبدأ الخدمة",
   "inclusionsTitle": "ما يشمله السعر",
   "exclusionsTitle": "غير مشمول",
-  "requirementsTitle": "ما تحتاج إحضاره"
+  "requirementsTitle": "ما تحتاج إحضاره",
+  "fromPrice": "من {price}",
+  "availabilityBookable": "مواعيد متاحة",
+  "availabilityOpen": "متاح",
+  "availabilityNone": "لا توجد مواعيد متاحة",
+  "availabilityUnavailable": "غير متاح",
+  "noDatesCtaLabel": "لا توجد مواعيد متاحة",
+  "noDatesCtaHint": "قد تُضاف مواعيد جديدة قريبًا.",
+  "unavailableCtaLabel": "غير متاح حاليًا",
+  "unavailableCtaHint": "لا يمكن حجز هذه التجربة حاليًا."
 }

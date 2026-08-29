@@ -87,7 +87,7 @@ describe("getHomeDiscovery", () => {
   it("card DTO contains ONLY the allowed public fields (no objectKey/private data)", async () => {
     const d = await getHomeDiscovery({ locale: "en" });
     const card = d.groups[0]!.previewItems[0]!;
-    expect(Object.keys(card).sort()).toEqual(["coverUrl", "id", "name", "price", "regionCode"]);
+    expect(Object.keys(card).sort()).toEqual(["bookability", "coverUrl", "id", "name", "price", "priceIsFrom", "regionCode"]);
     expect((card as Record<string, unknown>).secretObjectKey).toBeUndefined();
     expect((card as Record<string, unknown>).providerId).toBeUndefined();
   });

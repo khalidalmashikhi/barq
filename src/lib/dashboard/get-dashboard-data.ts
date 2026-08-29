@@ -1,10 +1,43 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { assertNotActiveAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { resolveHeadlinePrice } from "@/lib/services/headline-price";
+import { deriveBookability, type Bookability } from "@/lib/services/bookability";
+import { getServiceSlotFacts } from "@/lib/services/bookability-facts";
 import type { Locale } from "@/i18n/locales";
 import { foldBookingStatusCounts, type FoldedBookingStatusCounts } from "./fold-booking-status-counts";
+
+// Deterministic headline (min within primary currency) + shared bookability, batched over
+// a small set of services — the same truthful discovery presentation the storefront uses.
+const ACTIVE_PRICE_INCLUDE = {
+  where: { status: "ACTIVE" as const },
+  orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+  select: { id: true, amount: true, currency: true, pricingUnit: true, createdAt: true },
+};
+
+async function toDashboardServices(services: ServiceWithJoins[], locale: Locale): Promise<DashboardFeaturedService[]> {
+  const slotFacts = await getServiceSlotFacts(services.map((s) => s.id));
+  return services.map((service) => {
+    const headline = resolveHeadlinePrice(
+      service.prices.map((p) => ({ id: p.id, amount: p.amount as Prisma.Decimal, currency: p.currency, pricingUnit: p.pricingUnit ?? null, createdAt: p.createdAt }))
+    );
+    return {
+      id: service.id,
+      name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
+      providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
+      price: headline ? `${headline.amount} ${headline.currency}` : null,
+      priceIsFrom: headline?.isFrom ?? false,
+      bookability: deriveBookability({
+        hasActivePrice: headline !== null,
+        requiresSlot: slotFacts.requiresSlot.has(service.id),
+        hasBookableSlot: slotFacts.hasBookableSlot.has(service.id),
+      }),
+    };
+  });
+}
 
 // Dashboard data fetching — Engineering Sprint (Dashboard Data Wiring).
 //
@@ -43,6 +76,10 @@ export type DashboardFeaturedService = {
   name: string;
   providerName: string;
   price: string | null;
+  /// Deterministic headline min ("From" when a floor) + shared bookability — same
+  /// truthful discovery semantics as the public storefront cards.
+  priceIsFrom: boolean;
+  bookability: Bookability;
 };
 
 export type DashboardData = {
@@ -83,7 +120,7 @@ type ServiceWithJoins = {
   id: string;
   name: unknown;
   provider: { businessName: unknown };
-  prices: Array<{ amount: unknown; currency: string }>;
+  prices: Array<{ id: string; amount: unknown; currency: string; pricingUnit?: string | null; createdAt: Date }>;
 };
 
 export async function getDashboardData(barqUserId: string): Promise<DashboardData> {
@@ -238,41 +275,34 @@ async function getMostBookedServices(locale: Locale): Promise<DashboardFeaturedS
   if (grouped.length === 0) return [];
 
   const services = await prisma.service.findMany({
-    where: { id: { in: grouped.map((g: { serviceId: string }) => g.serviceId) } },
-    include: {
-      provider: true,
-      prices: { where: { status: "ACTIVE" }, take: 1 },
+    // Truthfulness — only PUBLISHED services from APPROVED, visible providers count as a
+    // recommendation. A most-booked service whose provider was later hidden/suspended is
+    // dropped rather than shown as bookable (same gate the storefront applies).
+    where: {
+      id: { in: grouped.map((g: { serviceId: string }) => g.serviceId) },
+      status: "PUBLISHED",
+      provider: { status: "APPROVED", visible: true },
     },
+    include: { provider: true, prices: ACTIVE_PRICE_INCLUDE },
   });
 
   const serviceById = new Map(services.map((s: ServiceWithJoins) => [s.id, s]));
 
-  return grouped
+  const ordered = grouped
     .map((g: { serviceId: string }) => serviceById.get(g.serviceId))
-    .filter((service: ServiceWithJoins | undefined): service is ServiceWithJoins => Boolean(service))
-    .map((service: ServiceWithJoins) => ({
-      id: service.id,
-      name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
-      providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
-      price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
-    }));
+    .filter((service: ServiceWithJoins | undefined): service is ServiceWithJoins => Boolean(service));
+  return toDashboardServices(ordered, locale);
 }
 
 async function getFeaturedServices(locale: Locale): Promise<DashboardFeaturedService[]> {
   const services = await prisma.service.findMany({
-    where: { status: "PUBLISHED" },
+    // Same provider-visibility gate as the public storefront (previously only status was
+    // filtered, so a hidden provider's service could appear as featured).
+    where: { status: "PUBLISHED", provider: { status: "APPROVED", visible: true } },
     take: 6,
     orderBy: { createdAt: "desc" },
-    include: {
-      provider: true,
-      prices: { where: { status: "ACTIVE" }, take: 1 },
-    },
+    include: { provider: true, prices: ACTIVE_PRICE_INCLUDE },
   });
 
-  return services.map((service: ServiceWithJoins) => ({
-    id: service.id,
-    name: extractLocalizedText(service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
-    providerName: extractLocalizedText(service.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
-    price: service.prices[0] ? `${service.prices[0].amount} ${service.prices[0].currency}` : null,
-  }));
+  return toDashboardServices(services as ServiceWithJoins[], locale);
 }
