@@ -1,23 +1,20 @@
-import { Plus, Package, CalendarCheck, Clock, Bell, Wallet } from "lucide-react";
+import { Plus, CalendarCheck, Clock, Eye } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 
-// Quick Actions — Phase F.3 (Provider Dashboard). Real navigation
-// shortcuts only. Phase 4.2 added the "Create Experience" shortcut now
-// that create-service.ts is a real action — this component's own
-// original note explained why it was withheld until then; that
-// reasoning no longer applies now that the action exists.
+// Quick Actions — Provider Home. Real navigation shortcuts only, trimmed to the
+// highest-value daily tasks and biased toward destinations that are NOT already a
+// one-tap sidebar item (create a service, preview the public profile) so the panel
+// earns its place instead of mirroring the nav.
 
 export async function QuickActions() {
   const t = await getServerTranslator("provider");
 
   const actions = [
     { href: "/provider/services/new", label: t("createExperienceButton"), icon: Plus },
-    { href: "/provider/services", label: t("navServices"), icon: Package },
     { href: "/provider/bookings", label: t("navBookings"), icon: CalendarCheck },
-    { href: "/provider/earnings", label: t("navEarnings"), icon: Wallet },
     { href: "/provider/availability", label: t("navAvailability"), icon: Clock },
-    { href: "/provider/notifications", label: t("navNotifications"), icon: Bell },
+    { href: "/provider/preview", label: t("previewProfileButton"), icon: Eye },
   ] as const;
 
   return (

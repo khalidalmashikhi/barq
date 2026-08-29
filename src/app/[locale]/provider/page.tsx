@@ -26,7 +26,6 @@ import { getProviderServiceInsights } from "@/lib/provider/queries/get-provider-
 import { getProviderActivation } from "@/lib/provider/queries/get-provider-activation";
 import { getNotifications } from "@/lib/notifications/get-notifications";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { ProviderRecentActivity } from "@/components/provider/recent-activity";
 import { KpiCard } from "@/components/provider/kpi-card";
 import { BookingPreviewList } from "@/components/provider/booking-preview-list";
@@ -130,11 +129,11 @@ export default async function ProviderOverviewPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 px-8 py-8">
-      <div className="bg-luxury-gradient rounded-3xl px-8 py-10 shadow-premium-lg">
-        <h1 className="text-2xl font-semibold text-white sm:text-3xl">{t("overviewTitle")}</h1>
-        <p className="mt-2 max-w-xl text-sm text-white/75">{t("overviewSubtitle")}</p>
-      </div>
+      {/* Provider Home — operations first. Compact header replaces the former decorative
+          gradient hero; the page reads ACTION -> NEXT -> BUSINESS -> SECONDARY. */}
+      <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">{t("overviewTitle")}</h1>
 
+      {/* ACTION — what needs attention now (each block self-hides when there is nothing). */}
       {data.pendingConfirmationsCount > 0 && (
         <Alert variant="warning">
           {t("pendingConfirmationsAlert", { count: data.pendingConfirmationsCount })}{" "}
@@ -150,18 +149,40 @@ export default async function ProviderOverviewPage() {
 
       <CapacityAlerts items={data.capacityAlerts} availabilityHref="/provider/availability" />
 
-      <NotificationsPanel
-        unreadCount={unreadNotificationsCount}
-        items={recentNotifications}
-        viewAllHref="/provider/notifications"
-        highRatedMilestone={highRatedMilestone}
-      />
+      <QuickActions />
 
+      {/* NEXT — upcoming operations, the highest-value block for a returning provider. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <BookingPreviewList
+          title={t("todayBookingsLabel")}
+          icon={CalendarClock}
+          items={data.todaysBookings}
+          emptyMessage={t("noTodayBookingsLabel")}
+          viewAllHref="/provider/bookings"
+          viewAllLabel={t("viewAllLabel")}
+        />
+        <BookingPreviewList
+          title={t("upcomingBookingsLabel")}
+          icon={CalendarDays}
+          items={data.upcomingBookings}
+          emptyMessage={t("noUpcomingBookingsLabel")}
+          viewAllHref="/provider/bookings"
+          viewAllLabel={t("viewAllLabel")}
+        />
+      </div>
+
+      {/* BUSINESS — one consolidated snapshot band (the former separate KPI and Stat grids
+          folded into a single, demoted metrics section). Every figure is real; rates and
+          revenue render "—" when there is no data, and there are no fabricated trends. */}
       <div>
         <h2 className="mb-3 text-sm font-medium text-foreground/60">{t("kpiSectionTitle")}</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
-          <KpiCard label={t("totalBookingsLabel")} value={String(metrics.totalBookingsCount)} icon={ClipboardList} />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           <KpiCard label={t("activeServicesLabel")} value={String(data.publishedServicesCount)} icon={Package} />
+          <KpiCard label={t("draftServicesLabel")} value={String(data.draftServicesCount)} icon={FileEdit} />
+          <KpiCard label={t("activeBookingsLabel")} value={String(data.activeBookingsCount)} icon={Briefcase} />
+          <KpiCard label={t("openSlotsLabel")} value={String(data.upcomingOpenSlotsCount)} icon={Clock} />
+          <KpiCard label={t("occupancyLabel")} value={formatRate(metrics.occupancyRate)} icon={Gauge} />
+          <KpiCard label={t("totalBookingsLabel")} value={String(metrics.totalBookingsCount)} icon={ClipboardList} />
           <KpiCard
             label={t("completionRateLabel")}
             value={formatRate(metrics.completionRate)}
@@ -185,43 +206,22 @@ export default async function ProviderOverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <StatCard label={t("draftServicesLabel")} value={String(data.draftServicesCount)} icon={FileEdit} />
-        <StatCard label={t("openSlotsLabel")} value={String(data.upcomingOpenSlotsCount)} icon={Clock} />
-        <StatCard label={t("occupancyLabel")} value={formatRate(metrics.occupancyRate)} icon={Gauge} />
-        <StatCard label={t("activeBookingsLabel")} value={String(data.activeBookingsCount)} icon={Briefcase} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <BookingPreviewList
-          title={t("todayBookingsLabel")}
-          icon={CalendarClock}
-          items={data.todaysBookings}
-          emptyMessage={t("noTodayBookingsLabel")}
-          viewAllHref="/provider/bookings"
-          viewAllLabel={t("viewAllLabel")}
-        />
-        <BookingPreviewList
-          title={t("upcomingBookingsLabel")}
-          icon={CalendarDays}
-          items={data.upcomingBookings}
-          emptyMessage={t("noUpcomingBookingsLabel")}
-          viewAllHref="/provider/bookings"
-          viewAllLabel={t("viewAllLabel")}
-        />
-      </div>
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <BookingStatusBreakdown items={metrics.bookingsByStatus} />
         <ServiceInsights needingAttention={serviceInsights.needingAttention} lowActivity={serviceInsights.lowActivity} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <TopServices items={metrics.topServices} />
-        <QuickActions />
-      </div>
+      <TopServices items={metrics.topServices} />
 
+      {/* SECONDARY — reputation, alerts recap, recent history. */}
       <RecentReviews items={reviewsSummary.recentReviews} />
+
+      <NotificationsPanel
+        unreadCount={unreadNotificationsCount}
+        items={recentNotifications}
+        viewAllHref="/provider/notifications"
+        highRatedMilestone={highRatedMilestone}
+      />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ProviderRecentActivity items={data.recentActivity} />
