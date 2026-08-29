@@ -42,7 +42,8 @@
     "PER_BOOKING": "za rezervaci",
     "PER_DAY": "za den",
     "PER_HOUR": "za hodinu",
-    "PER_TRIP": "za výlet"
+    "PER_TRIP": "za výlet",
+    "PER_VEHICLE": "za vozidlo"
   },
   "priceWithUnit": "{price} / {unit}"
 }

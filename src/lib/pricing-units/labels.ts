@@ -16,6 +16,7 @@ export const PRICING_UNIT_LABEL_KEYS = {
   PER_DAY: "pricingUnit.PER_DAY",
   PER_HOUR: "pricingUnit.PER_HOUR",
   PER_TRIP: "pricingUnit.PER_TRIP",
+  PER_VEHICLE: "pricingUnit.PER_VEHICLE",
 } as const satisfies Record<PricingUnit, string>;
 
 export type PricingUnitLabelKey = (typeof PRICING_UNIT_LABEL_KEYS)[PricingUnit];

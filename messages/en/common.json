@@ -42,7 +42,8 @@
     "PER_BOOKING": "per booking",
     "PER_DAY": "per day",
     "PER_HOUR": "per hour",
-    "PER_TRIP": "per trip"
+    "PER_TRIP": "per trip",
+    "PER_VEHICLE": "per vehicle"
   },
   "priceWithUnit": "{price} / {unit}"
 }

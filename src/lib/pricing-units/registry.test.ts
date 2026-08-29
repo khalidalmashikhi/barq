@@ -8,8 +8,8 @@ import { PRICING_UNIT_CODES, isValidPricingUnit, parsePricingUnit } from "./regi
 // none of this affects totals or booking behaviour.
 
 describe("PRICING_UNIT_CODES", () => {
-  it("is exactly the 5 governed pricing units (no speculative additions)", () => {
-    expect([...PRICING_UNIT_CODES]).toEqual(["PER_PERSON", "PER_BOOKING", "PER_DAY", "PER_HOUR", "PER_TRIP"]);
+  it("is exactly the 6 governed pricing units (PER_VEHICLE added by Pricing Foundation)", () => {
+    expect([...PRICING_UNIT_CODES]).toEqual(["PER_PERSON", "PER_BOOKING", "PER_DAY", "PER_HOUR", "PER_TRIP", "PER_VEHICLE"]);
   });
 
   it("has no duplicate codes", () => {
@@ -24,9 +24,12 @@ describe("isValidPricingUnit", () => {
     }
   });
 
+  it("accepts PER_VEHICLE (governed since Pricing Foundation)", () => {
+    expect(isValidPricingUnit("PER_VEHICLE")).toBe(true);
+  });
+
   it("rejects speculative units not yet in the registry", () => {
     expect(isValidPricingUnit("PER_NIGHT")).toBe(false);
-    expect(isValidPricingUnit("PER_VEHICLE")).toBe(false);
     expect(isValidPricingUnit("PER_ITEM")).toBe(false);
     expect(isValidPricingUnit("PER_PACKAGE")).toBe(false);
   });

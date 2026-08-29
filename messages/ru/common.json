@@ -42,7 +42,8 @@
     "PER_BOOKING": "за бронирование",
     "PER_DAY": "за день",
     "PER_HOUR": "за час",
-    "PER_TRIP": "за поездку"
+    "PER_TRIP": "за поездку",
+    "PER_VEHICLE": "за автомобиль"
   },
   "priceWithUnit": "{price} / {unit}"
 }

@@ -42,7 +42,8 @@
     "PER_BOOKING": "للحجز",
     "PER_DAY": "لليوم",
     "PER_HOUR": "للساعة",
-    "PER_TRIP": "للرحلة"
+    "PER_TRIP": "للرحلة",
+    "PER_VEHICLE": "للمركبة"
   },
   "priceWithUnit": "{price} / {unit}"
 }

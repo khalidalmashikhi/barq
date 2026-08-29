@@ -42,7 +42,8 @@
     "PER_BOOKING": "za rezerwację",
     "PER_DAY": "za dzień",
     "PER_HOUR": "za godzinę",
-    "PER_TRIP": "za wycieczkę"
+    "PER_TRIP": "za wycieczkę",
+    "PER_VEHICLE": "za pojazd"
   },
   "priceWithUnit": "{price} / {unit}"
 }

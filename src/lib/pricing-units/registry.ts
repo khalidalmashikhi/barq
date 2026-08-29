@@ -24,6 +24,10 @@ export const PRICING_UNIT_CODES = [
   "PER_DAY",
   "PER_HOUR",
   "PER_TRIP",
+  // Pricing Foundation — the price is per VEHICLE/booking unit; passenger count never
+  // multiplies it (FIXED billability, see ./billability). A registry addition only — no
+  // schema migration (pricingUnit has no DB CHECK/enum, by design).
+  "PER_VEHICLE",
 ] as const;
 
 export type PricingUnit = (typeof PRICING_UNIT_CODES)[number];
