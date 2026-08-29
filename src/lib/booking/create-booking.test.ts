@@ -612,3 +612,34 @@ describe("createBooking — unpriceable units fail closed (no booking, no total 
     expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
   });
 });
+
+// PRICING UNIT DATA INTEGRITY — strict booking-quantity parsing (shared web + API seam).
+describe("createBooking — strict seats parsing (fail closed on invalid explicit input)", () => {
+  function bookable() {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+  }
+
+  it("absent seats defaults to 1 (slotless services never submit it)", async () => {
+    bookable();
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID })); // no seats key
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    expect((bookingCreateMock.mock.calls[0]![0] as { data: { seats: number } }).data.seats).toBe(1);
+  });
+
+  it("accepts a valid explicit quantity", async () => {
+    bookable();
+    await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "5" }));
+    expect((bookingCreateMock.mock.calls[0]![0] as { data: { seats: number } }).data.seats).toBe(5);
+  });
+
+  it.each(["0", "-1", "1.5", "abc", ""])("FAILS CLOSED for explicit invalid seats %j (no booking, never coerced to 1)", async (bad) => {
+    bookable();
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: bad }));
+    expect(r).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+});

@@ -12,6 +12,7 @@ import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-touri
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
+import { isBookablePricingUnit } from "@/lib/pricing-units/billability";
 import { parseServiceInfoFields, serviceInfoCreateData } from "@/lib/services/service-info";
 import { Prisma } from "@prisma/client";
 import type { ServiceActionErrorCode } from "./service-action-errors";
@@ -79,9 +80,13 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   if (regionCode === undefined) {
     return { ok: false, error: "INVALID_INPUT" };
   }
+  // PRICING UNIT DATA INTEGRITY — the created ACTIVE price MUST carry a governed, BOOKABLE
+  // unit. A missing/empty selection, an unknown code, or a reserved duration unit
+  // (PER_DAY/PER_HOUR) is rejected — never defaulted (no silent PER_PERSON). This is the
+  // server authority; the form's dropdown offers only bookable units.
   const pricingUnit = parsePricingUnit(rawPricingUnit);
-  if (pricingUnit === undefined) {
-    return { ok: false, error: "INVALID_INPUT" };
+  if (!isBookablePricingUnit(pricingUnit)) {
+    return { ok: false, error: "PRICING_UNIT_REQUIRED" };
   }
 
   // Service Information Model (booking-decision data) — parsed + validated server-side; all
@@ -170,7 +175,8 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
           serviceId: service.id,
           amount: trimmedAmount,
           currency: "OMR",
-          ...(pricingUnit ? { pricingUnit } : {}),
+          // Guaranteed a governed, bookable code by the guard above (never NULL).
+          pricingUnit,
         },
       });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { PRICING_UNIT_CODES } from "@/lib/pricing-units";
+import { BOOKABLE_PRICING_UNIT_CODES } from "@/lib/pricing-units/billability";
 
 // Core Service Enrichment, Gate 4 — PricingUnitField form control. Mirrors the
 // RegionField test: options submit the stable unit code while displaying a
@@ -32,24 +32,30 @@ function selectOf(tree: unknown): AnyElement {
 }
 
 describe("PricingUnitField", () => {
-  it("renders all 5 unit options plus an empty placeholder, submitting stable codes", async () => {
+  it("renders ONLY the bookable unit options plus an empty placeholder, submitting stable codes", async () => {
     const tree = await PricingUnitField({ defaultValue: null });
     const options = optionsOf(tree);
 
-    expect(options).toHaveLength(PRICING_UNIT_CODES.length + 1);
+    expect(options).toHaveLength(BOOKABLE_PRICING_UNIT_CODES.length + 1);
     expect(options[0]!.props.value).toBe("");
 
     const codeOptions = options.slice(1);
-    expect(codeOptions.map((o) => o.props.value)).toEqual([...PRICING_UNIT_CODES]);
+    // The reserved duration units (PER_DAY/PER_HOUR) are NOT offered for a new active price.
+    expect(codeOptions.map((o) => o.props.value)).toEqual([...BOOKABLE_PRICING_UNIT_CODES]);
+    expect(codeOptions.map((o) => o.props.value)).not.toContain("PER_DAY");
     for (const opt of codeOptions) {
       expect(opt.props.children).toBe(`pricingUnit.${opt.props.value}`);
       expect(opt.props.children).not.toBe(opt.props.value);
     }
   });
 
-  it("preselects the current unit on an edit form", async () => {
-    const tree = await PricingUnitField({ defaultValue: "PER_DAY" });
-    expect(selectOf(tree).props.defaultValue).toBe("PER_DAY");
+  it("is required (with the empty placeholder) so a unit must be explicitly chosen", async () => {
+    expect(selectOf(await PricingUnitField({ defaultValue: null })).props.required).toBe(true);
+  });
+
+  it("preselects the current bookable unit on an edit form", async () => {
+    const tree = await PricingUnitField({ defaultValue: "PER_VEHICLE" });
+    expect(selectOf(tree).props.defaultValue).toBe("PER_VEHICLE");
   });
 
   it("stays unselected for null (a price with no unit)", async () => {

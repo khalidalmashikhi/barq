@@ -15,6 +15,8 @@ export type PriceDetail = {
   serviceName: string;
   amount: string;
   currency: string;
+  /// Raw governed unit CODE or null (legacy) — lets the update form pre-fill the pricing basis.
+  pricingUnit: string | null;
   status: string;
   createdAt: Date;
 } | null;
@@ -43,6 +45,7 @@ export async function getPriceDetail(priceId: string): Promise<PriceDetail> {
     serviceName: extractLocalizedText(price.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     amount: String(price.amount),
     currency: price.currency,
+    pricingUnit: price.pricingUnit ?? null,
     status: price.status,
     createdAt: price.createdAt,
   };

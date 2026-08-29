@@ -46,7 +46,10 @@ const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
 function buildFormData(fields: Record<string, string>): FormData {
   const formData = new FormData();
-  for (const [key, value] of Object.entries(fields)) {
+  // A new ACTIVE price now REQUIRES a governed, bookable pricing unit; default it so
+  // amount-focused tests still create. Unit-contract tests pass it explicitly.
+  const withDefaults = { pricingUnit: "PER_PERSON", ...fields };
+  for (const [key, value] of Object.entries(withDefaults)) {
     formData.set(key, value);
   }
   return formData;
@@ -123,7 +126,7 @@ describe("createPrice", () => {
 
     expect(result).toEqual({ ok: true, priceId: "price-1" });
     expect(priceCreateMock).toHaveBeenCalledWith({
-      data: { serviceId: SERVICE_ID, amount: "25.50", currency: "OMR" },
+      data: { serviceId: SERVICE_ID, amount: "25.50", currency: "OMR", pricingUnit: "PER_PERSON" },
     });
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -132,8 +135,24 @@ describe("createPrice", () => {
         action: "price.created",
         entityType: "Price",
         entityId: "price-1",
-        newValue: expect.objectContaining({ status: "ACTIVE" }),
+        newValue: expect.objectContaining({ status: "ACTIVE", pricingUnit: "PER_PERSON" }),
       }),
     });
+  });
+
+  // PRICING UNIT DATA INTEGRITY — a new admin price must carry a governed, bookable unit.
+  it.each([
+    ["absent/empty", ""],
+    ["unknown", "PER_LIGHT_YEAR"],
+    ["reserved duration (PER_DAY)", "PER_DAY"],
+    ["reserved duration (PER_HOUR)", "PER_HOUR"],
+  ])("rejects a %s pricing unit with PRICING_UNIT_REQUIRED, creating nothing", async (_label, unit) => {
+    serviceFindUniqueMock.mockResolvedValue({ id: SERVICE_ID });
+    priceFindFirstMock.mockResolvedValue(null);
+
+    const result = await createPrice(buildFormData({ serviceId: SERVICE_ID, amount: "10", pricingUnit: unit }));
+
+    expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
+    expect(priceCreateMock).not.toHaveBeenCalled();
   });
 });

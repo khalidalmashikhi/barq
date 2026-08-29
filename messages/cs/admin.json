@@ -695,5 +695,6 @@
   "vehicleFourByFourConfirmButton": "Potvrdit 4x4",
   "vehicleFourByFourDenyButton": "Označit jako ne 4x4",
   "vehicleFourByFourReviewHint": "Nastavte důvěryhodnou schopnost 4x4 na základě skutečných důkazů. Nikdy ji neodvozujte ze značky/modelu ani z označení SUV.",
-  "serviceErrorTourVehiclePoolRequired": "Než tento výlet zveřejníte, přidejte alespoň jedno vhodné vozidlo."
+  "serviceErrorTourVehiclePoolRequired": "Než tento výlet zveřejníte, přidejte alespoň jedno vhodné vozidlo.",
+  "priceErrorPricingUnitRequired": "Je vyžadována účtovatelná cenová jednotka (za osobu, za rezervaci, za výlet nebo za vozidlo)."
 }

@@ -695,5 +695,6 @@
   "vehicleFourByFourConfirmButton": "Potwierdź 4x4",
   "vehicleFourByFourDenyButton": "Oznacz jako nie 4x4",
   "vehicleFourByFourReviewHint": "Ustaw zaufaną zdolność 4x4 na podstawie rzeczywistych dowodów. Nigdy nie wnioskuj z marki/modelu ani etykiety SUV.",
-  "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz."
+  "serviceErrorTourVehiclePoolRequired": "Dodaj co najmniej jeden odpowiedni pojazd do tej wycieczki, zanim ją opublikujesz.",
+  "priceErrorPricingUnitRequired": "Wymagana jest jednostka cenowa umożliwiająca rezerwację (za osobę, za rezerwację, za wycieczkę lub za pojazd)."
 }

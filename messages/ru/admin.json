@@ -695,5 +695,6 @@
   "vehicleFourByFourConfirmButton": "Подтвердить 4x4",
   "vehicleFourByFourDenyButton": "Отметить как не 4x4",
   "vehicleFourByFourReviewHint": "Установите доверенную возможность 4x4 на основе реальных доказательств. Никогда не выводите её из марки/модели или ярлыка SUV.",
-  "serviceErrorTourVehiclePoolRequired": "Добавьте хотя бы одну подходящую машину к этому туру, прежде чем публиковать его."
+  "serviceErrorTourVehiclePoolRequired": "Добавьте хотя бы одну подходящую машину к этому туру, прежде чем публиковать его.",
+  "priceErrorPricingUnitRequired": "Требуется тарифная единица, доступная для бронирования (за человека, за бронирование, за поездку или за автомобиль)."
 }

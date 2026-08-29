@@ -695,5 +695,6 @@
   "vehicleFourByFourConfirmButton": "4x4 bestätigen",
   "vehicleFourByFourDenyButton": "Als kein 4x4 markieren",
   "vehicleFourByFourReviewHint": "Legen Sie die vertrauenswürdige 4x4-Fähigkeit anhand echter Nachweise fest. Niemals aus Marke/Modell oder dem SUV-Label ableiten.",
-  "serviceErrorTourVehiclePoolRequired": "Fügen Sie mindestens ein geeignetes Fahrzeug zu dieser Tour hinzu, bevor Sie sie veröffentlichen."
+  "serviceErrorTourVehiclePoolRequired": "Fügen Sie mindestens ein geeignetes Fahrzeug zu dieser Tour hinzu, bevor Sie sie veröffentlichen.",
+  "priceErrorPricingUnitRequired": "Eine buchbare Preiseinheit ist erforderlich (pro Person, pro Buchung, pro Ausflug oder pro Fahrzeug)."
 }

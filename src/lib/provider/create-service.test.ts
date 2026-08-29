@@ -64,7 +64,11 @@ const { ForbiddenError } = await import("@/lib/auth");
 
 function buildFormData(fields: Record<string, string>): FormData {
   const formData = new FormData();
-  for (const [key, value] of Object.entries(fields)) {
+  // A new ACTIVE price now REQUIRES a governed, bookable pricing unit (PRICING UNIT DATA
+  // INTEGRITY). Default it here so tests that don't care about pricing still create; tests
+  // that exercise the unit contract pass it explicitly (including "" to assert rejection).
+  const withDefaults = { pricingUnit: "PER_PERSON", ...fields };
+  for (const [key, value] of Object.entries(withDefaults)) {
     formData.set(key, value);
   }
   return formData;
@@ -229,7 +233,7 @@ describe("createService", () => {
       },
     });
     expect(priceCreateMock).toHaveBeenCalledWith({
-      data: { serviceId: "service-1", amount: "10.50", currency: "OMR" },
+      data: { serviceId: "service-1", amount: "10.50", currency: "OMR", pricingUnit: "PER_PERSON" },
     });
   });
 
@@ -377,17 +381,43 @@ describe("createService", () => {
       });
     });
 
-    it("omits regionCode/pricingUnit entirely when they are empty (unset, not stored)", async () => {
+    it("omits regionCode when empty, but still requires (and stores) a bookable pricingUnit", async () => {
       requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
       serviceCreateMock.mockResolvedValue({ id: "service-1" });
       priceCreateMock.mockResolvedValue({});
 
       await createService(
-        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", regionCode: "", pricingUnit: "" })
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", regionCode: "", pricingUnit: "PER_VEHICLE" })
       );
 
       expect(serviceCreateMock.mock.calls[0]![0].data).not.toHaveProperty("regionCode");
-      expect(priceCreateMock.mock.calls[0]![0].data).not.toHaveProperty("pricingUnit");
+      expect(priceCreateMock.mock.calls[0]![0].data.pricingUnit).toBe("PER_VEHICLE");
+    });
+
+    it("rejects an empty pricingUnit — a new ACTIVE price must carry a bookable unit (never defaulted)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+
+      const result = await createService(
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", pricingUnit: "" })
+      );
+
+      expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
+      expect(serviceCreateMock).not.toHaveBeenCalled();
+      expect(priceCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects a reserved duration unit (PER_DAY/PER_HOUR) — not billable yet", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+
+      for (const unit of ["PER_DAY", "PER_HOUR"]) {
+        serviceCreateMock.mockClear();
+        priceCreateMock.mockClear();
+        const result = await createService(
+          buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", pricingUnit: unit })
+        );
+        expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
+        expect(serviceCreateMock).not.toHaveBeenCalled();
+      }
     });
 
     it("rejects an invalid regionCode with INVALID_INPUT before any write", async () => {
@@ -402,31 +432,31 @@ describe("createService", () => {
       expect(priceCreateMock).not.toHaveBeenCalled();
     });
 
-    it("rejects an invalid pricingUnit with INVALID_INPUT before any write", async () => {
+    it("rejects an unknown pricingUnit with PRICING_UNIT_REQUIRED before any write", async () => {
       requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
 
       const result = await createService(
         buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", pricingUnit: "PER_NIGHT" })
       );
 
-      expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
       expect(serviceCreateMock).not.toHaveBeenCalled();
       expect(priceCreateMock).not.toHaveBeenCalled();
     });
 
-    it("leaves amount/currency exactly as-is when a pricingUnit is supplied (unit is metadata, not price)", async () => {
+    it("leaves amount/currency exactly as-is when a bookable pricingUnit is supplied (unit is metadata, not price)", async () => {
       requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
       serviceCreateMock.mockResolvedValue({ id: "service-1" });
       priceCreateMock.mockResolvedValue({});
 
       await createService(
-        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "25", pricingUnit: "PER_DAY" })
+        buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "25", pricingUnit: "PER_VEHICLE" })
       );
 
       const priceData = priceCreateMock.mock.calls[0]![0].data;
       expect(priceData.amount).toBe("25");
       expect(priceData.currency).toBe("OMR");
-      expect(priceData.pricingUnit).toBe("PER_DAY");
+      expect(priceData.pricingUnit).toBe("PER_VEHICLE");
     });
   });
 });

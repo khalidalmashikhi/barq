@@ -571,5 +571,6 @@
   "requirementsLabel": "Ce que les clients doivent apporter ou savoir",
   "requirementsHint": "Un par ligne, p. ex. apporter une pièce d'identité, arriver 15 minutes avant.",
   "arabicSublabel": "Arabe",
-  "englishSublabel": "Anglais"
+  "englishSublabel": "Anglais",
+  "serviceErrorPricingUnitRequired": "Veuillez choisir la base de tarification (par exemple, par personne)."
 }

@@ -571,5 +571,6 @@
   "requirementsLabel": "Cosa i clienti devono portare o sapere",
   "requirementsHint": "Uno per riga, es. porta un documento, arriva 15 minuti prima.",
   "arabicSublabel": "Arabo",
-  "englishSublabel": "Inglese"
+  "englishSublabel": "Inglese",
+  "serviceErrorPricingUnitRequired": "Scegli come viene applicato questo prezzo (ad es. a persona)."
 }

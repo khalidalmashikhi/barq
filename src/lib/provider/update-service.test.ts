@@ -471,15 +471,34 @@ describe("updateService", () => {
       expect(priceUpdateManyMock).not.toHaveBeenCalled();
     });
 
-    it("rejects an invalid pricingUnit with INVALID_INPUT and mutates nothing", async () => {
+    it("rejects an unknown pricingUnit with PRICING_UNIT_REQUIRED and mutates nothing", async () => {
       requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
       findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
 
       const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour", pricingUnit: "PER_NIGHT" }));
 
-      expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+      expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
       expect(updateMock).not.toHaveBeenCalled();
       expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects clearing the pricingUnit to empty (a new/edited ACTIVE price must keep a bookable unit)", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour", pricingUnit: "" }));
+
+      expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
+      expect(priceUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects a reserved duration unit (PER_DAY) on edit", async () => {
+      requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+      findUniqueMock.mockResolvedValue({ id: SERVICE_ID, providerId: "provider-1", categoryId: "c", serviceType: "EXPERIENCE" });
+
+      const result = await updateService(SERVICE_ID, buildFormData({ nameAr: "جولة", nameEn: "Tour", pricingUnit: "PER_DAY" }));
+
+      expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
     });
   });
 });

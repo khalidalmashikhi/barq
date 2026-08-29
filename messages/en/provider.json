@@ -571,5 +571,6 @@
   "requirementsLabel": "What customers should bring or know",
   "requirementsHint": "One per line, e.g. bring ID, arrive 15 minutes early.",
   "arabicSublabel": "Arabic",
-  "englishSublabel": "English"
+  "englishSublabel": "English",
+  "serviceErrorPricingUnitRequired": "Please choose how this price is charged (e.g. per person)."
 }

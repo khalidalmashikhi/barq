@@ -84,7 +84,10 @@ const SERVICE_ID = "019f8ee1-d869-78d3-9a56-f86a70006365";
 
 function buildFormData(fields: Record<string, string>): FormData {
   const formData = new FormData();
-  for (const [key, value] of Object.entries(fields)) {
+  // A new/superseding ACTIVE price now requires a governed, bookable unit; default it so this
+  // create→update→deactivate integration flow exercises the lifecycle, not the unit contract.
+  const withDefaults = { pricingUnit: "PER_PERSON", ...fields };
+  for (const [key, value] of Object.entries(withDefaults)) {
     formData.set(key, value);
   }
   return formData;

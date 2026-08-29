@@ -6,6 +6,8 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { parsePricingUnit } from "@/lib/pricing-units";
+import { isBookablePricingUnit } from "@/lib/pricing-units/billability";
 import type { PriceAdminActionErrorCode } from "./price-admin-errors";
 
 // Update Price (admin-initiated) — Phase 2.5 (Pricing Foundation). The
@@ -64,6 +66,20 @@ export async function updatePrice(serviceId: string, formData: FormData): Promis
       return { ok: false, error: "NO_ACTIVE_PRICE" };
     }
 
+    // PRICING UNIT DATA INTEGRITY — the NEW ACTIVE (superseding) price must carry a governed,
+    // BOOKABLE unit. An explicitly-submitted unit wins (this is also how an admin FIXES a
+    // legacy NULL-unit price — supersede it with a real unit); otherwise the current active's
+    // unit is carried over. An unknown submitted code, or a resulting NULL / duration unit, is
+    // rejected — the superseding price is never created unbookable (previously it dropped to NULL).
+    const submittedUnit = parsePricingUnit(formData.get("pricingUnit"));
+    if (submittedUnit === undefined) {
+      return { ok: false, error: "PRICING_UNIT_REQUIRED" };
+    }
+    const resolvedUnit = submittedUnit ?? currentActive.pricingUnit;
+    if (!isBookablePricingUnit(resolvedUnit)) {
+      return { ok: false, error: "PRICING_UNIT_REQUIRED" };
+    }
+
     const newPriceId = await prisma.$transaction(async (tx) => {
       await tx.price.update({ where: { id: currentActive.id }, data: { status: "SUPERSEDED" } });
 
@@ -72,6 +88,7 @@ export async function updatePrice(serviceId: string, formData: FormData): Promis
           serviceId,
           amount: trimmedAmount,
           currency: currentActive.currency,
+          pricingUnit: resolvedUnit,
         },
       });
 
@@ -83,7 +100,7 @@ export async function updatePrice(serviceId: string, formData: FormData): Promis
           entityType: "Price",
           entityId: newPrice.id,
           previousValue: { supersededPriceId: currentActive.id, amount: String(currentActive.amount) },
-          newValue: { serviceId, amount: trimmedAmount, currency: currentActive.currency, status: "ACTIVE" },
+          newValue: { serviceId, amount: trimmedAmount, currency: currentActive.currency, pricingUnit: resolvedUnit, status: "ACTIVE" },
         },
         tx
       );

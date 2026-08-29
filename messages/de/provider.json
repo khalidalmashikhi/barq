@@ -571,5 +571,6 @@
   "requirementsLabel": "Was Kunden mitbringen oder wissen sollten",
   "requirementsHint": "Eines pro Zeile, z. B. Ausweis mitbringen, 15 Minuten früher kommen.",
   "arabicSublabel": "Arabisch",
-  "englishSublabel": "Englisch"
+  "englishSublabel": "Englisch",
+  "serviceErrorPricingUnitRequired": "Bitte wählen Sie, wie dieser Preis berechnet wird (z. B. pro Person)."
 }

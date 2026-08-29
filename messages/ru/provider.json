@@ -571,5 +571,6 @@
   "requirementsLabel": "Что клиентам взять или знать",
   "requirementsHint": "По одному в строке, напр.: взять удостоверение, прийти за 15 минут.",
   "arabicSublabel": "Арабский",
-  "englishSublabel": "Английский"
+  "englishSublabel": "Английский",
+  "serviceErrorPricingUnitRequired": "Выберите, как рассчитывается цена (например, за человека)."
 }

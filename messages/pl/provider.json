@@ -571,5 +571,6 @@
   "requirementsLabel": "Co klienci powinni zabrać lub wiedzieć",
   "requirementsHint": "Jeden w wierszu, np. weź dowód, przyjdź 15 minut wcześniej.",
   "arabicSublabel": "Arabski",
-  "englishSublabel": "Angielski"
+  "englishSublabel": "Angielski",
+  "serviceErrorPricingUnitRequired": "Wybierz sposób naliczania ceny (np. za osobę)."
 }

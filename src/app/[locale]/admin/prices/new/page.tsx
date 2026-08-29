@@ -6,6 +6,7 @@ import { isPriceAdminActionErrorCode, getPriceAdminErrorTranslationKey } from "@
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 
@@ -78,6 +79,10 @@ export default async function NewPricePage({ searchParams }: Props) {
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </label>
+
+          {/* PRICING UNIT DATA INTEGRITY — a governed, bookable unit is required for a new
+              ACTIVE price (createPrice re-validates server-side). */}
+          <PricingUnitField />
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("createPriceSubmitButton")}

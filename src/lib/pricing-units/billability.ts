@@ -1,4 +1,4 @@
-import { isValidPricingUnit, type PricingUnit } from "./registry";
+import { PRICING_UNIT_CODES, isValidPricingUnit, type PricingUnit } from "./registry";
 
 // PRICING FOUNDATION — how a pricing unit's price relates to the booking quantity.
 // PURE and isomorphic (no server-only). This is the ONLY place that decides whether a
@@ -31,3 +31,22 @@ const BILLABILITY: Record<PricingUnit, Billability> = {
 export function classifyBillability(pricingUnit: string | null | undefined): Billability | null {
   return pricingUnit && isValidPricingUnit(pricingUnit) ? BILLABILITY[pricingUnit] : null;
 }
+
+/**
+ * Whether a unit may be assigned to a NEW / newly-ACTIVE Price — i.e. a governed unit BARQ
+ * can actually price a booking with (QUANTITY_BASED or FIXED). FAIL-CLOSED: NULL, empty,
+ * unknown, and the reserved-but-unbillable duration units (PER_DAY/PER_HOUR) all return
+ * false. This is the single authority every price-write path validates against so a new
+ * active price can never be created unbookable. (Legacy rows keep their NULL — read-only.)
+ */
+export function isBookablePricingUnit(unit: string | null | undefined): unit is PricingUnit {
+  const billability = classifyBillability(unit);
+  return billability === "QUANTITY_BASED" || billability === "FIXED";
+}
+
+/** The governed units that a new active price may use (QUANTITY_BASED + FIXED), in registry
+ *  order — the authoring dropdown offers exactly these, so the reserved duration units are
+ *  never selectable for a bookable offering. */
+export const BOOKABLE_PRICING_UNIT_CODES: readonly PricingUnit[] = PRICING_UNIT_CODES.filter((code) =>
+  isBookablePricingUnit(code)
+);

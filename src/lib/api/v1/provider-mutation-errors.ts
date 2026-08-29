@@ -32,6 +32,9 @@ const SERVICE_CODE_MAP: Record<ServiceActionErrorCode, ApiErrorCode> = {
   // Both publish blockers (BR-026 category + active price) surface as a single
   // "not publishable yet"; the specific blockers ride along in details.blockers.
   NO_ACTIVE_PRICE: "SERVICE_NOT_PUBLISHABLE",
+  // PRICING UNIT DATA INTEGRITY — a create/edit input-validation failure (no governed,
+  // bookable pricing unit chosen) → a generic invalid-input outcome on the wire.
+  PRICING_UNIT_REQUIRED: "INVALID_INPUT",
   SERVICE_CATEGORY_REQUIRED: "SERVICE_NOT_PUBLISHABLE",
   INVALID_CATEGORY: "INVALID_CATEGORY",
   // Gate B5 — provider not authorized for the (otherwise valid) category → 403.

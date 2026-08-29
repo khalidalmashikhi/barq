@@ -16,6 +16,11 @@ export type ServiceActionErrorCode =
   | "PROVIDER_NOT_APPROVED"
   | "SERVICE_NOT_FOUND"
   | "NO_ACTIVE_PRICE"
+  // PRICING UNIT DATA INTEGRITY — a new/edited ACTIVE price must carry a governed, BOOKABLE
+  // pricing unit (PER_PERSON / PER_BOOKING / PER_TRIP / PER_VEHICLE). Raised when none was
+  // chosen, or a reserved-but-unbillable duration unit (PER_DAY/PER_HOUR) or an unknown code
+  // was submitted. No default is guessed — the provider must make the pricing-basis decision.
+  | "PRICING_UNIT_REQUIRED"
   // Task B (Service→Category): the submitted categoryId is not an assignable
   // (effectively-PUBLIC, serviceType-matching) category.
   | "INVALID_CATEGORY"
@@ -50,6 +55,7 @@ const SERVICE_ACTION_ERROR_CODES: readonly ServiceActionErrorCode[] = [
   "PROVIDER_NOT_APPROVED",
   "SERVICE_NOT_FOUND",
   "NO_ACTIVE_PRICE",
+  "PRICING_UNIT_REQUIRED",
   "INVALID_CATEGORY",
   "SERVICE_CATEGORY_REQUIRED",
   "ACTIVITY_NOT_AUTHORIZED",
@@ -74,6 +80,7 @@ const SERVICE_ERROR_TRANSLATION_KEYS = {
   PROVIDER_NOT_APPROVED: "serviceErrorProviderNotApproved",
   SERVICE_NOT_FOUND: "serviceErrorNotFound",
   NO_ACTIVE_PRICE: "serviceErrorNoActivePrice",
+  PRICING_UNIT_REQUIRED: "serviceErrorPricingUnitRequired",
   INVALID_CATEGORY: "serviceErrorInvalidCategory",
   SERVICE_CATEGORY_REQUIRED: "serviceErrorCategoryRequired",
   ACTIVITY_NOT_AUTHORIZED: "serviceErrorActivityNotAuthorized",

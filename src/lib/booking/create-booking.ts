@@ -12,6 +12,7 @@ import { checkRateLimit } from "@/lib/rate-limit/rate-limiter";
 import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { getBookingCreateRateLimit } from "@/lib/rate-limit/rate-limit-config";
 import { calculateBookingTotal } from "@/lib/booking/pricing/calculate-booking-total";
+import { parseBookingQuantity } from "@/lib/booking/parse-booking-quantity";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
 // Create booking — Engineering Sprint (Availability Engine).
@@ -81,11 +82,16 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  // seats defaults to 1 if not provided (matches the schema default),
-  // but is always re-validated as a positive integer regardless of
-  // what the client sent.
-  const seatsParsed = typeof seatsRaw === "string" ? parseInt(seatsRaw, 10) : 1;
-  const seats = Number.isInteger(seatsParsed) && seatsParsed > 0 ? seatsParsed : 1;
+  // Booking quantity — MISSING (no seats key) defaults to 1 (the existing contract: slotless
+  // services never submit it); an explicitly-supplied invalid value (empty, 0, negative,
+  // fractional, non-numeric, unsafe-large) FAILS CLOSED rather than being coerced to 1. Same
+  // strict parser for web and API v1 (both go through this seam). Service-specific
+  // min/maxBookingSeats bounds are still enforced below.
+  const quantity = parseBookingQuantity(seatsRaw);
+  if (!quantity.ok) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+  const seats = quantity.value;
 
   let customer;
   try {

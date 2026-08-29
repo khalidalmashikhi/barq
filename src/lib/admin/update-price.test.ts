@@ -96,9 +96,10 @@ describe("updatePrice", () => {
     expect(priceUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("supersedes the current price, creates a new one, and records an audit event", async () => {
+  it("supersedes the current price, CARRIES OVER its bookable unit, and records an audit event", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
-    priceFindFirstMock.mockResolvedValue({ id: "old-price", amount: "20.00", currency: "OMR" });
+    // The current ACTIVE price has a bookable unit — with no submitted unit it is carried over.
+    priceFindFirstMock.mockResolvedValue({ id: "old-price", amount: "20.00", currency: "OMR", pricingUnit: "PER_PERSON" });
     priceUpdateMock.mockResolvedValue({});
     priceCreateMock.mockResolvedValue({ id: "new-price" });
     auditCreateMock.mockResolvedValue({});
@@ -108,7 +109,7 @@ describe("updatePrice", () => {
     expect(result).toEqual({ ok: true, priceId: "new-price" });
     expect(priceUpdateMock).toHaveBeenCalledWith({ where: { id: "old-price" }, data: { status: "SUPERSEDED" } });
     expect(priceCreateMock).toHaveBeenCalledWith({
-      data: { serviceId: SERVICE_ID, amount: "30", currency: "OMR" },
+      data: { serviceId: SERVICE_ID, amount: "30", currency: "OMR", pricingUnit: "PER_PERSON" },
     });
     expect(auditCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -120,5 +121,41 @@ describe("updatePrice", () => {
         previousValue: expect.objectContaining({ supersededPriceId: "old-price" }),
       }),
     });
+  });
+
+  it("an explicitly-submitted bookable unit OVERRIDES the carried-over one (fixes a legacy NULL unit)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    // A legacy NULL-unit active price — the admin repairs it by choosing a unit on supersede.
+    priceFindFirstMock.mockResolvedValue({ id: "old-price", amount: "1.00", currency: "OMR", pricingUnit: null });
+    priceUpdateMock.mockResolvedValue({});
+    priceCreateMock.mockResolvedValue({ id: "new-price" });
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await updatePrice(SERVICE_ID, buildFormData({ amount: "1", pricingUnit: "PER_VEHICLE" }));
+
+    expect(result).toEqual({ ok: true, priceId: "new-price" });
+    expect(priceCreateMock).toHaveBeenCalledWith({
+      data: { serviceId: SERVICE_ID, amount: "1", currency: "OMR", pricingUnit: "PER_VEHICLE" },
+    });
+  });
+
+  it("rejects superseding a legacy NULL-unit price when no bookable unit is supplied", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    priceFindFirstMock.mockResolvedValue({ id: "old-price", amount: "1.00", currency: "OMR", pricingUnit: null });
+
+    const result = await updatePrice(SERVICE_ID, buildFormData({ amount: "2" }));
+
+    expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
+    expect(priceCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a submitted duration unit (PER_DAY) on supersede", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    priceFindFirstMock.mockResolvedValue({ id: "old-price", amount: "20.00", currency: "OMR", pricingUnit: "PER_PERSON" });
+
+    const result = await updatePrice(SERVICE_ID, buildFormData({ amount: "30", pricingUnit: "PER_DAY" }));
+
+    expect(result).toEqual({ ok: false, error: "PRICING_UNIT_REQUIRED" });
+    expect(priceCreateMock).not.toHaveBeenCalled();
   });
 });

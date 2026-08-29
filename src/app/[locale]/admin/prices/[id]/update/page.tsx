@@ -10,6 +10,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 
@@ -114,6 +115,11 @@ export default async function UpdatePricePage({ params, searchParams }: Props) {
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </label>
+
+          {/* PRICING UNIT DATA INTEGRITY — the superseding ACTIVE price must carry a governed,
+              bookable unit. Pre-filled with the current unit; a legacy NULL-unit price is
+              corrected by choosing one here (updatePrice re-validates server-side). */}
+          <PricingUnitField defaultValue={price.pricingUnit} />
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("updatePriceSubmitButton")}

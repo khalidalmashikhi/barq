@@ -14,6 +14,7 @@ import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-touri
 import { isSmartTourGuideEligible } from "@/lib/tour-template/eligibility";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
+import { isBookablePricingUnit } from "@/lib/pricing-units/billability";
 import { parseServiceInfoFields, serviceInfoUpdateData } from "@/lib/services/service-info";
 import { Prisma } from "@prisma/client";
 import type { ServiceActionErrorCode } from "./service-action-errors";
@@ -79,11 +80,16 @@ export async function updateService(serviceId: string, formData: FormData): Prom
     regionCodeChange = { regionCode: parsedRegion };
   }
 
-  let pricingUnitChange: { pricingUnit: string | null } | undefined;
+  // PRICING UNIT DATA INTEGRITY — when the edit submits a pricing unit, the resulting ACTIVE
+  // price must carry a governed, BOOKABLE unit. Clearing it to NULL, or choosing a reserved
+  // duration unit (PER_DAY/PER_HOUR) or an unknown code, is rejected (never defaulted). The
+  // edit form pre-fills the current unit and offers only bookable options; a legacy NULL-unit
+  // service is nudged to choose one here. (An absent key leaves the unit unchanged.)
+  let pricingUnitChange: { pricingUnit: string } | undefined;
   if (rawPricingUnit !== null) {
     const parsedUnit = parsePricingUnit(rawPricingUnit);
-    if (parsedUnit === undefined) {
-      return { ok: false, error: "INVALID_INPUT" };
+    if (!isBookablePricingUnit(parsedUnit)) {
+      return { ok: false, error: "PRICING_UNIT_REQUIRED" };
     }
     pricingUnitChange = { pricingUnit: parsedUnit };
   }

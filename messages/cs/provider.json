@@ -571,5 +571,6 @@
   "requirementsLabel": "Co si zákazníci mají vzít nebo vědět",
   "requirementsHint": "Jeden na řádek, např. vezměte doklad, přijďte o 15 minut dříve.",
   "arabicSublabel": "Arabština",
-  "englishSublabel": "Angličtina"
+  "englishSublabel": "Angličtina",
+  "serviceErrorPricingUnitRequired": "Zvolte prosím, jak se cena účtuje (např. za osobu)."
 }

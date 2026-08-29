@@ -6,6 +6,8 @@ import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
+import { parsePricingUnit } from "@/lib/pricing-units";
+import { isBookablePricingUnit } from "@/lib/pricing-units/billability";
 import type { PriceAdminActionErrorCode } from "./price-admin-errors";
 
 // Create Price (admin-initiated) — Phase 2.5 (Pricing Foundation).
@@ -47,6 +49,13 @@ export async function createPrice(formData: FormData): Promise<CreatePriceResult
     return { ok: false, error: "INVALID_INPUT" };
   }
 
+  // PRICING UNIT DATA INTEGRITY — a new ACTIVE price must carry a governed, BOOKABLE unit.
+  // (Previously admin prices were created with NULL pricingUnit, which is now unbookable.)
+  const pricingUnit = parsePricingUnit(formData.get("pricingUnit"));
+  if (!isBookablePricingUnit(pricingUnit)) {
+    return { ok: false, error: "PRICING_UNIT_REQUIRED" };
+  }
+
   let admin;
   try {
     const auth = await requireAdmin();
@@ -78,6 +87,7 @@ export async function createPrice(formData: FormData): Promise<CreatePriceResult
           serviceId,
           amount: trimmedAmount,
           currency: "OMR",
+          pricingUnit,
         },
       });
 
@@ -88,7 +98,7 @@ export async function createPrice(formData: FormData): Promise<CreatePriceResult
           action: "price.created",
           entityType: "Price",
           entityId: price.id,
-          newValue: { serviceId, amount: trimmedAmount, currency: "OMR", status: "ACTIVE" },
+          newValue: { serviceId, amount: trimmedAmount, currency: "OMR", pricingUnit, status: "ACTIVE" },
         },
         tx
       );

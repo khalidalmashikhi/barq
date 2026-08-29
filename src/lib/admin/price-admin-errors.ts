@@ -12,6 +12,10 @@ export type PriceAdminActionErrorCode =
   | "PRICE_NOT_FOUND"
   | "PRICE_ALREADY_ACTIVE"
   | "NO_ACTIVE_PRICE"
+  // PRICING UNIT DATA INTEGRITY — a new/superseding ACTIVE price must carry a governed,
+  // BOOKABLE unit (PER_PERSON / PER_BOOKING / PER_TRIP / PER_VEHICLE). Raised when none was
+  // chosen, or a reserved duration unit (PER_DAY/PER_HOUR) or unknown code was submitted.
+  | "PRICING_UNIT_REQUIRED"
   | "UNKNOWN_ERROR";
 
 const PRICE_ADMIN_ACTION_ERROR_CODES: readonly PriceAdminActionErrorCode[] = [
@@ -21,6 +25,7 @@ const PRICE_ADMIN_ACTION_ERROR_CODES: readonly PriceAdminActionErrorCode[] = [
   "PRICE_NOT_FOUND",
   "PRICE_ALREADY_ACTIVE",
   "NO_ACTIVE_PRICE",
+  "PRICING_UNIT_REQUIRED",
   "UNKNOWN_ERROR",
 ];
 
@@ -38,6 +43,7 @@ const PRICE_ADMIN_ERROR_TRANSLATION_KEYS = {
   PRICE_NOT_FOUND: "priceErrorNotFound",
   PRICE_ALREADY_ACTIVE: "priceErrorAlreadyActive",
   NO_ACTIVE_PRICE: "priceErrorNoActivePrice",
+  PRICING_UNIT_REQUIRED: "priceErrorPricingUnitRequired",
   UNKNOWN_ERROR: "priceErrorUnknown",
 } as const satisfies Record<PriceAdminActionErrorCode, string>;
 

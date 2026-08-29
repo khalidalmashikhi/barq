@@ -571,5 +571,6 @@
   "requirementsLabel": "ما يجب على العملاء إحضاره أو معرفته",
   "requirementsHint": "واحد في كل سطر، مثل: أحضر بطاقة الهوية، احضر قبل 15 دقيقة.",
   "arabicSublabel": "العربية",
-  "englishSublabel": "الإنجليزية"
+  "englishSublabel": "الإنجليزية",
+  "serviceErrorPricingUnitRequired": "يرجى اختيار أساس احتساب السعر (مثل: للشخص)."
 }
