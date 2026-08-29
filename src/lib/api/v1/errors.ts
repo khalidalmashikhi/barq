@@ -35,6 +35,7 @@ export type ApiErrorCode =
   | "CONCURRENT_MODIFICATION"
   | "SERVICE_UNAVAILABLE"
   | "PRICE_UNAVAILABLE"
+  | "BOOKING_QUANTITY_OUT_OF_RANGE"
   | "SLOT_REQUIRED"
   | "SLOT_UNAVAILABLE"
   | "DUPLICATE_BOOKING"
@@ -121,6 +122,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   CONCURRENT_MODIFICATION: 409,
   SERVICE_UNAVAILABLE: 422,
   PRICE_UNAVAILABLE: 422,
+  BOOKING_QUANTITY_OUT_OF_RANGE: 422,
   SLOT_REQUIRED: 422,
   SLOT_UNAVAILABLE: 422,
   DUPLICATE_BOOKING: 422,
@@ -192,6 +194,7 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   },
   SERVICE_UNAVAILABLE: { en: "This experience is not currently available for booking.", ar: "هذه التجربة غير متاحة للحجز حالياً." },
   PRICE_UNAVAILABLE: { en: "The selected price option is not available for this experience.", ar: "الخيار السعري المحدد غير متاح لهذه التجربة." },
+  BOOKING_QUANTITY_OUT_OF_RANGE: { en: "The number of seats is outside the range this service allows.", ar: "عدد المقاعد خارج النطاق المسموح به لهذه الخدمة." },
   // Distinct from SLOT_UNAVAILABLE on purpose: nothing was selected to become
   // unavailable. The service is slot-based and the request carried no slot at all.
   SLOT_REQUIRED: { en: "Please select a time slot for this experience.", ar: "الرجاء اختيار موعد لهذه التجربة." },

@@ -35,6 +35,10 @@ export type BookingActionErrorCode =
   | "SLOT_REQUIRED"
   | "SLOT_UNAVAILABLE"
   | "SLOT_FULL"
+  // SERVICE INFORMATION MODEL — the requested seat count is outside the provider's per-booking
+  // bounds for this service (minBookingSeats/maxBookingSeats). A per-BOOKING quantity rule,
+  // distinct from SLOT_FULL (a slot's total capacity race).
+  | "BOOKING_QUANTITY_OUT_OF_RANGE"
   | "DUPLICATE_BOOKING"
   | "BOOKING_NOT_FOUND"
   | "BOOKING_NOT_CANCELLABLE"
@@ -76,6 +80,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "NO_PROVIDER_PROFILE",
   "SERVICE_UNAVAILABLE",
   "PRICE_UNAVAILABLE",
+  "BOOKING_QUANTITY_OUT_OF_RANGE",
   "SLOT_REQUIRED",
   "SLOT_UNAVAILABLE",
   "SLOT_FULL",

@@ -7,6 +7,19 @@ import {
   toAvailabilitySlotDTO,
 } from "./dtos";
 
+// An empty, fully-absent Service Information Model — legacy service with nothing
+// authored. Every ServiceDetail fixture below carries it so the mapper's info
+// pass-through is exercised without any fixture asserting specific content.
+const EMPTY_INFO = {
+  durationMinutes: null,
+  startInstructions: null,
+  inclusions: [],
+  exclusions: [],
+  customerRequirements: [],
+  minBookingSeats: null,
+  maxBookingSeats: null,
+};
+
 // These mappers are the no-leak boundary: they copy an allow-list of public
 // fields only (never a spread), converting money → MoneyDTO string and Date →
 // ISO-8601. Tests assert exact shapes AND the absence of internal fields.
@@ -70,7 +83,7 @@ describe("toServiceDetailDTO", () => {
         pricingUnit: "PER_PERSON",
         coverUrl: "https://cdn/c.jpg",
         gallery: ["https://cdn/g1.jpg"],
-        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+        info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
       },
       [
         { id: "pr1", amount: "25", currency: "OMR", pricingUnit: "PER_PERSON", pricingUnitLabel: "per person" },
@@ -112,7 +125,7 @@ describe("toServiceDetailDTO", () => {
         id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
         providerDescription: "", providerStatus: "UNDER_REVIEW", price: null,
         regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
-        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+        info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
       },
       [],
       { averageRating: null, reviewCount: 0 }
@@ -121,12 +134,58 @@ describe("toServiceDetailDTO", () => {
     expect(dto.price).toBeNull();
   });
 
+  it("SERVICE INFORMATION MODEL — passes the localized service-info through verbatim", () => {
+    const info = {
+      durationMinutes: 120,
+      startInstructions: "Meet at the marina",
+      inclusions: ["Water", "Guide"],
+      exclusions: ["Tips"],
+      customerRequirements: ["Bring an ID"],
+      minBookingSeats: 2,
+      maxBookingSeats: 6,
+    };
+    const dto = toServiceDetailDTO(
+      {
+        id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
+        providerDescription: "", providerStatus: "APPROVED", price: null,
+        regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+        info, createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      },
+      [],
+      { averageRating: null, reviewCount: 0 }
+    );
+    // The detail reader has already localized; the DTO is a straight pass-through.
+    expect(dto.info).toEqual(info);
+  });
+
+  it("SERVICE INFORMATION MODEL — a legacy service with nothing authored carries the empty shape", () => {
+    const dto = toServiceDetailDTO(
+      {
+        id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
+        providerDescription: "", providerStatus: "APPROVED", price: null,
+        regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
+        info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      },
+      [],
+      { averageRating: null, reviewCount: 0 }
+    );
+    expect(dto.info).toEqual({
+      durationMinutes: null,
+      startInstructions: null,
+      inclusions: [],
+      exclusions: [],
+      customerRequirements: [],
+      minBookingSeats: null,
+      maxBookingSeats: null,
+    });
+  });
+
   it("TOUR-VEHICLE-3 — tourVehicleSummary defaults to null and passes through a customer-safe summary (no private fields)", async () => {
     const base = {
       id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
       providerDescription: "", providerStatus: "APPROVED", price: null,
       regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
-      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
     };
     // Omitted → null (non-tour service).
     expect(toServiceDetailDTO(base, [], { averageRating: null, reviewCount: 0 }).tourVehicleSummary).toBeNull();
@@ -165,7 +224,7 @@ describe("toServiceDetailDTO — vehicleTypeLabel", () => {
       id: "s1", name: "n", description: "", providerId: "p1", providerName: "pn",
       providerDescription: "", providerStatus: "APPROVED", price: null,
       regionCode: null, pricingUnit: null, coverUrl: null, gallery: [],
-      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      info: EMPTY_INFO, createdAt: new Date("2026-01-02T00:00:00.000Z"),
     };
 
     function vehicle(vehicleType: string | null) {

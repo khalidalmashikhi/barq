@@ -431,4 +431,69 @@ describe("createBooking", () => {
       expect(isCustomerCompleteForActionMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  // SERVICE INFORMATION MODEL — the per-booking seat bounds authored on the Service
+  // are now enforced at booking time (the user's "enforce at booking now" decision).
+  // The bounds are OPTIONAL: a NULL bound imposes nothing. The check sits before the
+  // transaction, so a rejection writes nothing.
+  describe("per-booking seat bounds (SERVICE INFORMATION MODEL)", () => {
+    // A slotless, bookable service carrying explicit min/max seat bounds. Slotless so the
+    // happy path reaches booking creation without an availability lookup.
+    function boundedService(bounds: { minBookingSeats: number | null; maxBookingSeats: number | null }) {
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED", ...bounds });
+      priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", status: "ACTIVE" });
+      bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+      transitionBookingMock.mockResolvedValue({ hook: "context" });
+    }
+
+    it("rejects seats below the minimum with BOOKING_QUANTITY_OUT_OF_RANGE and writes nothing", async () => {
+      boundedService({ minBookingSeats: 2, maxBookingSeats: 6 });
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "1" }));
+
+      expect(result).toEqual({ ok: false, error: "BOOKING_QUANTITY_OUT_OF_RANGE" });
+      expect(bookingCreateMock).not.toHaveBeenCalled();
+      expect(transitionBookingMock).not.toHaveBeenCalled();
+      expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects seats above the maximum with BOOKING_QUANTITY_OUT_OF_RANGE", async () => {
+      boundedService({ minBookingSeats: 2, maxBookingSeats: 6 });
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "7" }));
+
+      expect(result).toEqual({ ok: false, error: "BOOKING_QUANTITY_OUT_OF_RANGE" });
+      expect(bookingCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("accepts seats exactly on each inclusive boundary", async () => {
+      boundedService({ minBookingSeats: 2, maxBookingSeats: 6 });
+
+      expect(await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "2" })))
+        .toEqual({ ok: true, bookingId: "new-booking-id" });
+
+      _resetRateLimitStoreForTests();
+      boundedService({ minBookingSeats: 2, maxBookingSeats: 6 });
+      expect(await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "6" })))
+        .toEqual({ ok: true, bookingId: "new-booking-id" });
+    });
+
+    it("a NULL bound imposes nothing (only the min set)", async () => {
+      boundedService({ minBookingSeats: 3, maxBookingSeats: null });
+
+      // Well above any figure — but there is no maximum, so nothing rejects it.
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "999" }));
+
+      expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+    });
+
+    it("a legacy service with no bounds at all still books any positive seat count", async () => {
+      boundedService({ minBookingSeats: null, maxBookingSeats: null });
+
+      const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "42" }));
+
+      expect(result).toEqual({ ok: true, bookingId: "new-booking-id" });
+    });
+  });
 });

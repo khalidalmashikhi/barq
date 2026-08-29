@@ -5,6 +5,7 @@
   "customerIncomplete": "Bitte bestätige deine E-Mail-Adresse, bevor du buchst.",
   "serviceUnavailable": "Dieses Erlebnis ist derzeit nicht buchbar",
   "priceUnavailable": "Die ausgewählte Preisoption ist für dieses Erlebnis nicht verfügbar",
+  "bookingQuantityOutOfRange": "Die Anzahl der Plätze liegt außerhalb des für diese Leistung zulässigen Bereichs.",
   "slotUnavailable": "Das ausgewählte Zeitfenster ist nicht mehr verfügbar",
   "slotRequired": "Bitte wählen Sie einen Termin für dieses Erlebnis",
   "slotFull": "Leider wurden die verbleibenden Plätze für dieses Zeitfenster soeben vergeben",

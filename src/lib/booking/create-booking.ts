@@ -173,6 +173,18 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     return { ok: false, error: "PRICE_UNAVAILABLE" };
   }
 
+  // SERVICE INFORMATION MODEL — per-BOOKING seat bounds set by the provider for this service.
+  // These are the customer's requestable quantity range (NOT the slot's total capacity, which
+  // the atomic guard below still enforces independently). Server-authoritative; the booking
+  // form mirrors these as the seats input's min/max. Both bounds are optional; a NULL bound
+  // imposes nothing. Checked before the transaction so a rejection creates no rows/events.
+  if (service.minBookingSeats !== null && seats < service.minBookingSeats) {
+    return { ok: false, error: "BOOKING_QUANTITY_OUT_OF_RANGE" };
+  }
+  if (service.maxBookingSeats !== null && seats > service.maxBookingSeats) {
+    return { ok: false, error: "BOOKING_QUANTITY_OUT_OF_RANGE" };
+  }
+
   // BOOKING-INTERVAL-1 — for a slot-based booking, the operational interval is snapshotted
   // from the selected Availability here at create (both instants, or neither). Slot times are
   // frozen once a booking references the slot, but snapshotting onto the Booking makes the

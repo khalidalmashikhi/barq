@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "Plate",
   "acceptScheduleHeading": "Schedule",
   "acceptScheduleStartLabel": "Start time",
-  "acceptScheduleEndLabel": "End time"
+  "acceptScheduleEndLabel": "End time",
+  "sectionServiceDetailsTitle": "Service details (optional)",
+  "durationMinutesLabel": "Duration in minutes",
+  "durationHint": "Total length. Leave empty if it doesn't apply.",
+  "minSeatsLabel": "Min seats per booking",
+  "maxSeatsLabel": "Max seats per booking",
+  "seatsHint": "How many seats a customer can book at once.",
+  "startInstructionsLabel": "How it starts (meeting point or pickup)",
+  "startInstructionsHint": "Tell customers where to meet or how pickup works.",
+  "inclusionsLabel": "What's included",
+  "exclusionsLabel": "What's not included",
+  "listHint": "One item per line.",
+  "requirementsLabel": "What customers should bring or know",
+  "requirementsHint": "One per line, e.g. bring ID, arrive 15 minutes early.",
+  "arabicSublabel": "Arabic",
+  "englishSublabel": "English"
 }

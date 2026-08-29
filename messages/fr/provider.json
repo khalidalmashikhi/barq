@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "Plaque",
   "acceptScheduleHeading": "Horaire",
   "acceptScheduleStartLabel": "Heure de début",
-  "acceptScheduleEndLabel": "Heure de fin"
+  "acceptScheduleEndLabel": "Heure de fin",
+  "sectionServiceDetailsTitle": "Détails du service (facultatif)",
+  "durationMinutesLabel": "Durée en minutes",
+  "durationHint": "Durée totale. Laissez vide si non applicable.",
+  "minSeatsLabel": "Places min. par réservation",
+  "maxSeatsLabel": "Places max. par réservation",
+  "seatsHint": "Nombre de places qu'un client peut réserver en une fois.",
+  "startInstructionsLabel": "Comment ça commence (point de rencontre ou prise en charge)",
+  "startInstructionsHint": "Indiquez où se retrouver ou comment se déroule la prise en charge.",
+  "inclusionsLabel": "Ce qui est inclus",
+  "exclusionsLabel": "Ce qui n'est pas inclus",
+  "listHint": "Un élément par ligne.",
+  "requirementsLabel": "Ce que les clients doivent apporter ou savoir",
+  "requirementsHint": "Un par ligne, p. ex. apporter une pièce d'identité, arriver 15 minutes avant.",
+  "arabicSublabel": "Arabe",
+  "englishSublabel": "Anglais"
 }

@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "Kennzeichen",
   "acceptScheduleHeading": "Zeitplan",
   "acceptScheduleStartLabel": "Startzeit",
-  "acceptScheduleEndLabel": "Endzeit"
+  "acceptScheduleEndLabel": "Endzeit",
+  "sectionServiceDetailsTitle": "Leistungsdetails (optional)",
+  "durationMinutesLabel": "Dauer in Minuten",
+  "durationHint": "Gesamtdauer. Leer lassen, falls nicht zutreffend.",
+  "minSeatsLabel": "Min. Plätze pro Buchung",
+  "maxSeatsLabel": "Max. Plätze pro Buchung",
+  "seatsHint": "Wie viele Plätze ein Kunde auf einmal buchen kann.",
+  "startInstructionsLabel": "So beginnt es (Treffpunkt oder Abholung)",
+  "startInstructionsHint": "Sagen Sie Kunden, wo man sich trifft oder wie die Abholung funktioniert.",
+  "inclusionsLabel": "Inbegriffen",
+  "exclusionsLabel": "Nicht inbegriffen",
+  "listHint": "Ein Eintrag pro Zeile.",
+  "requirementsLabel": "Was Kunden mitbringen oder wissen sollten",
+  "requirementsHint": "Eines pro Zeile, z. B. Ausweis mitbringen, 15 Minuten früher kommen.",
+  "arabicSublabel": "Arabisch",
+  "englishSublabel": "Englisch"
 }

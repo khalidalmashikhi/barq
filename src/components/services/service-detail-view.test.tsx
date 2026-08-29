@@ -57,6 +57,15 @@ const baseService = {
   price: "25 OMR",
   coverUrl: null,
   gallery: [],
+  info: {
+    durationMinutes: null,
+    startInstructions: null,
+    inclusions: [],
+    exclusions: [],
+    customerRequirements: [],
+    minBookingSeats: null,
+    maxBookingSeats: null,
+  },
   createdAt: new Date(),
 };
 
@@ -130,5 +139,55 @@ describe("ServiceDetailView ShareButton by mode", () => {
   it("admin-preview: ShareButton is NOT rendered", async () => {
     const tree = (await ServiceDetailView({ ...commonProps, mode: "admin-preview" })) as ReactElement;
     expect(findShareButton(tree)).toBe(false);
+  });
+});
+
+// SERVICE INFORMATION MODEL — the detail view renders each booking-decision section
+// ONLY when the service actually carries that data; a legacy service with nothing
+// authored shows none of them (no repeated "Not specified" placeholder).
+describe("ServiceDetailView service-information sections", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function collectStrings(tree: any): string[] {
+    const out: string[] = [];
+    collect(tree, (n) => {
+      const c = n.props?.children;
+      if (typeof c === "string") out.push(c);
+      if (Array.isArray(c)) for (const x of c) if (typeof x === "string") out.push(x);
+    });
+    return out;
+  }
+
+  const populatedInfo = {
+    durationMinutes: 90,
+    startInstructions: "Meet at the marina gate",
+    inclusions: ["Bottled water", "Local guide"],
+    exclusions: ["Gratuities"],
+    customerRequirements: ["Bring a valid ID"],
+    minBookingSeats: 2,
+    maxBookingSeats: 6,
+  };
+
+  it("renders the authored inclusions, start instructions and section titles when present", async () => {
+    const service = { ...baseService, info: populatedInfo };
+    const tree = (await ServiceDetailView({ ...commonProps, service, mode: "public" })) as ReactElement;
+    const text = collectStrings(tree).join(" | ");
+
+    expect(text).toContain("Meet at the marina gate");
+    expect(text).toContain("Bottled water");
+    expect(text).toContain("Gratuities");
+    expect(text).toContain("Bring a valid ID");
+    // Section titles resolve to their i18n keys under the identity translator mock.
+    expect(text).toContain("inclusionsTitle");
+    expect(text).toContain("startInstructionsTitle");
+  });
+
+  it("renders NONE of the section titles for a legacy service with no data (graceful absence)", async () => {
+    // baseService.info is the fully-empty shape.
+    const tree = (await ServiceDetailView({ ...commonProps, mode: "public" })) as ReactElement;
+    const text = collectStrings(tree).join(" | ");
+
+    for (const key of ["startInstructionsTitle", "inclusionsTitle", "exclusionsTitle", "requirementsTitle", "bookingSizeLabel"]) {
+      expect(text).not.toContain(key);
+    }
   });
 });

@@ -5,6 +5,7 @@
   "customerIncomplete": "Przed rezerwacją potwierdź swój adres e-mail.",
   "serviceUnavailable": "Ta atrakcja nie jest obecnie dostępna do rezerwacji",
   "priceUnavailable": "Wybrana opcja cenowa nie jest dostępna dla tej atrakcji",
+  "bookingQuantityOutOfRange": "Liczba miejsc jest poza zakresem dozwolonym dla tej usługi.",
   "slotUnavailable": "Wybrany termin nie jest już dostępny",
   "slotRequired": "Wybierz termin dla tego przeżycia",
   "slotFull": "Przepraszamy, pozostałe miejsca w tym terminie zostały właśnie zajęte",

@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { pricingUnitLabelKey } from "@/lib/pricing-units";
+import { readServiceInfo, localizeServiceInfo, type ServiceInfoLocalized } from "./service-info";
 import type { Locale } from "@/i18n/locales";
 import type { ReviewItem } from "@/components/services/reviews-section";
 
@@ -40,6 +41,10 @@ export type ServiceDetail = {
   // fetched via a bounded relational include on this same query (no N+1).
   coverUrl: string | null;
   gallery: string[];
+  // Service Information Model (Booking Decision Data) — localized, customer-safe. Every
+  // concept is empty (null / []) when the provider hasn't authored it, so the UI renders
+  // nothing for it (legacy services show no "Not specified" placeholders).
+  info: ServiceInfoLocalized;
   createdAt: Date;
 };
 
@@ -57,6 +62,13 @@ type ServiceDetailRow = {
   description: unknown;
   providerId: string;
   regionCode?: string | null;
+  durationMinutes?: number | null;
+  startInstructions?: unknown;
+  inclusions?: unknown;
+  exclusions?: unknown;
+  customerRequirements?: unknown;
+  minBookingSeats?: number | null;
+  maxBookingSeats?: number | null;
   provider: { businessName: unknown; businessDescription: unknown; status: string };
   prices: Array<{ amount: unknown; currency: string; pricingUnit?: string | null }>;
   mediaAssets?: Array<{ url: string; kind?: string }>;
@@ -156,6 +168,18 @@ function mapServiceDetailRow(row: ServiceDetailRow, locale: Locale): ServiceDeta
     pricingUnit: row.prices[0] ? (row.prices[0].pricingUnit ?? null) : null,
     coverUrl,
     gallery,
+    info: localizeServiceInfo(
+      readServiceInfo({
+        durationMinutes: row.durationMinutes ?? null,
+        startInstructions: row.startInstructions,
+        inclusions: row.inclusions,
+        exclusions: row.exclusions,
+        customerRequirements: row.customerRequirements,
+        minBookingSeats: row.minBookingSeats ?? null,
+        maxBookingSeats: row.maxBookingSeats ?? null,
+      }),
+      locale
+    ),
     createdAt: row.createdAt,
   };
 }

@@ -16,6 +16,7 @@ import { TourAwareCategoryField } from "@/components/tour-template/tour-aware-ca
 import { getSmartTourContext } from "@/lib/tour-template/form/get-smart-tour-context";
 import { RegionField } from "@/components/regions/region-field";
 import { PricingUnitField } from "@/components/pricing-units/pricing-unit-field";
+import { ServiceInfoFields } from "@/components/provider/service-info-fields";
 import { getServiceMedia } from "@/lib/service/media/get-service-media";
 import { isProviderMediaErrorCode, getProviderMediaErrorTranslationKey } from "@/lib/provider/media/provider-media-errors";
 import { getTourServiceVehiclePoolView } from "@/lib/tour-template/vehicle-pool/pool-view";
@@ -245,6 +246,8 @@ export default async function EditServicePage({ params, searchParams }: Props) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <PricingUnitField defaultValue={service.pricingUnit} />
           </div>
+
+          <ServiceInfoFields defaults={service.info} />
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("editSubmitButton")}

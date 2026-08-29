@@ -53,6 +53,15 @@ const baseService = {
   pricingUnit: "PER_PERSON",
   coverUrl: null,
   gallery: [],
+  info: {
+    durationMinutes: null,
+    startInstructions: null,
+    inclusions: [],
+    exclusions: [],
+    customerRequirements: [],
+    minBookingSeats: null,
+    maxBookingSeats: null,
+  },
   createdAt: new Date(),
 };
 

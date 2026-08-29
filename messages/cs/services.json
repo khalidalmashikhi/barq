@@ -95,5 +95,17 @@
   "tourVehicleUnavailable": "Podrobnosti o vozidle nejsou momentálně k dispozici.",
   "tourVehicleGuestsSuffix": "hostů",
   "tourVehicle4x4Badge": "4x4",
-  "tourVehicleUntitled": "Vozidlo"
+  "tourVehicleUntitled": "Vozidlo",
+  "durationDays": "{count} dní",
+  "durationHours": "{count} h",
+  "durationMinutes": "{count} min",
+  "durationHoursMinutes": "{hours} h {minutes} min",
+  "bookingSizeLabel": "Velikost rezervace",
+  "bookingSizeRange": "{min}–{max} míst",
+  "bookingSizeUpTo": "Až {max} míst",
+  "bookingSizeFrom": "Od {min} míst",
+  "startInstructionsTitle": "Jak to začíná",
+  "inclusionsTitle": "Co je zahrnuto",
+  "exclusionsTitle": "Není zahrnuto",
+  "requirementsTitle": "Co si vzít"
 }

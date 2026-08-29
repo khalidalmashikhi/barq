@@ -5,6 +5,7 @@
   "customerIncomplete": "Před rezervací prosím ověřte svůj e-mail.",
   "serviceUnavailable": "Tento zážitek momentálně není možné rezervovat",
   "priceUnavailable": "Vybraná cenová možnost není pro tento zážitek dostupná",
+  "bookingQuantityOutOfRange": "Počet míst je mimo rozsah povolený pro tuto službu.",
   "slotUnavailable": "Vybraný časový termín již není k dispozici",
   "slotRequired": "Vyberte prosím termín pro tento zážitek",
   "slotFull": "Je nám líto, ale zbývající kapacita tohoto termínu byla právě obsazena",

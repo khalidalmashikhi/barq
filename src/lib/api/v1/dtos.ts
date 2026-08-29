@@ -1,5 +1,6 @@
 import type { ServiceListItem } from "@/lib/services/get-services";
 import type { ServiceDetail, ActivePriceOption } from "@/lib/services/get-service-detail";
+import type { ServiceInfoLocalized } from "@/lib/services/service-info";
 import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
 import type { BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
@@ -142,6 +143,9 @@ export interface ServiceDetailDTO {
   reviewCount: number;
   /** TOUR-VEHICLE-3 — present only for a tour with a vehicle presentation; null otherwise. */
   tourVehicleSummary: TourVehicleSummaryDTO | null;
+  /** Service Information Model — localized booking-decision data (duration/start/inclusions/
+   *  exclusions/requirements/seat bounds). Empty concepts are null/[]. Additive. */
+  info: ServiceInfoLocalized;
   createdAt: string; // ISO-8601
 }
 
@@ -201,6 +205,7 @@ export function toServiceDetailDTO(
           })),
         }
       : null,
+    info: detail.info,
     createdAt: detail.createdAt.toISOString(),
   };
 }

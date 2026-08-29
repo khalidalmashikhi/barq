@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
+import { readServiceInfo, type ServiceInfoRaw } from "@/lib/services/service-info";
 
 // Provider Service (edit form) query — Phase 4.2 (Provider Experience).
 //
@@ -35,6 +36,9 @@ export type ProviderServiceForEdit = {
   // (never affects totals/booking). Both null-tolerant for legacy/unset rows.
   regionCode: string | null;
   pricingUnit: string | null;
+  // Service Information Model — raw bilingual values so the edit form pre-fills both
+  // languages of each field (all optional; null/empty when the provider hasn't authored it).
+  info: ServiceInfoRaw;
 };
 
 function readBilingual(value: unknown): { ar: string; en: string } {
@@ -76,5 +80,6 @@ export async function getProviderServiceForEdit(serviceId: string): Promise<Prov
     categoryId: service.categoryId,
     regionCode: service.regionCode ?? null,
     pricingUnit: service.prices[0]?.pricingUnit ?? null,
+    info: readServiceInfo(service),
   };
 }

@@ -12,6 +12,7 @@ import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-touri
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
+import { parseServiceInfoFields, serviceInfoCreateData } from "@/lib/services/service-info";
 import { Prisma } from "@prisma/client";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
@@ -80,6 +81,14 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
   }
   const pricingUnit = parsePricingUnit(rawPricingUnit);
   if (pricingUnit === undefined) {
+    return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  // Service Information Model (booking-decision data) — parsed + validated server-side; all
+  // optional, all service-type-neutral. A malformed value or a broken min/max invariant is
+  // the same catch-all INVALID_INPUT (the Gate-1 form uses bounded controls).
+  const serviceInfo = parseServiceInfoFields(formData);
+  if (!serviceInfo.ok) {
     return { ok: false, error: "INVALID_INPUT" };
   }
 
@@ -152,6 +161,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
               : undefined,
           ...(categoryId ? { categoryId } : {}),
           ...(regionCode ? { regionCode } : {}),
+          ...serviceInfoCreateData(serviceInfo.fields),
         },
       });
 

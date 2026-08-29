@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { createService } from "@/lib/provider/create-service";
+import { ServiceInfoFields } from "@/components/provider/service-info-fields";
 import { isServiceActionErrorCode, getServiceErrorTranslationKey } from "@/lib/provider/service-action-errors";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -157,6 +158,8 @@ export default async function NewServicePage({ searchParams }: Props) {
             </label>
             <PricingUnitField defaultValue={null} />
           </div>
+
+          <ServiceInfoFields />
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
             {t("createSubmitButton")}

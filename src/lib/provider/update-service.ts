@@ -14,6 +14,7 @@ import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-touri
 import { isSmartTourGuideEligible } from "@/lib/tour-template/eligibility";
 import { parseRegionCode } from "@/lib/regions";
 import { parsePricingUnit } from "@/lib/pricing-units";
+import { parseServiceInfoFields, serviceInfoUpdateData } from "@/lib/services/service-info";
 import { Prisma } from "@prisma/client";
 import type { ServiceActionErrorCode } from "./service-action-errors";
 
@@ -85,6 +86,14 @@ export async function updateService(serviceId: string, formData: FormData): Prom
       return { ok: false, error: "INVALID_INPUT" };
     }
     pricingUnitChange = { pricingUnit: parsedUnit };
+  }
+
+  // Service Information Model (booking-decision data). Tri-state per field: an ABSENT form key
+  // leaves the column unchanged, a PRESENT-but-empty value clears it, a valid value sets it —
+  // validated before any write. All optional and service-type-neutral.
+  const serviceInfo = parseServiceInfoFields(formData);
+  if (!serviceInfo.ok) {
+    return { ok: false, error: "INVALID_INPUT" };
   }
 
   let provider;
@@ -190,6 +199,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
               : undefined,
           ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType } : {}),
           ...(regionCodeChange ?? {}),
+          ...serviceInfoUpdateData(serviceInfo.fields),
         },
       });
 

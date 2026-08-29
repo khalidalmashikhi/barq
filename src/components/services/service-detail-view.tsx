@@ -1,13 +1,13 @@
 import { Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { Calendar, Clock, MapPin, BadgeCheck, Share2 } from "lucide-react";
+import { Calendar, Clock, MapPin, BadgeCheck, Share2, Users, Check, X, ClipboardList } from "lucide-react";
 import type { ServiceDetail, RelatedService, ServiceRatingAggregate } from "@/lib/services/get-service-detail";
+import { describeDuration } from "@/lib/services/duration";
 import type { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import type { ReviewItem } from "@/components/services/reviews-section";
 import { ServiceGallery } from "@/components/services/service-gallery";
 import { ProviderProfileCard } from "@/components/services/provider-profile-card";
 import { ReviewsSection } from "@/components/services/reviews-section";
-import { MeetingPointMap } from "@/components/services/meeting-point-map";
 import { ExperienceCard } from "@/components/dashboard/experience-card";
 import { BookingTrustPanel } from "@/components/services/booking-trust-panel";
 import { SafetyInfo } from "@/components/services/safety-info";
@@ -65,6 +65,22 @@ export async function ServiceDetailView({
   // no unit rather than ever leaking a raw code. pricingUnit is display-only.
   const regionKey = regionLabelKey(service.regionCode);
   const unitKey = pricingUnitLabelKey(service.pricingUnit);
+
+  // Service Information Model (Booking Decision Data) — all optional and localized upstream.
+  const info = service.info;
+  let durationText: string | null = null;
+  if (info.durationMinutes !== null) {
+    const d = describeDuration(info.durationMinutes);
+    durationText = d.key === "durationHoursMinutes" ? t(d.key, { hours: d.hours, minutes: d.minutes }) : t(d.key, { count: d.count });
+  }
+  let bookingSize: string | null = null;
+  if (info.minBookingSeats !== null && info.maxBookingSeats !== null) {
+    bookingSize = t("bookingSizeRange", { min: info.minBookingSeats, max: info.maxBookingSeats });
+  } else if (info.maxBookingSeats !== null) {
+    bookingSize = t("bookingSizeUpTo", { max: info.maxBookingSeats });
+  } else if (info.minBookingSeats !== null) {
+    bookingSize = t("bookingSizeFrom", { min: info.minBookingSeats });
+  }
   const priceDisplay =
     service.price && unitKey
       ? tCommon("priceWithUnit", { price: service.price, unit: tCommon(unitKey) })
@@ -112,39 +128,46 @@ export async function ServiceDetailView({
             </div>
           </FadeIn>
 
-          <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
-            {/* Governorate (Gate 4) — shown only when the service has one; an
-                optional discovery facet is omitted, never rendered as "—". */}
-            {regionKey && (
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
-                  <MapPin size={18} strokeWidth={1.75} />
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-xs text-foreground/50">{tCommon("governorate.fieldLabel")}</span>
-                  <span className="text-sm font-medium text-foreground">{tCommon(regionKey)}</span>
+          {/* Quick facts — every tile is optional and renders ONLY when the provider has
+              authored it (Service Information Model). Legacy services with none omit the whole
+              grid rather than showing "Not specified" placeholders. */}
+          {(regionKey || info.durationMinutes !== null || bookingSize) && (
+            <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
+              {regionKey && (
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
+                    <MapPin size={18} strokeWidth={1.75} />
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-foreground/60">{tCommon("governorate.fieldLabel")}</span>
+                    <span className="text-sm font-medium text-foreground">{tCommon(regionKey)}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
-                <Clock size={18} strokeWidth={1.75} />
-              </span>
-              <div className="flex flex-col">
-                <span className="text-xs text-foreground/50">{t("durationLabel")}</span>
-                <span className="text-sm font-medium text-foreground">{t("notSpecifiedLabel")}</span>
-              </div>
+              )}
+              {info.durationMinutes !== null && (
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
+                    <Clock size={18} strokeWidth={1.75} />
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-foreground/60">{t("durationLabel")}</span>
+                    <span className="text-sm font-medium text-foreground">{durationText}</span>
+                  </div>
+                </div>
+              )}
+              {bookingSize && (
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
+                    <Users size={18} strokeWidth={1.75} />
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-foreground/60">{t("bookingSizeLabel")}</span>
+                    <span className="text-sm font-medium text-foreground">{bookingSize}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-primary">
-                <MapPin size={18} strokeWidth={1.75} />
-              </span>
-              <div className="flex flex-col">
-                <span className="text-xs text-foreground/50">{t("meetingPointLabel")}</span>
-                <span className="text-sm font-medium text-foreground">{t("notSpecifiedLabel")}</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           {slots.length > 0 && (
             <div>
@@ -172,9 +195,69 @@ export async function ServiceDetailView({
             </div>
           )}
 
-          <div id="meeting-point" className="scroll-mt-32">
-            <MeetingPointMap />
-          </div>
+          {/* How it starts — real, provider-authored operational start instructions (meeting
+              point / pickup / delivery / departure), shown only when present. Replaces the
+              former static map placeholder. */}
+          {info.startInstructions && (
+            <div id="meeting-point" className="scroll-mt-32">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <MapPin size={18} strokeWidth={1.75} />
+                {t("startInstructionsTitle")}
+              </h2>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/70">{info.startInstructions}</p>
+            </div>
+          )}
+
+          {info.inclusions.length > 0 && (
+            <div>
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Check size={18} strokeWidth={2} className="text-success" />
+                {t("inclusionsTitle")}
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {info.inclusions.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-foreground/80">
+                    <Check size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-success" aria-hidden />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {info.exclusions.length > 0 && (
+            <div>
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <X size={18} strokeWidth={2} className="text-foreground/40" />
+                {t("exclusionsTitle")}
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {info.exclusions.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-foreground/80">
+                    <X size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-foreground/40" aria-hidden />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {info.customerRequirements.length > 0 && (
+            <div>
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <ClipboardList size={18} strokeWidth={1.75} />
+                {t("requirementsTitle")}
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {info.customerRequirements.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-foreground/80">
+                    <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div id="safety" className="scroll-mt-32">
             <SafetyInfo />

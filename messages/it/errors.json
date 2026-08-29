@@ -5,6 +5,7 @@
   "customerIncomplete": "Verifica la tua email prima di prenotare.",
   "serviceUnavailable": "Questa esperienza non è al momento disponibile per la prenotazione",
   "priceUnavailable": "L'opzione di prezzo selezionata non è disponibile per questa esperienza",
+  "bookingQuantityOutOfRange": "Il numero di posti è fuori dall'intervallo consentito per questo servizio.",
   "slotUnavailable": "La fascia oraria selezionata non è più disponibile",
   "slotRequired": "Seleziona un orario per questa esperienza",
   "slotFull": "Siamo spiacenti, i posti rimanenti per questa fascia oraria sono appena stati occupati",

@@ -75,6 +75,8 @@ const PROFILE_CODE_MAP: Record<ProviderProfileActionErrorCode, ApiErrorCode> = {
 const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   INVALID_INPUT: "INVALID_INPUT",
   NO_PROVIDER_PROFILE: "NO_PROVIDER_PROFILE",
+  // Customer create-only outcome; never reachable from a provider mutation endpoint.
+  BOOKING_QUANTITY_OUT_OF_RANGE: "INTERNAL_ERROR",
   BOOKING_NOT_FOUND: "NOT_FOUND",
   BOOKING_NOT_PENDING: "BOOKING_NOT_ACTIONABLE",
   BOOKING_NOT_STARTABLE: "BOOKING_NOT_ACTIONABLE",

@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "SPZ",
   "acceptScheduleHeading": "Rozvrh",
   "acceptScheduleStartLabel": "Čas začátku",
-  "acceptScheduleEndLabel": "Čas konce"
+  "acceptScheduleEndLabel": "Čas konce",
+  "sectionServiceDetailsTitle": "Podrobnosti služby (volitelné)",
+  "durationMinutesLabel": "Délka v minutách",
+  "durationHint": "Celková délka. Nechte prázdné, pokud se netýká.",
+  "minSeatsLabel": "Min. míst na rezervaci",
+  "maxSeatsLabel": "Max. míst na rezervaci",
+  "seatsHint": "Kolik míst může zákazník rezervovat najednou.",
+  "startInstructionsLabel": "Jak to začíná (místo setkání nebo vyzvednutí)",
+  "startInstructionsHint": "Řekněte zákazníkům, kde se sejít nebo jak funguje vyzvednutí.",
+  "inclusionsLabel": "Co je zahrnuto",
+  "exclusionsLabel": "Co není zahrnuto",
+  "listHint": "Jedna položka na řádek.",
+  "requirementsLabel": "Co si zákazníci mají vzít nebo vědět",
+  "requirementsHint": "Jeden na řádek, např. vezměte doklad, přijďte o 15 minut dříve.",
+  "arabicSublabel": "Arabština",
+  "englishSublabel": "Angličtina"
 }

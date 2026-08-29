@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "Targa",
   "acceptScheduleHeading": "Programma",
   "acceptScheduleStartLabel": "Ora di inizio",
-  "acceptScheduleEndLabel": "Ora di fine"
+  "acceptScheduleEndLabel": "Ora di fine",
+  "sectionServiceDetailsTitle": "Dettagli del servizio (facoltativo)",
+  "durationMinutesLabel": "Durata in minuti",
+  "durationHint": "Durata totale. Lascia vuoto se non applicabile.",
+  "minSeatsLabel": "Posti min. per prenotazione",
+  "maxSeatsLabel": "Posti max. per prenotazione",
+  "seatsHint": "Quanti posti un cliente può prenotare in una volta.",
+  "startInstructionsLabel": "Come inizia (punto d'incontro o ritiro)",
+  "startInstructionsHint": "Indica dove incontrarsi o come funziona il ritiro.",
+  "inclusionsLabel": "Cosa è incluso",
+  "exclusionsLabel": "Cosa non è incluso",
+  "listHint": "Un elemento per riga.",
+  "requirementsLabel": "Cosa i clienti devono portare o sapere",
+  "requirementsHint": "Uno per riga, es. porta un documento, arriva 15 minuti prima.",
+  "arabicSublabel": "Arabo",
+  "englishSublabel": "Inglese"
 }

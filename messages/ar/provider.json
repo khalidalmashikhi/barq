@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "رقم اللوحة",
   "acceptScheduleHeading": "الموعد",
   "acceptScheduleStartLabel": "وقت البداية",
-  "acceptScheduleEndLabel": "وقت النهاية"
+  "acceptScheduleEndLabel": "وقت النهاية",
+  "sectionServiceDetailsTitle": "تفاصيل الخدمة (اختياري)",
+  "durationMinutesLabel": "المدة بالدقائق",
+  "durationHint": "المدة الإجمالية. اتركها فارغة إن لم تكن مناسبة.",
+  "minSeatsLabel": "أقل عدد مقاعد للحجز",
+  "maxSeatsLabel": "أقصى عدد مقاعد للحجز",
+  "seatsHint": "عدد المقاعد التي يمكن للعميل حجزها دفعة واحدة.",
+  "startInstructionsLabel": "كيف تبدأ الخدمة (نقطة اللقاء أو الاستلام)",
+  "startInstructionsHint": "أخبر العملاء بمكان اللقاء أو كيفية الاستلام.",
+  "inclusionsLabel": "ما يشمله السعر",
+  "exclusionsLabel": "ما لا يشمله السعر",
+  "listHint": "عنصر واحد في كل سطر.",
+  "requirementsLabel": "ما يجب على العملاء إحضاره أو معرفته",
+  "requirementsHint": "واحد في كل سطر، مثل: أحضر بطاقة الهوية، احضر قبل 15 دقيقة.",
+  "arabicSublabel": "العربية",
+  "englishSublabel": "الإنجليزية"
 }

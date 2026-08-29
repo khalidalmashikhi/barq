@@ -95,5 +95,17 @@
   "tourVehicleUnavailable": "Szczegóły pojazdu są obecnie niedostępne.",
   "tourVehicleGuestsSuffix": "gości",
   "tourVehicle4x4Badge": "4x4",
-  "tourVehicleUntitled": "Pojazd"
+  "tourVehicleUntitled": "Pojazd",
+  "durationDays": "{count} dni",
+  "durationHours": "{count} godz.",
+  "durationMinutes": "{count} min",
+  "durationHoursMinutes": "{hours} godz. {minutes} min",
+  "bookingSizeLabel": "Wielkość rezerwacji",
+  "bookingSizeRange": "{min}–{max} miejsc",
+  "bookingSizeUpTo": "Do {max} miejsc",
+  "bookingSizeFrom": "Od {min} miejsc",
+  "startInstructionsTitle": "Jak się zaczyna",
+  "inclusionsTitle": "Co jest wliczone",
+  "exclusionsTitle": "Nie wliczone",
+  "requirementsTitle": "Co zabrać"
 }

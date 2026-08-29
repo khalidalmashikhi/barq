@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "Tablica",
   "acceptScheduleHeading": "Harmonogram",
   "acceptScheduleStartLabel": "Czas rozpoczęcia",
-  "acceptScheduleEndLabel": "Czas zakończenia"
+  "acceptScheduleEndLabel": "Czas zakończenia",
+  "sectionServiceDetailsTitle": "Szczegóły usługi (opcjonalnie)",
+  "durationMinutesLabel": "Czas trwania w minutach",
+  "durationHint": "Łączny czas. Zostaw puste, jeśli nie dotyczy.",
+  "minSeatsLabel": "Min. miejsc na rezerwację",
+  "maxSeatsLabel": "Maks. miejsc na rezerwację",
+  "seatsHint": "Ile miejsc klient może zarezerwować naraz.",
+  "startInstructionsLabel": "Jak się zaczyna (miejsce spotkania lub odbiór)",
+  "startInstructionsHint": "Powiedz klientom, gdzie się spotkać lub jak działa odbiór.",
+  "inclusionsLabel": "Co jest wliczone",
+  "exclusionsLabel": "Co nie jest wliczone",
+  "listHint": "Jeden element w wierszu.",
+  "requirementsLabel": "Co klienci powinni zabrać lub wiedzieć",
+  "requirementsHint": "Jeden w wierszu, np. weź dowód, przyjdź 15 minut wcześniej.",
+  "arabicSublabel": "Arabski",
+  "englishSublabel": "Angielski"
 }

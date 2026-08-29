@@ -5,6 +5,7 @@
   "customerIncomplete": "Please verify your email address before booking.",
   "serviceUnavailable": "This experience is not currently available for booking",
   "priceUnavailable": "The selected price option is not available for this experience",
+  "bookingQuantityOutOfRange": "The number of seats is outside the range this service allows.",
   "slotUnavailable": "The selected time slot is no longer available",
   "slotRequired": "Please select a time slot for this experience",
   "slotFull": "Sorry, the remaining capacity for this slot was just taken",

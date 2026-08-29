@@ -95,5 +95,17 @@
   "tourVehicleUnavailable": "تفاصيل المركبة غير متوفرة حاليًا.",
   "tourVehicleGuestsSuffix": "ضيوف",
   "tourVehicle4x4Badge": "دفع رباعي",
-  "tourVehicleUntitled": "مركبة"
+  "tourVehicleUntitled": "مركبة",
+  "durationDays": "{count} يوم",
+  "durationHours": "{count} ساعة",
+  "durationMinutes": "{count} دقيقة",
+  "durationHoursMinutes": "{hours} س {minutes} د",
+  "bookingSizeLabel": "حجم الحجز",
+  "bookingSizeRange": "{min}–{max} مقاعد",
+  "bookingSizeUpTo": "حتى {max} مقاعد",
+  "bookingSizeFrom": "من {min} مقاعد",
+  "startInstructionsTitle": "كيف تبدأ الخدمة",
+  "inclusionsTitle": "ما يشمله السعر",
+  "exclusionsTitle": "غير مشمول",
+  "requirementsTitle": "ما تحتاج إحضاره"
 }

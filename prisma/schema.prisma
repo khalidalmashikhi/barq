@@ -992,6 +992,35 @@ model Service {
   /// services stay valid (regionCode = NULL) and fully public until a provider
   /// sets it; nothing reads it yet (Gate 3/4 wire it).
   regionCode  String?
+  /// Service Information Model (Booking Decision Data) — all additive, nullable, and
+  /// service-type-NEUTRAL: they apply across tours, transport, vehicles, guides, transfers,
+  /// marine trips, etc., and every one is optional so legacy services stay valid and fully
+  /// public with these left NULL. None duplicate data held elsewhere.
+  ///
+  /// Canonical duration in MINUTES (machine-readable; the UI localizes to hours/days). NOT a
+  /// formatted string, NOT derived from Availability slot start/end (a slotless service has no
+  /// slot). Optional — some services (e.g. open-ended rentals) have no meaningful duration.
+  durationMinutes      Int?
+  /// Bilingual { ar, en } free-text operational start instructions — how/where the service
+  /// begins (meeting point / pickup / delivery / marina), neutral across service types.
+  /// DISTINCT from `regionCode` (broad discovery governorate); this is the operational
+  /// "how do I start" a customer needs before booking. No maps/geocoding in this model.
+  startInstructions    Json?
+  /// Bilingual { ar: string[], en: string[] } — what the price includes.
+  inclusions           Json?
+  /// Bilingual { ar: string[], en: string[] } — what the price does NOT include.
+  exclusions           Json?
+  /// Bilingual { ar: string[], en: string[] } — customer-facing booking requirements (bring
+  /// ID, min age, arrive early, equipment). Distinct from the provider's internal
+  /// verification documents (ProviderDocument) — that is provider compliance, this is
+  /// customer information.
+  customerRequirements Json?
+  /// Per-BOOKING seat bounds (min/max seats a customer may request in ONE booking of this
+  /// service). NOT the same as Availability.capacity (a slot's total capacity, untouched by
+  /// this model). Enforced server-side in create-booking. The future Pricing gate multiplies
+  /// seats by unit price; maxBookingSeats caps that quantity — no contradiction with pricing.
+  minBookingSeats      Int?
+  maxBookingSeats      Int?
   createdAt   DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
 

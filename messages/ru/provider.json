@@ -556,5 +556,20 @@
   "assignedVehiclePlateLabel": "Номер",
   "acceptScheduleHeading": "Расписание",
   "acceptScheduleStartLabel": "Время начала",
-  "acceptScheduleEndLabel": "Время окончания"
+  "acceptScheduleEndLabel": "Время окончания",
+  "sectionServiceDetailsTitle": "Сведения об услуге (необязательно)",
+  "durationMinutesLabel": "Длительность в минутах",
+  "durationHint": "Общая длительность. Оставьте пустым, если неприменимо.",
+  "minSeatsLabel": "Мин. мест на бронирование",
+  "maxSeatsLabel": "Макс. мест на бронирование",
+  "seatsHint": "Сколько мест клиент может забронировать за раз.",
+  "startInstructionsLabel": "Как начинается (место встречи или подача)",
+  "startInstructionsHint": "Укажите, где встретиться или как проходит подача.",
+  "inclusionsLabel": "Что включено",
+  "exclusionsLabel": "Что не включено",
+  "listHint": "По одному пункту в строке.",
+  "requirementsLabel": "Что клиентам взять или знать",
+  "requirementsHint": "По одному в строке, напр.: взять удостоверение, прийти за 15 минут.",
+  "arabicSublabel": "Арабский",
+  "englishSublabel": "Английский"
 }
