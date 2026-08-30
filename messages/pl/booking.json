@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Przydzielony pojazd",
   "assignedVehicleUntitled": "Pojazd",
   "assignedVehicleGuestsSuffix": "gości",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Instrukcje dotyczące spotkania i odbioru",
+  "fulfillmentServiceTitle": "Instrukcje dotyczące usługi",
+  "fulfillmentCustomerEmpty": "Usługodawca przekaże szczegóły spotkania przed rezerwacją.",
+  "fulfillmentProviderHint": "Powiedz klientowi, dokąd ma przyjść, kiedy dotrzeć i jak Cię znaleźć. Nie podawaj numerów telefonu ani danych kontaktowych.",
+  "fulfillmentProviderArLabel": "Instrukcje (arabski)",
+  "fulfillmentProviderEnLabel": "Instrukcje (angielski)",
+  "fulfillmentProviderSaveButton": "Zapisz instrukcje",
+  "fulfillmentProviderSavingLabel": "Zapisywanie…",
+  "fulfillmentProviderEmpty": "Nie dodano jeszcze instrukcji dotyczących spotkania."
 }

@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Назначенный автомобиль",
   "assignedVehicleUntitled": "Автомобиль",
   "assignedVehicleGuestsSuffix": "гостей",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Инструкции по встрече и посадке",
+  "fulfillmentServiceTitle": "Инструкции по услуге",
+  "fulfillmentCustomerEmpty": "Поставщик услуги сообщит детали встречи до вашего бронирования.",
+  "fulfillmentProviderHint": "Сообщите клиенту, куда идти, когда прибыть и как вас найти. Не указывайте номера телефонов или личные контактные данные.",
+  "fulfillmentProviderArLabel": "Инструкции (арабский)",
+  "fulfillmentProviderEnLabel": "Инструкции (английский)",
+  "fulfillmentProviderSaveButton": "Сохранить инструкции",
+  "fulfillmentProviderSavingLabel": "Сохранение…",
+  "fulfillmentProviderEmpty": "Инструкции по встрече пока не добавлены."
 }

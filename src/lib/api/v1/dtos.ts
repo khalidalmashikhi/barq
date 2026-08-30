@@ -549,6 +549,13 @@ export interface BookingDetailDTO extends BookingMoneyFieldsDTO {
   paymentId: string | null;
   // BOOKING-VEHICLE-2 — customer-safe historical assigned vehicle (snapshot only), or null.
   assignedVehicle: AssignedVehicleDTO | null;
+  // BOOKING FULFILLMENT LOGISTICS — additive, localized. `fulfillmentInstructions` is the
+  // booking-specific meeting/pickup text (status-gated in the read model → null unless the
+  // booking is in a fulfillment-visible status); `serviceStartInstructions` is the generic
+  // service-level start text, kept as a SEPARATE field (never merged). Plain text; never a
+  // contact channel.
+  fulfillmentInstructions: string | null;
+  serviceStartInstructions: string | null;
 }
 
 export function toBookingDetailDTO(detail: BookingDetail, locale: Locale): BookingDetailDTO {
@@ -568,6 +575,8 @@ export function toBookingDetailDTO(detail: BookingDetail, locale: Locale): Booki
     hasReview: detail.hasReview,
     paymentId: detail.paymentId,
     assignedVehicle: toAssignedVehicleDTO(detail.assignedVehicle, locale),
+    fulfillmentInstructions: detail.fulfillmentInstructions,
+    serviceStartInstructions: detail.serviceStartInstructions,
   };
 }
 
@@ -794,6 +803,11 @@ export interface ProviderBookingDetailDTO extends BookingMoneyFieldsDTO {
   createdAt: string;
   // BOOKING-VEHICLE-2 — historical snapshot fields + the ONE live plate; null when unassigned.
   assignedVehicle: ProviderAssignedVehicleDTO | null;
+  // BOOKING FULFILLMENT LOGISTICS — additive, localized display of the provider's own
+  // booking-specific meeting/pickup instructions (null when unset). Read-only in the API for now:
+  // the provider WRITE path is the Web action only in this gate (a REST write endpoint is deferred
+  // fulfillment debt), so no editable/raw fields are exposed here.
+  fulfillmentInstructions: string | null;
 }
 
 export function toProviderBookingDetailDTO(
@@ -811,6 +825,7 @@ export function toProviderBookingDetailDTO(
     scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
     createdAt: detail.createdAt.toISOString(),
     assignedVehicle: toProviderAssignedVehicleDTO(detail.assignedVehicle, locale),
+    fulfillmentInstructions: detail.fulfillmentInstructions,
   };
 }
 

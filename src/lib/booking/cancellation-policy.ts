@@ -87,3 +87,25 @@ export function canCompleteBooking(status: string): boolean {
 export function canReviewBooking(status: string): boolean {
   return status === "COMPLETED";
 }
+
+// BOOKING FULFILLMENT LOGISTICS: a provider may author/edit/clear booking-specific meeting/pickup
+// instructions only while the booking is operationally live — CONFIRMED (accepted, upcoming) or
+// IN_PROGRESS (underway). Like canReviewBooking, this is a plain predicate over the status the
+// booking is in, NOT a transition (writing instructions never changes status). Pre-acceptance
+// (CREATED/PENDING_PROVIDER) is excluded so final logistics are never presented before the
+// provider commits; every terminal status (COMPLETED/CANCELLED/REJECTED/EXPIRED/DISPUTED) is
+// excluded so a settled booking's record is immutable. setBookingFulfillmentInstructions is the
+// sole enforcement point; the provider UI's use of this is display-only convenience.
+export function canEditFulfillmentInstructions(status: string): boolean {
+  return status === "CONFIRMED" || status === "IN_PROGRESS";
+}
+
+// BOOKING FULFILLMENT LOGISTICS (§10/§23): which statuses may PRESENT booking-specific meeting
+// instructions to the customer. Broader than canEdit by exactly COMPLETED — the instructions stay
+// visible as honest historical record after the service is done, but are NEVER shown for a booking
+// that will not be fulfilled: CANCELLED/REJECTED/EXPIRED/DISPUTED (would mislead a customer into
+// preparing) or the pre-acceptance CREATED/PENDING_PROVIDER (no committed logistics yet). Enforced
+// in the read models so no surface can accidentally render them in a misleading state.
+export function isFulfillmentInstructionsVisible(status: string): boolean {
+  return status === "CONFIRMED" || status === "IN_PROGRESS" || status === "COMPLETED";
+}

@@ -85,6 +85,7 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   BOOKING_NOT_PENDING: "BOOKING_NOT_ACTIONABLE",
   BOOKING_NOT_STARTABLE: "BOOKING_NOT_ACTIONABLE",
   BOOKING_NOT_COMPLETABLE: "BOOKING_NOT_ACTIONABLE",
+  BOOKING_NOT_EDITABLE: "BOOKING_NOT_ACTIONABLE",
   // BOOKING-VEHICLE-1 — provider acceptance vehicle-assignment outcomes (422 unprocessable),
   // except the concurrent race which is the existing 409 CONCURRENT_MODIFICATION.
   VEHICLE_REQUIRED: "VEHICLE_REQUIRED",

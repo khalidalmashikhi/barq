@@ -12,6 +12,7 @@ import { acceptBooking } from "@/lib/booking/accept-booking";
 import { rejectBooking } from "@/lib/booking/reject-booking";
 import { startBooking } from "@/lib/booking/start-booking";
 import { completeBooking } from "@/lib/booking/complete-booking";
+import { setBookingFulfillmentInstructions } from "@/lib/booking/set-fulfillment-instructions";
 import { canStartBooking, canCompleteBooking } from "@/lib/booking/cancellation-policy";
 import { isBookingActionErrorCode } from "@/lib/booking/booking-action-errors";
 import { getBookingErrorTranslationKey } from "@/lib/booking/booking-error-messages";
@@ -170,6 +171,62 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
             plate: t("assignedVehiclePlateLabel"),
           }}
         />
+      )}
+
+      {/* BOOKING FULFILLMENT LOGISTICS — the provider authors booking-specific meeting/pickup
+          instructions AFTER acceptance. Editable in CONFIRMED/IN_PROGRESS (a dedicated action,
+          NOT woven into acceptance); read-only display once the booking is settled (e.g.
+          COMPLETED) if any were set. Separate from acceptance and from the assigned-vehicle card;
+          never a contact channel. */}
+      {(booking.fulfillmentInstructionsEditable || booking.fulfillmentInstructions) && (
+        <Card hoverLift={false}>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-foreground">{tBooking("fulfillmentTitle")}</h2>
+            {booking.fulfillmentInstructionsEditable ? (
+              <form
+                action={async (formData: FormData) => {
+                  "use server";
+                  const result = await setBookingFulfillmentInstructions(booking.id, formData);
+                  redirect({ href: `/provider/bookings/${booking.id}${result.ok ? "" : `?error=${result.error}`}`, locale });
+                }}
+                className="flex flex-col gap-3"
+              >
+                <p className="text-xs text-foreground/50">{tBooking("fulfillmentProviderHint")}</p>
+                <label className="flex flex-col gap-1 text-xs text-foreground/60">
+                  {tBooking("fulfillmentProviderEnLabel")}
+                  <textarea
+                    name="fulfillmentInstructionsEn"
+                    rows={3}
+                    maxLength={1000}
+                    defaultValue={booking.fulfillmentInstructionsRaw?.en ?? ""}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-foreground/60">
+                  {tBooking("fulfillmentProviderArLabel")}
+                  <textarea
+                    name="fulfillmentInstructionsAr"
+                    rows={3}
+                    maxLength={1000}
+                    dir="rtl"
+                    defaultValue={booking.fulfillmentInstructionsRaw?.ar ?? ""}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <SubmitButton
+                  pendingLabel={tBooking("fulfillmentProviderSavingLabel")}
+                  className="w-fit rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                >
+                  {tBooking("fulfillmentProviderSaveButton")}
+                </SubmitButton>
+              </form>
+            ) : booking.fulfillmentInstructions ? (
+              <p className="whitespace-pre-wrap text-sm text-foreground/80">{booking.fulfillmentInstructions}</p>
+            ) : (
+              <p className="text-sm text-foreground/50">{tBooking("fulfillmentProviderEmpty")}</p>
+            )}
+          </div>
+        </Card>
       )}
 
       {(needsAction || canStart || canComplete) && (

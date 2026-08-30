@@ -1169,6 +1169,17 @@ model Booking {
   /// this gate only establishes it (no overlap/reservation logic here).
   operationalStartAt DateTime? @db.Timestamptz(6)
   operationalEndAt   DateTime? @db.Timestamptz(6)
+  /// BOOKING FULFILLMENT LOGISTICS — booking-SPECIFIC meeting/pickup instructions authored by
+  /// the provider AFTER acceptance (WHERE to go / WHEN / HOW to meet), e.g. "Pickup at the
+  /// Crowne Plaza main entrance at 08:15, white Land Cruiser." DISTINCT from
+  /// Service.startInstructions (generic, service-level, pre-booking): this is per-booking and
+  /// provider-entered once the booking is CONFIRMED. Bilingual { ar, en } free text (same shape
+  /// + 1,000-char/language limit as the service-info bilingual convention), rendered as TEXT
+  /// only — never HTML, never a contact channel (no phone/email; policy §14). Provider owns the
+  /// write (CONFIRMED/IN_PROGRESS only); customer reads own; admin reads. Nullable + no backfill:
+  /// every existing booking and every not-yet-annotated booking is null. Written ONLY by
+  /// setBookingFulfillmentInstructions — acceptBooking never touches it (kept frozen).
+  fulfillmentInstructions Json?
   status     BookingStatus @default(CREATED)
 
   /// Group booking support (approved architecture, Entries 066-067):

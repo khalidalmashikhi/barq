@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "المركبة المخصصة للحجز",
   "assignedVehicleUntitled": "مركبة",
   "assignedVehicleGuestsSuffix": "ضيوف",
-  "assignedVehicle4x4Badge": "دفع رباعي"
+  "assignedVehicle4x4Badge": "دفع رباعي",
+  "fulfillmentTitle": "تعليمات اللقاء والاستلام",
+  "fulfillmentServiceTitle": "تعليمات الخدمة",
+  "fulfillmentCustomerEmpty": "سيشارك مزوّد الخدمة تفاصيل اللقاء قبل موعد حجزك.",
+  "fulfillmentProviderHint": "أخبر العميل بمكان الذهاب ووقت الوصول وكيفية العثور عليك. لا تُضِف أرقام هواتف أو بيانات اتصال شخصية.",
+  "fulfillmentProviderArLabel": "التعليمات (بالعربية)",
+  "fulfillmentProviderEnLabel": "التعليمات (بالإنجليزية)",
+  "fulfillmentProviderSaveButton": "حفظ التعليمات",
+  "fulfillmentProviderSavingLabel": "جارٍ الحفظ…",
+  "fulfillmentProviderEmpty": "لم تتم إضافة تعليمات اللقاء بعد."
 }

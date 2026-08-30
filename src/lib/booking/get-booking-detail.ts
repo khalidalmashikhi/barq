@@ -6,6 +6,8 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { localizeFulfillmentInstructions } from "@/lib/booking/fulfillment-instructions";
+import { isFulfillmentInstructionsVisible } from "@/lib/booking/cancellation-policy";
 import type { Locale } from "@/i18n/locales";
 
 // Booking detail query — Engineering Sprint (Availability Engine).
@@ -49,6 +51,17 @@ export type BookingDetail = {
   /// (never the live Vehicle, never a live fallback). null for legacy/no-vehicle/malformed —
   /// fail-closed. Carries no id/plate/private field (the parser's allowlist guarantees it).
   assignedVehicle: BookingVehicleSnapshot | null;
+  /// BOOKING FULFILLMENT LOGISTICS — the booking-SPECIFIC meeting/pickup instructions the
+  /// provider authored, localized to the viewer. Status-GATED here (the single enforcement
+  /// point): non-null ONLY when the booking is in a fulfillment-visible status
+  /// (CONFIRMED/IN_PROGRESS/COMPLETED — see isFulfillmentInstructionsVisible); null otherwise,
+  /// so a cancelled/rejected/expired/pre-acceptance booking never presents logistics.
+  fulfillmentInstructions: string | null;
+  /// §11 coexistence — the GENERIC, service-level start instructions (Service.startInstructions),
+  /// localized. Rendered as a SEPARATE block from the booking-specific instructions above, never
+  /// merged. Present whenever the service has them (they are public service info the customer
+  /// already saw when booking); null when absent.
+  serviceStartInstructions: string | null;
 };
 
 // `localeOverride` (additive, optional): the authenticated /api/v1 adapter passes
@@ -94,7 +107,8 @@ export async function getBookingDetail(
     confirmedAt: Date | null;
     createdAt: Date;
     vehicleSnapshot: unknown;
-    service: { name: unknown };
+    fulfillmentInstructions: unknown;
+    service: { name: unknown; startInstructions: unknown };
     provider: { businessName: unknown };
     availability: { startTime: Date } | null;
     review: unknown;
@@ -125,5 +139,11 @@ export async function getBookingDetail(
     // Historical authority only — the strict parser fails closed to null on
     // absent/legacy/malformed JSON, so no raw JSON or private key can ever escape.
     assignedVehicle: parseBookingVehicleSnapshot(row.vehicleSnapshot),
+    // Status-gated: only surfaced in a fulfillment-visible status; the localizer fails closed to
+    // null on absent/malformed JSON, so no raw JSON escapes even inside the gate.
+    fulfillmentInstructions: isFulfillmentInstructionsVisible(row.status)
+      ? localizeFulfillmentInstructions(row.fulfillmentInstructions, locale)
+      : null,
+    serviceStartInstructions: localizeFulfillmentInstructions(row.service.startInstructions, locale),
   };
 }

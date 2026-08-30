@@ -17,6 +17,7 @@
   "bookingNotPending": "This booking is no longer awaiting the provider's response",
   "bookingNotStartable": "This booking cannot be started in its current status",
   "bookingNotCompletable": "This booking cannot be completed in its current status",
+  "bookingNotEditable": "Meeting instructions can only be updated while the booking is confirmed or in progress",
   "bookingNotReviewable": "This booking can't be reviewed yet. Only completed bookings can be reviewed.",
   "alreadyReviewed": "You've already submitted a review for this booking",
   "invalidRating": "Please select a rating between 1 and 5",

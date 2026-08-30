@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Přidělené vozidlo",
   "assignedVehicleUntitled": "Vozidlo",
   "assignedVehicleGuestsSuffix": "hostů",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Pokyny ke schůzce a vyzvednutí",
+  "fulfillmentServiceTitle": "Pokyny ke službě",
+  "fulfillmentCustomerEmpty": "Poskytovatel vám sdělí podrobnosti o schůzce před vaší rezervací.",
+  "fulfillmentProviderHint": "Sdělte zákazníkovi, kam má jít, kdy dorazit a jak vás najít. Neuvádějte telefonní čísla ani osobní kontaktní údaje.",
+  "fulfillmentProviderArLabel": "Pokyny (arabsky)",
+  "fulfillmentProviderEnLabel": "Pokyny (anglicky)",
+  "fulfillmentProviderSaveButton": "Uložit pokyny",
+  "fulfillmentProviderSavingLabel": "Ukládání…",
+  "fulfillmentProviderEmpty": "Zatím nebyly přidány žádné pokyny ke schůzce."
 }

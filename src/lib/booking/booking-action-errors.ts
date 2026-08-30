@@ -51,6 +51,12 @@ export type BookingActionErrorCode =
   | "BOOKING_NOT_PENDING"
   | "BOOKING_NOT_STARTABLE"
   | "BOOKING_NOT_COMPLETABLE"
+  // BOOKING FULFILLMENT LOGISTICS — the provider tried to set/clear booking-specific meeting
+  // instructions on a booking that is not in an editable state. Instructions may be authored only
+  // while the booking is CONFIRMED or IN_PROGRESS; every terminal/pre-acceptance status rejects
+  // with this. A state guard, distinct from BOOKING_NOT_FOUND (ownership) and the transition-
+  // specific BOOKING_NOT_PENDING/STARTABLE/COMPLETABLE codes.
+  | "BOOKING_NOT_EDITABLE"
   // BOOKING-VEHICLE-1 — provider acceptance vehicle-assignment outcomes. A transport
   // tour package requires a vehicle (VEHICLE_REQUIRED); the supplied vehicle must be in
   // this service's pool (VEHICLE_NOT_IN_SERVICE_POOL — also the uniform, non-enumerable
@@ -111,6 +117,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "BOOKING_NOT_PENDING",
   "BOOKING_NOT_STARTABLE",
   "BOOKING_NOT_COMPLETABLE",
+  "BOOKING_NOT_EDITABLE",
   "VEHICLE_REQUIRED",
   "VEHICLE_NOT_IN_SERVICE_POOL",
   "VEHICLE_NOT_ELIGIBLE",

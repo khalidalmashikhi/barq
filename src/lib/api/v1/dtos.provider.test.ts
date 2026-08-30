@@ -176,8 +176,12 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
       slotStartTime: null,
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       assignedVehicle: null,
+      fulfillmentInstructions: null,
+      fulfillmentInstructionsRaw: null,
+      fulfillmentInstructionsEditable: true,
     }, "en");
     expect(dto.priceSnapshot).toBeNull();
+    expect(dto.fulfillmentInstructions).toBeNull();
     // Unavailable money → bookingTotal null, never the unit masquerading as the total.
     expect(dto.bookingTotal).toBeNull();
     expect(dto.moneyMode).toBeNull();
@@ -194,7 +198,12 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
         passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false, registrationNumber: "QA-TV2-0001",
       },
+      fulfillmentInstructions: "Pickup at the lobby 08:15",
+      fulfillmentInstructionsRaw: { ar: "", en: "Pickup at the lobby 08:15" },
+      fulfillmentInstructionsEditable: true,
     }, "en");
+    // Additive fulfillment field is carried through; never a contact channel.
+    expect(dto.fulfillmentInstructions).toBe("Pickup at the lobby 08:15");
     // EXACT equality, still exact: the provider variant is the customer allow-list PLUS the
     // one live plate, and nothing else. The localized label joins it; the plate survives.
     expect(dto.assignedVehicle).toEqual({
@@ -311,6 +320,9 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
           passengerCapacity: 6, vehicleType, isFourByFour: false,
           registrationNumber: "QA-TV2-0001",
         },
+        fulfillmentInstructions: null,
+        fulfillmentInstructionsRaw: null,
+        fulfillmentInstructionsEditable: true,
       };
     }
 

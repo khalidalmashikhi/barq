@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Véhicule attribué",
   "assignedVehicleUntitled": "Véhicule",
   "assignedVehicleGuestsSuffix": "invités",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Instructions de rendez-vous et de prise en charge",
+  "fulfillmentServiceTitle": "Instructions du service",
+  "fulfillmentCustomerEmpty": "Votre prestataire vous communiquera les détails du rendez-vous avant votre réservation.",
+  "fulfillmentProviderHint": "Indiquez au client où aller, quand arriver et comment vous trouver. N'incluez pas de numéros de téléphone ni de coordonnées personnelles.",
+  "fulfillmentProviderArLabel": "Instructions (arabe)",
+  "fulfillmentProviderEnLabel": "Instructions (anglais)",
+  "fulfillmentProviderSaveButton": "Enregistrer les instructions",
+  "fulfillmentProviderSavingLabel": "Enregistrement…",
+  "fulfillmentProviderEmpty": "Aucune instruction de rendez-vous ajoutée pour le moment."
 }

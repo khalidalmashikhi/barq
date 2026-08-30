@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Assigned vehicle",
   "assignedVehicleUntitled": "Vehicle",
   "assignedVehicleGuestsSuffix": "guests",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Meeting & pickup instructions",
+  "fulfillmentServiceTitle": "Service instructions",
+  "fulfillmentCustomerEmpty": "Your provider will share meeting details before your booking.",
+  "fulfillmentProviderHint": "Tell the customer where to go, when to arrive, and how to find you. Don't include phone numbers or personal contact details.",
+  "fulfillmentProviderArLabel": "Instructions (Arabic)",
+  "fulfillmentProviderEnLabel": "Instructions (English)",
+  "fulfillmentProviderSaveButton": "Save instructions",
+  "fulfillmentProviderSavingLabel": "Saving…",
+  "fulfillmentProviderEmpty": "No meeting instructions added yet."
 }

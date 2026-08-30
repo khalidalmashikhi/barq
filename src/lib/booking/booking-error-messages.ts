@@ -36,6 +36,7 @@ const BOOKING_ERROR_TRANSLATION_KEYS = {
   BOOKING_NOT_PENDING: "bookingNotPending",
   BOOKING_NOT_STARTABLE: "bookingNotStartable",
   BOOKING_NOT_COMPLETABLE: "bookingNotCompletable",
+  BOOKING_NOT_EDITABLE: "bookingNotEditable",
   VEHICLE_REQUIRED: "vehicleRequired",
   VEHICLE_NOT_IN_SERVICE_POOL: "vehicleNotInServicePool",
   VEHICLE_NOT_ELIGIBLE: "vehicleNotEligible",

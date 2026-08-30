@@ -6,6 +6,12 @@ import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import {
+  readFulfillmentInstructions,
+  localizeFulfillmentInstructions,
+  type Bilingual,
+} from "@/lib/booking/fulfillment-instructions";
+import { canEditFulfillmentInstructions } from "@/lib/booking/cancellation-policy";
 import type { BookingStatus } from "@prisma/client";
 import type { Locale } from "@/i18n/locales";
 
@@ -43,6 +49,14 @@ export type ProviderBookingDetail = {
   /// Historical assigned vehicle (snapshot) + live plate. null when unassigned/legacy/malformed
   /// (fail-closed via the strict parser). Historical fields NEVER come from the live Vehicle.
   assignedVehicle: ProviderAssignedVehicle | null;
+  /// BOOKING FULFILLMENT LOGISTICS — the provider's own booking-specific meeting/pickup
+  /// instructions. `fulfillmentInstructions` is the localized display value (null when unset);
+  /// `fulfillmentInstructionsRaw` is the both-language {ar,en} used to PREFILL the editor (null
+  /// when unset); `fulfillmentInstructionsEditable` says whether the current status permits
+  /// authoring (CONFIRMED/IN_PROGRESS) so the page knows to render the editor vs. read-only.
+  fulfillmentInstructions: string | null;
+  fulfillmentInstructionsRaw: Bilingual | null;
+  fulfillmentInstructionsEditable: boolean;
 };
 
 // `localeOverride` (additive, optional): the /api/v1 provider adapter passes an
@@ -79,6 +93,7 @@ export async function getProviderBookingDetail(
     bookingTotalSnapshot: unknown;
     createdAt: Date;
     vehicleSnapshot: unknown;
+    fulfillmentInstructions: unknown;
     service: { name: unknown };
     availability: { startTime: Date } | null;
     vehicle: { registrationNumber: string | null } | null;
@@ -106,5 +121,8 @@ export async function getProviderBookingDetail(
     slotStartTime: row.availability?.startTime ?? null,
     createdAt: row.createdAt,
     assignedVehicle,
+    fulfillmentInstructions: localizeFulfillmentInstructions(row.fulfillmentInstructions, locale),
+    fulfillmentInstructionsRaw: readFulfillmentInstructions(row.fulfillmentInstructions),
+    fulfillmentInstructionsEditable: canEditFulfillmentInstructions(row.status),
   };
 }

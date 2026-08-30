@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Zugewiesenes Fahrzeug",
   "assignedVehicleUntitled": "Fahrzeug",
   "assignedVehicleGuestsSuffix": "Gäste",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Treffpunkt- und Abholhinweise",
+  "fulfillmentServiceTitle": "Servicehinweise",
+  "fulfillmentCustomerEmpty": "Ihr Anbieter teilt Ihnen die Treffdetails vor Ihrer Buchung mit.",
+  "fulfillmentProviderHint": "Sagen Sie dem Kunden, wohin er gehen soll, wann er ankommen soll und wie er Sie findet. Geben Sie keine Telefonnummern oder persönlichen Kontaktdaten an.",
+  "fulfillmentProviderArLabel": "Hinweise (Arabisch)",
+  "fulfillmentProviderEnLabel": "Hinweise (Englisch)",
+  "fulfillmentProviderSaveButton": "Hinweise speichern",
+  "fulfillmentProviderSavingLabel": "Wird gespeichert…",
+  "fulfillmentProviderEmpty": "Noch keine Treffhinweise hinzugefügt."
 }

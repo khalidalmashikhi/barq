@@ -191,6 +191,37 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
           />
         )}
 
+        {/* BOOKING FULFILLMENT LOGISTICS — booking-specific meeting/pickup instructions the
+            provider authored, shown prominently while the booking is CONFIRMED/IN_PROGRESS (and
+            retained on COMPLETED for reference; the read model returns null in every other,
+            non-fulfillment status so nothing misleading appears). When active but not yet
+            authored, a gentle non-alarming note. Kept SEPARATE from the generic service
+            instructions block below (§11) — never merged. Rendered as plain text. */}
+        {(booking.fulfillmentInstructions ||
+          booking.status === "CONFIRMED" ||
+          booking.status === "IN_PROGRESS") && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold text-foreground">{t("fulfillmentTitle")}</h2>
+            {booking.fulfillmentInstructions ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+                {booking.fulfillmentInstructions}
+              </p>
+            ) : (
+              <p className="text-sm leading-relaxed text-foreground/50">{t("fulfillmentCustomerEmpty")}</p>
+            )}
+          </div>
+        )}
+
+        {/* §11 coexistence — the GENERIC, service-level start instructions, in their own block. */}
+        {booking.serviceStartInstructions && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold text-foreground">{t("fulfillmentServiceTitle")}</h2>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+              {booking.serviceStartInstructions}
+            </p>
+          </div>
+        )}
+
         <BookingTimeline events={timelineEvents} />
 
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5">

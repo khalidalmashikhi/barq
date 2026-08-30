@@ -17,6 +17,7 @@
   "bookingNotPending": "Tato rezervace už nečeká na odpověď poskytovatele",
   "bookingNotStartable": "Tuto rezervaci nelze v jejím aktuálním stavu zahájit",
   "bookingNotCompletable": "Tuto rezervaci nelze v jejím aktuálním stavu dokončit",
+  "bookingNotEditable": "Pokyny ke schůzce lze upravit pouze v době, kdy je rezervace potvrzena nebo probíhá",
   "bookingNotReviewable": "Tuto rezervaci nelze recenzovat — hodnotit lze pouze dokončené rezervace",
   "alreadyReviewed": "Tuto rezervaci jste již ohodnotili",
   "invalidRating": "Vyberte prosím hodnocení od 1 do 5",

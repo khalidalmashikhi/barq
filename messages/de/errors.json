@@ -17,6 +17,7 @@
   "bookingNotPending": "Diese Buchung wartet nicht mehr auf die Antwort des Anbieters",
   "bookingNotStartable": "Diese Buchung kann in ihrem aktuellen Status nicht gestartet werden",
   "bookingNotCompletable": "Diese Buchung kann in ihrem aktuellen Status nicht abgeschlossen werden",
+  "bookingNotEditable": "Treffanweisungen können nur aktualisiert werden, solange die Buchung bestätigt ist oder läuft",
   "bookingNotReviewable": "Diese Buchung kann nicht bewertet werden — nur abgeschlossene Buchungen sind bewertbar",
   "alreadyReviewed": "Sie haben für diese Buchung bereits eine Bewertung abgegeben",
   "invalidRating": "Bitte wählen Sie eine Bewertung zwischen 1 und 5",

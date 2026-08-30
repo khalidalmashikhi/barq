@@ -17,6 +17,7 @@
   "bookingNotPending": "Ta rezerwacja nie oczekuje już na odpowiedź dostawcy",
   "bookingNotStartable": "Tej rezerwacji nie można rozpocząć w jej obecnym stanie",
   "bookingNotCompletable": "Tej rezerwacji nie można zakończyć w jej obecnym stanie",
+  "bookingNotEditable": "Instrukcje dotyczące spotkania można aktualizować tylko wtedy, gdy rezerwacja jest potwierdzona lub w trakcie",
   "bookingNotReviewable": "Tej rezerwacji nie można ocenić — ocenić można tylko zakończone rezerwacje",
   "alreadyReviewed": "Już przesłałeś opinię dla tej rezerwacji",
   "invalidRating": "Wybierz ocenę od 1 do 5",

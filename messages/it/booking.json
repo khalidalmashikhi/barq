@@ -96,5 +96,14 @@
   "assignedVehicleTitle": "Veicolo assegnato",
   "assignedVehicleUntitled": "Veicolo",
   "assignedVehicleGuestsSuffix": "ospiti",
-  "assignedVehicle4x4Badge": "4x4"
+  "assignedVehicle4x4Badge": "4x4",
+  "fulfillmentTitle": "Istruzioni per l'incontro e il ritiro",
+  "fulfillmentServiceTitle": "Istruzioni del servizio",
+  "fulfillmentCustomerEmpty": "Il fornitore condividerà i dettagli dell'incontro prima della prenotazione.",
+  "fulfillmentProviderHint": "Indica al cliente dove andare, quando arrivare e come trovarti. Non inserire numeri di telefono o dati di contatto personali.",
+  "fulfillmentProviderArLabel": "Istruzioni (arabo)",
+  "fulfillmentProviderEnLabel": "Istruzioni (inglese)",
+  "fulfillmentProviderSaveButton": "Salva istruzioni",
+  "fulfillmentProviderSavingLabel": "Salvataggio…",
+  "fulfillmentProviderEmpty": "Nessuna istruzione per l'incontro ancora aggiunta."
 }

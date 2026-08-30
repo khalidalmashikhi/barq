@@ -233,6 +233,8 @@ describe("toBookingDetailDTO", () => {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
         passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false,
       },
+      fulfillmentInstructions: "Pickup at the Crowne Plaza main entrance at 08:15",
+      serviceStartInstructions: "Meet at the marina",
     }, "en");
     expect(dto).toEqual({
       id: "b1",
@@ -257,6 +259,8 @@ describe("toBookingDetailDTO", () => {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
         passengerCapacity: 6, vehicleType: "SUV", vehicleTypeLabel: "SUV", isFourByFour: false,
       },
+      fulfillmentInstructions: "Pickup at the Crowne Plaza main entrance at 08:15",
+      serviceStartInstructions: "Meet at the marina",
     });
     // Customer never receives a plate or any id, even when a vehicle is assigned.
     const s = JSON.stringify(dto);
@@ -271,8 +275,11 @@ describe("toBookingDetailDTO", () => {
       status: "PENDING_PROVIDER", priceSnapshot: null, bookingMoney: NO_MONEY, seats: 1, slotStartTime: null,
       confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false,
       paymentId: null, assignedVehicle: null,
+      fulfillmentInstructions: null, serviceStartInstructions: null,
     }, "en");
     expect(dto.assignedVehicle).toBeNull();
+    // PENDING_PROVIDER is not a fulfillment-visible status → gated to null in the read model.
+    expect(dto.fulfillmentInstructions).toBeNull();
   });
 
   // ASSIGNED-VEHICLE-TYPE-LABEL — the snapshot stores a canonical CODE; the label is
@@ -289,6 +296,7 @@ describe("toBookingDetailDTO", () => {
           make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
           passengerCapacity: 6, vehicleType, isFourByFour: false,
         },
+        fulfillmentInstructions: null, serviceStartInstructions: null,
       };
     }
 
@@ -381,6 +389,7 @@ describe("toBookingDetailDTO", () => {
         status: "CONFIRMED", priceSnapshot: null, bookingMoney: NO_MONEY, seats: 1, slotStartTime: null,
         confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
         hasReview: false, paymentId: null, assignedVehicle: snapshot,
+        fulfillmentInstructions: null, serviceStartInstructions: null,
       }, "ar");
 
       expect(JSON.stringify(snapshot)).toBe(before);
