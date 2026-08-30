@@ -9,6 +9,7 @@ import { requireCompleteCustomer } from "@/lib/auth/require-complete-customer";
 import { getServiceById, getActivePricesForService } from "@/lib/services/get-service-detail";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
+import { classifyBillability } from "@/lib/pricing-units/billability";
 import { prisma } from "@/lib/db";
 import { createBooking } from "@/lib/booking/create-booking";
 import { isBookingActionErrorCode } from "@/lib/booking/booking-action-errors";
@@ -22,6 +23,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { BookingStepsIndicator } from "@/components/bookings/booking-steps-indicator";
+import { BookingEstimate } from "@/components/bookings/booking-estimate";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }>; };
 
@@ -174,7 +176,32 @@ export default async function BookServicePage({ params, searchParams }: Props) {
               </label>
             ))}
           </fieldset>
-          <SubmitButton disabled={!customer} className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+          {/* CUSTOMER PRE-SUBMIT BOOKING TOTAL — a live EXPECTED total for the current selection.
+              PREVIEW ONLY: it observes the server-rendered price/seats inputs and never submits a
+              client total; createBooking() re-reads the ACTIVE Price and computes the authoritative
+              total server-side. `prices` already carries exactly the display facts it needs. */}
+          <BookingEstimate
+            prices={prices.map((p) => ({
+              id: p.id,
+              amount: p.amount,
+              currency: p.currency,
+              // Classify on the SERVER — the raw pricing-unit code never crosses to the client; the
+              // island only receives the safe billability token + the already-localized label.
+              billability: classifyBillability(p.pricingUnit),
+              pricingUnitLabel: p.pricingUnitLabel,
+            }))}
+            labels={{
+              title: t("estimatedTotalLabel"),
+              selectPrice: t("estimatedTotalSelectPriceLabel"),
+              invalidQuantity: t("estimatedTotalInvalidQuantityLabel"),
+              unavailable: t("estimatedTotalUnavailableLabel"),
+            }}
+          />
+          <SubmitButton
+            disabled={!customer}
+            pendingLabel={t("bookingInProgressLabel")}
+            className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
             {t("confirmBookingButton")}
           </SubmitButton>
         </form>

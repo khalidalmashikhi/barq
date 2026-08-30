@@ -339,3 +339,46 @@ describe("BookServicePage — pricing unit on each option", () => {
     expect(tree).toContain("25.00 OMR");
   });
 });
+
+// CUSTOMER PRE-SUBMIT BOOKING TOTAL — the expected-total island is wired into the form, and the
+// submission carries ONLY selectors (never an authoritative client total). The idempotency key is
+// server-rendered once per page render and the client island does not touch it.
+describe("BookServicePage — pre-submit estimate + submission integrity", () => {
+  function setUpBookable() {
+    setUp({ requiresSlot: true, slots: [slot()] });
+  }
+
+  it("renders the expected-total estimate island with the server-provided price facts", async () => {
+    setUpBookable();
+    const tree = await render();
+    // The island receives the estimate labels (translator returns the key) and the price facts.
+    expect(tree).toContain("estimatedTotalLabel");
+    expect(tree).toContain("estimatedTotalSelectPriceLabel");
+    // It is fed the price id + the SERVER-classified billability token (never the raw unit code).
+    expect(tree).toContain(PRICE_ID);
+    expect(tree).toContain("QUANTITY_BASED");
+    expect(tree).not.toContain("PER_PERSON"); // the raw code never crosses to the client island
+  });
+
+  it("keeps the per-render idempotency key server-rendered as a hidden input (island never owns it)", async () => {
+    setUpBookable();
+    const tree = await render();
+    expect(tree).toContain('"name":"idempotencyKey"');
+  });
+
+  it("submits ONLY selectors — the form has no authoritative total/amount/currency input", async () => {
+    setUpBookable();
+    const tree = await render();
+    // The estimate is display-only; it must never become a submitted authoritative money field.
+    expect(tree).not.toContain('"name":"total"');
+    expect(tree).not.toContain('"name":"amount"');
+    expect(tree).not.toContain('"name":"currency"');
+    expect(tree).not.toContain('"name":"bookingTotal"');
+  });
+
+  it("shows a pending-submit label on the confirm button (UX only)", async () => {
+    setUpBookable();
+    const tree = await render();
+    expect(tree).toContain("bookingInProgressLabel");
+  });
+});

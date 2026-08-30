@@ -15,14 +15,18 @@ import type { ButtonHTMLAttributes } from "react";
 // component below the form itself — it cannot be inlined into the
 // (Server Component) page that renders the form.
 
-type SubmitButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
+// `pendingLabel` (optional) — a localized label shown WHILE the server action is pending, in place
+// of the idle children (e.g. "Booking…"). UX only; correctness is the server's idempotency +
+// duplicate guards, never this. Omitting it preserves the exact prior behavior for every existing
+// caller (the idle children stay visible during the pending state).
+type SubmitButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { pendingLabel?: string };
 
-export function SubmitButton({ disabled, children, ...props }: SubmitButtonProps) {
+export function SubmitButton({ disabled, children, pendingLabel, ...props }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" disabled={disabled || pending} {...props}>
-      {children}
+    <button type="submit" disabled={disabled || pending} aria-busy={pending || undefined} {...props}>
+      {pending && pendingLabel ? pendingLabel : children}
     </button>
   );
 }
