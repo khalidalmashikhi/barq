@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import type { BookingStatus } from "@prisma/client";
 import type { Locale } from "@/i18n/locales";
 
@@ -33,7 +34,10 @@ export type ProviderBookingDetail = {
   serviceName: string;
   status: BookingStatus;
   seats: number;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — authoritative money view (effective TOTAL + unit/basis/quantity).
+  bookingMoney: BookingMoneyView;
   slotStartTime: Date | null;
   createdAt: Date;
   /// Historical assigned vehicle (snapshot) + live plate. null when unassigned/legacy/malformed
@@ -70,6 +74,9 @@ export async function getProviderBookingDetail(
     seats: number;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     createdAt: Date;
     vehicleSnapshot: unknown;
     service: { name: unknown };
@@ -95,6 +102,7 @@ export async function getProviderBookingDetail(
       row.priceSnapshotAmount !== null && row.priceSnapshotCurrency
         ? `${row.priceSnapshotAmount} ${row.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(row),
     slotStartTime: row.availability?.startTime ?? null,
     createdAt: row.createdAt,
     assignedVehicle,

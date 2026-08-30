@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth, assertNotActiveAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import type { Locale } from "@/i18n/locales";
 
 // My Bookings query — Engineering Sprint (Booking Engine).
@@ -23,7 +24,12 @@ export type MyBookingListItem = {
   serviceId: string;
   serviceName: string;
   status: string;
+  /// UNIT price snapshot at booking time (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — the authoritative money view (effective TOTAL + unit/basis/
+  /// quantity), resolved via resolveBookingMoney. The card shows `bookingMoney.total`, not the
+  /// unit `priceSnapshot`, so a My Bookings row never presents the unit price as the whole cost.
+  bookingMoney: BookingMoneyView;
   /// BOOKING-SUMMARY-RECONCILIATION — the slot this booking reserves, or null for a
   /// genuinely slotless booking. THE reconciliation key: createBooking()'s duplicate
   /// guard is keyed on (customerId, availabilityId, status != CANCELLED), so a client
@@ -135,6 +141,9 @@ export async function getMyBookings(
     status: string;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     createdAt: Date;
     service: { name: unknown };
     availability: { startTime: Date } | null;
@@ -149,6 +158,7 @@ export async function getMyBookings(
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(booking),
     // Read from the Booking scalar, NOT from `availability?.id`: the two are the same
     // value, and the scalar is the one the duplicate guard itself keys on.
     availabilityId: booking.availabilityId,

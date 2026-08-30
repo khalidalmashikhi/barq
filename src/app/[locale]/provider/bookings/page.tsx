@@ -3,6 +3,7 @@ import { CalendarX, AlertCircle } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderBookings } from "@/lib/provider/queries/get-provider-bookings";
+import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { acceptBooking } from "@/lib/booking/accept-booking";
 import { rejectBooking } from "@/lib/booking/reject-booking";
@@ -173,7 +174,11 @@ export default async function ProviderBookingsPage({
                   </Link>
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="text-xs text-foreground/50">×{item.seats}</span>
-                    {item.priceSnapshot && <span className="text-sm font-semibold text-primary">{item.priceSnapshot}</span>}
+                    {/* BOOKING TOTAL PRESENTATION — the value of the booking (§15) is the effective
+                        TOTAL, not the unit price. ×{seats} above is the physical guest count. */}
+                    {formatBookingTotal(item.bookingMoney) && (
+                      <span className="text-sm font-semibold text-primary">{formatBookingTotal(item.bookingMoney)}</span>
+                    )}
                     <span className={`rounded-full px-3 py-1 text-xs font-medium ${getBookingStatusStyle(item.status)}`}>
                       {getBookingStatusLabel(item.status, tBooking)}
                     </span>

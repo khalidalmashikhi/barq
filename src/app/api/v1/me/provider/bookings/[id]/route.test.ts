@@ -30,6 +30,7 @@ describe("GET /api/v1/me/provider/bookings/{id}", () => {
       status: "CONFIRMED",
       seats: 2,
       priceSnapshot: "25 OMR",
+      bookingMoney: { available: true, moneyMode: "LEGACY", total: "25.00", unitAmount: "25.00", currency: "OMR", pricingUnit: null, billableQuantity: null },
       slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
     });
@@ -49,7 +50,7 @@ describe("GET /api/v1/me/provider/bookings/{id}", () => {
     async function vehicleFor(locale: string) {
       getDetailMock.mockResolvedValue({
         id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED", seats: 2,
-        priceSnapshot: null, slotStartTime: null,
+        priceSnapshot: null, bookingMoney: { available: false }, slotStartTime: null,
         createdAt: new Date("2026-05-01T00:00:00.000Z"),
         assignedVehicle: { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SEDAN", isFourByFour: false, registrationNumber: "QA-TV2-0001" },
       });

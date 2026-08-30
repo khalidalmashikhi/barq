@@ -7,6 +7,7 @@ import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { resolveHeadlinePrice } from "@/lib/services/headline-price";
 import { deriveBookability, type Bookability } from "@/lib/services/bookability";
 import { getServiceSlotFacts } from "@/lib/services/bookability-facts";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import type { Locale } from "@/i18n/locales";
 import { foldBookingStatusCounts, type FoldedBookingStatusCounts } from "./fold-booking-status-counts";
 
@@ -67,7 +68,11 @@ export type DashboardRecentBookingItem = {
   id: string;
   serviceName: string;
   status: string;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — authoritative money view; the home "Recent Bookings" row shows
+  /// the effective total, not the unit price.
+  bookingMoney: BookingMoneyView;
   createdAt: Date;
 };
 
@@ -230,6 +235,9 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
     status: string;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     createdAt: Date;
     service: { name: unknown };
   };
@@ -242,6 +250,7 @@ export async function getDashboardData(barqUserId: string): Promise<DashboardDat
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(booking),
     createdAt: booking.createdAt,
   }));
 

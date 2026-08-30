@@ -5,6 +5,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import type { Locale } from "@/i18n/locales";
 
 // Booking detail query — Engineering Sprint (Availability Engine).
@@ -24,7 +25,12 @@ export type BookingDetail = {
   serviceName: string;
   providerName: string;
   status: string;
+  /// UNIT price snapshot at booking time (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — the authoritative money view (effective TOTAL + unit/basis/
+  /// quantity) via resolveBookingMoney. Drives the detail pricing block AND the post-create
+  /// confirmation total (§12). `seats` below stays the physical guest count, never the multiplier.
+  bookingMoney: BookingMoneyView;
   seats: number;
   slotStartTime: Date | null;
   confirmedAt: Date | null;
@@ -82,6 +88,9 @@ export async function getBookingDetail(
     seats: number;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     confirmedAt: Date | null;
     createdAt: Date;
     vehicleSnapshot: unknown;
@@ -106,6 +115,7 @@ export async function getBookingDetail(
       row.priceSnapshotAmount !== null && row.priceSnapshotCurrency
         ? `${row.priceSnapshotAmount} ${row.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(row),
     seats: row.seats,
     slotStartTime: row.availability?.startTime ?? null,
     confirmedAt: row.confirmedAt,

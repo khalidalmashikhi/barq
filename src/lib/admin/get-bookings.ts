@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import type { BookingStatus } from "@prisma/client";
 
 // Admin Booking list query — Phase 2.9 (Booking Foundation).
@@ -59,7 +60,10 @@ export type BookingAdminListItem = {
   providerName: string;
   status: string;
   seats: number;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — authoritative money view (effective TOTAL + unit/basis/quantity).
+  bookingMoney: BookingMoneyView;
   slotStartTime: Date | null;
   createdAt: Date;
 };
@@ -129,6 +133,9 @@ export async function getBookings(filters: BookingAdminListFilters = {}): Promis
     seats: number;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     createdAt: Date;
     service: { name: unknown };
     provider: { businessName: unknown };
@@ -149,6 +156,7 @@ export async function getBookings(filters: BookingAdminListFilters = {}): Promis
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(booking),
     slotStartTime: booking.availability?.startTime ?? null,
     createdAt: booking.createdAt,
   }));

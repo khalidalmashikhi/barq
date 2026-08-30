@@ -6,6 +6,7 @@ import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/book
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
+import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
 import type { ProviderRecentBookingItem } from "@/lib/provider/queries/get-provider-overview";
 
 // Provider Recent Activity — Provider Dashboard Phase 1a, reused by
@@ -73,7 +74,10 @@ export async function ProviderRecentActivity({ items, title, icon, emptyMessage 
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {item.priceSnapshot && <span className="text-sm font-semibold text-primary">{item.priceSnapshot}</span>}
+                {/* BOOKING TOTAL PRESENTATION — the effective booking total, not the unit price. */}
+                {formatBookingTotal(item.bookingMoney) && (
+                  <span className="text-sm font-semibold text-primary">{formatBookingTotal(item.bookingMoney)}</span>
+                )}
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${getBookingStatusStyle(item.status)}`}>
                   {getBookingStatusLabel(item.status, tBooking)}
                 </span>

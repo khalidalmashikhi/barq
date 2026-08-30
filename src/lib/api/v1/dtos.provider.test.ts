@@ -148,11 +148,16 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
       status: "PENDING_PROVIDER",
       seats: 2,
       priceSnapshot: "25 OMR",
+      bookingMoney: { available: true, moneyMode: "TOTALIZED", total: "50.00", unitAmount: "25.00", currency: "OMR", pricingUnit: "PER_PERSON", billableQuantity: 2 },
       slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
       availabilityId: "a1",
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
     });
-    expect(dto.priceSnapshot).toEqual({ amount: "25.00", currency: "OMR" });
+    expect(dto.priceSnapshot).toEqual({ amount: "25.00", currency: "OMR" }); // unit unchanged
+    // BOOKING TOTAL PRESENTATION — the provider list carries the effective TOTAL (25 × 2), not the unit.
+    expect(dto.bookingTotal).toEqual({ amount: "50.00", currency: "OMR" });
+    expect(dto.moneyMode).toBe("TOTALIZED");
+    expect(dto.billableQuantity).toBe(2);
     expect(dto.scheduledStartTime).toBe("2026-06-01T09:00:00.000Z");
     const s = JSON.stringify(dto);
     expect(s).not.toContain("customerId");
@@ -167,11 +172,15 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
       status: "CONFIRMED",
       seats: 1,
       priceSnapshot: null,
+      bookingMoney: { available: false },
       slotStartTime: null,
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       assignedVehicle: null,
     }, "en");
     expect(dto.priceSnapshot).toBeNull();
+    // Unavailable money → bookingTotal null, never the unit masquerading as the total.
+    expect(dto.bookingTotal).toBeNull();
+    expect(dto.moneyMode).toBeNull();
     expect(dto.scheduledStartTime).toBeNull();
     expect(dto.assignedVehicle).toBeNull();
     expect(JSON.stringify(dto)).not.toContain("customerId");
@@ -180,7 +189,7 @@ describe("toProviderBookingListItemDTO / DetailDTO — no customer PII", () => {
   it("BOOKING-VEHICLE-2 — provider detail exposes snapshot fields + live plate, but no vehicleId/private data", () => {
     const dto = toProviderBookingDetailDTO({
       id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED", seats: 4,
-      priceSnapshot: null, slotStartTime: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      priceSnapshot: null, bookingMoney: { available: false }, slotStartTime: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
       assignedVehicle: {
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
         passengerCapacity: 6, vehicleType: "SUV", isFourByFour: false, registrationNumber: "QA-TV2-0001",
@@ -295,7 +304,7 @@ describe("toProviderVerificationDTO — localized, drops objectKey/versionToken"
     function detail(vehicleType: string | null) {
       return {
         id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED" as const,
-        seats: 4, priceSnapshot: null, slotStartTime: null,
+        seats: 4, priceSnapshot: null, bookingMoney: { available: false } as const, slotStartTime: null,
         createdAt: new Date("2026-05-01T00:00:00.000Z"),
         assignedVehicle: {
           make: "Toyota", model: "Prado", modelYear: 2024, color: "White",

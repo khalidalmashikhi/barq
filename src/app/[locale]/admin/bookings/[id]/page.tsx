@@ -8,6 +8,8 @@ import { cancelBooking } from "@/lib/admin/cancel-booking";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { getBookingTimeline } from "@/lib/booking/lifecycle";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
+import { bookingMoneyRows } from "@/lib/booking/pricing/booking-money-view";
+import { pricingUnitLabelKey } from "@/lib/pricing-units/labels";
 import { isBookingAdminActionErrorCode, getBookingAdminErrorTranslationKey } from "@/lib/admin/booking-admin-errors";
 import { isValidUuid } from "@/lib/uuid";
 import { BookingTimeline } from "@/components/bookings/booking-timeline";
@@ -44,6 +46,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
   const { error } = await searchParams;
   const t = await getServerTranslator("admin");
   const tBooking = await getServerTranslator("booking");
+  const tCommon = await getServerTranslator("common");
   const locale = await getLocale();
 
   if (!isValidUuid(id)) {
@@ -119,12 +122,57 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
               </dd>
             </div>
           )}
-          {booking.priceSnapshot && (
-            <div>
-              <dt className="text-xs text-foreground/40">{t("bookingPriceLabel")}</dt>
-              <dd className="text-sm text-foreground">{booking.priceSnapshot}</dd>
-            </div>
-          )}
+          {/* BOOKING TOTAL PRESENTATION — admin sees the authoritative TOTAL and, for a
+              per-person booking, the unit price + quantity it was built from, kept distinct
+              (§18). The same bookingMoneyRows() the customer/provider breakdown uses. */}
+          {(() => {
+            const rows = bookingMoneyRows(booking.bookingMoney);
+            if (!rows) {
+              return (
+                <div>
+                  <dt className="text-xs text-foreground/40">{t("bookingPriceLabel")}</dt>
+                  <dd className="text-sm text-foreground/40">{tBooking("bookingAmountUnavailableLabel")}</dd>
+                </div>
+              );
+            }
+            return rows.map((row) => {
+              if (row.kind === "unit") {
+                const basisKey = pricingUnitLabelKey(row.pricingUnit);
+                return (
+                  <div key="unit">
+                    <dt className="text-xs text-foreground/40">
+                      {tBooking("unitPriceLabel")}
+                      {basisKey ? ` · ${tCommon(basisKey)}` : ""}
+                    </dt>
+                    <dd className="text-sm text-foreground">
+                      {row.amount} {row.currency}
+                    </dd>
+                  </div>
+                );
+              }
+              if (row.kind === "quantity") {
+                return (
+                  <div key="quantity">
+                    <dt className="text-xs text-foreground/40">{tBooking("billableQuantityLabel")}</dt>
+                    <dd className="text-sm text-foreground">{row.value}</dd>
+                  </div>
+                );
+              }
+              const label = row.mode === "LEGACY" ? tBooking("bookingAmountLabel") : tBooking("bookingTotalLabel");
+              const basisKey = row.pricingUnit ? pricingUnitLabelKey(row.pricingUnit) : null;
+              return (
+                <div key="total">
+                  <dt className="text-xs text-foreground/40">
+                    {label}
+                    {basisKey ? ` · ${tCommon(basisKey)}` : ""}
+                  </dt>
+                  <dd className="text-sm font-semibold text-foreground">
+                    {row.amount} {row.currency}
+                  </dd>
+                </div>
+              );
+            });
+          })()}
           {booking.commissionSnapshot && (
             <div>
               <dt className="text-xs text-foreground/40">{t("bookingCommissionLabel")}</dt>

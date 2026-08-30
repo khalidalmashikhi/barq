@@ -193,3 +193,35 @@ describe("getMyBookings — reconciliation identifiers", () => {
     expect(strong.map((b) => b.id)).toEqual(["b1"]); // the server's own predicate
   });
 });
+
+// BOOKING TOTAL PRESENTATION (§28) — My Bookings surfaces the authoritative TOTAL via the
+// shared money view, keeps the unit priceSnapshot, and never turns physical seats into a
+// billable multiplier.
+describe("getMyBookings — booking money view", () => {
+  function arrange(rows: Record<string, unknown>[]) {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "u1" } });
+    assertNotActiveAdminMock.mockResolvedValue(undefined);
+    customerFindUniqueMock.mockResolvedValue({ id: "c1" });
+    bookingCountMock.mockResolvedValue(rows.length);
+    bookingFindManyMock.mockResolvedValue(rows);
+  }
+
+  const base = {
+    id: "b1", serviceId: "svc-1", availabilityId: "av-1", status: "CONFIRMED",
+    createdAt: new Date("2026-05-01T00:00:00.000Z"), service: { name: "Safari" },
+    availability: { startTime: new Date("2026-06-01T09:00:00.000Z") },
+  };
+
+  it("LEGACY (no total snapshot): bookingMoney.total is the historical unit, NOT × seats", async () => {
+    arrange([{ ...base, priceSnapshotAmount: "10", priceSnapshotCurrency: "OMR", pricingUnitSnapshot: null, billableQuantitySnapshot: null, bookingTotalSnapshot: null }]);
+    const item = (await getMyBookings()).items[0]!;
+    expect(item.bookingMoney).toMatchObject({ available: true, moneyMode: "LEGACY", total: "10.00" });
+    expect(item.priceSnapshot).toBe("10 OMR"); // unit still available, unchanged
+  });
+
+  it("TOTALIZED PER_PERSON: bookingMoney.total is the computed total (50), unit stays 10", async () => {
+    arrange([{ ...base, priceSnapshotAmount: "10", priceSnapshotCurrency: "OMR", pricingUnitSnapshot: "PER_PERSON", billableQuantitySnapshot: 5, bookingTotalSnapshot: "50" }]);
+    const item = (await getMyBookings()).items[0]!;
+    expect(item.bookingMoney).toMatchObject({ available: true, moneyMode: "TOTALIZED", total: "50.00", unitAmount: "10.00", billableQuantity: 5 });
+  });
+});

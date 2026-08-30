@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { clsx } from "@/components/ui/clsx";
 import { Link } from "@/i18n/navigation";
 import type { DashboardRecentBookingItem } from "@/lib/dashboard/get-dashboard-data";
+import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
@@ -45,7 +46,11 @@ export async function RecentBookingsList({ bookings }: RecentBookingsListProps) 
         <EmptyState icon={History} message={t("noRecentBookingsLabel")} className="mt-6 border-none" padding="py-8" />
       ) : (
         <ul className="mt-6 flex flex-col gap-3">
-          {bookings.map((booking) => (
+          {bookings.map((booking) => {
+            // BOOKING TOTAL PRESENTATION — the effective booking TOTAL (via resolveBookingMoney),
+            // not the unit price. Omitted (never shown as the unit) when the money is unavailable.
+            const bookingTotal = formatBookingTotal(booking.bookingMoney);
+            return (
             <li key={booking.id}>
               <Link
                 href={`/bookings/${booking.id}`}
@@ -55,7 +60,7 @@ export async function RecentBookingsList({ bookings }: RecentBookingsListProps) 
                   <p className="font-medium text-foreground">{booking.serviceName}</p>
                   <p className="mt-0.5 text-xs text-foreground/60">
                     {formatDate(new Date(booking.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}
-                    {booking.priceSnapshot ? ` · ${booking.priceSnapshot}` : ""}
+                    {bookingTotal ? ` · ${bookingTotal}` : ""}
                   </p>
                 </div>
                 <span
@@ -65,7 +70,8 @@ export async function RecentBookingsList({ bookings }: RecentBookingsListProps) 
                 </span>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </Card>

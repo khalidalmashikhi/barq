@@ -21,6 +21,7 @@ import type { ProviderBookingListItem } from "@/lib/provider/queries/get-provide
 import type { ProviderBookingDetail, ProviderAssignedVehicle } from "@/lib/provider/queries/get-provider-booking-detail";
 import type { ProviderVerificationData } from "@/lib/provider/documents/get-provider-verification-data";
 import type { Locale } from "@/i18n/locales";
+import type { BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { parseMoneyString, toMoneyDTO, type MoneyDTO } from "./money";
 
@@ -357,19 +358,59 @@ export function toMeDTO(
 }
 
 // ---------------------------------------------------------------------------
+// Booking money (BOOKING TOTAL PRESENTATION) — additive, backward-compatible.
+//
+// Every booking DTO already exposes `priceSnapshot` = the UNIT price at booking time; that field
+// is UNCHANGED and never removed/renamed (§19). These fields ADD the authoritative effective
+// TOTAL (from the server-side resolveBookingMoney, via the shared BookingMoneyView) so a client
+// can show the real cost of a booking without re-deriving unit × seats itself.
+//
+// FAIL-CLOSED (§20): when the money is unavailable (INVALID/ABSENT), `bookingTotal` and
+// `moneyMode` are null — the unit price is NEVER surfaced as the total. INVALID never masquerades
+// as a real amount.
+// ---------------------------------------------------------------------------
+
+export interface BookingMoneyFieldsDTO {
+  /// The authoritative effective booking TOTAL, or null when unavailable. LEGACY bookings carry
+  /// the historical unit as the total (never × seats); TOTALIZED carry the computed total.
+  bookingTotal: MoneyDTO | null;
+  /// LEGACY | TOTALIZED, or null when the money is unavailable.
+  moneyMode: "LEGACY" | "TOTALIZED" | null;
+  /// Governed pricing-unit CODE the total was computed from (TOTALIZED only), else null.
+  pricingUnit: string | null;
+  /// The multiplier actually applied for the total (TOTALIZED only), else null. NOT `seats` —
+  /// `seats` remains the physical guest/capacity count and is never a money multiplier here.
+  billableQuantity: number | null;
+}
+
+/** Map the shared presentation view to the additive wire fields (single source for all 4 DTOs). */
+export function toBookingMoneyFields(view: BookingMoneyView): BookingMoneyFieldsDTO {
+  if (!view.available) {
+    return { bookingTotal: null, moneyMode: null, pricingUnit: null, billableQuantity: null };
+  }
+  return {
+    bookingTotal: toMoneyDTO(view.total, view.currency),
+    moneyMode: view.moneyMode,
+    pricingUnit: view.moneyMode === "TOTALIZED" ? view.pricingUnit : null,
+    billableQuantity: view.moneyMode === "TOTALIZED" ? view.billableQuantity : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Booking summary (customer's own list)
 // ---------------------------------------------------------------------------
 
-export interface BookingSummaryDTO {
+export interface BookingSummaryDTO extends BookingMoneyFieldsDTO {
   id: string;
   status: string;
   /// BOOKING-SUMMARY-RECONCILIATION — stable machine id of the booked service. Already
   /// public (it keys GET /api/v1/services/{id}) and already on BookingDetailDTO.
   serviceId: string;
   serviceName: string;
-  // Snapshotted price captured at booking time (domain truth). This is the
+  // Snapshotted UNIT price captured at booking time (domain truth). This is the
   // stored Price snapshot, NOT a computed order total — labeled honestly so a
-  // client never treats it as a seats-multiplied total.
+  // client never treats it as a seats-multiplied total. The authoritative total is
+  // `bookingTotal` (BookingMoneyFieldsDTO).
   priceSnapshot: MoneyDTO | null;
   scheduledStartTime: string | null; // ISO-8601 slot start, when the booking references a slot
   /// BOOKING-SUMMARY-RECONCILIATION — the slot id, or null when the booking has no slot.
@@ -399,6 +440,7 @@ export function toBookingSummaryDTO(item: MyBookingListItem): BookingSummaryDTO 
     serviceId: item.serviceId,
     serviceName: item.serviceName,
     priceSnapshot: parseMoneyString(item.priceSnapshot),
+    ...toBookingMoneyFields(item.bookingMoney),
     scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
     availabilityId: item.availabilityId,
     createdAt: item.createdAt.toISOString(),
@@ -491,7 +533,7 @@ function toProviderAssignedVehicleDTO(
 // Booking detail (customer's own)
 // ---------------------------------------------------------------------------
 
-export interface BookingDetailDTO {
+export interface BookingDetailDTO extends BookingMoneyFieldsDTO {
   id: string;
   status: string;
   serviceId: string;
@@ -499,7 +541,7 @@ export interface BookingDetailDTO {
   providerId: string;
   providerName: string;
   seats: number;
-  priceSnapshot: MoneyDTO | null; // stored snapshot (unit price at booking time), not a computed total
+  priceSnapshot: MoneyDTO | null; // stored snapshot (UNIT price at booking time), not a computed total — see bookingTotal
   scheduledStartTime: string | null; // ISO-8601
   confirmedAt: string | null; // ISO-8601
   createdAt: string; // ISO-8601
@@ -519,6 +561,7 @@ export function toBookingDetailDTO(detail: BookingDetail, locale: Locale): Booki
     providerName: detail.providerName,
     seats: detail.seats,
     priceSnapshot: parseMoneyString(detail.priceSnapshot),
+    ...toBookingMoneyFields(detail.bookingMoney),
     scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
     confirmedAt: detail.confirmedAt ? detail.confirmedAt.toISOString() : null,
     createdAt: detail.createdAt.toISOString(),
@@ -715,12 +758,12 @@ export function toProviderAvailabilitySlotDTO(slot: ProviderAvailabilityListItem
 }
 
 // Provider incoming bookings. NO customer PII (none exists in the schema/reader).
-export interface ProviderBookingListItemDTO {
+export interface ProviderBookingListItemDTO extends BookingMoneyFieldsDTO {
   id: string;
   serviceName: string;
   status: string;
   seats: number;
-  priceSnapshot: MoneyDTO | null;
+  priceSnapshot: MoneyDTO | null; // UNIT price snapshot; authoritative total is bookingTotal
   scheduledStartTime: string | null;
   availabilityId: string | null;
   createdAt: string;
@@ -733,19 +776,20 @@ export function toProviderBookingListItemDTO(item: ProviderBookingListItem): Pro
     status: item.status,
     seats: item.seats,
     priceSnapshot: parseMoneyString(item.priceSnapshot),
+    ...toBookingMoneyFields(item.bookingMoney),
     scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
     availabilityId: item.availabilityId,
     createdAt: item.createdAt.toISOString(),
   };
 }
 
-export interface ProviderBookingDetailDTO {
+export interface ProviderBookingDetailDTO extends BookingMoneyFieldsDTO {
   id: string;
   serviceId: string;
   serviceName: string;
   status: string;
   seats: number;
-  priceSnapshot: MoneyDTO | null;
+  priceSnapshot: MoneyDTO | null; // UNIT price snapshot; authoritative total is bookingTotal
   scheduledStartTime: string | null;
   createdAt: string;
   // BOOKING-VEHICLE-2 — historical snapshot fields + the ONE live plate; null when unassigned.
@@ -763,6 +807,7 @@ export function toProviderBookingDetailDTO(
     status: detail.status,
     seats: detail.seats,
     priceSnapshot: parseMoneyString(detail.priceSnapshot),
+    ...toBookingMoneyFields(detail.bookingMoney),
     scheduledStartTime: detail.slotStartTime ? detail.slotStartTime.toISOString() : null,
     createdAt: detail.createdAt.toISOString(),
     assignedVehicle: toProviderAssignedVehicleDTO(detail.assignedVehicle, locale),

@@ -25,6 +25,7 @@ import { getBookingTimeline } from "@/lib/booking/lifecycle/get-booking-timeline
 import { BookingTimeline } from "@/components/bookings/booking-timeline";
 import { CancelBookingDialog } from "@/components/bookings/cancel-booking-dialog";
 import { AssignedVehicleCard } from "@/components/bookings/assigned-vehicle-card";
+import { BookingMoneyBreakdown } from "@/components/bookings/booking-money-breakdown";
 
 // INTERNATIONALIZATION PHASE A.4 — REAL BUG FIXED: this page previously
 // discarded cancelBooking()'s result entirely (`await cancelBooking(...)`
@@ -144,12 +145,10 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
             <span className="text-foreground/50">{t("statusLabel")}</span>
             <span className="font-medium text-foreground">{getBookingStatusLabel(booking.status, t)}</span>
           </div>
-          {booking.priceSnapshot && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-foreground/50">{t("priceLabel")}</span>
-              <span className="font-medium text-primary">{booking.priceSnapshot}</span>
-            </div>
-          )}
+          {/* BOOKING TOTAL PRESENTATION — authoritative TOTAL + (for a per-person booking) the
+              unit × quantity breakdown (§14). `seats` below stays the physical guest count and is
+              deliberately kept separate from any billable quantity. */}
+          <BookingMoneyBreakdown money={booking.bookingMoney} />
           <div className="flex items-center justify-between text-sm">
             <span className="text-foreground/50">{t("slotLabel")}</span>
             <span className="font-medium text-foreground">

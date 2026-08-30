@@ -52,6 +52,7 @@ describe("GET /api/v1/me/bookings", () => {
           serviceName: "Desert Safari",
           status: "CONFIRMED",
           priceSnapshot: "25 OMR",
+          bookingMoney: { available: true, moneyMode: "LEGACY", total: "25.00", unitAmount: "25.00", currency: "OMR", pricingUnit: null, billableQuantity: null },
           availabilityId: "av-1",
           slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
           createdAt: new Date("2026-05-01T00:00:00.000Z"),
@@ -81,6 +82,11 @@ describe("GET /api/v1/me/bookings", () => {
       serviceId: "svc-1",
       serviceName: "Desert Safari",
       priceSnapshot: { amount: "25.00", currency: "OMR" },
+      // BOOKING TOTAL PRESENTATION — additive money fields (LEGACY → total == unit).
+      bookingTotal: { amount: "25.00", currency: "OMR" },
+      moneyMode: "LEGACY",
+      pricingUnit: null,
+      billableQuantity: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       availabilityId: "av-1",
       createdAt: "2026-05-01T00:00:00.000Z",
@@ -102,7 +108,7 @@ describe("GET /api/v1/me/bookings", () => {
       vi.mocked(createBooking).mockResolvedValue({ ok: true, bookingId: "b1" } as never);
       vi.mocked(getBookingDetail).mockResolvedValue({
         id: "b1", serviceId: "s1", providerId: "p1", serviceName: "Safari",
-        providerName: "Desert Co", status: "PENDING_PROVIDER", priceSnapshot: null, seats: 1,
+        providerName: "Desert Co", status: "PENDING_PROVIDER", priceSnapshot: null, bookingMoney: { available: false }, seats: 1,
         slotStartTime: null, confirmedAt: null,
         createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false, paymentId: null,
         assignedVehicle: {

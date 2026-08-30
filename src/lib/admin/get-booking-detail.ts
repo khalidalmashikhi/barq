@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 
 // Admin Booking detail query — Phase 2.9 (Booking Foundation). Returns
 // a Booking regardless of who it belongs to, for admin management —
@@ -38,7 +39,12 @@ export type BookingAdminDetail = {
   availabilityId: string | null;
   slotStartTime: Date | null;
   slotEndTime: Date | null;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — authoritative money view. Admin needs to distinguish unit
+  /// price, booking total, and commission (§18); this carries the total + breakdown, commission
+  /// stays its own field below.
+  bookingMoney: BookingMoneyView;
   commissionSnapshot: { amount: string; tier: string } | null;
   confirmedAt: Date | null;
   createdAt: Date;
@@ -85,6 +91,9 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
     availabilityId: string | null;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     commissionSnapshotAmount: unknown;
     commissionSnapshotTier: string | null;
     confirmedAt: Date | null;
@@ -116,6 +125,7 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
       row.priceSnapshotAmount !== null && row.priceSnapshotCurrency
         ? `${row.priceSnapshotAmount} ${row.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(row),
     commissionSnapshot:
       row.commissionSnapshotAmount !== null && row.commissionSnapshotTier
         ? { amount: String(row.commissionSnapshotAmount), tier: row.commissionSnapshotTier }

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { buildBookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
+import type { BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import { toMeDTO, toBookingSummaryDTO, toBookingDetailDTO, toNotificationDTO } from "./dtos";
+
+// BOOKING TOTAL PRESENTATION — shared money-view fixtures for the booking DTO tests.
+const LEGACY_25: BookingMoneyView = {
+  available: true, moneyMode: "LEGACY", total: "25.00", unitAmount: "25.00", currency: "OMR", pricingUnit: null, billableQuantity: null,
+};
+const NO_MONEY: BookingMoneyView = { available: false };
 
 describe("toMeDTO", () => {
   it("maps identity + provider state; never leaks internal user fields", () => {
@@ -51,6 +58,7 @@ describe("toBookingSummaryDTO", () => {
       serviceName: "Desert Safari",
       status: "CONFIRMED",
       priceSnapshot: "25 OMR",
+      bookingMoney: LEGACY_25,
       availabilityId: "av-1",
       slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
@@ -64,6 +72,11 @@ describe("toBookingSummaryDTO", () => {
       serviceId: "svc-1",
       serviceName: "Desert Safari",
       priceSnapshot: { amount: "25.00", currency: "OMR" },
+      // BOOKING TOTAL PRESENTATION — additive money fields (LEGACY → total == unit).
+      bookingTotal: { amount: "25.00", currency: "OMR" },
+      moneyMode: "LEGACY",
+      pricingUnit: null,
+      billableQuantity: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       availabilityId: "av-1",
       createdAt: "2026-05-01T00:00:00.000Z",
@@ -78,6 +91,7 @@ describe("toBookingSummaryDTO", () => {
       serviceName: "n",
       status: "CREATED",
       priceSnapshot: null,
+      bookingMoney: NO_MONEY,
       availabilityId: null,
       slotStartTime: null,
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
@@ -89,6 +103,48 @@ describe("toBookingSummaryDTO", () => {
     expect(dto.availabilityId).toBeNull();
   });
 
+  // BOOKING TOTAL PRESENTATION (§31) — the additive money fields on the wire, backward-compatible.
+  describe("additive booking-total fields", () => {
+    function summaryWith(bookingMoney: BookingMoneyView, priceSnapshot: string | null) {
+      return toBookingSummaryDTO({
+        id: "b1", serviceId: "svc-1", serviceName: "n", status: "CONFIRMED",
+        priceSnapshot, bookingMoney, availabilityId: null,
+        slotStartTime: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      });
+    }
+
+    it("LEGACY: bookingTotal == the historical unit, unit field still present", () => {
+      const dto = summaryWith(LEGACY_25, "25 OMR");
+      expect(dto.priceSnapshot).toEqual({ amount: "25.00", currency: "OMR" }); // unit unchanged
+      expect(dto.bookingTotal).toEqual({ amount: "25.00", currency: "OMR" });
+      expect(dto.moneyMode).toBe("LEGACY");
+      expect(dto.pricingUnit).toBeNull();
+      expect(dto.billableQuantity).toBeNull();
+    });
+
+    it("TOTALIZED: bookingTotal is the computed total (50), unit stays 10", () => {
+      const dto = summaryWith(
+        { available: true, moneyMode: "TOTALIZED", total: "50.00", unitAmount: "10.00", currency: "OMR", pricingUnit: "PER_PERSON", billableQuantity: 5 },
+        "10 OMR"
+      );
+      expect(dto.priceSnapshot).toEqual({ amount: "10.00", currency: "OMR" }); // unit, not the total
+      expect(dto.bookingTotal).toEqual({ amount: "50.00", currency: "OMR" });
+      expect(dto.moneyMode).toBe("TOTALIZED");
+      expect(dto.pricingUnit).toBe("PER_PERSON");
+      expect(dto.billableQuantity).toBe(5);
+    });
+
+    it("INVALID/ABSENT: bookingTotal is null — NEVER the unit price masquerading as the total", () => {
+      const dto = summaryWith({ available: false }, "10 OMR");
+      expect(dto.bookingTotal).toBeNull();
+      expect(dto.moneyMode).toBeNull();
+      expect(dto.pricingUnit).toBeNull();
+      expect(dto.billableQuantity).toBeNull();
+      // The unit field is still exposed for backward compatibility (it is a real, distinct fact).
+      expect(dto.priceSnapshot).toEqual({ amount: "10.00", currency: "OMR" });
+    });
+  });
+
   // BOOKING-SUMMARY-RECONCILIATION — why these two ids are on the wire at all.
   describe("reconciliation key", () => {
     function summary(over: Partial<Parameters<typeof toBookingSummaryDTO>[0]> = {}) {
@@ -98,6 +154,7 @@ describe("toBookingSummaryDTO", () => {
         serviceName: "Desert Safari",
         status: "PENDING_PROVIDER",
         priceSnapshot: null,
+        bookingMoney: NO_MONEY,
         availabilityId: "av-1",
         slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
         createdAt: new Date("2026-05-01T00:00:00.000Z"),
@@ -164,6 +221,7 @@ describe("toBookingDetailDTO", () => {
       providerName: "Desert Co",
       status: "CONFIRMED",
       priceSnapshot: "25 OMR",
+      bookingMoney: LEGACY_25,
       seats: 3,
       slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
       confirmedAt: new Date("2026-05-02T00:00:00.000Z"),
@@ -185,6 +243,11 @@ describe("toBookingDetailDTO", () => {
       providerName: "Desert Co",
       seats: 3,
       priceSnapshot: { amount: "25.00", currency: "OMR" },
+      // BOOKING TOTAL PRESENTATION — additive money fields (LEGACY → total == unit).
+      bookingTotal: { amount: "25.00", currency: "OMR" },
+      moneyMode: "LEGACY",
+      pricingUnit: null,
+      billableQuantity: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       confirmedAt: "2026-05-02T00:00:00.000Z",
       createdAt: "2026-05-01T00:00:00.000Z",
@@ -205,7 +268,7 @@ describe("toBookingDetailDTO", () => {
   it("assignedVehicle is null when the booking has no snapshot", () => {
     const dto = toBookingDetailDTO({
       id: "b1", serviceId: "s1", providerId: "p1", serviceName: "n", providerName: "pn",
-      status: "PENDING_PROVIDER", priceSnapshot: null, seats: 1, slotStartTime: null,
+      status: "PENDING_PROVIDER", priceSnapshot: null, bookingMoney: NO_MONEY, seats: 1, slotStartTime: null,
       confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false,
       paymentId: null, assignedVehicle: null,
     }, "en");
@@ -219,7 +282,7 @@ describe("toBookingDetailDTO", () => {
     function detailWith(vehicleType: string | null) {
       return {
         id: "b1", serviceId: "s1", providerId: "p1", serviceName: "n", providerName: "pn",
-        status: "CONFIRMED" as const, priceSnapshot: null, seats: 1, slotStartTime: null,
+        status: "CONFIRMED" as const, priceSnapshot: null, bookingMoney: NO_MONEY, seats: 1, slotStartTime: null,
         confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false,
         paymentId: null,
         assignedVehicle: {
@@ -315,7 +378,7 @@ describe("toBookingDetailDTO", () => {
 
       toBookingDetailDTO({
         id: "b1", serviceId: "s1", providerId: "p1", serviceName: "n", providerName: "pn",
-        status: "CONFIRMED", priceSnapshot: null, seats: 1, slotStartTime: null,
+        status: "CONFIRMED", priceSnapshot: null, bookingMoney: NO_MONEY, seats: 1, slotStartTime: null,
         confirmedAt: null, createdAt: new Date("2026-05-01T00:00:00.000Z"),
         hasReview: false, paymentId: null, assignedVehicle: snapshot,
       }, "ar");

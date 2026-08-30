@@ -131,4 +131,25 @@ describe("getBookings", () => {
 
     expect(countMock).toHaveBeenCalledWith({ where: { updatedAt: { gte: since } } });
   });
+
+  // BOOKING TOTAL PRESENTATION (§30) — admin surfaces the effective TOTAL while keeping the unit
+  // price as a distinct operational fact.
+  it("carries a booking-total view distinct from the unit price snapshot", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([
+      {
+        id: "booking-1", customerId: "c1", serviceId: "s1", providerId: "p1", status: "COMPLETED", seats: 5,
+        priceSnapshotAmount: "10.00", priceSnapshotCurrency: "OMR",
+        pricingUnitSnapshot: "PER_PERSON", billableQuantitySnapshot: 5, bookingTotalSnapshot: "50.00",
+        createdAt: new Date(), service: { name: { en: "Tour" } }, provider: { businessName: { en: "Co" } },
+        availability: null,
+      },
+    ]);
+
+    const item = (await getBookings()).items[0]!;
+    expect(item.priceSnapshot).toBe("10.00 OMR"); // unit, operationally useful
+    expect(item.bookingMoney).toMatchObject({ available: true, moneyMode: "TOTALIZED", total: "50.00", unitAmount: "10.00", billableQuantity: 5 });
+  });
 });

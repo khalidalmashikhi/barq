@@ -49,3 +49,24 @@ describe("getProviderBookings — ownership isolation", () => {
     expect(findManyMock).not.toHaveBeenCalled();
   });
 });
+
+// BOOKING TOTAL PRESENTATION (§29) — the provider list carries the effective booking TOTAL
+// (the value being accepted/fulfilled), keeps the unit, and never multiplies by passengers for
+// a fixed-basis (PER_VEHICLE) booking.
+describe("getProviderBookings — booking money view", () => {
+  const base = {
+    id: "b1", status: "PENDING_PROVIDER", seats: 4, availabilityId: "av-1",
+    createdAt: new Date("2026-05-01T00:00:00.000Z"), service: { name: "Safari" },
+    availability: { startTime: new Date("2026-06-01T09:00:00.000Z") },
+  };
+
+  it("PER_VEHICLE with 4 passengers still shows total 95 (never 95 × 4)", async () => {
+    countMock.mockResolvedValue(1);
+    findManyMock.mockResolvedValue([
+      { ...base, priceSnapshotAmount: "95", priceSnapshotCurrency: "OMR", pricingUnitSnapshot: "PER_VEHICLE", billableQuantitySnapshot: 1, bookingTotalSnapshot: "95" },
+    ]);
+    const item = (await getProviderBookings({})).items[0]!;
+    expect(item.seats).toBe(4); // physical guests
+    expect(item.bookingMoney).toMatchObject({ available: true, moneyMode: "TOTALIZED", total: "95.00", billableQuantity: 1, pricingUnit: "PER_VEHICLE" });
+  });
+});

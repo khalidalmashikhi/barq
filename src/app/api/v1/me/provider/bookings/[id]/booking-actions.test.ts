@@ -45,6 +45,7 @@ const DETAIL = {
   status: "CONFIRMED",
   seats: 2,
   priceSnapshot: "25 OMR",
+  bookingMoney: { available: true, moneyMode: "LEGACY", total: "25.00", unitAmount: "25.00", currency: "OMR", pricingUnit: null, billableQuantity: null },
   slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
   createdAt: new Date("2026-05-01T00:00:00.000Z"),
 };
@@ -76,6 +77,11 @@ describe("POST /api/v1/me/provider/bookings/{id}/accept", () => {
       status: "CONFIRMED",
       seats: 2,
       priceSnapshot: { amount: "25.00", currency: "OMR" },
+      // BOOKING TOTAL PRESENTATION — additive money fields (LEGACY → total == unit).
+      bookingTotal: { amount: "25.00", currency: "OMR" },
+      moneyMode: "LEGACY",
+      pricingUnit: null,
+      billableQuantity: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       createdAt: "2026-05-01T00:00:00.000Z",
       // BOOKING-VEHICLE-2 — the DETAIL fixture has no snapshot, so the DTO maps assignedVehicle to null.
@@ -232,7 +238,7 @@ describe("POST /api/v1/me/provider/bookings/{id}/complete", () => {
       prime();
       detailMock.mockResolvedValue({
         id: "b1", serviceId: "s1", serviceName: "Safari", status: "CONFIRMED", seats: 2,
-        priceSnapshot: null, slotStartTime: null,
+        priceSnapshot: null, bookingMoney: { available: false }, slotStartTime: null,
         createdAt: new Date("2026-05-01T00:00:00.000Z"),
         assignedVehicle: {
           make: "Toyota", model: "Prado", modelYear: 2024, color: "White",

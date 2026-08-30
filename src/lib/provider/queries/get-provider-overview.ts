@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 
 // Provider Overview query — Provider Dashboard Phase 1a.
 //
@@ -59,7 +60,11 @@ export type ProviderRecentBookingItem = {
   id: string;
   serviceName: string;
   status: string;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — authoritative money view; the provider home shows the effective
+  /// booking total, not the unit price (§17).
+  bookingMoney: BookingMoneyView;
   createdAt: Date;
 };
 
@@ -73,7 +78,11 @@ export type ProviderBookingPreviewItem = {
   serviceName: string;
   status: string;
   seats: number;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — authoritative money view; the dashboard preview shows the
+  /// effective booking total, not the unit price (§17).
+  bookingMoney: BookingMoneyView;
   slotStartTime: Date;
 };
 
@@ -224,6 +233,9 @@ export async function getProviderOverview(): Promise<ProviderOverviewData> {
     status: string;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     createdAt: Date;
     service: { name: unknown };
   };
@@ -242,6 +254,7 @@ export async function getProviderOverview(): Promise<ProviderOverviewData> {
         booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
           ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
           : null,
+      bookingMoney: bookingMoneyViewFromRow(booking),
       createdAt: booking.createdAt,
     };
   }
@@ -259,6 +272,7 @@ export async function getProviderOverview(): Promise<ProviderOverviewData> {
         booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
           ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
           : null,
+      bookingMoney: bookingMoneyViewFromRow(booking),
       // Non-null by construction — both queries filter on
       // availability.startTime, which requires a real Availability row.
       slotStartTime: booking.availability!.startTime,

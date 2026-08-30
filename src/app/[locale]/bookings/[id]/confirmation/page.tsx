@@ -4,6 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { Download, Share2, MessageCircle, Compass } from "lucide-react";
 import { UnauthenticatedError, isActiveAdminSession } from "@/lib/auth";
 import { getBookingDetail } from "@/lib/booking/get-booking-detail";
+import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
@@ -99,8 +100,10 @@ export default async function BookingConfirmationPage({ params }: Props) {
         <p className="text-sm text-foreground/60">
           {booking.serviceName} — {booking.providerName}
         </p>
-        {booking.priceSnapshot && (
-          <p className="text-lg font-semibold text-primary">{booking.priceSnapshot}</p>
+        {/* BOOKING TOTAL PRESENTATION (§12) — the persisted AUTHORITATIVE booking total, not
+            the unit price and not a pre-submit estimate. Omitted when the money is unavailable. */}
+        {formatBookingTotal(booking.bookingMoney) && (
+          <p className="text-lg font-semibold text-primary">{formatBookingTotal(booking.bookingMoney)}</p>
         )}
         {booking.slotStartTime && (
           <p className="text-sm text-foreground/60">

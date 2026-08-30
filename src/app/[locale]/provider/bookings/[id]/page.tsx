@@ -19,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { BookingTimeline } from "@/components/bookings/booking-timeline";
+import { BookingMoneyBreakdown } from "@/components/bookings/booking-money-breakdown";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
@@ -133,12 +134,10 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
             <span className="text-foreground/50">{tBooking("seatsLabel")}</span>
             <span className="font-medium text-foreground">{booking.seats}</span>
           </div>
-          {booking.priceSnapshot && (
-            <div className="flex items-center justify-between">
-              <span className="text-foreground/50">{tBooking("priceLabel")}</span>
-              <span className="font-medium text-primary">{booking.priceSnapshot}</span>
-            </div>
-          )}
+          {/* BOOKING TOTAL PRESENTATION — the provider sees the effective booking TOTAL plus the
+              unit × quantity breakdown for a per-person booking (§16). Seats above stays the
+              physical guest count. */}
+          <BookingMoneyBreakdown money={booking.bookingMoney} />
           <div className="flex items-center justify-between">
             <span className="text-foreground/50">{tBooking("requestDateLabel")}</span>
             <span className="font-medium text-foreground">

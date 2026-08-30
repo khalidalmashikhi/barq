@@ -4,6 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { CalendarX } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getBookings } from "@/lib/admin/get-bookings";
+import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
 import { cancelBooking } from "@/lib/admin/cancel-booking";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
@@ -120,7 +121,8 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                   {booking.slotStartTime && (
                     <> · {formatDate(new Date(booking.slotStartTime), locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</>
                   )}
-                  {booking.priceSnapshot && <> · {booking.priceSnapshot}</>}
+                  {/* BOOKING TOTAL PRESENTATION — effective booking total, not the unit price. */}
+                  {formatBookingTotal(booking.bookingMoney) && <> · {formatBookingTotal(booking.bookingMoney)}</>}
                 </p>
               </Link>
 

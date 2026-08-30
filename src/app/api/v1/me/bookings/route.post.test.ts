@@ -43,6 +43,7 @@ const DETAIL = {
   providerName: "Desert Co",
   status: "PENDING_PROVIDER",
   priceSnapshot: "25 OMR",
+  bookingMoney: { available: true, moneyMode: "LEGACY", total: "25.00", unitAmount: "25.00", currency: "OMR", pricingUnit: null, billableQuantity: null },
   seats: 2,
   slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
   confirmedAt: null,

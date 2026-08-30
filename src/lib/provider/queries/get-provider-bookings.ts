@@ -4,6 +4,7 @@ import { requireProvider } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
+import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 import type { BookingStatus } from "@prisma/client";
 import type { Locale } from "@/i18n/locales";
 
@@ -63,7 +64,11 @@ export type ProviderBookingListItem = {
   serviceName: string;
   status: string;
   seats: number;
+  /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
+  /// BOOKING TOTAL PRESENTATION — the authoritative money view. The provider row shows the
+  /// effective TOTAL (the value of the booking being accepted/fulfilled, §15), not the unit price.
+  bookingMoney: BookingMoneyView;
   slotStartTime: Date | null;
   availabilityId: string | null;
   createdAt: Date;
@@ -135,6 +140,9 @@ export async function getProviderBookings(
     seats: number;
     priceSnapshotAmount: unknown;
     priceSnapshotCurrency: string | null;
+    pricingUnitSnapshot: string | null;
+    billableQuantitySnapshot: number | null;
+    bookingTotalSnapshot: unknown;
     availabilityId: string | null;
     createdAt: Date;
     service: { name: unknown };
@@ -150,6 +158,7 @@ export async function getProviderBookings(
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
         : null,
+    bookingMoney: bookingMoneyViewFromRow(booking),
     slotStartTime: booking.availability?.startTime ?? null,
     availabilityId: booking.availabilityId,
     createdAt: booking.createdAt,

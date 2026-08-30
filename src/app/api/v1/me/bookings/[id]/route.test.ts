@@ -58,6 +58,7 @@ describe("GET /api/v1/me/bookings/{id}", () => {
       providerName: "Desert Co",
       status: "CONFIRMED",
       priceSnapshot: "25 OMR",
+      bookingMoney: { available: true, moneyMode: "LEGACY", total: "25.00", unitAmount: "25.00", currency: "OMR", pricingUnit: null, billableQuantity: null },
       seats: 2,
       slotStartTime: new Date("2026-06-01T09:00:00.000Z"),
       confirmedAt: new Date("2026-05-02T00:00:00.000Z"),
@@ -84,7 +85,7 @@ describe("GET /api/v1/me/bookings/{id}", () => {
       h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: { id: "u1" } });
       getBookingDetailMock.mockResolvedValue({
         id: "b1", serviceId: "s1", providerId: "p1", serviceName: "Safari",
-        providerName: "Desert Co", status: "CONFIRMED", priceSnapshot: null, seats: 1,
+        providerName: "Desert Co", status: "CONFIRMED", priceSnapshot: null, bookingMoney: { available: false }, seats: 1,
         slotStartTime: null, confirmedAt: null,
         createdAt: new Date("2026-05-01T00:00:00.000Z"), hasReview: false, paymentId: null,
         assignedVehicle: { make: "Toyota", model: "Prado", modelYear: 2024, color: "White", passengerCapacity: 6, vehicleType: "SEDAN", isFourByFour: false },
