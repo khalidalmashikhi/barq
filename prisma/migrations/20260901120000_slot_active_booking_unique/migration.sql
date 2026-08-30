@@ -1,0 +1,41 @@
+-- SLOT BUSINESS-DUPLICATE ATOMICITY — make the EXISTING one-active-booking-per-slot rule
+-- database-atomic without changing its meaning.
+--
+-- The application already enforces "one NON-CANCELLED booking per (customer, availability)" in
+-- create-booking.ts, but only with a non-atomic read-then-act findFirst — so two concurrent
+-- requests carrying DIFFERENT idempotency keys (two distinct logical requests, so request
+-- idempotency does NOT collapse them) could both pass it and create two active bookings for the
+-- same slot. This partial UNIQUE INDEX is the authoritative backstop for that race.
+--
+-- The predicate matches the current rule EXACTLY (audited clean — 0 violating groups on staging
+-- before this was applied): scoped to (customerId, availabilityId), only for slot-based bookings
+-- (availabilityId IS NOT NULL), and treating every status except CANCELLED as an active duplicate
+-- (status <> 'CANCELLED') — the same `status: { not: "CANCELLED" }` the code uses. The current
+-- REJECTED/EXPIRED/DISPUTED/COMPLETED-still-blocks behavior is preserved verbatim (a deliberate,
+-- separately-tracked product-policy question — NOT redefined here).
+--
+-- SCOPE, DELIBERATE:
+--   * customerId is in the key  → Customer A and Customer B may both book the same slot (capacity
+--     permitting); the rule is per-customer, never global to the slot.
+--   * availabilityId IS NOT NULL → SLOTLESS bookings (availabilityId NULL) are excluded from the
+--     index entirely, so legitimate repeated slotless bookings (governed by request idempotency)
+--     never collide here.
+--   * priceId / serviceId are NOT in the key → changing the price cannot bypass the same-slot rule,
+--     and availabilityId already identifies the slot (and, transitively, its service).
+--   * status <> 'CANCELLED' → a CANCELLED booking drops out of the index, so re-booking a slot
+--     after cancelling is allowed.
+--
+-- PRISMA REPRESENTATION: Prisma 5.22 cannot express a PARTIAL (WHERE) unique index in
+-- schema.prisma, so this is an intentional raw-SQL-only DB invariant, documented on the Booking
+-- model in schema.prisma. BARQ deploys with `prisma migrate deploy` (apply-only; never
+-- `migrate dev`/diff in CI), so this index is applied and tracked normally and causes no runtime
+-- drift. `status <> 'CANCELLED'` is an immutable predicate (enum literal), valid in a partial index.
+--
+-- ADDITIVE ONLY: one CREATE UNIQUE INDEX. No DROP, no ALTER of an existing object, no DELETE, no
+-- UPDATE, no status/booking rewrite, no backfill. Rollback-safe (DROP INDEX). Applied to staging
+-- only; production untouched.
+
+-- CreateIndex
+CREATE UNIQUE INDEX "bookings_active_slot_per_customer_key"
+    ON "bookings" ("customerId", "availabilityId")
+    WHERE "availabilityId" IS NOT NULL AND "status" <> 'CANCELLED';

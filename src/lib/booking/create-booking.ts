@@ -17,11 +17,20 @@ import { parseBookingQuantity } from "@/lib/booking/parse-booking-quantity";
 import { readIdempotencyKey, computeBookingRequestFingerprint } from "@/lib/booking/idempotency";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
-// BOOKING-IDEMPOTENCY — a unique-constraint violation (P2002). The ONLY unique this creation
-// transaction can violate is booking_idempotency_keys' (customerId, idempotencyKey), so a P2002
-// here means a concurrent request already claimed the same key: re-read and replay.
-function isUniqueConstraintViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+// A unique-constraint violation (P2002) can now come from TWO distinct indexes on the creation
+// transaction, which MUST be told apart:
+//   • booking_idempotency_keys (customerId, idempotencyKey) — a concurrent same-key request
+//     (BOOKING-IDEMPOTENCY): re-read and replay/conflict.
+//   • bookings_active_slot_per_customer_key (customerId, availabilityId) WHERE ... — a concurrent
+//     DIFFERENT-key request for the same slot (SLOT BUSINESS-DUPLICATE): the existing DUPLICATE_BOOKING.
+// This returns the P2002 target (index name or field list, joined) for that discrimination, or null
+// when the error is not a unique violation. The constraint/index NAME never leaves this module.
+function uniqueViolationTarget(error: unknown): string | null {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return null;
+  const target = (error.meta as { target?: unknown } | undefined)?.target;
+  if (Array.isArray(target)) return target.join(",");
+  if (typeof target === "string") return target;
+  return ""; // a P2002 with no usable target — still a unique violation, just unnamed.
 }
 
 // Create booking — Engineering Sprint (Availability Engine).
@@ -417,23 +426,44 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     if (error instanceof Error && error.message === "SLOT_FULL") {
       return { ok: false, error: "SLOT_FULL" };
     }
-    // BOOKING-IDEMPOTENCY — the CONCURRENT same-key race: our in-transaction claim lost to a
-    // simultaneous request that committed the same (customerId, idempotencyKey) first, so this
-    // whole transaction (booking + capacity) has already rolled back. Re-read the committed winner
-    // and REPLAY its booking (fingerprint match) or report a CONFLICT (different request). Only
-    // ever taken when a key was supplied — the idempotency unique is the only one this tx touches.
-    if (idempotency.state === "valid" && isUniqueConstraintViolation(error)) {
-      const winner = await prisma.bookingIdempotencyKey.findUnique({
-        where: { customerId_idempotencyKey: { customerId: customer.id, idempotencyKey: idempotency.key } },
-      });
-      if (winner) {
-        if (winner.requestFingerprint === requestFingerprint) {
-          return { ok: true, bookingId: winner.bookingId };
-        }
-        return { ok: false, error: "IDEMPOTENCY_KEY_CONFLICT" };
+    // A unique-constraint violation from inside the transaction — which index decides the meaning.
+    const uniqueTarget = uniqueViolationTarget(error);
+    if (uniqueTarget !== null) {
+      // The idempotency index carries "idempotency" in its name/fields; the business-duplicate
+      // index carries "availabilityId" (or "active_slot"). These are mutually exclusive markers.
+      const hitsIdempotency = uniqueTarget.includes("idempotency");
+      const hitsBusinessDuplicate = uniqueTarget.includes("availabilityId") || uniqueTarget.includes("active_slot");
+
+      // SLOT BUSINESS-DUPLICATE — the DB rejected a SECOND active booking for this (customer, slot),
+      // created by a concurrent DIFFERENT-key request. The whole transaction (booking row + capacity
+      // increment + any idempotency claim) has rolled back. Map to the EXISTING stable domain error;
+      // the constraint/index name never leaks. The violation occurs at booking.create — BEFORE the
+      // idempotency claim — so the losing key is never persisted (§10).
+      if (hitsBusinessDuplicate && !hitsIdempotency) {
+        return { ok: false, error: "DUPLICATE_BOOKING" };
       }
-      // The winner rolled back after we observed the conflict (extremely unlikely) — fall through
-      // to the generic path rather than guessing.
+
+      // BOOKING-IDEMPOTENCY — the CONCURRENT same-key race: our in-transaction claim lost to a
+      // simultaneous request that committed the same (customerId, idempotencyKey) first. Re-read the
+      // committed winner and REPLAY (fingerprint match) or report a CONFLICT.
+      if (idempotency.state === "valid" && hitsIdempotency && !hitsBusinessDuplicate) {
+        const winner = await prisma.bookingIdempotencyKey.findUnique({
+          where: { customerId_idempotencyKey: { customerId: customer.id, idempotencyKey: idempotency.key } },
+        });
+        if (winner) {
+          if (winner.requestFingerprint === requestFingerprint) {
+            return { ok: true, bookingId: winner.bookingId };
+          }
+          return { ok: false, error: "IDEMPOTENCY_KEY_CONFLICT" };
+        }
+        // The winner rolled back after we observed the conflict (extremely unlikely) — fall through.
+      }
+
+      // No key was supplied, so the ONLY unique this transaction can violate is the business-duplicate
+      // slot index — even if the target came back unnamed. It is a duplicate booking, never a 500.
+      if (idempotency.state !== "valid") {
+        return { ok: false, error: "DUPLICATE_BOOKING" };
+      }
     }
     // Genuinely unexpected — never expose Prisma/internal exception
     // details to the client; log server-side only and return the

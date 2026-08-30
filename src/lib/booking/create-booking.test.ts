@@ -769,7 +769,7 @@ describe("createBooking — idempotency", () => {
     // No prior claim at the pre-tx check (both requests raced past it)...
     idempotencyFindUniqueMock.mockResolvedValueOnce(null);
     // ...our in-tx claim hits the unique violation...
-    idempotencyCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0" }));
+    idempotencyCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0", meta: { target: ["customerId", "idempotencyKey"] } }));
     // ...and the post-P2002 re-read finds the committed winner with a matching fingerprint.
     idempotencyFindUniqueMock.mockResolvedValueOnce({
       bookingId: "winner-booking-id",
@@ -785,7 +785,7 @@ describe("createBooking — idempotency", () => {
   it("concurrent P2002 with a different winning request → conflict", async () => {
     bookable();
     idempotencyFindUniqueMock.mockResolvedValueOnce(null);
-    idempotencyCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0" }));
+    idempotencyCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0", meta: { target: ["customerId", "idempotencyKey"] } }));
     idempotencyFindUniqueMock.mockResolvedValueOnce({ bookingId: "winner", requestFingerprint: "a-different-request-fingerprint" });
 
     const r = await createBooking(withKey({ seats: "2" }));
@@ -848,5 +848,125 @@ describe("createBooking — idempotency", () => {
     expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
     expect(idempotencyFindUniqueMock).not.toHaveBeenCalled();
     expect(idempotencyCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+// SLOT BUSINESS-DUPLICATE ATOMICITY — the §19 matrix. The DB partial-unique index's true two-
+// connection race is a Postgres guarantee pinned by slot-duplicate-migration.test.ts (§18); these
+// tests exercise every application branch: the friendly pre-transaction guard, and the mapping of
+// the DB unique violation (P2002 on the business index) back to the stable DUPLICATE_BOOKING —
+// distinguished from the idempotency-key P2002 — with no constraint/index name ever leaking.
+describe("createBooking — slot business-duplicate atomicity", () => {
+  const KEY = "018f2a3b-1c2d-7e3f-9a0b-1c2d3e4f5a6b";
+  const OTHER_CUSTOMER_ID = "019f4e4e-9999-7a11-9c3e-1a2b3c4d5e6f";
+  const OTHER_AVAILABILITY_ID = "019f4e4e-8301-7b22-8d4f-2b3c4d5e6f71";
+  const OTHER_PRICE_ID = "019f4e4e-80b8-7cf2-b043-916c71648aaa";
+
+  function slotBookable() {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+    serviceRequiresSlotMock.mockResolvedValue(true);
+    availabilityFindFirstMock.mockResolvedValue({ id: AVAILABILITY_ID, serviceId: SERVICE_ID, state: "OPEN", startTime: new Date("2026-06-01T09:00:00Z"), endTime: new Date("2026-06-01T12:00:00Z") });
+    executeRawMock.mockResolvedValue(1);
+  }
+  function slotForm(fields: Record<string, string> = {}) {
+    return formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: AVAILABILITY_ID, seats: "2", ...fields });
+  }
+
+  // §19.7 — the friendly pre-transaction guard, scoped exactly to the current rule.
+  it("an existing active booking for the same (customer, slot) → DUPLICATE_BOOKING", async () => {
+    slotBookable();
+    bookingFindFirstMock.mockResolvedValue({ id: "existing-active" });
+    const r = await createBooking(slotForm());
+    expect(r).toEqual({ ok: false, error: "DUPLICATE_BOOKING" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+    expect(bookingFindFirstMock).toHaveBeenCalledWith({
+      where: { customerId: CUSTOMER_ID, availabilityId: AVAILABILITY_ID, status: { not: "CANCELLED" } },
+    });
+  });
+
+  // §19.13 / §15 — a different priceId for the same slot is still a duplicate (priceId is NOT in the rule).
+  it("a different priceId for the same slot cannot bypass the rule", async () => {
+    slotBookable();
+    bookingFindFirstMock.mockResolvedValue({ id: "existing-active" });
+    const r = await createBooking(slotForm({ priceId: OTHER_PRICE_ID }));
+    expect(r).toEqual({ ok: false, error: "DUPLICATE_BOOKING" });
+    expect((bookingFindFirstMock.mock.calls[0]![0] as { where: Record<string, unknown> }).where).not.toHaveProperty("priceId");
+  });
+
+  // §19.6 / §11 — a CANCELLED prior booking does NOT block (the guard is status != CANCELLED).
+  it("a CANCELLED prior booking allows rebooking the same slot", async () => {
+    slotBookable();
+    bookingFindFirstMock.mockResolvedValue(null); // a CANCELLED-only history matches nothing here
+    const r = await createBooking(slotForm());
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+  });
+
+  // §19.8 / §14 — a different customer may book the same slot (scope includes customerId).
+  it("a different customer may book the same slot", async () => {
+    slotBookable();
+    requireCustomerMock.mockResolvedValue({ customer: { id: OTHER_CUSTOMER_ID } });
+    bookingFindFirstMock.mockResolvedValue(null);
+    const r = await createBooking(slotForm());
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    expect(bookingFindFirstMock).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ customerId: OTHER_CUSTOMER_ID }) }));
+  });
+
+  // §19.9 — the same customer may book a DIFFERENT slot.
+  it("the same customer may book a different slot", async () => {
+    slotBookable();
+    availabilityFindFirstMock.mockResolvedValue({ id: OTHER_AVAILABILITY_ID, serviceId: SERVICE_ID, state: "OPEN", startTime: new Date("2026-06-02T09:00:00Z"), endTime: new Date("2026-06-02T12:00:00Z") });
+    bookingFindFirstMock.mockResolvedValue(null);
+    const r = await createBooking(slotForm({ availabilityId: OTHER_AVAILABILITY_ID }));
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+  });
+
+  // §19.3 / §19.14 — the CONCURRENT race: the pre-tx guard passes, but booking.create hits the
+  // partial unique index (P2002 on the business-duplicate index) → mapped to DUPLICATE_BOOKING,
+  // never a raw constraint error / 500, with no index name or field leaked. Both P2002 target
+  // representations (index-name string, field-list array) are handled.
+  it.each([
+    ["index-name target", "bookings_active_slot_per_customer_key"],
+    ["field-list target", ["customerId", "availabilityId"]],
+  ])("a concurrent same-slot insert (P2002 %s) → DUPLICATE_BOOKING, no raw name leak", async (_label, target) => {
+    slotBookable();
+    bookingFindFirstMock.mockResolvedValue(null); // pre-tx guard passes; the race is post-check
+    bookingCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0", meta: { target } }));
+    const r = await createBooking(slotForm());
+    expect(r).toEqual({ ok: false, error: "DUPLICATE_BOOKING" });
+    const s = JSON.stringify(r);
+    expect(s).not.toContain("bookings_active_slot");
+    expect(s).not.toContain("availabilityId");
+    expect(s).not.toMatch(/prisma|P2002|constraint/i);
+  });
+
+  // §19.5 / §10 — the business-duplicate violation happens at booking.create, BEFORE the idempotency
+  // claim, so the losing DIFFERENT-key transaction claims NO key (it stays reusable) and this is
+  // mapped to DUPLICATE_BOOKING, never mistaken for an idempotency replay/conflict.
+  it("a business-duplicate P2002 with a key present → DUPLICATE_BOOKING and claims no idempotency key", async () => {
+    slotBookable();
+    bookingFindFirstMock.mockResolvedValue(null);
+    idempotencyFindUniqueMock.mockResolvedValue(null); // a fresh, unseen key
+    bookingCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0", meta: { target: ["customerId", "availabilityId"] } }));
+    const r = await createBooking(slotForm({ idempotencyKey: KEY }));
+    expect(r).toEqual({ ok: false, error: "DUPLICATE_BOOKING" }); // NOT a replay, NOT a conflict
+    expect(idempotencyCreateMock).not.toHaveBeenCalled();
+  });
+
+  // §19.10 / §13 — slotless bookings are entirely outside the invariant: the slot duplicate guard
+  // is never consulted (and the partial index excludes NULL availabilityId).
+  it("a slotless booking never consults the slot duplicate guard", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+    serviceRequiresSlotMock.mockResolvedValue(false);
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    expect(bookingFindFirstMock).not.toHaveBeenCalled();
   });
 });

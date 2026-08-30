@@ -1252,6 +1252,12 @@ model Booking {
   /// filter shape (get-provider-bookings.ts, get-provider-overview.ts's
   /// many provider+status-scoped counts).
   @@index([providerId, status])
+  // SLOT BUSINESS-DUPLICATE ATOMICITY — a DB-level invariant that Prisma 5.22 cannot express in
+  // schema syntax: a PARTIAL UNIQUE INDEX "bookings_active_slot_per_customer_key" on
+  // (customerId, availabilityId) WHERE availabilityId IS NOT NULL AND status <> 'CANCELLED'.
+  // It makes the existing one-active-booking-per-slot rule (create-booking.ts) atomic. Created by
+  // migration 20260901120000_slot_active_booking_unique (raw SQL). Do NOT drop it via a Prisma
+  // schema diff — it is intentionally not represented here.
   @@map("bookings")
 }
 
