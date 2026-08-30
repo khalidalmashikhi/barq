@@ -22,6 +22,8 @@
   "invalidRating": "Bitte wählen Sie eine Bewertung zwischen 1 und 5",
   "invalidContent": "Bitte schreiben Sie eine kurze Bewertung, bevor Sie absenden",
   "rateLimited": "Sie stellen zu schnell hintereinander Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+  "idempotencyKeyInvalid": "Die Anfrage konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut.",
+  "idempotencyKeyConflict": "Diese Anfrage steht im Widerspruch zu einer früheren Buchung. Bitte starten Sie eine neue Buchung.",
   "vehicleRequired": "Wählen Sie ein Fahrzeug, um diese Buchung anzunehmen",
   "vehicleNotInServicePool": "Dieses Fahrzeug gehört nicht zum Fahrzeugpool dieser Tour",
   "vehicleNotEligible": "Dieses Fahrzeug ist derzeit nicht für diese Tour geeignet",

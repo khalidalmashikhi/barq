@@ -30,6 +30,11 @@ const CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   DUPLICATE_BOOKING: "DUPLICATE_BOOKING",
   BOOKING_NOT_FOUND: "NOT_FOUND",
   BOOKING_NOT_CANCELLABLE: "BOOKING_NOT_CANCELLABLE",
+  // BOOKING-IDEMPOTENCY — reachable from POST /api/v1/me/bookings (a malformed Idempotency-Key,
+  // or the same key reused for a different booking request). A same-key same-request retry never
+  // reaches here — it returns the original booking as a normal success.
+  IDEMPOTENCY_KEY_INVALID: "IDEMPOTENCY_KEY_INVALID",
+  IDEMPOTENCY_KEY_CONFLICT: "IDEMPOTENCY_KEY_CONFLICT",
   RATE_LIMITED: "RATE_LIMITED",
   // Not reachable from the customer create/cancel endpoints — treated as
   // unexpected internal conditions rather than normal rejections.

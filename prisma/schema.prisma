@@ -478,6 +478,9 @@ model Customer {
   wallet         Wallet?
   contracts      Contract[]
   supportTickets SupportTicket[]
+  /// BOOKING-IDEMPOTENCY — this customer's booking-creation idempotency claims (see
+  /// BookingIdempotencyKey). Back-relation only; ownership is scoped by its customerId.
+  bookingIdempotencyKeys BookingIdempotencyKey[]
 
   @@map("customers")
 }
@@ -1230,6 +1233,11 @@ model Booking {
   /// provider acceptance (one per booking; see VehicleReservation). Optional/one-to-one:
   /// only vehicle-assigned confirmed bookings have one, and none exists while PENDING.
   vehicleReservation        VehicleReservation?
+  /// BOOKING-IDEMPOTENCY — the idempotency claim (if any) that created this booking. At most
+  /// one per booking (see BookingIdempotencyKey.bookingId @unique). A booking created without a
+  /// client idempotency key (legacy, or a client that supplied none) simply has none. Virtual
+  /// back-relation only — no column on Booking.
+  idempotencyKey            BookingIdempotencyKey?
 
   @@index([customerId])
   @@index([providerId])
@@ -1287,6 +1295,48 @@ model VehicleReservation {
   /// The overlap query filters by vehicleId then range — this composite index serves it.
   @@index([vehicleId, startsAt, endsAt])
   @@map("vehicle_reservations")
+}
+
+/// BOOKING-IDEMPOTENCY — the durable, database-backed record that makes booking CREATION
+/// idempotent. One row is claimed (inserted LAST inside createBooking's transaction) per
+/// successfully committed booking that carried a client idempotency key. Its
+/// @@unique([customerId, idempotencyKey]) is the sole race arbiter: two concurrent requests
+/// with the same authenticated customer + key cannot both commit — the loser's INSERT hits a
+/// unique violation and its whole transaction (booking + capacity mutation) rolls back, so a
+/// double-click / retry / concurrent duplicate yields exactly ONE booking and consumes capacity
+/// once. A retry then REPLAYS: the committed row is re-read and its original booking returned,
+/// with no repeated capacity, lifecycle, notification, commission, or payment side effect.
+///
+/// requestFingerprint is a server-side canonical hash of the booking SELECTORS (serviceId,
+/// priceId, availabilityId, validated seats) — never client-supplied money — so the SAME key
+/// reused for a materially DIFFERENT request fails closed as a conflict rather than silently
+/// returning the wrong booking. The key is an opaque, bounded, validated client token, scoped to
+/// the customer (composite unique) — never authorization, never trusted for booking facts.
+///
+/// Additive + no backfill: a booking created without a key (legacy, or a client that supplied
+/// none) has no row here and is simply never replayable by key. Retention: the row lives with its
+/// booking; a future prune of old keys is a separate concern (not built here).
+model BookingIdempotencyKey {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  /// Ownership scope — every lookup/conflict check is filtered by this, so one customer's key
+  /// can never surface, replay, or conflict with another customer's booking.
+  customerId         String   @db.Uuid
+  customer           Customer @relation(fields: [customerId], references: [id])
+  /// The opaque client-supplied idempotency token (validated: bounded length + safe charset).
+  idempotencyKey     String
+  /// SHA-256 hex of the canonical server-validated selector string — the request-equivalence
+  /// fingerprint. Same key + same fingerprint = replay; same key + different fingerprint = conflict.
+  requestFingerprint String
+  /// The booking this key created. @unique: at most one idempotency row per booking. Set in the
+  /// same transaction as the booking, so a committed row always points at a real booking.
+  bookingId          String   @unique @db.Uuid
+  booking            Booking  @relation(fields: [bookingId], references: [id])
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+
+  /// THE RACE ARBITER — a per-customer unique on the opaque key. Postgres serializes concurrent
+  /// inserts of the same (customerId, idempotencyKey); exactly one can commit.
+  @@unique([customerId, idempotencyKey])
+  @@map("booking_idempotency_keys")
 }
 
 /// Who performed a booking status transition — Phase E.1. No FK to

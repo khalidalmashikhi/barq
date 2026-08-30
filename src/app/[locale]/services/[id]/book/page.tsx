@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { redirect, Link } from "@/i18n/navigation";
 import { Calendar, CalendarX, PackageX, Users, ArrowRight } from "lucide-react";
@@ -79,6 +80,12 @@ export default async function BookServicePage({ params, searchParams }: Props) {
   const tCommon = await getServerTranslator("common");
   const errorMessage = error && isBookingActionErrorCode(error) ? tErrors(getBookingErrorTranslationKey(error)) : null;
 
+  // BOOKING-IDEMPOTENCY — ONE key per logical form render. A double-click or a browser/network
+  // retry of THIS rendered form resubmits the same hidden value, so the server (which is the sole
+  // authority — this is not UI button-disabling) collapses them into one booking. A genuinely new
+  // attempt (a fresh page render, e.g. after success or a corrected error) gets a new key.
+  const idempotencyKey = randomUUID();
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -119,6 +126,8 @@ export default async function BookServicePage({ params, searchParams }: Props) {
           className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm"
         >
           <input type="hidden" name="serviceId" value={service.id} />
+          {/* BOOKING-IDEMPOTENCY — the per-render key; the same value on a double-submit. */}
+          <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           {requiresSlot && (
             <fieldset className="flex flex-col gap-2">
               <legend className="flex items-center gap-2 text-sm font-medium text-foreground/80">

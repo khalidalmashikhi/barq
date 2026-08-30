@@ -119,6 +119,10 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   SLOT_FULL: "INTERNAL_ERROR",
   DUPLICATE_BOOKING: "INTERNAL_ERROR",
   BOOKING_NOT_CANCELLABLE: "INTERNAL_ERROR",
+  // BOOKING-IDEMPOTENCY — customer-create-only: a provider mutation never carries a booking
+  // idempotency key, so reaching these here would be an internal fault, not a normal rejection.
+  IDEMPOTENCY_KEY_INVALID: "INTERNAL_ERROR",
+  IDEMPOTENCY_KEY_CONFLICT: "INTERNAL_ERROR",
   RATE_LIMITED: "INTERNAL_ERROR",
 };
 

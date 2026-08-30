@@ -61,6 +61,10 @@ const bookingCreateMock = vi.fn();
 const availabilityFindFirstMock = vi.fn();
 const bookingFindFirstMock = vi.fn();
 const executeRawMock = vi.fn();
+// BOOKING-IDEMPOTENCY — the durable idempotency table's reads (pre-transaction fast path + the
+// post-P2002 replay re-read) and its in-transaction claim insert.
+const idempotencyFindUniqueMock = vi.fn();
+const idempotencyCreateMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -70,15 +74,19 @@ vi.mock("@/lib/db", () => ({
     // reach these because they book slot-lessly.
     availability: { findFirst: (...args: unknown[]) => availabilityFindFirstMock(...args) },
     booking: { findFirst: (...args: unknown[]) => bookingFindFirstMock(...args) },
+    bookingIdempotencyKey: { findUnique: (...args: unknown[]) => idempotencyFindUniqueMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         $executeRaw: (...args: unknown[]) => executeRawMock(...args),
         booking: { create: (...args: unknown[]) => bookingCreateMock(...args) },
+        bookingIdempotencyKey: { create: (...args: unknown[]) => idempotencyCreateMock(...args) },
       }),
   },
 }));
 
 const { createBooking } = await import("./create-booking");
+const { computeBookingRequestFingerprint } = await import("./idempotency");
+const { Prisma } = await import("@prisma/client");
 const { _resetRateLimitStoreForTests } = await import("@/lib/rate-limit/rate-limiter");
 
 const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
@@ -114,6 +122,13 @@ afterEach(() => {
   availabilityFindFirstMock.mockReset();
   bookingFindFirstMock.mockReset();
   executeRawMock.mockReset();
+  // Idempotency defaults: no prior claim (findUnique → null) and a successful claim insert. With
+  // these defaults, tests that supply NO key never touch either mock (the code skips them), so the
+  // whole pre-existing suite is unaffected.
+  idempotencyFindUniqueMock.mockReset();
+  idempotencyFindUniqueMock.mockResolvedValue(null);
+  idempotencyCreateMock.mockReset();
+  idempotencyCreateMock.mockResolvedValue({ id: "idem-row" });
   _resetRateLimitStoreForTests();
   vi.unstubAllEnvs();
 });
@@ -641,5 +656,197 @@ describe("createBooking — strict seats parsing (fail closed on invalid explici
     const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: bad }));
     expect(r).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+// BOOKING-IDEMPOTENCY — the request-idempotency matrix (§24). The DB unique constraint's actual
+// race arbitration is a Postgres guarantee proven by the migration/schema (see §25 in the report);
+// these tests exercise every application-level branch that constraint drives.
+describe("createBooking — idempotency", () => {
+  const KEY = "018f2a3b-1c2d-7e3f-9a0b-1c2d3e4f5a6b";
+  const OTHER_CUSTOMER_ID = "019f4e4e-9999-7a11-9c3e-1a2b3c4d5e6f";
+
+  // A slotless, bookable, complete-customer service.
+  function bookable() {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
+    priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
+    bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
+    transitionBookingMock.mockResolvedValue({ hook: "context" });
+  }
+
+  function withKey(fields: Record<string, string>) {
+    return formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, idempotencyKey: KEY, ...fields });
+  }
+
+  // §24.1 — a normal keyed booking creates exactly one booking and claims the key with the
+  // server-computed fingerprint (over selectors only), bound to the created booking.
+  it("creates one booking and claims the key (fingerprint over selectors, bound to the booking)", async () => {
+    bookable();
+    const r = await createBooking(withKey({ seats: "2" }));
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    expect(bookingCreateMock).toHaveBeenCalledTimes(1);
+    expect(idempotencyCreateMock).toHaveBeenCalledTimes(1);
+    const claim = (idempotencyCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    expect(claim).toEqual({
+      customerId: CUSTOMER_ID,
+      idempotencyKey: KEY,
+      requestFingerprint: computeBookingRequestFingerprint({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: null, seats: 2 }),
+      bookingId: "new-booking-id",
+    });
+  });
+
+  // §24.2 / §24.10 / §24.11 / §24.18 / §24.21 — a same-key same-request retry REPLAYS the original
+  // booking: no new booking, no lifecycle/notification, no re-pricing, no capacity mutation.
+  it("same key + same request → replays the ORIGINAL booking with zero repeated side effects", async () => {
+    bookable();
+    idempotencyFindUniqueMock.mockResolvedValue({
+      bookingId: "original-booking-id",
+      requestFingerprint: computeBookingRequestFingerprint({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: null, seats: 2 }),
+    });
+
+    const r = await createBooking(withKey({ seats: "2" }));
+
+    expect(r).toEqual({ ok: true, bookingId: "original-booking-id" }); // the ORIGINAL, not a new id
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+    expect(idempotencyCreateMock).not.toHaveBeenCalled();
+    expect(recordBookingCreatedMock).not.toHaveBeenCalled();
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+    expect(executeRawMock).not.toHaveBeenCalled();       // no capacity consumed on replay
+    expect(priceFindFirstMock).not.toHaveBeenCalled();   // §21 — never re-priced against today's Price
+  });
+
+  // §24.3–§24.6 — same key reused for a materially DIFFERENT request → conflict (fail closed),
+  // never returns the wrong booking, creates nothing.
+  it.each([
+    ["different service", { serviceId: "019f4e4e-8116-7052-b15e-b79b5ccb1aaa" }],
+    ["different price", { priceId: "019f4e4e-80b8-7cf2-b043-916c71648aaa" }],
+    ["different availability", { availabilityId: AVAILABILITY_ID }],
+    ["different quantity", { seats: "3" }],
+  ])("same key + %s → IDEMPOTENCY_KEY_CONFLICT, nothing created", async (_label, override) => {
+    bookable();
+    // The stored claim is the ORIGINAL base request (seats 2, no slot); the retry differs by one selector.
+    idempotencyFindUniqueMock.mockResolvedValue({
+      bookingId: "original-booking-id",
+      requestFingerprint: computeBookingRequestFingerprint({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: null, seats: 2 }),
+    });
+    // Slot override needs a valid, OPEN slot so the request reaches the fingerprint comparison identically.
+    availabilityFindFirstMock.mockResolvedValue({ id: AVAILABILITY_ID, serviceId: SERVICE_ID, state: "OPEN" });
+    bookingFindFirstMock.mockResolvedValue(null);
+
+    const r = await createBooking(withKey({ seats: "2", ...override }));
+
+    expect(r).toEqual({ ok: false, error: "IDEMPOTENCY_KEY_CONFLICT" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+    expect(idempotencyCreateMock).not.toHaveBeenCalled();
+  });
+
+  // §24.7 / §17 — a key is scoped to the authenticated customer. Customer B using a key that
+  // customer A created can NEVER see A's booking; the scoped lookup misses and B books their own.
+  it("same key used by a DIFFERENT customer cannot surface the first customer's booking", async () => {
+    bookable();
+    requireCustomerMock.mockResolvedValue({ customer: { id: OTHER_CUSTOMER_ID } });
+    // The lookup is scoped by customerId — model that: A's row exists, but not under B's id.
+    idempotencyFindUniqueMock.mockImplementation((args: { where: { customerId_idempotencyKey: { customerId: string } } }) => {
+      return Promise.resolve(args.where.customerId_idempotencyKey.customerId === CUSTOMER_ID
+        ? { bookingId: "customer-A-booking", requestFingerprint: "irrelevant" }
+        : null);
+    });
+
+    const r = await createBooking(withKey({ seats: "2" }));
+
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" }); // B's OWN booking, never A's
+    expect(idempotencyFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { customerId_idempotencyKey: { customerId: OTHER_CUSTOMER_ID, idempotencyKey: KEY } } })
+    );
+  });
+
+  // §24.8 / §11 — the truly CONCURRENT race: our in-transaction claim loses to a simultaneous
+  // request (P2002), the transaction rolls back, and we REPLAY the committed winner — one booking.
+  it("concurrent same-key race (P2002 on the claim) → replays the winner, not a second booking", async () => {
+    bookable();
+    // No prior claim at the pre-tx check (both requests raced past it)...
+    idempotencyFindUniqueMock.mockResolvedValueOnce(null);
+    // ...our in-tx claim hits the unique violation...
+    idempotencyCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0" }));
+    // ...and the post-P2002 re-read finds the committed winner with a matching fingerprint.
+    idempotencyFindUniqueMock.mockResolvedValueOnce({
+      bookingId: "winner-booking-id",
+      requestFingerprint: computeBookingRequestFingerprint({ serviceId: SERVICE_ID, priceId: PRICE_ID, availabilityId: null, seats: 2 }),
+    });
+
+    const r = await createBooking(withKey({ seats: "2" }));
+
+    expect(r).toEqual({ ok: true, bookingId: "winner-booking-id" });
+  });
+
+  // §24.8 companion — a concurrent P2002 whose winner is a DIFFERENT request is a conflict.
+  it("concurrent P2002 with a different winning request → conflict", async () => {
+    bookable();
+    idempotencyFindUniqueMock.mockResolvedValueOnce(null);
+    idempotencyCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5.22.0" }));
+    idempotencyFindUniqueMock.mockResolvedValueOnce({ bookingId: "winner", requestFingerprint: "a-different-request-fingerprint" });
+
+    const r = await createBooking(withKey({ seats: "2" }));
+
+    expect(r).toEqual({ ok: false, error: "IDEMPOTENCY_KEY_CONFLICT" });
+  });
+
+  // §24.14 / §24.15 / §4 — a malformed key fails closed BEFORE authentication (cheap, no work).
+  it.each([
+    ["too short", "short"],
+    ["unsafe chars", "has space key"],
+    ["oversized", "x".repeat(201)],
+  ])("rejects a %s idempotency key with IDEMPOTENCY_KEY_INVALID, before auth", async (_label, badKey) => {
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, idempotencyKey: badKey }));
+    expect(r).toEqual({ ok: false, error: "IDEMPOTENCY_KEY_INVALID" });
+    expect(requireCustomerMock).not.toHaveBeenCalled();
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+
+  // §24.16 — a failed validation (bad seats) with a key present creates neither a booking nor a claim.
+  it("a validation failure with a key present claims nothing", async () => {
+    bookable();
+    const r = await createBooking(withKey({ seats: "0" }));
+    expect(r).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+    expect(idempotencyCreateMock).not.toHaveBeenCalled();
+  });
+
+  // §24.17 / §15 — a capacity failure (SLOT_FULL) with a key present claims NOTHING, so the key
+  // stays reusable after a genuinely failed attempt (the claim is inserted last, inside the tx).
+  it("a capacity failure claims no key (the failed attempt does not poison it)", async () => {
+    bookable();
+    serviceRequiresSlotMock.mockResolvedValue(true);
+    availabilityFindFirstMock.mockResolvedValue({ id: AVAILABILITY_ID, serviceId: SERVICE_ID, state: "OPEN", startTime: new Date("2026-06-01T09:00:00Z"), endTime: new Date("2026-06-01T12:00:00Z") });
+    bookingFindFirstMock.mockResolvedValue(null);
+    executeRawMock.mockResolvedValue(0); // capacity lost → the tx throws SLOT_FULL
+
+    const r = await createBooking(withKey({ availabilityId: AVAILABILITY_ID, seats: "2" }));
+
+    expect(r).toEqual({ ok: false, error: "SLOT_FULL" });
+    expect(idempotencyCreateMock).not.toHaveBeenCalled();
+  });
+
+  // §24.12 / §24.13 — slotless replay is one booking; a DIFFERENT key is a new legitimate attempt.
+  it("a slotless booking with a NEW (unseen) key is a fresh attempt that books", async () => {
+    bookable();
+    serviceRequiresSlotMock.mockResolvedValue(false);
+    idempotencyFindUniqueMock.mockResolvedValue(null); // unseen key
+
+    const r = await createBooking(withKey({}));
+
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    expect(idempotencyCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  // Backward compatibility — NO key supplied behaves exactly as before (no idempotency work).
+  it("no key supplied → books as before, touching neither idempotency read nor claim", async () => {
+    bookable();
+    const r = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID, seats: "2" }));
+    expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
+    expect(idempotencyFindUniqueMock).not.toHaveBeenCalled();
+    expect(idempotencyCreateMock).not.toHaveBeenCalled();
   });
 });

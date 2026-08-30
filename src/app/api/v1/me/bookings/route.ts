@@ -83,6 +83,17 @@ export async function POST(request: Request) {
         form.set("seats", String(body.seats));
       }
 
+      // BOOKING-IDEMPOTENCY — the standard `Idempotency-Key` request header (falling back to a
+      // body field for clients that cannot set it), forwarded into the SAME domain seam the web
+      // form uses. createBooking() validates it, arbitrates the race at the DB, and replays the
+      // original booking on a same-key same-request retry. Absent header = today's behavior.
+      const idempotencyKey =
+        request.headers.get("Idempotency-Key") ??
+        (typeof body.idempotencyKey === "string" ? body.idempotencyKey : null);
+      if (idempotencyKey !== null) {
+        form.set("idempotencyKey", idempotencyKey);
+      }
+
       const result = await createBooking(form);
       if (!result.ok) return bookingErrorResponse(result.error, locale);
 

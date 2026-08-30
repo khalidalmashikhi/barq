@@ -98,6 +98,44 @@ describe("POST /api/v1/me/bookings", () => {
     }
   });
 
+  // BOOKING-IDEMPOTENCY (§6/§24.19) — the standard Idempotency-Key header is forwarded into the
+  // SAME domain seam the web form uses, so Web and API share one idempotency implementation.
+  it("forwards the Idempotency-Key header into the createBooking form", async () => {
+    createBookingMock.mockResolvedValue({ ok: true, bookingId: "b1" });
+    getBookingDetailMock.mockResolvedValue(DETAIL);
+    const req = new Request("http://x/api/v1/me/bookings?locale=en", {
+      method: "POST",
+      body: JSON.stringify({ serviceId: "s1", priceId: "pr1", seats: 2 }),
+      headers: { "content-type": "application/json", "Idempotency-Key": "018f2a3b-1c2d-7e3f-9a0b-1c2d3e4f5a6b" },
+    });
+    await POST(req);
+    const fd = createBookingMock.mock.calls[0]![0] as FormData;
+    expect(fd.get("idempotencyKey")).toBe("018f2a3b-1c2d-7e3f-9a0b-1c2d3e4f5a6b");
+  });
+
+  // Fallback for clients that cannot set the header: a body idempotencyKey field is forwarded too.
+  it("forwards a body idempotencyKey when no header is present", async () => {
+    createBookingMock.mockResolvedValue({ ok: true, bookingId: "b1" });
+    getBookingDetailMock.mockResolvedValue(DETAIL);
+    await POST(post({ serviceId: "s1", priceId: "pr1", seats: 2, idempotencyKey: "018f2a3b-1c2d-7e3f-9a0b-1c2d3e4f5a6b" }));
+    const fd = createBookingMock.mock.calls[0]![0] as FormData;
+    expect(fd.get("idempotencyKey")).toBe("018f2a3b-1c2d-7e3f-9a0b-1c2d3e4f5a6b");
+  });
+
+  // The header takes precedence over a body field when both are present.
+  it("prefers the header over a body idempotencyKey", async () => {
+    createBookingMock.mockResolvedValue({ ok: true, bookingId: "b1" });
+    getBookingDetailMock.mockResolvedValue(DETAIL);
+    const req = new Request("http://x/api/v1/me/bookings?locale=en", {
+      method: "POST",
+      body: JSON.stringify({ serviceId: "s1", priceId: "pr1", seats: 2, idempotencyKey: "body-key-000000" }),
+      headers: { "content-type": "application/json", "Idempotency-Key": "header-key-00000" },
+    });
+    await POST(req);
+    const fd = createBookingMock.mock.calls[0]![0] as FormData;
+    expect(fd.get("idempotencyKey")).toBe("header-key-00000");
+  });
+
   it("201 returns the server-built BookingDetailDTO (price snapshot from server, MoneyDTO string, no leakage)", async () => {
     createBookingMock.mockResolvedValue({ ok: true, bookingId: "b1" });
     getBookingDetailMock.mockResolvedValue(DETAIL);
@@ -124,6 +162,10 @@ describe("POST /api/v1/me/bookings", () => {
     ["SLOT_FULL", 409, "SLOT_FULL"],
     ["RATE_LIMITED", 429, "RATE_LIMITED"],
     ["INVALID_INPUT", 400, "INVALID_INPUT"],
+    // BOOKING-IDEMPOTENCY — a malformed key is a 400; the same key reused for a different request
+    // is a 409 conflict. (A same-key SAME-request retry is a normal 201 replay, not tested here.)
+    ["IDEMPOTENCY_KEY_INVALID", 400, "IDEMPOTENCY_KEY_INVALID"],
+    ["IDEMPOTENCY_KEY_CONFLICT", 409, "IDEMPOTENCY_KEY_CONFLICT"],
     ["UNKNOWN_ERROR", 500, "INTERNAL_ERROR"],
   ] as const)("maps domain %s -> HTTP %i (%s)", async (domainCode, status, apiCode) => {
     createBookingMock.mockResolvedValue({ ok: false, error: domainCode });

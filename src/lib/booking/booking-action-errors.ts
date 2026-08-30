@@ -83,6 +83,14 @@ export type BookingActionErrorCode =
   // silently downgrade to the unit price. Generic and customer/provider-safe — no resolver
   // internals leak.
   | "BOOKING_PRICING_INVALID"
+  // BOOKING-IDEMPOTENCY — request-idempotency outcomes on booking CREATION.
+  // IDEMPOTENCY_KEY_INVALID: a supplied idempotency key is malformed (bad length/charset) —
+  // fail closed rather than silently ignore it. IDEMPOTENCY_KEY_CONFLICT: the SAME key was
+  // already used by this customer for a materially DIFFERENT booking request (different
+  // service/price/slot/quantity) — refuse rather than return the wrong booking. A same-key
+  // same-request retry is NOT an error: it replays the original booking as an idempotent success.
+  | "IDEMPOTENCY_KEY_INVALID"
+  | "IDEMPOTENCY_KEY_CONFLICT"
   | "RATE_LIMITED"
   | "UNKNOWN_ERROR";
 
@@ -112,6 +120,8 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "SCHEDULE_REQUIRED",
   "INVALID_SCHEDULE",
   "BOOKING_PRICING_INVALID",
+  "IDEMPOTENCY_KEY_INVALID",
+  "IDEMPOTENCY_KEY_CONFLICT",
   "RATE_LIMITED",
   "UNKNOWN_ERROR",
 ];

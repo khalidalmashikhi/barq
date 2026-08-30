@@ -107,6 +107,13 @@ export type ApiErrorCode =
   | "INVALID_CONTENT"
   | "BOOKING_NOT_REVIEWABLE"
   | "ALREADY_REVIEWED"
+  // BOOKING-IDEMPOTENCY — request-idempotency outcomes on booking creation. A malformed
+  // client Idempotency-Key (400); or the same key reused for a materially different booking
+  // request (409 — the request is well-formed, but its CURRENT MEANING conflicts with the
+  // booking that key already created). A same-key same-request retry is NOT an error: it
+  // replays the original booking as a normal 201, never a 409.
+  | "IDEMPOTENCY_KEY_INVALID"
+  | "IDEMPOTENCY_KEY_CONFLICT"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -160,6 +167,10 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   // principle — it is the CURRENT STATE that conflicts, because a review already
   // exists. Same reasoning as DOCUMENT_ALREADY_EXISTS/SLOT_FULL above.
   ALREADY_REVIEWED: 409,
+  IDEMPOTENCY_KEY_INVALID: 400,
+  // 409, not 400: the key itself is well-formed; it CONFLICTS with a different booking the same
+  // customer already created under it. Same "current state conflicts" reasoning as ALREADY_REVIEWED.
+  IDEMPOTENCY_KEY_CONFLICT: 409,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -306,6 +317,14 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   ALREADY_REVIEWED: {
     en: "You've already submitted a review for this booking.",
     ar: "لقد أرسلت بالفعل تقييمًا لهذا الحجز.",
+  },
+  IDEMPOTENCY_KEY_INVALID: {
+    en: "The request could not be processed. Please try again.",
+    ar: "تعذّرت معالجة الطلب. الرجاء المحاولة مرة أخرى.",
+  },
+  IDEMPOTENCY_KEY_CONFLICT: {
+    en: "This request conflicts with an earlier booking. Please start a new booking.",
+    ar: "يتعارض هذا الطلب مع حجز سابق. الرجاء بدء حجز جديد.",
   },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isCustomerCompleteForAction } from "@/lib/auth/require-complete-customer";
@@ -13,7 +14,15 @@ import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { getBookingCreateRateLimit } from "@/lib/rate-limit/rate-limit-config";
 import { calculateBookingTotal } from "@/lib/booking/pricing/calculate-booking-total";
 import { parseBookingQuantity } from "@/lib/booking/parse-booking-quantity";
+import { readIdempotencyKey, computeBookingRequestFingerprint } from "@/lib/booking/idempotency";
 import type { BookingActionErrorCode } from "./booking-action-errors";
+
+// BOOKING-IDEMPOTENCY — a unique-constraint violation (P2002). The ONLY unique this creation
+// transaction can violate is booking_idempotency_keys' (customerId, idempotencyKey), so a P2002
+// here means a concurrent request already claimed the same key: re-read and replay.
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 // Create booking — Engineering Sprint (Availability Engine).
 //
@@ -93,6 +102,18 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   }
   const seats = quantity.value;
 
+  // BOOKING-IDEMPOTENCY — the optional client idempotency key + the server-side request
+  // fingerprint. The key is opaque/untrusted (validated for shape only); the fingerprint is
+  // derived from the VALIDATED selectors ONLY (serviceId/priceId/availabilityId/seats — never
+  // client-supplied money), so the same key reused for a materially different request conflicts.
+  // Absent key = no idempotency protection (backward compatible, e.g. an older API client); a
+  // malformed key fails closed before any work.
+  const idempotency = readIdempotencyKey(formData.get("idempotencyKey"));
+  if (idempotency.state === "invalid") {
+    return { ok: false, error: "IDEMPOTENCY_KEY_INVALID" };
+  }
+  const requestFingerprint = computeBookingRequestFingerprint({ serviceId, priceId, availabilityId, seats });
+
   let customer;
   try {
     const auth = await requireCustomer();
@@ -105,6 +126,26 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
       return { ok: false, error: "NO_CUSTOMER_PROFILE" };
     }
     throw error;
+  }
+
+  // BOOKING-IDEMPOTENCY — pre-transaction fast path for the SEQUENTIAL retry (the original attempt
+  // already committed). Scoped to THIS customer, so a key can only ever surface this customer's own
+  // booking — never another customer's (§17). Same key + same fingerprint → REPLAY the original
+  // booking, with zero repeated side effects (no capacity, lifecycle, notification, commission, or
+  // payment). Same key + different fingerprint → CONFLICT. The truly CONCURRENT race (neither
+  // request committed yet) is instead arbitrated by the unique index inside the transaction below.
+  // Checked before the rate limit so a legitimate retry never burns a booking-rate token for a
+  // booking that already exists.
+  if (idempotency.state === "valid") {
+    const existing = await prisma.bookingIdempotencyKey.findUnique({
+      where: { customerId_idempotencyKey: { customerId: customer.id, idempotencyKey: idempotency.key } },
+    });
+    if (existing) {
+      if (existing.requestFingerprint === requestFingerprint) {
+        return { ok: true, bookingId: existing.bookingId };
+      }
+      return { ok: false, error: "IDEMPOTENCY_KEY_CONFLICT" };
+    }
   }
 
   // AUTH-DUAL-VERIFICATION-1 — a customer must have BOTH a verified phone and a
@@ -345,6 +386,24 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
         tx
       );
 
+      // BOOKING-IDEMPOTENCY — claim the key LAST, inside the same transaction. Its
+      // @@unique([customerId, idempotencyKey]) is the sole race arbiter: two concurrent same-key
+      // requests both reach here, but only one INSERT can commit — the loser hits P2002 and this
+      // whole transaction (booking row + capacity increment) rolls back, so a duplicate submission
+      // yields exactly ONE booking and consumes capacity once. Inserting it LAST (not first) means
+      // a booking that fails capacity/pricing earlier never claims the key, so the key stays
+      // reusable after a genuinely failed attempt (§15). Skipped entirely when no key was supplied.
+      if (idempotency.state === "valid") {
+        await tx.bookingIdempotencyKey.create({
+          data: {
+            customerId: customer.id,
+            idempotencyKey: idempotency.key,
+            requestFingerprint,
+            bookingId: booking.id,
+          },
+        });
+      }
+
       return { bookingId: booking.id, hookContext };
     });
 
@@ -357,6 +416,24 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   } catch (error) {
     if (error instanceof Error && error.message === "SLOT_FULL") {
       return { ok: false, error: "SLOT_FULL" };
+    }
+    // BOOKING-IDEMPOTENCY — the CONCURRENT same-key race: our in-transaction claim lost to a
+    // simultaneous request that committed the same (customerId, idempotencyKey) first, so this
+    // whole transaction (booking + capacity) has already rolled back. Re-read the committed winner
+    // and REPLAY its booking (fingerprint match) or report a CONFLICT (different request). Only
+    // ever taken when a key was supplied — the idempotency unique is the only one this tx touches.
+    if (idempotency.state === "valid" && isUniqueConstraintViolation(error)) {
+      const winner = await prisma.bookingIdempotencyKey.findUnique({
+        where: { customerId_idempotencyKey: { customerId: customer.id, idempotencyKey: idempotency.key } },
+      });
+      if (winner) {
+        if (winner.requestFingerprint === requestFingerprint) {
+          return { ok: true, bookingId: winner.bookingId };
+        }
+        return { ok: false, error: "IDEMPOTENCY_KEY_CONFLICT" };
+      }
+      // The winner rolled back after we observed the conflict (extremely unlikely) — fall through
+      // to the generic path rather than guessing.
     }
     // Genuinely unexpected — never expose Prisma/internal exception
     // details to the client; log server-side only and return the

@@ -22,6 +22,8 @@
   "invalidRating": "Veuillez choisir une note entre 1 et 5",
   "invalidContent": "Veuillez rédiger un court avis avant d'envoyer",
   "rateLimited": "Vous effectuez des demandes trop rapidement. Veuillez patienter un instant avant de réessayer.",
+  "idempotencyKeyInvalid": "La demande n'a pas pu être traitée. Veuillez réessayer.",
+  "idempotencyKeyConflict": "Cette demande est en conflit avec une réservation antérieure. Veuillez commencer une nouvelle réservation.",
   "vehicleRequired": "Sélectionnez un véhicule pour accepter cette réservation",
   "vehicleNotInServicePool": "Ce véhicule ne fait pas partie du parc de véhicules de ce circuit",
   "vehicleNotEligible": "Ce véhicule n'est pas actuellement éligible pour ce circuit",
