@@ -61,9 +61,29 @@ describe("notifyBookingEvent", () => {
     expect(createMock).toHaveBeenCalledTimes(1); // exactly one row
   });
 
-  it("does NOT add eventType for other booking kinds (only PENDING_PROVIDER is mapped today)", async () => {
+  // CUSTOMER JOURNEY VISIBILITY — the five single-audience customer kinds now carry their own
+  // eventType so the customer's Notification Center row becomes navigable to the customer route.
+  it.each([
+    ["BOOKING_ACCEPTED", "booking.accepted"],
+    ["BOOKING_REJECTED", "booking.rejected"],
+    ["BOOKING_CANCELLED", "booking.cancelled"],
+    ["BOOKING_STARTED", "booking.started"],
+    ["BOOKING_COMPLETED", "booking.completed"],
+  ] as const)("sets eventType=%s→%s / entityType=Booking for the customer kind", async (kind, eventType) => {
+    createMock.mockClear();
     createMock.mockResolvedValue({});
-    for (const kind of ["BOOKING_ACCEPTED", "BOOKING_CANCELLED", "BOOKING_EXPIRED", "NEW_REVIEW_RECEIVED"] as const) {
+    await notifyBookingEvent({ userId: "user-1", bookingId: "b-1", kind });
+    const data = createMock.mock.calls[0]![0].data;
+    expect(data.eventType).toBe(eventType);
+    expect(data.entityType).toBe("Booking");
+    expect(data.entityId).toBe("b-1");
+    expect(createMock).toHaveBeenCalledTimes(1); // still exactly one row
+  });
+
+  it("does NOT add eventType for the still-unmapped kinds (dual-audience expiry, self-receipts, review, provider-cancel)", async () => {
+    createMock.mockResolvedValue({});
+    // BOOKING_EXPIRED is deliberately unmapped (delivered to BOTH parties under one kind).
+    for (const kind of ["BOOKING_EXPIRED", "NEW_REVIEW_RECEIVED", "PROVIDER_BOOKING_CONFIRMED", "PROVIDER_BOOKING_REJECTED", "BOOKING_CANCELLED_BY_CUSTOMER"] as const) {
       createMock.mockClear();
       await notifyBookingEvent({ userId: "user-1", bookingId: "b-1", kind });
       const data = createMock.mock.calls[0]![0].data;

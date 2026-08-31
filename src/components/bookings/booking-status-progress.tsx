@@ -13,7 +13,12 @@ type BookingStatusProgressProps = {
 };
 
 export function BookingStatusProgress({ status }: BookingStatusProgressProps) {
-  const isTerminalException = status === "CANCELLED" || status === "REJECTED" || status === "DISPUTED";
+  // CUSTOMER JOURNEY VISIBILITY — every negative-terminal outcome renders the same way (danger
+  // bars), never the empty/gray "not started yet" look. EXPIRED was previously absent here, so it
+  // fell through to currentIndex = -1 and rendered all-empty, misleadingly implying an unstarted
+  // active journey for a booking that is actually over.
+  const isTerminalException =
+    status === "CANCELLED" || status === "REJECTED" || status === "DISPUTED" || status === "EXPIRED";
   const currentIndex = HAPPY_PATH.indexOf(status as (typeof HAPPY_PATH)[number]);
 
   return (

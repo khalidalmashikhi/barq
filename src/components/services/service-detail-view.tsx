@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { Calendar, Clock, MapPin, BadgeCheck, Share2, Users, Check, X, ClipboardList } from "lucide-react";
-import type { ServiceDetail, RelatedService, ServiceRatingAggregate } from "@/lib/services/get-service-detail";
+import type { ServiceDetail, RelatedService, ServiceRatingAggregate, ActivePriceOption } from "@/lib/services/get-service-detail";
 import { describeDuration } from "@/lib/services/duration";
 import { isBookable, type Bookability } from "@/lib/services/bookability";
 import type { getAvailableSlots } from "@/lib/booking/get-available-slots";
@@ -50,6 +50,11 @@ type ServiceDetailViewProps = {
   /// active "Book now" that dead-ends. Optional: when omitted the CTA behaves as before
   /// (treated as bookable) — every real caller passes it.
   bookability?: Bookability;
+  /// CUSTOMER JOURNEY VISIBILITY — the BOOKABLE ACTIVE price options (already filtered by the
+  /// caller to bookable units, so PER_DAY/PER_HOUR/legacy-NULL are never offered). Optional and
+  /// additive: when omitted or of length ≤ 1 no options list renders (the single headline already
+  /// represents a one-price service). Presentation only — never a total, never a raw unit code.
+  priceOptions?: ActivePriceOption[];
 };
 
 export async function ServiceDetailView({
@@ -61,6 +66,7 @@ export async function ServiceDetailView({
   serviceUrl,
   mode,
   bookability,
+  priceOptions,
 }: ServiceDetailViewProps) {
   const t = await getServerTranslator("services");
   const tBooking = await getServerTranslator("booking");
@@ -88,10 +94,16 @@ export async function ServiceDetailView({
   } else if (info.minBookingSeats !== null) {
     bookingSize = t("bookingSizeFrom", { min: info.minBookingSeats });
   }
-  const priceDisplay =
+  // The headline amount with its unit appended when present (display metadata only). CUSTOMER
+  // JOURNEY VISIBILITY: when the service has more than one ACTIVE price in its primary currency,
+  // `service.priceIsFrom` is true (resolveHeadlinePrice) and the headline reads "From <min>" —
+  // the SAME "From" semantics the list/home/related cards already apply — so a multi-price service
+  // never presents its minimum as the single definitive price.
+  const priceBase =
     service.price && unitKey
       ? tCommon("priceWithUnit", { price: service.price, unit: tCommon(unitKey) })
       : service.price;
+  const priceDisplay = priceBase && service.priceIsFrom ? t("fromPrice", { price: priceBase }) : priceBase;
 
   // Discovery & Detail Truthfulness — the CTA reflects real bookability. A slot-required
   // service with nothing bookable (or no price) shows an HONEST disabled state with a
@@ -323,6 +335,23 @@ export async function ServiceDetailView({
               {/* Price with its display unit appended when present (Gate 4). Unit is
                   display metadata only — no total is computed from it. */}
               <p className="mt-1 text-3xl font-bold tracking-tight text-primary">{priceDisplay ?? t("priceUnavailableLabel")}</p>
+              {/* CUSTOMER JOURNEY VISIBILITY — the bookable price options behind a "From" headline,
+                  so a multi-price service shows every real choice, not one lone number. Rendered
+                  only when there is more than one (a single-price service is fully described by the
+                  headline above). Each row is amount + currency with its localized basis label;
+                  a raw pricing-unit code is never shown. */}
+              {priceOptions && priceOptions.length > 1 && (
+                <ul className="mt-3 flex flex-col gap-1 border-t border-border pt-3 text-left">
+                  {priceOptions.map((option) => (
+                    <li key={option.id} className="flex items-baseline justify-between gap-3 text-sm">
+                      {/* Bookable units always resolve a label; the guard keeps a raw code from ever
+                          leaking if a label is somehow absent (amount-only row instead). */}
+                      {option.pricingUnitLabel && <span className="text-foreground/60">{option.pricingUnitLabel}</span>}
+                      <span className="font-medium text-foreground ms-auto">{`${option.amount} ${option.currency}`}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {slots.length > 0 && (
                 <p className="mt-2 text-sm text-foreground/65">{t("slotsAvailableLabel", { count: slots.length })}</p>
               )}

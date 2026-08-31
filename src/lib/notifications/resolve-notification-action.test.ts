@@ -134,6 +134,46 @@ describe("resolveNotificationAction — booking.created → provider booking det
   });
 });
 
+describe("resolveNotificationAction — CUSTOMER JOURNEY VISIBILITY: customer booking events → own booking detail", () => {
+  it.each([
+    ["booking.accepted", "ctaViewBooking"],
+    ["booking.rejected", "ctaViewBooking"],
+    ["booking.cancelled", "ctaViewBooking"],
+    ["booking.started", "ctaViewBooking"],
+    ["booking.completed", "ctaLeaveReview"],
+  ])("%s → /bookings/[id] with %s", (eventType, labelKey) => {
+    expect(resolveNotificationAction({ eventType, entityType: "Booking", entityId: UUID })).toEqual({
+      labelKey,
+      href: `/bookings/${UUID}`,
+    });
+  });
+
+  it("the completed event's CTA is the review label and lands on the customer booking detail (where the review form lives)", () => {
+    const a = resolveNotificationAction({ eventType: "booking.completed", entityType: "Booking", entityId: UUID });
+    expect(a).toEqual({ labelKey: "ctaLeaveReview", href: `/bookings/${UUID}` });
+  });
+
+  it("is CUSTOMER-audience only — never an /admin or /provider route", () => {
+    for (const eventType of ["booking.accepted", "booking.rejected", "booking.cancelled", "booking.started", "booking.completed"]) {
+      const a = resolveNotificationAction({ eventType, entityType: "Booking", entityId: UUID });
+      expect(a?.href.startsWith("/bookings/")).toBe(true);
+      expect(a?.href.startsWith("/admin")).toBe(false);
+      expect(a?.href.startsWith("/provider")).toBe(false);
+    }
+  });
+
+  it("rejects a malformed/wrong-typed/absolute entity (no CTA, never an arbitrary URL)", () => {
+    expect(resolveNotificationAction({ eventType: "booking.accepted", entityType: "Booking", entityId: "not-a-uuid" })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "booking.completed", entityType: "Provider", entityId: UUID })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "booking.completed", entityType: "Booking", entityId: "https://evil.example.com" })).toBeNull();
+    expect(resolveNotificationAction({ eventType: "booking.started", entityType: "Booking", entityId: null })).toBeNull();
+  });
+
+  it("BOOKING_EXPIRED is intentionally NOT mapped (dual-audience) — booking.expired stays non-actionable", () => {
+    expect(resolveNotificationAction({ eventType: "booking.expired", entityType: "Booking", entityId: UUID })).toBeNull();
+  });
+});
+
 describe("resolveNotificationAction — VEHICLE-LC4 vehicle events", () => {
   const UUID = "550e8400-e29b-41d4-a716-446655440000";
   const VEHICLE_EVENTS = [

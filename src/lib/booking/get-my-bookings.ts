@@ -42,14 +42,19 @@ export type MyBookingListItem = {
   createdAt: Date;
 };
 
-/// Phase F.2 (My Bookings — Upcoming vs Past) — a real, additive
-/// filter over the existing `status` column, not a new field: CREATED/
-/// CONFIRMED/IN_PROGRESS are "upcoming" (still ahead of or in the
-/// experience), COMPLETED/CANCELLED/DISPUTED are "past" (nothing left
-/// to do). Mirrors the same JSON-path search strategy already used by
-/// get-provider-bookings.ts for the `search` param.
-const UPCOMING_STATUSES = ["CREATED", "CONFIRMED", "IN_PROGRESS"] as const;
-const PAST_STATUSES = ["COMPLETED", "CANCELLED", "DISPUTED"] as const;
+/// My Bookings — Upcoming vs Past. A filter over the existing `status` column (no new field).
+/// CUSTOMER JOURNEY VISIBILITY: these two buckets must PARTITION every BookingStatus so no booking
+/// can vanish merely because a filter is selected (the prior buckets omitted PENDING_PROVIDER,
+/// REJECTED, and EXPIRED — those rows disappeared under either filter). Mapping, re-derived from the
+/// lifecycle:
+///   UPCOMING = still ahead of or in the experience — CREATED (momentary), PENDING_PROVIDER
+///     (awaiting the provider), CONFIRMED (accepted, upcoming), IN_PROGRESS (happening now).
+///   PAST = nothing left to do — COMPLETED, plus the negative-terminal outcomes CANCELLED,
+///     REJECTED, EXPIRED, and DISPUTED.
+/// Their union is exactly the 9 BookingStatus values and they are disjoint (proven in the test),
+/// so `when=upcoming` ∪ `when=past` === no-filter. Exported for that partition test.
+export const UPCOMING_STATUSES = ["CREATED", "PENDING_PROVIDER", "CONFIRMED", "IN_PROGRESS"] as const;
+export const PAST_STATUSES = ["COMPLETED", "CANCELLED", "REJECTED", "EXPIRED", "DISPUTED"] as const;
 
 export type GetMyBookingsParams = {
   search?: string;

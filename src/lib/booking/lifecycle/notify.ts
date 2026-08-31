@@ -93,14 +93,24 @@ export interface NotifyBookingEventParams {
   kind: BookingNotificationKind;
 }
 
-// TOUR-2.5A1 — the B3 structured-action eventType for a booking-lifecycle kind,
-// used ONLY to make a row actionable via the centralized allowlist resolver
-// (resolve-notification-action.ts). Deliberately partial: only PENDING_PROVIDER
-// (the new-booking notification) carries one today, so every OTHER kind writes
-// EXACTLY as before (no eventType) — no behavior change and no new CTA for them.
-// This does NOT add a second notification; it enriches the single existing one.
+// The B3 structured-action eventType for a booking-lifecycle kind, used ONLY to make a row
+// actionable via the centralized allowlist resolver (resolve-notification-action.ts). It enriches
+// the SINGLE existing notification (never a second one) and only for SINGLE-audience kinds:
+//   PENDING_PROVIDER (provider) → the provider's own booking detail.
+//   CUSTOMER JOURNEY VISIBILITY — the five customer kinds → the customer's OWN booking detail; the
+//   completed event's CTA is "leave a review" and lands on that detail where the review form lives.
+// BOOKING_EXPIRED is deliberately NOT mapped: it is delivered to BOTH the customer and the provider
+// under the one kind, so a kind-keyed eventType would send the provider to a customer route — it
+// stays text-only for both. Provider self-receipts (PROVIDER_BOOKING_*) and NEW_REVIEW_RECEIVED
+// remain text-only (out of this gate's customer-visibility scope). Every unmapped kind writes
+// EXACTLY as before (no eventType, no CTA).
 const EVENT_TYPE_BY_KIND: Partial<Record<BookingNotificationKind, string>> = {
   PENDING_PROVIDER: "booking.created",
+  BOOKING_ACCEPTED: "booking.accepted",
+  BOOKING_REJECTED: "booking.rejected",
+  BOOKING_CANCELLED: "booking.cancelled",
+  BOOKING_STARTED: "booking.started",
+  BOOKING_COMPLETED: "booking.completed",
 };
 
 export async function notifyBookingEvent(params: NotifyBookingEventParams): Promise<void> {

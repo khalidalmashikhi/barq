@@ -6,7 +6,9 @@ import {
   getProviderPublishedServicesCount,
   getReviewsForService,
   getServiceRatingAggregate,
+  getActivePricesForService,
 } from "@/lib/services/get-service-detail";
+import { isBookablePricingUnit } from "@/lib/pricing-units/billability";
 import { getAvailableSlots } from "@/lib/booking/get-available-slots";
 import { serviceRequiresSlot } from "@/lib/booking/service-requires-slot";
 import { deriveBookability } from "@/lib/services/bookability";
@@ -64,7 +66,7 @@ export default async function ServiceDetailPage({ params }: Props) {
   if (!fetchedService) { notFound(); return null; }
   const service = fetchedService;
 
-  const [relatedServices, slots, providerPublishedServicesCount, reviews, ratingAggregate, tourVehicleSummary, requiresSlot] = await Promise.all([
+  const [relatedServices, slots, providerPublishedServicesCount, reviews, ratingAggregate, tourVehicleSummary, requiresSlot, activePrices] = await Promise.all([
     getRelatedServices(service.id, service.providerId),
     getAvailableSlots(service.id),
     getProviderPublishedServicesCount(service.providerId),
@@ -73,7 +75,14 @@ export default async function ServiceDetailPage({ params }: Props) {
     // TOUR-VEHICLE-3 — customer-safe tour vehicle summary (null for non-tour / GUIDE_ONLY).
     getPublicTourVehicleSummary(service.id),
     serviceRequiresSlot(service.id),
+    // CUSTOMER JOURNEY VISIBILITY — the per-option price list behind the "From" headline. Reuses
+    // the SAME read model the booking form uses; no new price math.
+    getActivePricesForService(service.id),
   ]);
+
+  // Show only BOOKABLE options (PER_PERSON/PER_BOOKING/PER_TRIP/PER_VEHICLE); the reserved
+  // duration units (PER_DAY/PER_HOUR) and legacy-NULL prices are never offered as bookable (§16).
+  const priceOptions = activePrices.filter((option) => isBookablePricingUnit(option.pricingUnit));
 
   // Discovery & Detail Truthfulness — the shared bookability state, from the SAME
   // authorities the booking page fail-closes on. `service.price` is the headline (null
@@ -125,6 +134,7 @@ export default async function ServiceDetailPage({ params }: Props) {
           serviceUrl={serviceUrl}
           mode="public"
           bookability={bookability}
+          priceOptions={priceOptions}
         />
         {/* TOUR-VEHICLE-3 — customer-safe tour vehicle presentation (tours with transport
             only). Composes the guidingContent promise with currently-eligible pooled

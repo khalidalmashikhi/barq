@@ -29,6 +29,7 @@ export type NotificationActionLabelKey =
   | "ctaReviewChanges"
   | "ctaViewApplicationStatus"
   | "ctaViewBooking"
+  | "ctaLeaveReview"
   | "ctaViewVehicle";
 
 export type NotificationAction = {
@@ -41,6 +42,7 @@ export type NotificationAction = {
 type ActionDef =
   | { labelKey: NotificationActionLabelKey; kind: "adminProviderDetail" } // interpolates a validated providerId
   | { labelKey: NotificationActionLabelKey; kind: "providerBookingDetail" } // interpolates a validated bookingId
+  | { labelKey: NotificationActionLabelKey; kind: "customerBookingDetail" } // interpolates a validated bookingId
   | { labelKey: NotificationActionLabelKey; kind: "providerVehicleDetail" } // interpolates a validated vehicleId (assetId)
   | { labelKey: NotificationActionLabelKey; kind: "fixed"; href: string }; // no interpolation
 
@@ -67,6 +69,18 @@ const ACTION_BY_EVENT: Record<string, ActionDef> = {
   // audience: resolves ONLY to the provider's own booking-detail route with a
   // strict-UUID-validated bookingId — never an admin or customer route.
   "booking.created": { labelKey: "ctaViewBooking", kind: "providerBookingDetail" },
+  // CUSTOMER JOURNEY VISIBILITY — the customer's own booking-lifecycle notifications become
+  // navigable to their OWN booking-detail route (CUSTOMER audience; strict-UUID bookingId, never a
+  // provider/admin route). Only the SINGLE-audience customer kinds are mapped — BOOKING_EXPIRED is
+  // deliberately absent because that one kind is delivered to BOTH parties, so a kind-keyed
+  // eventType would route the provider to a customer route; it stays text-only for both. The
+  // completed event uses the "leave a review" label and lands on the booking detail where the
+  // authenticated review form already lives (no special review link/token).
+  "booking.accepted": { labelKey: "ctaViewBooking", kind: "customerBookingDetail" },
+  "booking.rejected": { labelKey: "ctaViewBooking", kind: "customerBookingDetail" },
+  "booking.cancelled": { labelKey: "ctaViewBooking", kind: "customerBookingDetail" },
+  "booking.started": { labelKey: "ctaViewBooking", kind: "customerBookingDetail" },
+  "booking.completed": { labelKey: "ctaLeaveReview", kind: "customerBookingDetail" },
   // VEHICLE-LC4 — provider vehicle verification events resolve ONLY to the provider's
   // own /provider/vehicles/[id] workspace (strict-UUID-validated assetId). Never an
   // admin route, public vehicle page, signed document URL, or storage URL.
@@ -101,6 +115,16 @@ export function resolveNotificationAction(input: {
     // wrong-typed entity yields no CTA (the notification still renders as text).
     if (entityType !== "Booking" || !entityId || !UUID_RE.test(entityId)) return null;
     return { labelKey: def.labelKey, href: `/provider/bookings/${entityId}` };
+  }
+
+  if (def.kind === "customerBookingDetail") {
+    // Customer audience: require entityType="Booking" + a strict UUID before interpolating into the
+    // customer's OWN booking-detail route (/bookings/<id>). That destination page is itself
+    // ownership-scoped (getBookingDetail → findFirst by customerId → notFound for a foreign
+    // booking), so even a mis-addressed CTA can never expose another customer's booking. Malformed
+    // or wrong-typed entity yields no CTA (the row stays plain text). Never a provider/admin route.
+    if (entityType !== "Booking" || !entityId || !UUID_RE.test(entityId)) return null;
+    return { labelKey: def.labelKey, href: `/bookings/${entityId}` };
   }
 
   if (def.kind === "providerVehicleDetail") {

@@ -225,3 +225,28 @@ describe("getMyBookings — booking money view", () => {
     expect(item.bookingMoney).toMatchObject({ available: true, moneyMode: "TOTALIZED", total: "50.00", unitAmount: "10.00", billableQuantity: 5 });
   });
 });
+
+// CUSTOMER JOURNEY VISIBILITY — the Upcoming/Past buckets must PARTITION every BookingStatus so no
+// booking can vanish under a filter (the prior buckets dropped PENDING_PROVIDER/REJECTED/EXPIRED).
+describe("getMyBookings filter buckets partition every BookingStatus", () => {
+  it("upcoming ∪ past === all 9 statuses, with no status in both", async () => {
+    const { BookingStatus } = await import("@prisma/client");
+    const { UPCOMING_STATUSES, PAST_STATUSES } = await import("./get-my-bookings");
+    const all = Object.values(BookingStatus).sort();
+    const union = [...UPCOMING_STATUSES, ...PAST_STATUSES].sort();
+    expect(union).toEqual(all); // covers every status, and (same length) no duplicates → disjoint
+    const overlap = UPCOMING_STATUSES.filter((s) => (PAST_STATUSES as readonly string[]).includes(s));
+    expect(overlap).toEqual([]);
+  });
+
+  it("the previously-dropped statuses are now placed: PENDING_PROVIDER→upcoming; REJECTED/EXPIRED→past", async () => {
+    const { UPCOMING_STATUSES, PAST_STATUSES } = await import("./get-my-bookings");
+    expect(UPCOMING_STATUSES).toContain("PENDING_PROVIDER");
+    expect(PAST_STATUSES).toContain("REJECTED");
+    expect(PAST_STATUSES).toContain("EXPIRED");
+    // IN_PROGRESS is intentionally UPCOMING (happening now / current), not past.
+    expect(UPCOMING_STATUSES).toContain("IN_PROGRESS");
+    // DISPUTED is a negative-terminal outcome → past.
+    expect(PAST_STATUSES).toContain("DISPUTED");
+  });
+});
