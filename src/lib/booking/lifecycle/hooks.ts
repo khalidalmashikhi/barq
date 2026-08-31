@@ -65,12 +65,27 @@ export async function onRejected(ctx: BookingHookContext): Promise<void> {
   await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_REJECTED" });
 }
 
+// COMPLETION & REVIEW LOOP — the customer learns their service has started. Fired after the
+// provider's start action has committed the CONFIRMED→IN_PROGRESS transition. Customer-only (no
+// provider self-notification); in-app + best-effort email via the existing outbox. IN_PROGRESS is
+// reached at most once (no transition re-enters it — see transitions.ts), so this is one-shot.
 export async function onInProgress(ctx: BookingHookContext): Promise<void> {
-  void ctx; // Future extension point: journey/tracking activation, etc.
+  const { customerUserId } = await resolveBookingParties(ctx.bookingId);
+  await notifyBookingEvent({ userId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_STARTED" });
+  await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_STARTED" });
 }
 
+// COMPLETION & REVIEW LOOP — the customer learns their service is complete and is invited to
+// review. Fired after the provider's complete action has committed the COMPLETED transition (and
+// its invoice/reservation-release side effects). The SINGLE completion notification carries the
+// review CTA — there is deliberately no separate REVIEW_REQUESTED notification/email (no duplicate
+// customer noise). The review form itself already lives on the customer booking detail this links
+// to. COMPLETED is reached at most once, so this is one-shot. Invoice generation stays in
+// complete-booking.ts (unchanged); this hook only notifies.
 export async function onCompleted(ctx: BookingHookContext): Promise<void> {
-  void ctx; // Future extension point: invoice generation, review request, etc.
+  const { customerUserId } = await resolveBookingParties(ctx.bookingId);
+  await notifyBookingEvent({ userId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_COMPLETED" });
+  await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_COMPLETED" });
 }
 
 export async function onCancelled(ctx: BookingHookContext): Promise<void> {

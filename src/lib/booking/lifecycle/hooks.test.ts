@@ -149,6 +149,23 @@ describe("onPendingProvider / onAccepted / onRejected / onCancelled — notifica
       kind: "BOOKING_EXPIRED",
     });
   });
+
+  // COMPLETION & REVIEW LOOP — the two previously-empty hooks now notify the customer.
+  it("onInProgress notifies the CUSTOMER their service started (no provider notification)", async () => {
+    const { notifyBookingEvent } = await import("./notify");
+    vi.mocked(notifyBookingEvent).mockClear();
+    await onInProgress({ ...baseCtx, toStatus: "IN_PROGRESS" });
+    expect(notifyBookingEvent).toHaveBeenCalledTimes(1);
+    expect(notifyBookingEvent).toHaveBeenCalledWith({ userId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_STARTED" });
+  });
+
+  it("onCompleted notifies the CUSTOMER their service completed (single notification, no provider)", async () => {
+    const { notifyBookingEvent } = await import("./notify");
+    vi.mocked(notifyBookingEvent).mockClear();
+    await onCompleted({ ...baseCtx, toStatus: "COMPLETED" });
+    expect(notifyBookingEvent).toHaveBeenCalledTimes(1);
+    expect(notifyBookingEvent).toHaveBeenCalledWith({ userId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_COMPLETED" });
+  });
 });
 
 describe("BOOKING NOTIFICATION DELIVERY — email enqueue policy per hook", () => {
@@ -194,6 +211,22 @@ describe("BOOKING NOTIFICATION DELIVERY — email enqueue policy per hook", () =
     enqueue.mockClear();
     await onExpired({ ...baseCtx, toStatus: "EXPIRED" });
     expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_EXPIRED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("onInProgress enqueues the customer's service-started email", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onInProgress({ ...baseCtx, toStatus: "IN_PROGRESS" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_STARTED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("onCompleted enqueues ONE customer service-completed email (review CTA lives in that email, no separate review-request)", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onCompleted({ ...baseCtx, toStatus: "COMPLETED" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_COMPLETED" });
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 });

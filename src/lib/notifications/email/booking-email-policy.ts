@@ -29,6 +29,10 @@ const EMAIL_ELIGIBLE: Partial<Record<BookingNotificationKind, BookingEmailAudien
   BOOKING_CANCELLED: "CUSTOMER",
   BOOKING_CANCELLED_BY_CUSTOMER: "PROVIDER",
   BOOKING_EXPIRED: "CUSTOMER",
+  // COMPLETION & REVIEW LOOP — the customer's service-started and service-completed emails. The
+  // completion email carries the review invitation/CTA (no separate REVIEW_REQUESTED email).
+  BOOKING_STARTED: "CUSTOMER",
+  BOOKING_COMPLETED: "CUSTOMER",
 };
 
 /** Is this booking-notification kind sent as a transactional email at all? */

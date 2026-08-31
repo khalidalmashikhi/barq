@@ -13,7 +13,9 @@ export type BookingEmailKind =
   | "BOOKING_REJECTED"
   | "BOOKING_CANCELLED"
   | "BOOKING_CANCELLED_BY_CUSTOMER"
-  | "BOOKING_EXPIRED";
+  | "BOOKING_EXPIRED"
+  | "BOOKING_STARTED"
+  | "BOOKING_COMPLETED";
 
 const EMAIL_KINDS: readonly BookingEmailKind[] = [
   "PENDING_PROVIDER",
@@ -22,6 +24,8 @@ const EMAIL_KINDS: readonly BookingEmailKind[] = [
   "BOOKING_CANCELLED",
   "BOOKING_CANCELLED_BY_CUSTOMER",
   "BOOKING_EXPIRED",
+  "BOOKING_STARTED",
+  "BOOKING_COMPLETED",
 ];
 
 /** Runtime narrow from an arbitrary stored kind string to a renderable email kind. */
@@ -51,18 +55,24 @@ type LocaleStrings = {
   labelTotal: string;
   ctaCustomer: string;
   ctaProvider: string;
+  ctaReview: string;
   footer: string;
 };
 
-// Per-kind audience for the CTA label (customer vs provider). Kept local to the renderer so the
-// content module is self-contained; matches booking-email-policy's audience map.
-const CTA_IS_PROVIDER: Record<BookingEmailKind, boolean> = {
-  PENDING_PROVIDER: true,
-  BOOKING_ACCEPTED: false,
-  BOOKING_REJECTED: false,
-  BOOKING_CANCELLED: false,
-  BOOKING_CANCELLED_BY_CUSTOMER: true,
-  BOOKING_EXPIRED: false,
+// Per-kind CTA label selector. "provider"/"customer" pick which view-booking wording; "review" is
+// the completion email's review invitation (it still links to the customer booking detail, where
+// the authenticated review form lives — no special review token). Kept local to the renderer so the
+// content module is self-contained.
+type CtaKind = "customer" | "provider" | "review";
+const CTA_BY_KIND: Record<BookingEmailKind, CtaKind> = {
+  PENDING_PROVIDER: "provider",
+  BOOKING_ACCEPTED: "customer",
+  BOOKING_REJECTED: "customer",
+  BOOKING_CANCELLED: "customer",
+  BOOKING_CANCELLED_BY_CUSTOMER: "provider",
+  BOOKING_EXPIRED: "customer",
+  BOOKING_STARTED: "customer",
+  BOOKING_COMPLETED: "review",
 };
 
 const STRINGS: Record<Locale, LocaleStrings> = {
@@ -74,6 +84,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Your booking was cancelled",
       BOOKING_CANCELLED_BY_CUSTOMER: "A booking was cancelled",
       BOOKING_EXPIRED: "Your booking request expired",
+      BOOKING_STARTED: "Your service has started",
+      BOOKING_COMPLETED: "Your service is complete",
     },
     message: {
       PENDING_PROVIDER: "You have a new booking request awaiting your response.",
@@ -82,12 +94,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Your booking has been cancelled.",
       BOOKING_CANCELLED_BY_CUSTOMER: "A customer has cancelled one of your bookings.",
       BOOKING_EXPIRED: "This booking request expired because the scheduled time passed with no response.",
+      BOOKING_STARTED: "Your service has started — enjoy your experience.",
+      BOOKING_COMPLETED: "Your service is complete. We'd love your feedback — leave a review from your booking.",
     },
     labelService: "Service",
     labelWhen: "When",
     labelTotal: "Total",
     ctaCustomer: "View your booking",
     ctaProvider: "View the request",
+    ctaReview: "Leave a review",
     footer: "You're receiving this because you have a booking on BARQ. Please don't reply to this email.",
   },
   ar: {
@@ -98,6 +113,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "تم إلغاء حجزك",
       BOOKING_CANCELLED_BY_CUSTOMER: "تم إلغاء أحد الحجوزات",
       BOOKING_EXPIRED: "انتهت صلاحية طلب حجزك",
+      BOOKING_STARTED: "بدأت خدمتك",
+      BOOKING_COMPLETED: "اكتملت خدمتك",
     },
     message: {
       PENDING_PROVIDER: "لديك طلب حجز جديد بانتظار الرد.",
@@ -106,12 +123,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "تم إلغاء حجزك.",
       BOOKING_CANCELLED_BY_CUSTOMER: "قام أحد العملاء بإلغاء أحد حجوزاتك.",
       BOOKING_EXPIRED: "انتهت صلاحية طلب الحجز لأن الوقت المحدد قد مضى دون رد.",
+      BOOKING_STARTED: "بدأت خدمتك — نتمنى لك تجربة رائعة.",
+      BOOKING_COMPLETED: "اكتملت خدمتك. يسعدنا سماع رأيك — اترك تقييمًا من صفحة حجزك.",
     },
     labelService: "الخدمة",
     labelWhen: "الموعد",
     labelTotal: "الإجمالي",
     ctaCustomer: "عرض حجزك",
     ctaProvider: "عرض الطلب",
+    ctaReview: "اترك تقييمًا",
     footer: "تصلك هذه الرسالة لأن لديك حجزًا على برق. الرجاء عدم الرد على هذا البريد.",
   },
   de: {
@@ -122,6 +142,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Ihre Buchung wurde storniert",
       BOOKING_CANCELLED_BY_CUSTOMER: "Eine Buchung wurde storniert",
       BOOKING_EXPIRED: "Ihre Buchungsanfrage ist abgelaufen",
+      BOOKING_STARTED: "Ihr Service hat begonnen",
+      BOOKING_COMPLETED: "Ihr Service ist abgeschlossen",
     },
     message: {
       PENDING_PROVIDER: "Sie haben eine neue Buchungsanfrage, die auf Ihre Antwort wartet.",
@@ -130,12 +152,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Ihre Buchung wurde storniert.",
       BOOKING_CANCELLED_BY_CUSTOMER: "Ein Kunde hat eine Ihrer Buchungen storniert.",
       BOOKING_EXPIRED: "Diese Buchungsanfrage ist abgelaufen, weil der geplante Zeitpunkt ohne Antwort verstrichen ist.",
+      BOOKING_STARTED: "Ihr Service hat begonnen — wir wünschen Ihnen ein tolles Erlebnis.",
+      BOOKING_COMPLETED: "Ihr Service ist abgeschlossen. Wir freuen uns über Ihr Feedback — bewerten Sie ihn über Ihre Buchung.",
     },
     labelService: "Leistung",
     labelWhen: "Termin",
     labelTotal: "Gesamt",
     ctaCustomer: "Buchung ansehen",
     ctaProvider: "Anfrage ansehen",
+    ctaReview: "Bewertung abgeben",
     footer: "Sie erhalten diese E-Mail, weil Sie eine Buchung bei BARQ haben. Bitte antworten Sie nicht auf diese E-Mail.",
   },
   fr: {
@@ -146,6 +171,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Votre réservation a été annulée",
       BOOKING_CANCELLED_BY_CUSTOMER: "Une réservation a été annulée",
       BOOKING_EXPIRED: "Votre demande de réservation a expiré",
+      BOOKING_STARTED: "Votre service a commencé",
+      BOOKING_COMPLETED: "Votre service est terminé",
     },
     message: {
       PENDING_PROVIDER: "Vous avez une nouvelle demande de réservation en attente de réponse.",
@@ -154,12 +181,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Votre réservation a été annulée.",
       BOOKING_CANCELLED_BY_CUSTOMER: "Un client a annulé l'une de vos réservations.",
       BOOKING_EXPIRED: "Cette demande de réservation a expiré car l'heure prévue est passée sans réponse.",
+      BOOKING_STARTED: "Votre service a commencé — profitez de votre expérience.",
+      BOOKING_COMPLETED: "Votre service est terminé. Votre avis nous intéresse — laissez un avis depuis votre réservation.",
     },
     labelService: "Service",
     labelWhen: "Quand",
     labelTotal: "Total",
     ctaCustomer: "Voir votre réservation",
     ctaProvider: "Voir la demande",
+    ctaReview: "Laisser un avis",
     footer: "Vous recevez cet e-mail car vous avez une réservation sur BARQ. Merci de ne pas répondre à cet e-mail.",
   },
   it: {
@@ -170,6 +200,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "La tua prenotazione è stata annullata",
       BOOKING_CANCELLED_BY_CUSTOMER: "Una prenotazione è stata annullata",
       BOOKING_EXPIRED: "La tua richiesta di prenotazione è scaduta",
+      BOOKING_STARTED: "Il tuo servizio è iniziato",
+      BOOKING_COMPLETED: "Il tuo servizio è completato",
     },
     message: {
       PENDING_PROVIDER: "Hai una nuova richiesta di prenotazione in attesa di risposta.",
@@ -178,12 +210,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "La tua prenotazione è stata annullata.",
       BOOKING_CANCELLED_BY_CUSTOMER: "Un cliente ha annullato una delle tue prenotazioni.",
       BOOKING_EXPIRED: "Questa richiesta di prenotazione è scaduta perché l'orario previsto è passato senza risposta.",
+      BOOKING_STARTED: "Il tuo servizio è iniziato — goditi l'esperienza.",
+      BOOKING_COMPLETED: "Il tuo servizio è completato. Ci farebbe piacere il tuo feedback — lascia una recensione dalla tua prenotazione.",
     },
     labelService: "Servizio",
     labelWhen: "Quando",
     labelTotal: "Totale",
     ctaCustomer: "Vedi la tua prenotazione",
     ctaProvider: "Vedi la richiesta",
+    ctaReview: "Lascia una recensione",
     footer: "Ricevi questa email perché hai una prenotazione su BARQ. Ti preghiamo di non rispondere a questa email.",
   },
   pl: {
@@ -194,6 +229,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Twoja rezerwacja została anulowana",
       BOOKING_CANCELLED_BY_CUSTOMER: "Rezerwacja została anulowana",
       BOOKING_EXPIRED: "Twoja prośba o rezerwację wygasła",
+      BOOKING_STARTED: "Twoja usługa się rozpoczęła",
+      BOOKING_COMPLETED: "Twoja usługa została zakończona",
     },
     message: {
       PENDING_PROVIDER: "Masz nową prośbę o rezerwację oczekującą na odpowiedź.",
@@ -202,12 +239,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Twoja rezerwacja została anulowana.",
       BOOKING_CANCELLED_BY_CUSTOMER: "Klient anulował jedną z Twoich rezerwacji.",
       BOOKING_EXPIRED: "Ta prośba o rezerwację wygasła, ponieważ zaplanowany czas minął bez odpowiedzi.",
+      BOOKING_STARTED: "Twoja usługa się rozpoczęła — życzymy udanych wrażeń.",
+      BOOKING_COMPLETED: "Twoja usługa została zakończona. Chętnie poznamy Twoją opinię — wystaw recenzję ze swojej rezerwacji.",
     },
     labelService: "Usługa",
     labelWhen: "Kiedy",
     labelTotal: "Razem",
     ctaCustomer: "Zobacz swoją rezerwację",
     ctaProvider: "Zobacz prośbę",
+    ctaReview: "Wystaw recenzję",
     footer: "Otrzymujesz tę wiadomość, ponieważ masz rezerwację w BARQ. Prosimy nie odpowiadać na tę wiadomość.",
   },
   ru: {
@@ -218,6 +258,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Ваше бронирование отменено",
       BOOKING_CANCELLED_BY_CUSTOMER: "Бронирование отменено",
       BOOKING_EXPIRED: "Срок вашего запроса на бронирование истёк",
+      BOOKING_STARTED: "Ваша услуга началась",
+      BOOKING_COMPLETED: "Ваша услуга завершена",
     },
     message: {
       PENDING_PROVIDER: "У вас новый запрос на бронирование, ожидающий ответа.",
@@ -226,12 +268,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Ваше бронирование отменено.",
       BOOKING_CANCELLED_BY_CUSTOMER: "Клиент отменил одно из ваших бронирований.",
       BOOKING_EXPIRED: "Этот запрос на бронирование истёк, так как назначенное время прошло без ответа.",
+      BOOKING_STARTED: "Ваша услуга началась — приятного вам впечатления.",
+      BOOKING_COMPLETED: "Ваша услуга завершена. Будем рады вашему отзыву — оставьте его на странице бронирования.",
     },
     labelService: "Услуга",
     labelWhen: "Когда",
     labelTotal: "Итого",
     ctaCustomer: "Посмотреть бронирование",
     ctaProvider: "Посмотреть запрос",
+    ctaReview: "Оставить отзыв",
     footer: "Вы получили это письмо, потому что у вас есть бронирование в BARQ. Пожалуйста, не отвечайте на это письмо.",
   },
   cs: {
@@ -242,6 +287,8 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Vaše rezervace byla zrušena",
       BOOKING_CANCELLED_BY_CUSTOMER: "Rezervace byla zrušena",
       BOOKING_EXPIRED: "Platnost vaší žádosti o rezervaci vypršela",
+      BOOKING_STARTED: "Vaše služba byla zahájena",
+      BOOKING_COMPLETED: "Vaše služba byla dokončena",
     },
     message: {
       PENDING_PROVIDER: "Máte novou žádost o rezervaci čekající na odpověď.",
@@ -250,12 +297,15 @@ const STRINGS: Record<Locale, LocaleStrings> = {
       BOOKING_CANCELLED: "Vaše rezervace byla zrušena.",
       BOOKING_CANCELLED_BY_CUSTOMER: "Zákazník zrušil jednu z vašich rezervací.",
       BOOKING_EXPIRED: "Tato žádost o rezervaci vypršela, protože naplánovaný čas uplynul bez odpovědi.",
+      BOOKING_STARTED: "Vaše služba byla zahájena — užijte si svůj zážitek.",
+      BOOKING_COMPLETED: "Vaše služba byla dokončena. Uvítáme vaši zpětnou vazbu — napište recenzi ze své rezervace.",
     },
     labelService: "Služba",
     labelWhen: "Kdy",
     labelTotal: "Celkem",
     ctaCustomer: "Zobrazit rezervaci",
     ctaProvider: "Zobrazit žádost",
+    ctaReview: "Napsat recenzi",
     footer: "Tento e-mail jste obdrželi, protože máte rezervaci na BARQ. Neodpovídejte prosím na tento e-mail.",
   },
 };
@@ -298,7 +348,8 @@ export function buildBookingEmail(params: {
 
   const subject = strings.subject[kind];
   const message = strings.message[kind];
-  const cta = CTA_IS_PROVIDER[kind] ? strings.ctaProvider : strings.ctaCustomer;
+  const ctaKind = CTA_BY_KIND[kind];
+  const cta = ctaKind === "provider" ? strings.ctaProvider : ctaKind === "review" ? strings.ctaReview : strings.ctaCustomer;
 
   const rows: Array<{ label: string; value: string }> = [{ label: strings.labelService, value: facts.serviceName }];
   if (facts.whenText) rows.push({ label: strings.labelWhen, value: facts.whenText });

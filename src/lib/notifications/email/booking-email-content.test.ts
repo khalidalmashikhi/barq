@@ -13,6 +13,8 @@ const KINDS: BookingEmailKind[] = [
   "BOOKING_CANCELLED",
   "BOOKING_CANCELLED_BY_CUSTOMER",
   "BOOKING_EXPIRED",
+  "BOOKING_STARTED",
+  "BOOKING_COMPLETED",
 ];
 
 const FACTS = {
@@ -88,10 +90,24 @@ describe("buildBookingEmail", () => {
     expect(text).toContain("Service: X");
   });
 
-  it("isBookingEmailKind narrows only the six renderable kinds", () => {
+  it("isBookingEmailKind narrows only the renderable kinds", () => {
     for (const k of KINDS) expect(isBookingEmailKind(k)).toBe(true);
     for (const k of ["PROVIDER_BOOKING_CONFIRMED", "NEW_REVIEW_RECEIVED", "nonsense"]) {
       expect(isBookingEmailKind(k)).toBe(false);
+    }
+  });
+
+  // COMPLETION & REVIEW LOOP — the completion email invites a review; the started email uses the
+  // plain view-booking CTA. Both link to the CUSTOMER booking detail (never a special review token).
+  it("the completion email uses the review CTA in every locale, and it differs from the plain view CTA", () => {
+    for (const locale of locales) {
+      const completed = buildBookingEmail({ kind: "BOOKING_COMPLETED", locale, facts: FACTS });
+      const started = buildBookingEmail({ kind: "BOOKING_STARTED", locale, facts: FACTS });
+      // The review CTA text is distinct from the started/view-booking CTA text.
+      expect(completed.html).not.toBe(started.html);
+      // Both still point at the same canonical customer booking URL (no special review link).
+      expect(completed.html).toContain(FACTS.bookingUrl);
+      expect(started.html).toContain(FACTS.bookingUrl);
     }
   });
 });

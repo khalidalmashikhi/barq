@@ -19,6 +19,13 @@ export type BookingNotificationKind =
   | "BOOKING_CANCELLED"
   | "BOOKING_CANCELLED_BY_CUSTOMER"
   | "BOOKING_EXPIRED"
+  // COMPLETION & REVIEW LOOP — the two customer-facing fulfillment events. Names follow the
+  // existing BOOKING_<pastparticiple> customer convention (BOOKING_ACCEPTED/REJECTED/…); the
+  // customer-facing COPY speaks of the "service" starting/completing. STARTED fires on the
+  // CONFIRMED→IN_PROGRESS transition, COMPLETED on IN_PROGRESS→COMPLETED. The completion message
+  // also invites a review (no separate review-request notification — see the email content).
+  | "BOOKING_STARTED"
+  | "BOOKING_COMPLETED"
   | "PROVIDER_BOOKING_CONFIRMED"
   | "PROVIDER_BOOKING_REJECTED"
   | "NEW_REVIEW_RECEIVED";
@@ -43,6 +50,17 @@ const MESSAGES: Record<BookingNotificationKind, { ar: string; en: string }> = {
   BOOKING_EXPIRED: {
     ar: "انتهت صلاحية طلب الحجز لأن الوقت المحدد قد مضى دون رد.",
     en: "This booking request expired because the scheduled time passed with no response.",
+  },
+  // COMPLETION & REVIEW LOOP — customer-facing. The completion message invites a review; the
+  // in-app Notification Center row links (via the existing CTA resolver) to the booking detail
+  // where the review form lives — no separate review-request notification is written.
+  BOOKING_STARTED: {
+    ar: "بدأت خدمتك. نتمنى لك تجربة رائعة!",
+    en: "Your service has started. Enjoy your experience!",
+  },
+  BOOKING_COMPLETED: {
+    ar: "اكتملت خدمتك. يسعدنا سماع رأيك — يمكنك ترك تقييم.",
+    en: "Your service is complete. We'd love your feedback — you can leave a review.",
   },
   // Provider Notifications & Operational Alerts phase — the provider's
   // own confirmation receipt for an action they just took themselves
