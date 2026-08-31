@@ -16,14 +16,12 @@ import type { BookingStatus } from "@prisma/client";
 // which an admin can reuse directly since both hard-scope to the
 // calling user's own provider/customer profile.
 //
-// CUSTOMER IDENTITY — same approved product decision documented in
-// get-provider-bookings.ts: no customer name field exists anywhere in
-// the schema (phone-only auth, no displayName column). This DTO carries
-// the raw customerId only, exactly as every other admin list DTO
-// already carries raw provider/service ids — no phone number or other
-// identifying field is exposed, since no existing admin query
-// establishes that as a precedent and doing so here would be a new
-// exposure decision this phase was not asked to make.
+// CUSTOMER IDENTITY — this DTO still carries the raw customerId only (no name/phone is DISPLAYED),
+// exactly as every other admin list DTO carries raw provider/service ids. BOOKING OPS OBSERVABILITY
+// adds the ability to SEARCH by the customer's display name (User.name — the safe, self-editable,
+// non-auth identity field; never phoneNumber/OTP/verification), but deliberately does NOT surface
+// that name in the list output — searching by a fact an operator already has (from a support
+// contact) is a narrower exposure than rendering every customer's name on the list.
 //
 // providerId/serviceId FILTERS (additive, same defensive convention as
 // get-provider-availability.ts/get-availability-slots.ts): a malformed
@@ -94,14 +92,25 @@ export async function getBookings(filters: BookingAdminListFilters = {}): Promis
     return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
   }
 
-  const searchClause = filters.q
+  // BOOKING OPS OBSERVABILITY — practical support search. A single `q` matches ANY of: the bilingual
+  // service name (unchanged), the customer's display name (User.name — the safe, self-editable,
+  // NON-auth identity field; never phoneNumber/OTP/verification), or an exact booking id when `q` is
+  // a UUID (PK match, no partial-UUID scan). Safe Prisma construction only; no raw SQL.
+  const q = filters.q?.trim();
+  const searchClause = q
     ? {
-        service: {
-          OR: [
-            { name: { path: ["ar"], string_contains: filters.q } },
-            { name: { path: ["en"], string_contains: filters.q } },
-          ],
-        },
+        OR: [
+          {
+            service: {
+              OR: [
+                { name: { path: ["ar"], string_contains: q } },
+                { name: { path: ["en"], string_contains: q } },
+              ],
+            },
+          },
+          { customer: { user: { name: { contains: q, mode: "insensitive" as const } } } },
+          ...(isValidUuid(q) ? [{ id: q }] : []),
+        ],
       }
     : {};
 

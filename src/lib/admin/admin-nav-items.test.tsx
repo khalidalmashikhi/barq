@@ -37,6 +37,14 @@ describe("getAdminNavItems", () => {
     );
   });
 
+  // BOOKING OPS OBSERVABILITY — the email-delivery ops route.
+  it("includes a navigable Email Delivery ops route", () => {
+    const items = getAdminNavItems(t, "en") as NavItem[];
+    expect(items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "navEmailDeliveries", href: "/admin/email-deliveries" })])
+    );
+  });
+
   // User & Access Management (Batch 2).
   it("includes a navigable User Management route", () => {
     const items = getAdminNavItems(t, "en") as NavItem[];

@@ -139,4 +139,39 @@ describe("getBookingDetail (admin)", () => {
 
     expect(result).toEqual(expect.objectContaining({ reviewId: "review-1", paymentId: "payment-1" }));
   });
+
+  // BOOKING OPS OBSERVABILITY — admin sees the provider's fulfillment instructions (both languages),
+  // fail-closed to null when absent/malformed.
+  it("exposes fulfillmentInstructions (both languages) when present", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    getLocaleMock.mockResolvedValue("en");
+    findUniqueMock.mockResolvedValue({
+      id: BOOKING_ID, customerId: "customer-1", serviceId: "service-1", providerId: "provider-1",
+      status: "CONFIRMED", seats: 1, availabilityId: null,
+      priceSnapshotAmount: "25.00", priceSnapshotCurrency: "OMR", commissionSnapshotAmount: null, commissionSnapshotTier: null,
+      confirmedAt: null, createdAt: new Date("2026-07-19T00:00:00Z"), updatedAt: new Date("2026-07-25T00:00:00Z"),
+      fulfillmentInstructions: { ar: "استلام من الردهة", en: "Pickup at the lobby" },
+      service: { name: { en: "Desert Tour" } }, provider: { businessName: { en: "Desert Co" } },
+      availability: null, review: null, payment: null,
+    });
+
+    const result = await getBookingDetail(BOOKING_ID);
+    expect(result?.fulfillmentInstructions).toEqual({ ar: "استلام من الردهة", en: "Pickup at the lobby" });
+  });
+
+  it("fulfillmentInstructions is null when the booking has none (honest empty state)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    getLocaleMock.mockResolvedValue("en");
+    findUniqueMock.mockResolvedValue({
+      id: BOOKING_ID, customerId: "customer-1", serviceId: "service-1", providerId: "provider-1",
+      status: "CONFIRMED", seats: 1, availabilityId: null,
+      priceSnapshotAmount: null, priceSnapshotCurrency: null, commissionSnapshotAmount: null, commissionSnapshotTier: null,
+      confirmedAt: null, createdAt: new Date("2026-07-19T00:00:00Z"), updatedAt: new Date("2026-07-25T00:00:00Z"),
+      fulfillmentInstructions: null,
+      service: { name: { en: "X" } }, provider: { businessName: { en: "Y" } },
+      availability: null, review: null, payment: null,
+    });
+
+    expect((await getBookingDetail(BOOKING_ID))?.fulfillmentInstructions).toBeNull();
+  });
 });

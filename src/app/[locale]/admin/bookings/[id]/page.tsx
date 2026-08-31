@@ -198,6 +198,35 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
         </dl>
       </Card>
 
+      {/* BOOKING OPS OBSERVABILITY — read-only fulfillment instructions (the provider is the sole
+          author; no edit control here). Admin sees BOTH languages of the record; each renders with
+          its own direction. Honest empty state when none are attached. */}
+      <Card hoverLift={false}>
+        <h2 className="text-sm font-semibold text-foreground">{t("fulfillmentInstructionsTitle")}</h2>
+        {booking.fulfillmentInstructions ? (
+          <div className="mt-3 flex flex-col gap-3">
+            {booking.fulfillmentInstructions.en.trim() !== "" && (
+              <div>
+                <div className="text-xs text-foreground/40">{t("fulfillmentInstructionsEnLabel")}</div>
+                <p dir="ltr" className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/80">
+                  {booking.fulfillmentInstructions.en}
+                </p>
+              </div>
+            )}
+            {booking.fulfillmentInstructions.ar.trim() !== "" && (
+              <div>
+                <div className="text-xs text-foreground/40">{t("fulfillmentInstructionsArLabel")}</div>
+                <p dir="rtl" className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/80">
+                  {booking.fulfillmentInstructions.ar}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-foreground/50">{t("fulfillmentInstructionsEmptyLabel")}</p>
+        )}
+      </Card>
+
       <BookingTimeline events={timeline} />
 
       <Card hoverLift={false}>

@@ -5,6 +5,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { readFulfillmentInstructions } from "@/lib/booking/fulfillment-instructions";
 
 // Admin Booking detail query — Phase 2.9 (Booking Foundation). Returns
 // a Booking regardless of who it belongs to, for admin management —
@@ -55,6 +56,10 @@ export type BookingAdminDetail = {
   /// relation, exposing just its id lets the admin booking detail page
   /// link to /admin/payments/[id] when one exists.
   paymentId: string | null;
+  /// BOOKING OPS OBSERVABILITY — the provider-authored booking-specific meeting/pickup instructions,
+  /// BOTH languages (admin sees the full record, not a single localized view), fail-closed to null
+  /// via readFulfillmentInstructions. Read-only for admin (the provider is the sole author).
+  fulfillmentInstructions: { ar: string; en: string } | null;
 } | null;
 
 export async function getBookingDetail(bookingId: string): Promise<BookingAdminDetail> {
@@ -99,6 +104,7 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
     confirmedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
+    fulfillmentInstructions: unknown;
     service: { name: unknown };
     provider: { businessName: unknown };
     availability: { startTime: Date; endTime: Date } | null;
@@ -135,5 +141,6 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
     updatedAt: row.updatedAt,
     reviewId: row.review?.id ?? null,
     paymentId: row.payment?.id ?? null,
+    fulfillmentInstructions: readFulfillmentInstructions(row.fulfillmentInstructions),
   };
 }

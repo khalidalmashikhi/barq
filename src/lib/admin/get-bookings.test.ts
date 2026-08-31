@@ -95,6 +95,39 @@ describe("getBookings", () => {
     });
   });
 
+  // BOOKING OPS OBSERVABILITY — `q` now matches service name OR customer display name OR (for a
+  // UUID) an exact booking id. Never phone/OTP/auth fields.
+  it("text q → OR over service name (ar/en) and customer User.name; no exact-id branch", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    await getBookings({ q: "salim" });
+
+    const where = countMock.mock.calls[0]![0].where;
+    expect(where.OR).toEqual([
+      { service: { OR: [{ name: { path: ["ar"], string_contains: "salim" } }, { name: { path: ["en"], string_contains: "salim" } }] } },
+      { customer: { user: { name: { contains: "salim", mode: "insensitive" } } } },
+    ]);
+    // no exact-id branch for a non-UUID query
+    expect(JSON.stringify(where)).not.toContain('"id"');
+  });
+
+  it("UUID q → adds an exact booking-id match to the OR (PK lookup, no partial-UUID scan)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    getLocaleMock.mockResolvedValue("en");
+    countMock.mockResolvedValue(0);
+    findManyMock.mockResolvedValue([]);
+
+    const uuid = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
+    await getBookings({ q: uuid });
+
+    const where = countMock.mock.calls[0]![0].where;
+    expect(where.OR).toContainEqual({ id: uuid });
+    expect(where.OR).toContainEqual({ customer: { user: { name: { contains: uuid, mode: "insensitive" } } } });
+  });
+
   it("short-circuits to an empty result for a malformed providerId, never calling Prisma", async () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     getLocaleMock.mockResolvedValue("en");
