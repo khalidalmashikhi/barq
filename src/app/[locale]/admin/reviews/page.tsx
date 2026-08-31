@@ -4,7 +4,12 @@ import { Link, redirect } from "@/i18n/navigation";
 import { Star } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getReviews } from "@/lib/admin/get-reviews";
+import { moderateReview } from "@/lib/admin/moderate-review";
+import { availableModerationActions, type ReviewModerationAction } from "@/lib/admin/review-moderation-policy";
+import { isReviewAdminActionErrorCode, getReviewAdminErrorTranslationKey } from "@/lib/admin/review-admin-errors";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -15,13 +20,13 @@ import type { ReviewModerationState } from "@prisma/client";
 
 // Admin Reviews — Admin Operations Platform.
 //
-// READ-ONLY, BY DESIGN: no flag/publish/remove action exists on this
-// page or anywhere else this phase adds — see get-reviews.ts's own
-// header comment. The schema's moderationState (PUBLISHED | FLAGGED |
-// REMOVED) is filterable here because the column is real, not because
-// this phase introduces a moderation workflow: nothing in the codebase
-// currently sets FLAGGED/REMOVED, so those filters will honestly show
-// empty results against real seed data today.
+// REVIEW TRUST & SAFETY: this surface now carries operational moderation. Each review card offers
+// the state-appropriate actions (Flag / Remove / Republish) via the moderateReview server action —
+// gated by requireAdmin(), guarded + audited server-side. Moderation changes public VISIBILITY only
+// (moderationState); the review row is never hard-deleted. Every public/aggregate surface already
+// filters moderationState:"PUBLISHED", so a Flagged/Removed review disappears from all public views
+// and rating aggregates without any change to those queries. The moderationState filter above lets
+// an admin find flagged/removed reviews for review.
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -37,7 +42,31 @@ type SearchParams = {
   bookingId?: string;
   rating?: string;
   page?: string;
+  error?: string;
 };
+
+// The moderation action button label per action (all in the "admin" namespace). `as const satisfies`
+// keeps the literal key types so the translator accepts them.
+const MODERATION_BUTTON_KEY = {
+  FLAG: "reviewModerationFlagButton",
+  REMOVE: "reviewModerationRemoveButton",
+  RESTORE: "reviewModerationRepublishButton",
+} as const satisfies Record<ReviewModerationAction, string>;
+
+// Rebuild the current filter/pagination query (never the transient `error`) so a moderation
+// redirect returns the admin to the same filtered view.
+function buildReviewsQuery(params: SearchParams, extra?: { error?: string }): string {
+  const qs = new URLSearchParams();
+  if (params.moderationState) qs.set("moderationState", params.moderationState);
+  if (params.providerId) qs.set("providerId", params.providerId);
+  if (params.customerId) qs.set("customerId", params.customerId);
+  if (params.bookingId) qs.set("bookingId", params.bookingId);
+  if (params.rating) qs.set("rating", params.rating);
+  if (params.page) qs.set("page", params.page);
+  if (extra?.error) qs.set("error", extra.error);
+  const s = qs.toString();
+  return s ? `/admin/reviews?${s}` : "/admin/reviews";
+}
 
 export default async function AdminReviewsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -84,12 +113,18 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
     REMOVED: "danger",
   };
 
+  // Never trust the ?error= query param — translate it only if it is a known review-admin code.
+  const errorMessage =
+    params.error && isReviewAdminActionErrorCode(params.error) ? t(getReviewAdminErrorTranslationKey(params.error)) : null;
+
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-8 py-8">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">{t("reviewsAdminTitle")}</h1>
         <p className="mt-1 text-sm text-foreground/60">{t("reviewsAdminDescription")}</p>
       </div>
+
+      {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
 
       <form method="get" className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <select
@@ -157,6 +192,54 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
                   {t("viewReviewBookingLabel")}
                 </Link>
               </div>
+
+              {/* REVIEW TRUST & SAFETY — moderation controls, offered ONLY for the actions valid from
+                  this review's current state (Published→Flag/Remove; Flagged→Remove/Republish;
+                  Removed→Republish). One form per card: an optional reason plus a submit button per
+                  action (name="action"). "Remove" is a public takedown (moderationState), never a
+                  DB delete. moderateReview re-validates authority + the transition server-side. */}
+              {(() => {
+                const actions = availableModerationActions(review.moderationState);
+                if (actions.length === 0) return null;
+                return (
+                  <form
+                    action={async (formData: FormData) => {
+                      "use server";
+                      const result = await moderateReview(review.id, formData);
+                      redirect({
+                        href: buildReviewsQuery(params, result.ok ? undefined : { error: result.error }),
+                        locale,
+                      });
+                    }}
+                    className="flex flex-wrap items-center gap-2 border-t border-border pt-3"
+                  >
+                    <input
+                      type="text"
+                      name="reason"
+                      maxLength={500}
+                      placeholder={t("reviewModerationReasonPlaceholder")}
+                      className="min-w-0 flex-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    {actions.map((action) => (
+                      <SubmitButton
+                        key={action}
+                        type="submit"
+                        name="action"
+                        value={action}
+                        className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                          action === "REMOVE"
+                            ? "border border-danger/30 bg-danger/5 text-danger hover:bg-danger/10"
+                            : action === "RESTORE"
+                              ? "border border-success/30 bg-success/5 text-success hover:bg-success/10"
+                              : "border border-warning/30 bg-warning/5 text-warning hover:bg-warning/10"
+                        }`}
+                      >
+                        {t(MODERATION_BUTTON_KEY[action])}
+                      </SubmitButton>
+                    ))}
+                  </form>
+                );
+              })()}
             </div>
           ))}
         </div>
