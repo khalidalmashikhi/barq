@@ -370,6 +370,27 @@ enum NotificationStatus {
   FAILED
 }
 
+/// BOOKING NOTIFICATION DELIVERY — the honest lifecycle of ONE transactional booking email in the
+/// BookingEmailDelivery outbox. Deliberately distinct from NotificationStatus (which tracks the
+/// in-app Notification row): this never claims DELIVERED, because BARQ has no provider delivery
+/// confirmation — only whether Resend ACCEPTED the request.
+///   PENDING    — enqueued, eligible for a delivery attempt (initial state, and where a retryable
+///                transient failure returns to).
+///   PROCESSING — claimed by a delivery worker via a guarded update; a stale PROCESSING row (older
+///                than the reclaim window) is treated as reclaimable so a crashed worker never
+///                strands it permanently.
+///   SENT       — Resend accepted the send request (NOT a delivery guarantee).
+///   FAILED     — terminal: retry budget exhausted, or a permanent/non-retryable provider error.
+///   SKIPPED    — terminal: intentionally not deliverable (recipient has no genuinely verified,
+///                non-synthetic email), so it is never retried.
+enum EmailDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 /// Structural placeholder only — the actual moderation policy governing
 /// transitions between these states is undefined (DOMAIN_MODEL.md Open
 /// Question #3, DATABASE_DESIGN.md §20 Open Decision #5).
@@ -445,6 +466,9 @@ model User {
   staff         Staff?
   admin         Admin?
   notifications Notification[]
+  /// BOOKING NOTIFICATION DELIVERY — this user's transactional booking-email outbox rows (as the
+  /// recipient). Back-relation only; no column on User.
+  bookingEmailDeliveries BookingEmailDelivery[]
 
   /// ADR-0009 — link to Better Auth's own infrastructure user record.
   /// Nullable because a BARQ User can exist with no authentication ever
@@ -1230,6 +1254,8 @@ model Booking {
   supportTickets            SupportTicket[]
   causingWalletTransactions WalletTransaction[]
   causingNotifications      Notification[]
+  /// BOOKING NOTIFICATION DELIVERY — the transactional booking-email outbox rows for this booking.
+  bookingEmailDeliveries    BookingEmailDelivery[]
   /// Booking Lifecycle Engine (Phase E.1) — the append-only history of
   /// every status change this Booking has gone through, including its
   /// initial creation. See BookingStatusEvent below.
@@ -1967,6 +1993,50 @@ model Notification {
   /// Gate B — "notifications about this entity" (e.g. all rows for a Provider).
   @@index([entityType, entityId])
   @@map("notifications")
+}
+
+/// BOOKING NOTIFICATION DELIVERY — the durable transactional-EMAIL outbox for booking lifecycle
+/// events. SEPARATE from Notification (the in-app system, untouched): the Notification Center's
+/// readers filter by userId only and never see this table. One row = one logical email for a
+/// (booking, event kind, recipient). Enqueued POST-COMMIT by the lifecycle hooks (best-effort — a
+/// crash in the commit→enqueue window is at-least-once debt, the same boundary the existing in-app
+/// notifications already have; NOT a true transactional outbox, since the authoritative booking
+/// transactions are deliberately not rewritten to insert here). The external Resend send happens
+/// ONLY in the CRON_SECRET-protected delivery worker, never inside a booking transaction and never
+/// in the request path. No PII is stored: the recipient email + localized body are resolved/
+/// rendered at send time from (kind, recipientUserId); lastError holds only a sanitized class.
+model BookingEmailDelivery {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  bookingId       String              @db.Uuid
+  booking         Booking             @relation(fields: [bookingId], references: [id])
+  /// The domain User.id (NOT AuthUser) of the recipient — matches Notification.userId /
+  /// resolveBookingParties. The verified, non-synthetic email is resolved via User.authUserId →
+  /// AuthUser at send time; it is never stored here.
+  recipientUserId String              @db.Uuid
+  recipient       User                @relation(fields: [recipientUserId], references: [id])
+  /// The BookingNotificationKind (open-ended String, same convention as Notification.eventType /
+  /// AuditLog.action — never a Prisma enum), e.g. "BOOKING_ACCEPTED".
+  kind            String
+  status          EmailDeliveryStatus @default(PENDING)
+  /// Bounded-retry accounting. attemptCount is incremented at CLAIM time (guarded), so two workers
+  /// cannot both claim the same row; lastError is a sanitized class/code only (no address/body).
+  attemptCount    Int                 @default(0)
+  lastAttemptAt   DateTime?           @db.Timestamptz(6)
+  lastError       String?
+  sentAt          DateTime?           @db.Timestamptz(6)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
+
+  /// Dedup/idempotency: at most ONE outbox row per (booking, event kind, recipient). Every
+  /// email-enabled event in this gate is one-shot per that triple (each is a guarded, single-fire
+  /// terminal-or-once lifecycle transition — see the gate's dedup proof), so a booking-create
+  /// replay or a repeated cron run enqueues via `create` and a duplicate hits this constraint
+  /// (P2002 → swallowed, no second email). If a future event can legitimately recur per triple, it
+  /// must carry an explicit dedupKey instead of relying on this constraint.
+  @@unique([bookingId, kind, recipientUserId])
+  /// Delivery worker scan: pending/failed/stale-processing rows, oldest first.
+  @@index([status, createdAt])
+  @@map("booking_email_deliveries")
 }
 
 // =============================================================================

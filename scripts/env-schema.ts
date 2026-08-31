@@ -57,6 +57,11 @@ export const envSchema = z
     // (fail-fast on a malformed value), matching how the phone OTP tuning vars are
     // handled — so they are deliberately not duplicated in this schema.
     EMAIL_OTP_PROVIDER: z.enum(["disabled", "console", "resend"]).optional().default("disabled"),
+    // BOOKING NOTIFICATION DELIVERY — the transactional booking-email switch, INDEPENDENT of
+    // EMAIL_OTP_PROVIDER (so OTP Resend creds alone never start sending live booking mail).
+    // Defaults to "disabled"; "resend" requires RESEND_API_KEY + EMAIL_FROM (the .superRefine()
+    // below), reusing the same secrets as OTP but gated separately. "console" logs only (dev).
+    BOOKING_EMAIL_PROVIDER: z.enum(["disabled", "console", "resend"]).optional().default("disabled"),
     // AUTH-EMAIL-VENDOR-1 — Resend credentials. Optional in the base schema;
     // required all-or-nothing when EMAIL_OTP_PROVIDER=resend (the .superRefine()
     // below), mirroring OTP_PROVIDER=twilio -> TWILIO_*. RESEND_API_KEY is a secret
@@ -173,6 +178,26 @@ export const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ["EMAIL_FROM"],
           message: "required when EMAIL_OTP_PROVIDER=resend",
+        });
+      }
+    }
+
+    // BOOKING NOTIFICATION DELIVERY — BOOKING_EMAIL_PROVIDER=resend requires the same Resend
+    // credentials, all-or-nothing, independently of the OTP switch (a deployment may send booking
+    // mail via Resend with OTP disabled, or vice-versa).
+    if (env.BOOKING_EMAIL_PROVIDER === "resend") {
+      if (!env.RESEND_API_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["RESEND_API_KEY"],
+          message: "required when BOOKING_EMAIL_PROVIDER=resend",
+        });
+      }
+      if (!env.EMAIL_FROM) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["EMAIL_FROM"],
+          message: "required when BOOKING_EMAIL_PROVIDER=resend",
         });
       }
     }

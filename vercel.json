@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/expire-stale-bookings",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/deliver-booking-emails",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

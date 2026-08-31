@@ -25,6 +25,12 @@ vi.mock("./notify", () => ({
   resolveBookingParties: vi.fn().mockResolvedValue({ customerUserId: "user-customer-1", providerUserId: "user-provider-1" }),
 }));
 
+// BOOKING NOTIFICATION DELIVERY — the hooks now ALSO enqueue transactional emails. Mock the enqueue
+// so these tests can assert the email POLICY (which recipient gets which kind) without a DB.
+vi.mock("@/lib/notifications/email/enqueue-booking-email", () => ({
+  enqueueBookingEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
 const {
   dispatchLifecycleHook,
   HOOKS,
@@ -142,6 +148,53 @@ describe("onPendingProvider / onAccepted / onRejected / onCancelled — notifica
       bookingId: "booking-1",
       kind: "BOOKING_EXPIRED",
     });
+  });
+});
+
+describe("BOOKING NOTIFICATION DELIVERY — email enqueue policy per hook", () => {
+  async function enqueueMock() {
+    return vi.mocked((await import("@/lib/notifications/email/enqueue-booking-email")).enqueueBookingEmail);
+  }
+
+  it("onPendingProvider enqueues the provider's new-request email", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onPendingProvider({ ...baseCtx, toStatus: "PENDING_PROVIDER" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-provider-1", bookingId: "booking-1", kind: "PENDING_PROVIDER" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("onAccepted emails the CUSTOMER only (provider self-receipt is in-app only)", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onAccepted({ ...baseCtx, toStatus: "CONFIRMED" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_ACCEPTED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("onRejected emails the CUSTOMER only", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onRejected({ ...baseCtx, toStatus: "REJECTED" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_REJECTED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("onCancelled emails BOTH parties", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onCancelled({ ...baseCtx, toStatus: "CANCELLED" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_CANCELLED" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-provider-1", bookingId: "booking-1", kind: "BOOKING_CANCELLED_BY_CUSTOMER" });
+    expect(enqueue).toHaveBeenCalledTimes(2);
+  });
+
+  it("onExpired emails the CUSTOMER only (no provider expiry email, §4)", async () => {
+    const enqueue = await enqueueMock();
+    enqueue.mockClear();
+    await onExpired({ ...baseCtx, toStatus: "EXPIRED" });
+    expect(enqueue).toHaveBeenCalledWith({ recipientUserId: "user-customer-1", bookingId: "booking-1", kind: "BOOKING_EXPIRED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
   });
 });
 

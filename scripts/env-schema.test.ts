@@ -434,4 +434,35 @@ describe("envSchema — EMAIL_OTP_PROVIDER (email OTP, inert by default)", () =>
     });
     expect(result.success).toBe(true);
   });
+
+  // BOOKING NOTIFICATION DELIVERY — the booking-email switch is gated independently of OTP.
+  it("defaults BOOKING_EMAIL_PROVIDER to disabled (no booking mail unless opted in)", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.BOOKING_EMAIL_PROVIDER).toBe("disabled");
+  });
+
+  it("REJECTS BOOKING_EMAIL_PROVIDER=resend without RESEND_API_KEY + EMAIL_FROM", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({ ...validBase, BOOKING_EMAIL_PROVIDER: "resend" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((i) => i.path[0]);
+      expect(paths).toContain("RESEND_API_KEY");
+      expect(paths).toContain("EMAIL_FROM");
+    }
+  });
+
+  it("allows BOOKING_EMAIL_PROVIDER=resend independently of a disabled OTP, with creds present", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const result = envSchema.safeParse({
+      ...validBase,
+      EMAIL_OTP_PROVIDER: "disabled",
+      BOOKING_EMAIL_PROVIDER: "resend",
+      RESEND_API_KEY: "re_x",
+      EMAIL_FROM: "BARQ <noreply@barq.example>",
+    });
+    expect(result.success).toBe(true);
+  });
 });

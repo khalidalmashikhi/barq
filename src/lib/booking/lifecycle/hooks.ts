@@ -2,6 +2,7 @@ import "server-only";
 import type { BookingStatus } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { notifyBookingEvent, resolveBookingParties } from "./notify";
+import { enqueueBookingEmail } from "@/lib/notifications/email/enqueue-booking-email";
 
 // Booking Lifecycle Engine — Phase E.1. Extension points for future
 // modules to attach behavior to a lifecycle transition, without that
@@ -33,6 +34,9 @@ export interface BookingHookContext {
 export async function onPendingProvider(ctx: BookingHookContext): Promise<void> {
   const { providerUserId } = await resolveBookingParties(ctx.bookingId);
   await notifyBookingEvent({ userId: providerUserId, bookingId: ctx.bookingId, kind: "PENDING_PROVIDER" });
+  // BOOKING NOTIFICATION DELIVERY — durably enqueue the provider's new-request EMAIL (post-commit,
+  // best-effort; the cron sends it). Never a duplicate of the in-app row above.
+  await enqueueBookingEmail({ recipientUserId: providerUserId, bookingId: ctx.bookingId, kind: "PENDING_PROVIDER" });
 }
 
 export async function onAccepted(ctx: BookingHookContext): Promise<void> {
@@ -44,6 +48,9 @@ export async function onAccepted(ctx: BookingHookContext): Promise<void> {
   // — this is their own confirmation receipt, not a duplicate of the
   // customer-facing BOOKING_ACCEPTED above.
   await notifyBookingEvent({ userId: providerUserId, bookingId: ctx.bookingId, kind: "PROVIDER_BOOKING_CONFIRMED" });
+  // BOOKING NOTIFICATION DELIVERY — email the CUSTOMER their confirmation. The provider's own
+  // PROVIDER_BOOKING_CONFIRMED self-receipt is in-app only (not email-eligible) — no provider email.
+  await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_ACCEPTED" });
   // Future extension point: contract generation, provider payout
   // scheduling, etc.
 }
@@ -54,6 +61,8 @@ export async function onRejected(ctx: BookingHookContext): Promise<void> {
   // Provider Notifications & Operational Alerts phase — same rationale
   // as onAccepted's own PROVIDER_BOOKING_CONFIRMED above.
   await notifyBookingEvent({ userId: providerUserId, bookingId: ctx.bookingId, kind: "PROVIDER_BOOKING_REJECTED" });
+  // BOOKING NOTIFICATION DELIVERY — email the CUSTOMER the decline. Provider self-receipt in-app only.
+  await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_REJECTED" });
 }
 
 export async function onInProgress(ctx: BookingHookContext): Promise<void> {
@@ -72,6 +81,12 @@ export async function onCancelled(ctx: BookingHookContext): Promise<void> {
   // provider previously had no way to learn a confirmed booking on
   // their calendar had just been cancelled short of manually checking.
   await notifyBookingEvent({ userId: providerUserId, bookingId: ctx.bookingId, kind: "BOOKING_CANCELLED_BY_CUSTOMER" });
+  // BOOKING NOTIFICATION DELIVERY — email BOTH parties the cancellation (each is an affected
+  // counterparty). NOTE: the provider copy is the existing "cancelled by customer" wording even
+  // when an admin cancelled — the hook context carries no actorType, so correcting that attribution
+  // is deferred (it needs lifecycle-context plumbing, out of scope for this gate — see report).
+  await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_CANCELLED" });
+  await enqueueBookingEmail({ recipientUserId: providerUserId, bookingId: ctx.bookingId, kind: "BOOKING_CANCELLED_BY_CUSTOMER" });
   // Future extension point: refund processing, etc.
 }
 
@@ -89,6 +104,9 @@ export async function onExpired(ctx: BookingHookContext): Promise<void> {
   const { customerUserId, providerUserId } = await resolveBookingParties(ctx.bookingId);
   await notifyBookingEvent({ userId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_EXPIRED" });
   await notifyBookingEvent({ userId: providerUserId, bookingId: ctx.bookingId, kind: "BOOKING_EXPIRED" });
+  // BOOKING NOTIFICATION DELIVERY — email the CUSTOMER only (§4). The provider keeps the in-app
+  // expiry notice; no provider expiry email (avoid operational noise).
+  await enqueueBookingEmail({ recipientUserId: customerUserId, bookingId: ctx.bookingId, kind: "BOOKING_EXPIRED" });
 }
 
 export type HookRegistry = Partial<Record<BookingStatus, (ctx: BookingHookContext) => Promise<void>>>;
