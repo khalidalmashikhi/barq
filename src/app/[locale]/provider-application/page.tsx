@@ -14,6 +14,7 @@ import { ProviderPrimaryActivityPicker } from "@/components/categories/provider-
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import type { ProviderStatus } from "@prisma/client";
@@ -130,6 +131,12 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-12">
+      {/* GLOBAL SIGN-OUT UX — this authenticated (requireAuth) page renders no AppShell/top bar, so
+          without this an applicant has no way to sign out (e.g. to switch accounts). Reuses the one
+          canonical LogoutButton (better-auth signOut → "/"); no second logout mechanism. */}
+      <div className="flex justify-end">
+        <LogoutButton />
+      </div>
       <h1 className="text-2xl font-semibold text-foreground">{t("applicationTitle")}</h1>
       <p className="text-sm text-foreground/60">{t("applicationSubtitle")}</p>
 

@@ -44,8 +44,10 @@ vi.mock("next-intl/server", () => ({ getLocale: async () => "en" }));
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async () => (k: string) => k }));
 function AddPhoneButtonMock() { return null; }
 function AddEmailButtonMock() { return null; }
+function LogoutButtonMock() { return null; }
 vi.mock("@/components/auth/add-phone-button", () => ({ AddPhoneButton: AddPhoneButtonMock }));
 vi.mock("@/components/auth/add-email-button", () => ({ AddEmailButton: AddEmailButtonMock }));
+vi.mock("@/components/auth/logout-button", () => ({ LogoutButton: LogoutButtonMock }));
 vi.mock("@/components/ui/logo", () => ({ Logo: () => null }));
 
 const { default: OnboardingPage } = await import("./page");
@@ -101,5 +103,27 @@ describe("OnboardingPage routing", () => {
     const tree = (await OnboardingPage()) as ReactElement;
     expect(findByType(tree, AddEmailButtonMock)).toBeNull();
     expect(containsText(tree, "onboardingUnavailable")).toBe(true);
+  });
+
+  // GLOBAL SIGN-OUT UX — the escape hatch: this authenticated, shell-less screen must always offer
+  // sign-out, INCLUDING the email-OTP-unavailable dead-end where there is no other action.
+  it("renders the sign-out escape in every non-redirect state (incl. the unavailable dead-end)", async () => {
+    const states = [
+      { hasVerifiedEmail: true, hasVerifiedPhone: false, otp: true }, // needs phone
+      { hasVerifiedEmail: false, hasVerifiedPhone: true, otp: true }, // needs email
+      { hasVerifiedEmail: false, hasVerifiedPhone: true, otp: false }, // dead-end (no email OTP)
+    ];
+    for (const s of states) {
+      getStateMock.mockResolvedValue({ authenticated: true, hasVerifiedEmail: s.hasVerifiedEmail, hasVerifiedPhone: s.hasVerifiedPhone, isComplete: false });
+      isEmailOtpConfiguredMock.mockReturnValue(s.otp);
+      const tree = (await OnboardingPage()) as ReactElement;
+      expect(findByType(tree, LogoutButtonMock)).not.toBeNull();
+    }
+  });
+
+  it("does NOT render the page (or sign-out) when redirecting away (complete customer)", async () => {
+    getStateMock.mockResolvedValue({ authenticated: true, hasVerifiedEmail: true, hasVerifiedPhone: true, isComplete: true });
+    const tree = await OnboardingPage();
+    expect(tree).toBeNull();
   });
 });

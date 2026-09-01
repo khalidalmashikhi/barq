@@ -65,8 +65,22 @@ vi.mock("@/lib/categories/get-selectable-categories", () => ({
 vi.mock("@/components/categories/provider-primary-activity-picker", () => ({
   ProviderPrimaryActivityPicker: () => null,
 }));
+function LogoutButtonMock() { return null; }
+vi.mock("@/components/auth/logout-button", () => ({ LogoutButton: LogoutButtonMock }));
 
 const { default: ProviderApplicationPage } = await import("./page");
+
+// GLOBAL SIGN-OUT UX — find an element by its component type (walk() above only collects text/hrefs).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findType(node: any, marker: unknown): any | null {
+  if (node == null || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const n of node) { const f = findType(n, marker); if (f) return f; }
+    return null;
+  }
+  if (node.type === marker) return node;
+  return findType(node.props?.children, marker);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function walk(node: any, texts: string[], hrefs: string[]): void {
@@ -105,6 +119,24 @@ afterEach(() => {
   applyAsProviderMock.mockReset();
   resubmitMock.mockReset();
   getSelectableCategoriesMock.mockClear();
+});
+
+describe("ProviderApplicationPage — global sign-out escape", () => {
+  it("renders the canonical sign-out button on both the new-application and existing-application views", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    // New applicant (no provider row → the application form path).
+    providerFindUniqueMock.mockResolvedValue(null);
+    assertApprovableMock.mockResolvedValue([]);
+    getSelectableCategoriesMock.mockResolvedValue({ tree: [], flat: [] });
+    let el = await ProviderApplicationPage({ searchParams: Promise.resolve({}) });
+    expect(findType(el, LogoutButtonMock)).not.toBeNull();
+
+    // Existing applicant (status card path).
+    providerFindUniqueMock.mockResolvedValue({ id: "prov-1", businessName: { en: "Acme", ar: "أكمي" }, status: "APPLIED", rejectionReason: null });
+    assertApprovableMock.mockResolvedValue([]);
+    el = await ProviderApplicationPage({ searchParams: Promise.resolve({}) });
+    expect(findType(el, LogoutButtonMock)).not.toBeNull();
+  });
 });
 
 describe("ProviderApplicationPage — status UX", () => {

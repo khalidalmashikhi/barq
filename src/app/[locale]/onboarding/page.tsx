@@ -7,6 +7,7 @@ import { isEmailOtpConfigured } from "@/lib/email-otp/get-email-provider";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { AddPhoneButton } from "@/components/auth/add-phone-button";
 import { AddEmailButton } from "@/components/auth/add-email-button";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Logo } from "@/components/ui/logo";
 
 // AUTH-DUAL-VERIFICATION-1 — the mandatory Customer credential-completion screen.
@@ -84,6 +85,14 @@ export default async function OnboardingPage() {
             </p>
           )
         ) : null}
+
+        {/* GLOBAL SIGN-OUT UX — an escape hatch for an authenticated-but-incomplete customer
+            (wrong account, or the email-OTP dead-end above): this standalone screen renders no
+            AppShell/top bar, so without this there is no way to sign out. Reuses the one canonical
+            LogoutButton (better-auth signOut → "/"); no second logout mechanism. */}
+        <div className="mt-6 border-t border-border/40 pt-4 text-center">
+          <LogoutButton />
+        </div>
       </div>
     </main>
   );
