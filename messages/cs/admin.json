@@ -620,6 +620,8 @@
   "statusChangesRequested": "Vyžádány změny",
   "verificationRequiredProgress": "Schváleno {approved} z {total} požadovaných dokumentů",
   "verificationAllRequiredApproved": "Všechny požadované dokumenty schváleny",
+  "verificationLoadErrorTitle": "Ověřovací informace se nepodařilo načíst.",
+  "verificationLoadErrorBody": "Schválení není k dispozici, dokud se ověřovací informace úspěšně nenačtou. Načtěte stránku znovu a zkuste to prosím znovu.",
   "submittedAtLabel": "Odesláno",
   "reviewApplicationLabel": "Zkontrolovat žádost",
   "documentMissingLabel": "Chybí",

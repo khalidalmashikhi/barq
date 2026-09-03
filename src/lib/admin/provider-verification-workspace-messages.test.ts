@@ -11,6 +11,11 @@ const ADMIN_KEYS = [
   "statusChangesRequested",
   "verificationRequiredProgress",
   "verificationAllRequiredApproved",
+  // Admin Provider Review Fail-Closed Integrity gate — the explicit "verification
+  // could not be loaded" copy shown when a checklist/blocker read fails (must exist,
+  // non-empty, in every locale so the fail-closed state is never an untranslated key).
+  "verificationLoadErrorTitle",
+  "verificationLoadErrorBody",
   "submittedAtLabel",
   "documentMissingLabel",
   "documentNotUploadedYet",

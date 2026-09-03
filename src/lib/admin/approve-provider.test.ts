@@ -203,4 +203,24 @@ describe("approveProvider", () => {
 
     expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
   });
+
+  // Admin Provider Review Fail-Closed Integrity gate — the readiness check is the
+  // server's independent authority. If it CANNOT be evaluated (the read throws),
+  // approval must FAIL CLOSED: no transition, no audit, no notify, and a safe generic
+  // error (never a leaked Prisma/storage message, never an assumed-empty "approvable").
+  it("FAILS CLOSED (UNKNOWN_ERROR, no side effects) when the readiness read throws at mutation time", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
+    assertApprovableMock.mockRejectedValue(new Error("verification store down: secret-connection-string"));
+
+    const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
+
+    expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    // The generic code must not carry the internal error detail.
+    expect(JSON.stringify(result)).not.toContain("secret-connection-string");
+    // Fail closed: the provider is NOT approved and nothing is recorded/announced.
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+    expect(notificationCreateMock).not.toHaveBeenCalled();
+  });
 });

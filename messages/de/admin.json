@@ -620,6 +620,8 @@
   "statusChangesRequested": "Änderungen angefordert",
   "verificationRequiredProgress": "{approved} von {total} erforderlichen Dokumenten genehmigt",
   "verificationAllRequiredApproved": "Alle erforderlichen Dokumente genehmigt",
+  "verificationLoadErrorTitle": "Verifizierungsinformationen konnten nicht geladen werden.",
+  "verificationLoadErrorBody": "Die Genehmigung ist nicht verfügbar, bis die Verifizierungsinformationen erfolgreich geladen wurden. Laden Sie die Seite neu, um es erneut zu versuchen.",
   "submittedAtLabel": "Eingereicht",
   "reviewApplicationLabel": "Antrag prüfen",
   "documentMissingLabel": "Fehlt",

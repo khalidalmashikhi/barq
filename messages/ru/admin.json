@@ -620,6 +620,8 @@
   "statusChangesRequested": "Запрошены изменения",
   "verificationRequiredProgress": "Одобрено {approved} из {total} обязательных документов",
   "verificationAllRequiredApproved": "Все обязательные документы одобрены",
+  "verificationLoadErrorTitle": "Не удалось загрузить информацию о проверке.",
+  "verificationLoadErrorBody": "Одобрение недоступно, пока информация о проверке не будет успешно загружена. Перезагрузите страницу, чтобы повторить попытку.",
   "submittedAtLabel": "Отправлено",
   "reviewApplicationLabel": "Проверить заявку",
   "documentMissingLabel": "Отсутствует",

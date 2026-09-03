@@ -137,30 +137,39 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
 
   // Verification workspace (Gate 1B) — the FULL resolved requirement checklist
   // (each requirement present/missing + its admin document) plus the proactive
-  // approval blockers. Both are best-effort: if the storage-backed read or the
-  // blocker check fails, the rest of the admin page (status control, related
-  // links, audit) must still render. `verification` drives the checklist +
-  // progress; `blockers` drives the approval-gate panel and disables Approve.
+  // approval blockers. The rest of the admin page (status control, related links,
+  // audit) must still render if a verification read fails — but a read FAILURE is
+  // NOT the same as an empty result. FAIL CLOSED: a failed read is tracked as such
+  // and must never be presented as "no requirements" / "no blockers" / "ready".
+  //   • LOADED + READY   → verification loaded, pending, zero blockers → Approve offered
+  //   • LOADED + NOT READY → verification loaded, blockers present     → Approve withheld + reasons
+  //   • LOAD FAILED       → a read threw                               → Approve withheld + explicit error
   let verification: AdminProviderVerification = { items: [], requiredTotal: 0, requiredApproved: 0 };
+  let verificationLoadFailed = false;
   try {
     // getProviderDetail types providerType as a plain string; the DB value is
     // always a valid ProviderType enum member.
     verification = await getAdminProviderVerificationChecklist(id, provider.providerType as ProviderType);
   } catch {
-    verification = { items: [], requiredTotal: 0, requiredApproved: 0 };
+    // Do NOT collapse to an empty checklist — that would read as "no requirements".
+    verificationLoadFailed = true;
   }
   let blockers: RequiredDocumentBlocker[] = [];
+  let blockersLoadFailed = false;
   try {
     blockers = await assertProviderApprovable(id);
   } catch {
-    blockers = [];
+    // Do NOT collapse to [] — an empty blocker list means "approvable"; a failed
+    // read means "readiness UNDETERMINED" and must withhold approval.
+    blockersLoadFailed = true;
   }
+  // Either read failing leaves readiness undetermined (state C). Approval is
+  // offered ONLY when both reads succeeded, the provider is pending, and there are
+  // no blockers. The server gate in approveProvider() independently fails closed
+  // too (a throw from the readiness read → UNKNOWN_ERROR, no transition).
+  const verificationUnavailable = verificationLoadFailed || blockersLoadFailed;
   const hasBlockers = blockers.length > 0;
-  // Review-first affordance: for a pending application, approval is "ready" only
-  // when there are no required-document blockers. Drives the affirmative banner
-  // in the decision section (the server gate in approveProvider() stays the real
-  // enforcement — this is only its visible reflection).
-  const approvalReady = isPending && !hasBlockers;
+  const approvalReady = isPending && !verificationUnavailable && !hasBlockers;
 
   // Gate B4 — authorized activities + the categories eligible to grant (the
   // selectable taxonomy minus the ones already linked to this provider). Best-effort.
@@ -312,6 +321,14 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
           {t("verificationDocumentsTitle")}
         </h2>
 
+        {/* FAIL CLOSED — a failed checklist read is shown as an explicit error, never
+            as "no requirements" (which would falsely imply the provider needs nothing). */}
+        {verificationLoadFailed ? (
+          <Alert variant="danger" title={t("verificationLoadErrorTitle")} className="mt-3">
+            {t("verificationLoadErrorBody")}
+          </Alert>
+        ) : (
+        <>
         {/* Gate 1B — verification progress + submittedAt. Rendered from the full
             resolved requirement checklist, so a MISSING required document is a row
             (not only a hidden approval blocker). */}
@@ -443,6 +460,8 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             })}
           </div>
         )}
+        </>
+        )}
       </Card>
 
       <Card hoverLift={false}>
@@ -455,6 +474,14 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             required document is APPROVED. The server-side gate in approveProvider()
             is the real enforcement; this is its visible reflection so an admin is
             never nudged to approve before reviewing. */}
+        {/* FAIL CLOSED — verification readiness could not be established (a read
+            threw). Approval is withheld and this explains why; a reload retries. */}
+        {isPending && verificationUnavailable && (
+          <Alert variant="danger" title={t("verificationLoadErrorTitle")} className="mt-3">
+            {t("verificationLoadErrorBody")}
+          </Alert>
+        )}
+
         {isPending && hasBlockers && (
           <Alert variant="warning" title={t("approvalBlockedTitle")} className="mt-3">
             <ul className="mt-2 flex flex-col gap-1 text-sm">
@@ -501,14 +528,18 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             </form>
           )}
 
-          {/* Blockers present → Approve is unavailable (disabled, non-submitting).
-              The panel above states the reasons. */}
-          {isPending && hasBlockers && (
+          {/* Not ready while pending → a disabled, non-submitting Approve. This
+              covers BOTH real blockers (reasons in the warning panel) AND a failed
+              verification read (state C — the danger panel above explains it). The
+              title reflects which. Since a pending provider with no blockers and a
+              successful read is `approvalReady`, this renders only for those two
+              not-ready cases and never offers a live approval mutation. */}
+          {isPending && !approvalReady && (
             <button
               type="button"
               disabled
               aria-disabled="true"
-              title={t("approveDisabledDocumentsHint")}
+              title={verificationUnavailable ? t("verificationLoadErrorTitle") : t("approveDisabledDocumentsHint")}
               className="cursor-not-allowed rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground opacity-50"
             >
               {t("approveButton")}

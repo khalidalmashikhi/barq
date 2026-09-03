@@ -620,6 +620,8 @@
   "statusChangesRequested": "Poproszono o zmiany",
   "verificationRequiredProgress": "Zatwierdzono {approved} z {total} wymaganych dokumentów",
   "verificationAllRequiredApproved": "Wszystkie wymagane dokumenty zatwierdzone",
+  "verificationLoadErrorTitle": "Nie można załadować informacji weryfikacyjnych.",
+  "verificationLoadErrorBody": "Zatwierdzenie jest niedostępne, dopóki informacje weryfikacyjne nie zostaną poprawnie załadowane. Odśwież stronę, aby spróbować ponownie.",
   "submittedAtLabel": "Wysłano",
   "reviewApplicationLabel": "Sprawdź wniosek",
   "documentMissingLabel": "Brak",

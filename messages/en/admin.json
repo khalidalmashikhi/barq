@@ -620,6 +620,8 @@
   "statusChangesRequested": "Changes requested",
   "verificationRequiredProgress": "{approved} of {total} required documents approved",
   "verificationAllRequiredApproved": "All required documents approved",
+  "verificationLoadErrorTitle": "Verification information could not be loaded.",
+  "verificationLoadErrorBody": "Approval is unavailable until the verification information loads successfully. Reload the page to try again.",
   "submittedAtLabel": "Submitted",
   "reviewApplicationLabel": "Review application",
   "documentMissingLabel": "Missing",

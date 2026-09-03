@@ -620,6 +620,8 @@
   "statusChangesRequested": "طُلبت تعديلات",
   "verificationRequiredProgress": "تمت الموافقة على {approved} من {total} من المستندات المطلوبة",
   "verificationAllRequiredApproved": "تمت الموافقة على جميع المستندات المطلوبة",
+  "verificationLoadErrorTitle": "تعذر تحميل معلومات التحقق.",
+  "verificationLoadErrorBody": "لا يمكن اعتماد المزود حتى يتم تحميل معلومات التحقق بنجاح. أعد تحميل الصفحة للمحاولة مرة أخرى.",
   "submittedAtLabel": "أُرسل في",
   "reviewApplicationLabel": "مراجعة الطلب",
   "documentMissingLabel": "غير مرفوع",

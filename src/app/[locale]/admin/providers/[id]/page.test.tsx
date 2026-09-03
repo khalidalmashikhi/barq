@@ -264,3 +264,56 @@ describe("ProviderDetailPage — approval readiness affordance", () => {
     expect(texts).not.toContain("approveDisabledDocumentsHint");
   });
 });
+
+// Admin Provider Review Fail-Closed Integrity gate. State C (a verification read
+// threw) must NEVER look like state A (ready): no false "no requirements", no false
+// "all approved" ready banner, no enabled Approve — instead an explicit localized
+// load-error. Reject stays available (it does not depend on verification data).
+describe("ProviderDetailPage — fail-closed on verification read errors", () => {
+  it("checklist read FAILS → explicit load-error, never a false 'no requirements' or 'ready'", async () => {
+    getChecklistMock.mockRejectedValue(new Error("checklist store down"));
+    // The blocker read defaults to [] (beforeEach); the checklist failure ALONE is state C.
+    const texts = await render("UNDER_REVIEW");
+
+    expect(texts).toContain("verificationLoadErrorTitle");
+    expect(texts).toContain("verificationLoadErrorBody");
+    // Never a false empty ("no requirements") and never a false ready banner/progress.
+    expect(texts).not.toContain("noVerificationRequirements");
+    expect(texts).not.toContain("verificationAllRequiredApproved");
+    // A failed read is not a normal blocker state either.
+    expect(texts).not.toContain("approvalBlockedTitle");
+    // Reject does NOT depend on verification data, so it stays available.
+    expect(texts).toContain("rejectButton");
+  });
+
+  it("blocker read FAILS → approval withheld with explicit error; never collapses to 'no blockers → ready'", async () => {
+    // Checklist loads fine (documents still render); only the readiness verdict is unavailable.
+    getChecklistMock.mockResolvedValue({
+      items: [{ type: "IDENTITY_PROOF", required: true, name: { en: "Identity Proof", ar: "إثبات الهوية" }, description: null, document: uploadedDoc() }],
+      requiredTotal: 1,
+      requiredApproved: 0,
+    });
+    assertApprovableMock.mockRejectedValue(new Error("blocker read down"));
+
+    const texts = await render("UNDER_REVIEW");
+
+    expect(texts).toContain("verificationLoadErrorTitle");
+    // The empty blocker array from the failed read must NOT be treated as "ready".
+    expect(texts).not.toContain("verificationAllRequiredApproved");
+    expect(texts).not.toContain("approvalBlockedTitle");
+    // The successfully-loaded document is still shown to the admin.
+    expect(texts).toContain("documentViewButton");
+    expect(texts).toContain("civil-id.jpg");
+    expect(texts).toContain("rejectButton");
+  });
+
+  it("a checklist read failure withholds readiness even when the blocker read reports approvable", async () => {
+    getChecklistMock.mockRejectedValue(new Error("down"));
+    assertApprovableMock.mockResolvedValue([]); // would be "ready" ONLY if BOTH reads had succeeded
+
+    const texts = await render("APPLIED");
+
+    expect(texts).toContain("verificationLoadErrorTitle");
+    expect(texts).not.toContain("verificationAllRequiredApproved");
+  });
+});

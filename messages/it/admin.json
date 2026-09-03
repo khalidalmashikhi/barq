@@ -620,6 +620,8 @@
   "statusChangesRequested": "Modifiche richieste",
   "verificationRequiredProgress": "{approved} di {total} documenti richiesti approvati",
   "verificationAllRequiredApproved": "Tutti i documenti richiesti approvati",
+  "verificationLoadErrorTitle": "Impossibile caricare le informazioni di verifica.",
+  "verificationLoadErrorBody": "L’approvazione non è disponibile finché le informazioni di verifica non vengono caricate correttamente. Ricarica la pagina per riprovare.",
   "submittedAtLabel": "Inviato",
   "reviewApplicationLabel": "Esamina la richiesta",
   "documentMissingLabel": "Mancante",
