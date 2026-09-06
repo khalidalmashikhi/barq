@@ -1,4 +1,4 @@
-import { resolveProviderStatus } from "@/lib/auth";
+import { resolveProviderStatus, resolveEffectiveAccountType } from "@/lib/auth";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { withApiV1Auth } from "@/lib/api/v1/auth";
 import { apiOk } from "@/lib/api/v1/respond";
@@ -19,7 +19,13 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   return withRequestTracing("api.v1.me", () =>
     withApiV1Auth(request, async ({ barqUser, locale }) => {
-      const lookup = await resolveProviderStatus(barqUser.id);
+      // Provider lifecycle status and the authoritative effective account type answer
+      // different questions (approval state vs which home the account belongs to), so
+      // both are resolved and returned as separate fields. Independent reads, batched.
+      const [lookup, effectiveAccountType] = await Promise.all([
+        resolveProviderStatus(barqUser.id),
+        resolveEffectiveAccountType(barqUser.id),
+      ]);
 
       const provider: MeProviderDTO =
         lookup.kind === "not_found"
@@ -31,7 +37,7 @@ export async function GET(request: Request) {
               workspaceAvailable: lookup.provider.status === "APPROVED",
             };
 
-      return apiOk(toMeDTO(barqUser, provider, locale));
+      return apiOk(toMeDTO(barqUser, provider, effectiveAccountType, locale));
     })
   );
 }

@@ -15,11 +15,14 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({}));
 
 const requireAuthMock = vi.fn();
-const hasActiveAdminProfileMock = vi.fn();
+const resolveEffectiveAccountTypeMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
-  hasActiveAdminProfile: (...args: unknown[]) => hasActiveAdminProfileMock(...args),
+  resolveEffectiveAccountType: (...args: unknown[]) => resolveEffectiveAccountTypeMock(...args),
+  // Real pure logic — the page's landing divert only fires for ADMIN/PROVIDER.
+  landingRedirectForEffectiveType: (type: string | null) =>
+    type === "ADMIN" ? "/admin" : type === "PROVIDER" ? "/provider" : null,
   UnauthenticatedError: class UnauthenticatedError extends Error {},
 }));
 
@@ -66,7 +69,7 @@ type NavItem = { label: string; href?: string };
 
 afterEach(() => {
   requireAuthMock.mockReset();
-  hasActiveAdminProfileMock.mockReset();
+  resolveEffectiveAccountTypeMock.mockReset();
   resolveCustomerNavOptionsMock.mockReset();
   getDashboardDataMock.mockReset();
   getUnreadCountMock.mockReset();
@@ -89,7 +92,7 @@ const EMPTY_DASHBOARD_DATA = {
 describe("DashboardPage — nav composition from resolveCustomerNavOptions", () => {
   it("Gate A: redirects an ACTIVE admin to /admin before any customer loader runs (backoffice-only)", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "admin-user" } });
-    hasActiveAdminProfileMock.mockResolvedValue(true);
+    resolveEffectiveAccountTypeMock.mockResolvedValue("ADMIN");
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
 
@@ -100,9 +103,20 @@ describe("DashboardPage — nav composition from resolveCustomerNavOptions", () 
     expect(resolveCustomerNavOptionsMock).not.toHaveBeenCalled();
   });
 
+  it("Z-1: redirects an effective PROVIDER to /provider before any customer loader runs", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "provider-user" } });
+    resolveEffectiveAccountTypeMock.mockResolvedValue("PROVIDER");
+    getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
+    getUnreadCountMock.mockResolvedValue(0);
+
+    await expect(DashboardPage()).rejects.toThrow("NEXT_REDIRECT");
+    expect(getDashboardDataMock).not.toHaveBeenCalled();
+    expect(resolveCustomerNavOptionsMock).not.toHaveBeenCalled();
+  });
+
   it("never includes an Admin Panel nav item for a user with no Admin profile", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
-    hasActiveAdminProfileMock.mockResolvedValue(false);
+    resolveEffectiveAccountTypeMock.mockResolvedValue("CUSTOMER");
     resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "become", isAdmin: false });
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);
@@ -116,7 +130,7 @@ describe("DashboardPage — nav composition from resolveCustomerNavOptions", () 
 
   it("exposes the Provider workspace doorway (→ /provider) for an approved provider", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
-    hasActiveAdminProfileMock.mockResolvedValue(false);
+    resolveEffectiveAccountTypeMock.mockResolvedValue("CUSTOMER");
     resolveCustomerNavOptionsMock.mockResolvedValue({ providerDoorway: "workspace", isAdmin: false });
     getDashboardDataMock.mockResolvedValue(EMPTY_DASHBOARD_DATA);
     getUnreadCountMock.mockResolvedValue(0);

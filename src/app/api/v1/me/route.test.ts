@@ -9,7 +9,7 @@ const h = vi.hoisted(() => {
       this.code = c;
     }
   }
-  return { requireAuth: vi.fn(), resolveProviderStatus: vi.fn(), UnauthenticatedError, ForbiddenError };
+  return { requireAuth: vi.fn(), resolveProviderStatus: vi.fn(), resolveEffectiveAccountType: vi.fn(), UnauthenticatedError, ForbiddenError };
 });
 
 vi.mock("server-only", () => ({}));
@@ -19,6 +19,7 @@ vi.mock("@/lib/observability/with-request-tracing", () => ({
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...a: unknown[]) => h.requireAuth(...a),
   resolveProviderStatus: (...a: unknown[]) => h.resolveProviderStatus(...a),
+  resolveEffectiveAccountType: (...a: unknown[]) => h.resolveEffectiveAccountType(...a),
   UnauthenticatedError: h.UnauthenticatedError,
   ForbiddenError: h.ForbiddenError,
 }));
@@ -28,6 +29,9 @@ const { GET } = await import("./route");
 beforeEach(() => {
   h.requireAuth.mockReset();
   h.resolveProviderStatus.mockReset();
+  h.resolveEffectiveAccountType.mockReset();
+  // Default: a plain customer. Individual tests override where the effective type matters.
+  h.resolveEffectiveAccountType.mockResolvedValue("CUSTOMER");
 });
 
 const USER = { id: "u1", name: "Sara", phoneNumber: "+96890000000", phoneNumberVerified: true, authUserId: "au-secret", status: "ACTIVE" };
@@ -55,6 +59,7 @@ describe("GET /api/v1/me", () => {
   it("200 identity DTO for a customer with NO provider record", async () => {
     h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: USER });
     h.resolveProviderStatus.mockResolvedValue({ kind: "not_found" });
+    h.resolveEffectiveAccountType.mockResolvedValue("CUSTOMER");
     const res = await GET(new Request("http://x/api/v1/me?locale=en"));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -65,6 +70,7 @@ describe("GET /api/v1/me", () => {
       phone: "+96890000000",
       phoneVerified: true,
       locale: "en",
+      effectiveAccountType: "CUSTOMER",
       provider: { exists: false, status: null, type: null, workspaceAvailable: false },
     });
     // no internal/auth leakage
@@ -95,5 +101,20 @@ describe("GET /api/v1/me", () => {
       type: "INDIVIDUAL",
       workspaceAvailable: false,
     });
+  });
+
+  it("surfaces the authoritative effectiveAccountType (PROVIDER) as a field SEPARATE from provider status", async () => {
+    h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: USER });
+    h.resolveProviderStatus.mockResolvedValue({
+      kind: "active",
+      provider: { status: "DRAFT", providerType: "COMPANY" },
+    });
+    h.resolveEffectiveAccountType.mockResolvedValue("PROVIDER");
+    const body = await (await GET(new Request("http://x/api/v1/me"))).json();
+    // The effective type is PROVIDER across the lifecycle (even a DRAFT provider),
+    // independent of the separate provider.status / workspaceAvailable fields.
+    expect(body.effectiveAccountType).toBe("PROVIDER");
+    expect(body.provider.status).toBe("DRAFT");
+    expect(body.provider.workspaceAvailable).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/
 import type { BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { defaultLocale } from "@/i18n/locales";
+import type { EffectiveAccountType } from "@/lib/auth/effective-account-type";
 import type { ProviderProfile } from "@/lib/services/get-provider-profile";
 import type { PublicRootCategory } from "@/lib/categories/get-public-root-categories";
 import type { AvailableSlot } from "@/lib/booking/get-available-slots";
@@ -336,15 +337,22 @@ export interface MeDTO {
   phone: string | null;
   phoneVerified: boolean;
   locale: string;
+  /// EXCLUSIVE ACCOUNT TYPES (Gate Z-1) — the authoritative effective account type,
+  /// resolved server-side by the approved precedence (Admin>Staff>Provider>Customer).
+  /// A native client uses this to pick the right home; `provider` remains a SEPARATE
+  /// field carrying the provider lifecycle status (they answer different questions).
+  effectiveAccountType: EffectiveAccountType;
   provider: MeProviderDTO;
 }
 
 // Minimal identity view. A User is the single account identity; Provider is an
 // optional, additive capability on the same account (never a mutually exclusive
-// role) — so provider is always present as an object with `exists`.
+// role) — so provider is always present as an object with `exists`. The effective
+// account type is the authoritative classification for routing.
 export function toMeDTO(
   user: { id: string; name: string | null; phoneNumber: string | null; phoneNumberVerified: boolean },
   provider: MeProviderDTO,
+  effectiveAccountType: EffectiveAccountType,
   locale: string
 ): MeDTO {
   return {
@@ -353,6 +361,7 @@ export function toMeDTO(
     phone: user.phoneNumber,
     phoneVerified: user.phoneNumberVerified,
     locale,
+    effectiveAccountType,
     provider,
   };
 }

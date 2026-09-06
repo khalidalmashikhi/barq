@@ -14,6 +14,7 @@ describe("toMeDTO", () => {
     const dto = toMeDTO(
       { id: "u1", name: "Sara", phoneNumber: "+96890000000", phoneNumberVerified: true },
       { exists: true, status: "APPROVED", type: "COMPANY", workspaceAvailable: true },
+      "PROVIDER",
       "ar"
     );
     expect(dto).toEqual({
@@ -22,6 +23,7 @@ describe("toMeDTO", () => {
       phone: "+96890000000",
       phoneVerified: true,
       locale: "ar",
+      effectiveAccountType: "PROVIDER",
       provider: { exists: true, status: "APPROVED", type: "COMPANY", workspaceAvailable: true },
     });
   });
@@ -30,9 +32,11 @@ describe("toMeDTO", () => {
     const dto = toMeDTO(
       { id: "u1", name: null, phoneNumber: null, phoneNumberVerified: false },
       { exists: false, status: null, type: null, workspaceAvailable: false },
+      "CUSTOMER",
       "en"
     );
     expect(dto.provider).toEqual({ exists: false, status: null, type: null, workspaceAvailable: false });
+    expect(dto.effectiveAccountType).toBe("CUSTOMER");
     expect(dto.name).toBeNull();
     expect(dto.phone).toBeNull();
   });
@@ -41,6 +45,7 @@ describe("toMeDTO", () => {
     const dto = toMeDTO(
       { id: "u1", name: "x", phoneNumber: "p", phoneNumberVerified: true, authUserId: "au1", status: "ACTIVE" } as never,
       { exists: false, status: null, type: null, workspaceAvailable: false },
+      "CUSTOMER",
       "en"
     );
     const keys = Object.keys(dto);

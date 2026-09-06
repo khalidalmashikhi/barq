@@ -2,7 +2,7 @@ import { ShieldCheck, Award, Zap, Headset } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { getSession, isActiveAdminSession } from "@/lib/auth";
+import { getSession, resolveEffectiveAccountTypeForSession, landingRedirectForEffectiveType } from "@/lib/auth";
 import { isGoogleConfigured } from "@/lib/auth/social-config";
 import { isEmailOtpConfigured } from "@/lib/email-otp/get-email-provider";
 import { LoginForm } from "@/components/auth/login-form";
@@ -55,12 +55,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   if (session) {
     const locale = await getLocale();
-    // Role-aware post-login landing (Gate A): an ACTIVE Admin is backoffice-only,
-    // so an already-authenticated admin lands in /admin, never the customer
-    // dashboard. Every other authenticated user keeps the existing /dashboard
-    // landing (Google OAuth callbackURL=/dashboard is covered too, because
-    // /dashboard itself redirects active admins onward).
-    redirect({ href: (await isActiveAdminSession()) ? "/admin" : "/dashboard", locale });
+    // EXCLUSIVE ACCOUNT TYPES (Gate Z-1) — route an already-authenticated visitor by
+    // EFFECTIVE account type: an ACTIVE Admin (backoffice-only, Gate A) → /admin, an
+    // effective PROVIDER → /provider, everyone else → the customer /dashboard (whose own
+    // completion gate sends an incomplete/unclassified user onward to /onboarding, and
+    // which covers the Google OAuth callbackURL=/dashboard path too). Non-creating
+    // session lookup — no BARQ User side effects.
+    const landing = landingRedirectForEffectiveType(await resolveEffectiveAccountTypeForSession());
+    redirect({ href: landing ?? "/dashboard", locale });
   }
 
   // Better Auth redirects here with `?error=...` if a Google OAuth attempt fails

@@ -24,5 +24,13 @@ export {
   resolveProviderStatus,
 } from "./rbac";
 export type { AuthContext } from "./rbac";
+export {
+  classifyEffectiveAccountType,
+  resolveEffectiveAccountType,
+  resolveEffectiveAccountTypeForSession,
+  routeForEffectiveAccountType,
+  landingRedirectForEffectiveType,
+} from "./effective-account-type";
+export type { EffectiveAccountType, AccountProfileSnapshot } from "./effective-account-type";
 export { withApiAuth } from "./api-guard";
 export { UnauthenticatedError, ForbiddenError } from "./errors";

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PackageOpen, Flame } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
-import { requireAuth, UnauthenticatedError, hasActiveAdminProfile } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, resolveEffectiveAccountType, landingRedirectForEffectiveType } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { getUnreadCount } from "@/lib/notifications/get-unread-count";
 import { getCustomerNavItems } from "@/lib/dashboard/customer-nav-items";
@@ -105,14 +105,16 @@ export default async function DashboardPage() {
     throw error;
   }
 
-  // Gate A (Admin Backoffice Hardening) — an ACTIVE Admin is backoffice-only and
-  // must not use the customer dashboard. Redirect it to /admin SERVER-SIDE, before
-  // any customer loader (getDashboardData/getUnreadCount) runs — never a client-side
-  // hide. /dashboard is the universal post-login + Google-callback landing, so this
-  // one redirect also covers those entry paths. Every non-active-admin user (including
-  // a Customer who is also a Provider) is unaffected.
-  if (await hasActiveAdminProfile(barqUserId)) {
-    redirect({ href: "/admin", locale });
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-1) — the effective account type is the single
+  // routing authority for this universal post-login + Google-callback landing. An
+  // ACTIVE Admin (backoffice-only, Gate A) is diverted to /admin and an effective
+  // PROVIDER to /provider, SERVER-SIDE, before any customer loader runs. This diverts
+  // only the /dashboard INDEX: a legacy Customer+Provider user keeps read access to
+  // their historical bookings under /dashboard/bookings (not diverted). STAFF (no shell
+  // yet), CUSTOMER, and UNCLASSIFIED fall through to render the customer dashboard.
+  const landingRedirect = landingRedirectForEffectiveType(await resolveEffectiveAccountType(barqUserId));
+  if (landingRedirect) {
+    redirect({ href: landingRedirect, locale });
   }
 
   // Phase 5.2 (Production Hardening) — these were previously awaited
