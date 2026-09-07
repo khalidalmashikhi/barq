@@ -176,6 +176,16 @@ describe("createBooking", () => {
     expect(bookingCreateMock).not.toHaveBeenCalled();
   });
 
+  it("Gate Z-3 §16: an effective STAFF (legacy customer row) is also blocked — no booking created", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
+    // A person promoted to Staff who still holds a legacy Customer row resolves as STAFF;
+    // merely holding the Customer row must not grant new-booking authority.
+    resolveEffectiveAccountTypeMock.mockResolvedValue("STAFF");
+    const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+    expect(result).toEqual({ ok: false, error: "PROVIDER_CANNOT_BOOK" });
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+
   it("BOOKING-VEHICLE-1 — a customer can NEVER set the vehicle: a client vehicleId field is ignored", async () => {
     requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });

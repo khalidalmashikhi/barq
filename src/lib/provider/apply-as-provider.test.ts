@@ -88,6 +88,15 @@ describe("applyAsProvider", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
+  it("Gate Z-3 §16: refuses an effective STAFF (internal account can't self-service into a provider)", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    assertNotActiveAdminMock.mockResolvedValue(undefined);
+    resolveEffectiveAccountTypeMock.mockResolvedValue("STAFF");
+    const result = await applyAsProvider(buildFormData({ businessNameAr: "شركة", businessNameEn: "Acme" }));
+    expect(result).toEqual({ ok: false, error: "CUSTOMER_ACCOUNT" });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it("returns ALREADY_HAS_PROVIDER_PROFILE when the user already has a Provider row", async () => {
     requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
     findUniqueMock.mockResolvedValue({ id: "provider-1" });

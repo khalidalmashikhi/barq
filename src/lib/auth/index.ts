@@ -32,5 +32,26 @@ export {
   landingRedirectForEffectiveType,
 } from "./effective-account-type";
 export type { EffectiveAccountType, AccountProfileSnapshot } from "./effective-account-type";
+export {
+  resolveInternalActor,
+  requirePermission,
+  requireOwner,
+  getEffectivePermissions,
+  hasPermission,
+  getAllowedModules,
+} from "./require-permission";
+export type { InternalActor } from "./require-permission";
+export {
+  PERMISSION_KEYS,
+  isPermissionKey,
+  sanitizePermissionKeys,
+  STAFF_PRESETS,
+  STAFF_PRESET_NAMES,
+  isStaffPresetName,
+  presetPermissions,
+  modulesForPermissions,
+  PERMISSION_MODULE,
+} from "./permissions";
+export type { PermissionKey, StaffPresetName } from "./permissions";
 export { withApiAuth } from "./api-guard";
 export { UnauthenticatedError, ForbiddenError } from "./errors";

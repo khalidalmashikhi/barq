@@ -9,7 +9,7 @@ const h = vi.hoisted(() => {
       this.code = c;
     }
   }
-  return { requireAuth: vi.fn(), resolveProviderStatus: vi.fn(), resolveEffectiveAccountType: vi.fn(), getRegistrationStep: vi.fn(), UnauthenticatedError, ForbiddenError };
+  return { requireAuth: vi.fn(), resolveProviderStatus: vi.fn(), resolveEffectiveAccountType: vi.fn(), getRegistrationStep: vi.fn(), getPerms: vi.fn(), UnauthenticatedError, ForbiddenError };
 });
 
 vi.mock("server-only", () => ({}));
@@ -20,6 +20,8 @@ vi.mock("@/lib/auth", () => ({
   requireAuth: (...a: unknown[]) => h.requireAuth(...a),
   resolveProviderStatus: (...a: unknown[]) => h.resolveProviderStatus(...a),
   resolveEffectiveAccountType: (...a: unknown[]) => h.resolveEffectiveAccountType(...a),
+  getEffectivePermissions: (...a: unknown[]) => h.getPerms(...a),
+  modulesForPermissions: (perms: string[]) => Array.from(new Set(perms.map((p) => p.split(".")[0]))),
   UnauthenticatedError: h.UnauthenticatedError,
   ForbiddenError: h.ForbiddenError,
 }));
@@ -37,6 +39,8 @@ beforeEach(() => {
   h.resolveEffectiveAccountType.mockResolvedValue("CUSTOMER");
   h.getRegistrationStep.mockReset();
   h.getRegistrationStep.mockResolvedValue("DONE");
+  h.getPerms.mockReset();
+  h.getPerms.mockResolvedValue([]); // default: a non-internal customer has no permissions
 });
 
 const USER = { id: "u1", name: "Sara", phoneNumber: "+96890000000", phoneNumberVerified: true, authUserId: "au-secret", status: "ACTIVE" };
@@ -78,6 +82,8 @@ describe("GET /api/v1/me", () => {
       effectiveAccountType: "CUSTOMER",
       declaredAccountType: null,
       registrationStep: "DONE",
+      permissions: [],
+      allowedModules: [],
       provider: { exists: false, status: null, type: null, workspaceAvailable: false },
     });
     // no internal/auth leakage
@@ -123,5 +129,15 @@ describe("GET /api/v1/me", () => {
     expect(body.effectiveAccountType).toBe("PROVIDER");
     expect(body.provider.status).toBe("DRAFT");
     expect(body.provider.workspaceAvailable).toBe(false);
+  });
+
+  it("STAFF RBAC: exposes the caller's OWN permissions + derived allowedModules", async () => {
+    h.requireAuth.mockResolvedValue({ authUserId: "au1", barqUser: USER });
+    h.resolveProviderStatus.mockResolvedValue({ kind: "not_found" });
+    h.resolveEffectiveAccountType.mockResolvedValue("STAFF");
+    h.getPerms.mockResolvedValue(["providers.read", "providers.review", "providerDocuments.read"]);
+    const body = await (await GET(new Request("http://x/api/v1/me"))).json();
+    expect(body.permissions).toEqual(["providers.read", "providers.review", "providerDocuments.read"]);
+    expect(body.allowedModules.sort()).toEqual(["providerDocuments", "providers"]);
   });
 });

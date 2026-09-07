@@ -109,13 +109,19 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
     return null;
   }
 
-  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — a self-service CUSTOMER account may not become a
-  // provider; there is no self-service Customer→Provider conversion. Redirect it back to
-  // the customer dashboard SERVER-SIDE (the applyAsProvider action denies it too, defense
-  // in depth). An effective PROVIDER (has a provider row) is not a CUSTOMER and still sees
-  // its application status here; an UNCLASSIFIED identity is left to the normal flow.
-  if ((await resolveEffectiveAccountType(barqUserId)) === "CUSTOMER") {
+  // EXCLUSIVE ACCOUNT TYPES (Z-2) + STAFF RBAC (Z-3, §16) — a self-service CUSTOMER may not
+  // become a provider, and neither may an effective STAFF. Redirect them away SERVER-SIDE
+  // (the applyAsProvider action denies them too, defense in depth). A CUSTOMER goes to the
+  // dashboard; a STAFF goes to the internal shell. An effective PROVIDER (has a provider
+  // row) still sees its application status here; an UNCLASSIFIED identity is left to the
+  // normal flow.
+  const applicantType = await resolveEffectiveAccountType(barqUserId);
+  if (applicantType === "CUSTOMER") {
     redirect({ href: "/dashboard", locale });
+    return null;
+  }
+  if (applicantType === "STAFF") {
+    redirect({ href: "/admin", locale });
     return null;
   }
 

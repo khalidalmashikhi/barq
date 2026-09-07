@@ -424,6 +424,15 @@ enum AdminStatus {
   DEACTIVATED
 }
 
+/// STAFF RBAC (Gate Z-3) — the administrative authority tier on an Admin account.
+/// OWNER = the single platform superuser (all permissions + staff/admin/permission
+/// administration). ADMIN = a compatibility/internal admin account that is NOT the
+/// normal employee model (operational employees are Staff with granular permissions).
+enum AdminLevel {
+  OWNER
+  ADMIN
+}
+
 /// EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — the DECLARED self-service intent captured
 /// during exclusive phone-first registration. Distinct from the runtime
 /// `effectiveAccountType` resolver (Gate Z-1), which stays authoritative for
@@ -2131,12 +2140,22 @@ model Staff {
   userId    String      @unique @db.Uuid
   user      User        @relation(fields: [userId], references: [id])
   /// Multi-value — one Staff member may hold more than one role, per
-  /// IDENTITY_AND_ACCESS.md §3. See implementation note 6 above.
+  /// IDENTITY_AND_ACCESS.md §3. LEGACY: retained for compatibility/history only —
+  /// it is NO LONGER the authorization authority (Gate Z-3). Authority is `permissions`.
   roles     StaffRole[]
+  /// STAFF RBAC (Gate Z-3) — the AUTHORITATIVE granular permission keys for this staff
+  /// member (see src/lib/auth/permissions.ts). Default [] = ZERO operational access
+  /// (a new staff member can do nothing until the OWNER grants a preset/permissions).
+  permissions String[]  @default([])
   status    StaffStatus @default(ACTIVE)
+  /// The Admin (OWNER) who created/invited this staff record — audit trail. Nullable:
+  /// legacy staff predate this, and the FK is SET NULL if that Admin row is ever removed.
+  invitedByAdminId String? @db.Uuid
+  invitedByAdmin   Admin?  @relation("StaffInvitedBy", fields: [invitedByAdminId], references: [id], onDelete: SetNull)
   createdAt DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
+  @@index([invitedByAdminId])
   @@map("staff")
 }
 
@@ -2144,10 +2163,16 @@ model Admin {
   id        String      @id @default(uuid(7)) @db.Uuid
   userId    String      @unique @db.Uuid
   user      User        @relation(fields: [userId], references: [id])
+  /// STAFF RBAC (Gate Z-3) — OWNER is the single platform superuser (all permissions +
+  /// staff/admin/permission administration). ADMIN is retained as a compatibility/internal
+  /// account class and is NOT the normal employee model (new operational employees are
+  /// Staff). Default ADMIN; the one OWNER is promoted by a controlled, explicit operation.
+  level     AdminLevel  @default(ADMIN)
   status    AdminStatus @default(ACTIVE)
   createdAt DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
+  invitedStaff Staff[] @relation("StaffInvitedBy")
   approvedProviders Provider[] @relation("ProviderApprovedBy")
   rejectedProviders Provider[] @relation("ProviderRejectedBy")
   reviewedDocuments ProviderDocument[] @relation("ProviderDocumentReviewedBy")

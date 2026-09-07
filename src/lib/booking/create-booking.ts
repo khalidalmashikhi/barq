@@ -139,12 +139,15 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
     throw error;
   }
 
-  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — an effective PROVIDER (including a legacy
-  // Customer+Provider dual, which resolves PROVIDER) must NOT create a NEW customer
-  // booking. requireCustomer() is intentionally left unchanged so those legacy accounts
-  // keep READ access to their historical bookings; only this create mutation is refused.
-  // Active admins are already blocked by requireCustomer()'s assertNotActiveAdmin.
-  if ((await resolveEffectiveAccountType(bookingBarqUserId)) === "PROVIDER") {
+  // EXCLUSIVE ACCOUNT TYPES (Z-2) + STAFF RBAC (Z-3, §16 debt fix) — a NEW customer
+  // booking may be created ONLY by an effective CUSTOMER. An effective PROVIDER (a legacy
+  // Customer+Provider dual) OR an effective STAFF (a person promoted to Staff who still
+  // holds a legacy Customer row) is refused here — merely holding a legacy Customer row
+  // does not grant new-booking authority. requireCustomer() is intentionally left
+  // unchanged so those accounts keep READ access to their historical bookings; only this
+  // create mutation is refused. Active admins are already blocked upstream by
+  // requireCustomer()'s assertNotActiveAdmin.
+  if ((await resolveEffectiveAccountType(bookingBarqUserId)) !== "CUSTOMER") {
     return { ok: false, error: "PROVIDER_CANNOT_BOOK" };
   }
 

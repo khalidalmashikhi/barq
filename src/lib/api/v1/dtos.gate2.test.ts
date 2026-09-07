@@ -27,6 +27,8 @@ describe("toMeDTO", () => {
       effectiveAccountType: "PROVIDER",
       declaredAccountType: "PROVIDER",
       registrationStep: "DONE",
+      permissions: [],
+      allowedModules: [],
       provider: { exists: true, status: "APPROVED", type: "COMPANY", workspaceAvailable: true },
     });
   });

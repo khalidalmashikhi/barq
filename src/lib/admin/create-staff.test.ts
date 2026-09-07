@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 
 const requireAdminMock = vi.fn();
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requireOwner: (...args: unknown[]) => requireAdminMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -78,7 +78,7 @@ describe("createStaff", () => {
     const result = await createStaff("+96890000001", ["SUPPORT"]);
 
     expect(result).toEqual({ ok: true, outcome: "created" });
-    expect(staffCreateMock).toHaveBeenCalledWith({ data: { userId: "user-1", roles: ["SUPPORT"], status: "ACTIVE" } });
+    expect(staffCreateMock).toHaveBeenCalledWith({ data: { userId: "user-1", roles: ["SUPPORT"], status: "ACTIVE", invitedByAdminId: "admin-1" } });
     expect(auditCreateMock).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "staff.created", actorId: "admin-1" }) });
   });
 
@@ -89,7 +89,7 @@ describe("createStaff", () => {
 
     await createStaff("+96890000001", ["FINANCE", "OPERATIONS", "OPERATIONS"]);
 
-    expect(staffCreateMock).toHaveBeenCalledWith({ data: { userId: "user-1", roles: ["OPERATIONS", "FINANCE"], status: "ACTIVE" } });
+    expect(staffCreateMock).toHaveBeenCalledWith({ data: { userId: "user-1", roles: ["OPERATIONS", "FINANCE"], status: "ACTIVE", invitedByAdminId: "admin-1" } });
   });
 
   it("is idempotent (already_current) for existing ACTIVE staff with the same role set — no duplicate row", async () => {

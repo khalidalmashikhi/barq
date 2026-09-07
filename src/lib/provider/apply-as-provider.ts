@@ -96,13 +96,16 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
   }
 
   try {
-    // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — a self-service CUSTOMER account cannot become
-    // a provider. Account type is chosen once at registration; there is no self-service
-    // Customer→Provider conversion. This is the server-side enforcement behind the page
-    // redirect (defense in depth). An UNCLASSIFIED identity that declared PROVIDER is
-    // allowed through here (equivalent to finalizing as provider); a legacy dual is
-    // effective PROVIDER and hits ALREADY_HAS_PROVIDER_PROFILE below.
-    if ((await resolveEffectiveAccountType(barqUserId)) === "CUSTOMER") {
+    // EXCLUSIVE ACCOUNT TYPES (Z-2) + STAFF RBAC (Z-3, §16) — a self-service CUSTOMER
+    // account cannot become a provider, and neither can an effective STAFF (an internal
+    // account must not self-service into a provider merely because of a legacy Customer
+    // row). There is no self-service Customer/Staff→Provider conversion. Server-side
+    // enforcement behind the page redirect (defense in depth). An UNCLASSIFIED identity
+    // that declared PROVIDER is allowed (equivalent to finalizing as provider); a legacy
+    // dual is effective PROVIDER and hits ALREADY_HAS_PROVIDER_PROFILE below; an active
+    // admin is already blocked by assertNotActiveAdmin above.
+    const effectiveType = await resolveEffectiveAccountType(barqUserId);
+    if (effectiveType === "CUSTOMER" || effectiveType === "STAFF") {
       return { ok: false, error: "CUSTOMER_ACCOUNT" };
     }
 

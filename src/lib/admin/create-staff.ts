@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireOwner, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { parseStaffRoles, sameRoleSet } from "./staff-roles";
@@ -45,9 +45,11 @@ export async function createStaff(phoneNumberInput: string, rolesInput: string[]
   }
   const roles = parsed.roles;
 
+  // STAFF RBAC (Gate Z-3) — staff creation/promotion is OWNER-only. A non-owner Admin or
+  // any Staff is denied (ForbiddenError -> NO_ADMIN_PROFILE, the existing generic outcome).
   let actorAdmin;
   try {
-    const auth = await requireAdmin();
+    const auth = await requireOwner();
     actorAdmin = auth.admin;
   } catch (error) {
     if (error instanceof UnauthenticatedError) redirect("/");
@@ -106,7 +108,12 @@ export async function createStaff(phoneNumberInput: string, rolesInput: string[]
     }
 
     await prisma.$transaction(async (tx) => {
-      const staff = await tx.staff.create({ data: { userId: user.id, roles: roles as StaffRole[], status: "ACTIVE" } });
+      // Gate Z-3: record the OWNER who created this staff (invitedByAdminId). Permissions
+      // start EMPTY (zero operational access) — the OWNER grants a preset/permissions via
+      // setStaffPermissions, so a freshly-created staff member can do nothing until then.
+      const staff = await tx.staff.create({
+        data: { userId: user.id, roles: roles as StaffRole[], status: "ACTIVE", invitedByAdminId: actorAdmin.id },
+      });
       await recordAuditEvent(
         {
           actorType: "ADMIN",
@@ -114,7 +121,7 @@ export async function createStaff(phoneNumberInput: string, rolesInput: string[]
           action: "staff.created",
           entityType: "Staff",
           entityId: staff.id,
-          newValue: { status: "ACTIVE", roles },
+          newValue: { status: "ACTIVE", roles, permissions: [], invitedByAdminId: actorAdmin.id },
         },
         tx
       );

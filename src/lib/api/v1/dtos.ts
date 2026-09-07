@@ -350,6 +350,11 @@ export interface MeDTO {
   /// admin/staff identity. Additive fields; existing clients ignore them.
   declaredAccountType: AccountType | null;
   registrationStep: RegistrationStep;
+  /// STAFF RBAC (Gate Z-3) — the CURRENT identity's OWN internal permission keys and the
+  /// distinct modules they unlock. Empty for a customer/provider (non-internal). NEVER
+  /// exposes any other identity's permissions or the full RBAC assignment set.
+  permissions: string[];
+  allowedModules: string[];
   provider: MeProviderDTO;
 }
 
@@ -368,7 +373,9 @@ export function toMeDTO(
   provider: MeProviderDTO,
   effectiveAccountType: EffectiveAccountType,
   registrationStep: RegistrationStep,
-  locale: string
+  locale: string,
+  permissions: string[] = [],
+  allowedModules: string[] = []
 ): MeDTO {
   return {
     id: user.id,
@@ -379,6 +386,8 @@ export function toMeDTO(
     effectiveAccountType,
     declaredAccountType: user.accountType ?? null,
     registrationStep,
+    permissions,
+    allowedModules,
     provider,
   };
 }

@@ -1,4 +1,4 @@
-import { resolveProviderStatus, resolveEffectiveAccountType } from "@/lib/auth";
+import { resolveProviderStatus, resolveEffectiveAccountType, getEffectivePermissions, modulesForPermissions } from "@/lib/auth";
 import { getRegistrationStepForUser } from "@/lib/registration/registration-state";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { withApiV1Auth } from "@/lib/api/v1/auth";
@@ -23,11 +23,14 @@ export async function GET(request: Request) {
       // Provider lifecycle status and the authoritative effective account type answer
       // different questions (approval state vs which home the account belongs to), so
       // both are resolved and returned as separate fields. Independent reads, batched.
-      const [lookup, effectiveAccountType, registrationStep] = await Promise.all([
+      const [lookup, effectiveAccountType, registrationStep, permissions] = await Promise.all([
         resolveProviderStatus(barqUser.id),
         resolveEffectiveAccountType(barqUser.id),
         getRegistrationStepForUser(barqUser),
+        // The caller's OWN permission keys (empty for a non-internal customer/provider).
+        getEffectivePermissions(barqUser),
       ]);
+      const allowedModules = modulesForPermissions(permissions);
 
       const provider: MeProviderDTO =
         lookup.kind === "not_found"
@@ -39,7 +42,7 @@ export async function GET(request: Request) {
               workspaceAvailable: lookup.provider.status === "APPROVED",
             };
 
-      return apiOk(toMeDTO(barqUser, provider, effectiveAccountType, registrationStep, locale));
+      return apiOk(toMeDTO(barqUser, provider, effectiveAccountType, registrationStep, locale, permissions, allowedModules));
     })
   );
 }

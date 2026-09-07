@@ -9,7 +9,7 @@ vi.mock("server-only", () => ({}));
 
 const requireAdminMock = vi.fn();
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requireOwner: (...args: unknown[]) => requireAdminMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
