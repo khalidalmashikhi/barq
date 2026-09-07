@@ -10,6 +10,10 @@ vi.mock("@/lib/uuid", () => ({ isValidUuid: (v: string) => /^[0-9a-f-]{36}$/i.te
 const requireAdminMock = vi.fn();
 vi.mock("@/lib/auth", () => ({
   requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requireOwner: async (...args: unknown[]) => {
+    const r = await requireAdminMock(...args);
+    return { barqUser: {}, admin: r?.admin ?? { id: "admin-1" } };
+  },
 }));
 
 const findManyMock = vi.fn();

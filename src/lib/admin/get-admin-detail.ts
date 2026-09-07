@@ -1,10 +1,11 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLastLoginAt } from "./get-last-login";
 
-// Administrator detail — User & Access Management (Batch 6). requireAdmin().
+// Administrator detail — User & Access Management (Batch 6). requireOwner()
+// (privilege administration is OWNER-only; STAFF RBAC Gate Z-3).
 // Core Admin fields + derived last-login + derived "granted by".
 //
 // GRANTED BY: derived from the earliest `admin.granted` audit event for this
@@ -25,7 +26,7 @@ export type AdminDetail = {
 } | null;
 
 export async function getAdminDetail(adminId: string): Promise<AdminDetail> {
-  await requireAdmin();
+  await requireOwner();
   if (!isValidUuid(adminId)) return null;
 
   const admin = await prisma.admin.findUnique({

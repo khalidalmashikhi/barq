@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -41,10 +41,15 @@ export type ReactivateCustomerResult =
   | { ok: true; outcome: "reactivated" | "already_active" }
   | { ok: false; error: CustomerLifecycleErrorCode };
 
-async function resolveActorAdminId(): Promise<{ ok: true; adminId: string } | { ok: false; error: "NO_ADMIN_PROFILE" }> {
+async function resolveActorAdminId(): Promise<
+  { ok: true; actorType: "ADMIN" | "STAFF"; actorId: string } | { ok: false; error: "NO_ADMIN_PROFILE" }
+> {
   try {
-    const auth = await requireAdmin();
-    return { ok: true, adminId: auth.admin.id };
+    // STAFF RBAC (Gate Z-3) — customer lifecycle (suspend/reactivate/deactivate) is
+    // users.manage. Attribute the audit to the resolved actor (STAFF/Staff.id or
+    // ADMIN/Admin.id), never a hardcoded ADMIN.
+    const auth = await requirePermission("users.manage");
+    return { ok: true, actorType: auth.actor.actorType, actorId: auth.actor.actorId };
   } catch (error) {
     if (error instanceof UnauthenticatedError) redirect("/");
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
@@ -82,8 +87,8 @@ async function revokeAccess(
       await tx.user.update({ where: { id: userId }, data: { status: target } });
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: actor.adminId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action,
           entityType: "User",
           entityId: userId,
@@ -122,8 +127,8 @@ export async function reactivateCustomer(userId: string): Promise<ReactivateCust
       await tx.user.update({ where: { id: userId }, data: { status: "ACTIVE" } });
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: actor.adminId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "customer.reactivated",
           entityType: "User",
           entityId: userId,

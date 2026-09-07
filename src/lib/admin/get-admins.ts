@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import type { AdminStatus } from "@prisma/client";
 
@@ -13,7 +13,8 @@ import type { AdminStatus } from "@prisma/client";
 // exposed). User ID search is an exact match, guarded by isValidUuid(), since
 // the User.id column is @db.Uuid (a LIKE/contains against it would crash).
 //
-// AUTH: requireAdmin() — every read here is an admin-management surface.
+// AUTH: requireOwner() — the admin roster is privilege administration, OWNER-only
+// (STAFF RBAC Gate Z-3); a non-owner Admin has no admin-management surface.
 
 export type AdminListItem = {
   id: string;
@@ -41,7 +42,7 @@ export type AdminListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getAdmins(filters: AdminListFilters = {}): Promise<AdminListResult> {
-  await requireAdmin();
+  await requireOwner();
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;

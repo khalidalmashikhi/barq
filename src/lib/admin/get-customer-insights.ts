@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 
 // Customer operational insights — Admin Operations Platform.
 //
@@ -33,7 +33,7 @@ export type CustomerAwaitingReviewItem = {
 const PREVIEW_LIMIT = 5;
 
 export async function getCustomersWithMostBookings(): Promise<{ items: CustomerRankingItem[] }> {
-  await requireAdmin();
+  await requirePermission("users.read");
 
   const grouped = await prisma.booking.groupBy({
     by: ["customerId"],
@@ -65,7 +65,7 @@ export async function getCustomersWithMostBookings(): Promise<{ items: CustomerR
 }
 
 export async function getCustomersAwaitingReviews(): Promise<{ items: CustomerAwaitingReviewItem[]; count: number }> {
-  await requireAdmin();
+  await requirePermission("users.read");
 
   const where = { bookings: { some: { status: "COMPLETED" as const, review: null } } };
 

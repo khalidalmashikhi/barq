@@ -1,11 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLastLoginAt } from "./get-last-login";
 import type { StaffRole } from "@prisma/client";
 
-// Staff detail — User & Access Management (Batch 6). requireAdmin(). Core Staff
+// Staff detail — User & Access Management (Batch 6). requireOwner() — staff
+// administration is OWNER-only (STAFF RBAC Gate Z-3). Core Staff
 // fields (including the multi-value roles) + derived last-login. No schema field
 // is added.
 
@@ -20,7 +21,7 @@ export type StaffDetail = {
 } | null;
 
 export async function getStaffDetail(staffId: string): Promise<StaffDetail> {
-  await requireAdmin();
+  await requireOwner();
   if (!isValidUuid(staffId)) return null;
 
   const staff = await prisma.staff.findUnique({

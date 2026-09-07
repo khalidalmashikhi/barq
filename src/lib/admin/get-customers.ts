@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import type { UserStatus } from "@prisma/client";
 
@@ -52,7 +52,7 @@ export type CustomerListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getCustomers(filters: CustomerListFilters = {}): Promise<CustomerListResult> {
-  await requireAdmin();
+  await requirePermission("users.read");
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;

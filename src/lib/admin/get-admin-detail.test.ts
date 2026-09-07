@@ -7,7 +7,11 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const requireAdminMock = vi.fn();
-vi.mock("@/lib/auth", () => ({ requireAdmin: (...a: unknown[]) => requireAdminMock(...a) }));
+vi.mock("@/lib/auth", () => ({ requireAdmin: (...a: unknown[]) => requireAdminMock(...a),
+  requireOwner: async (...a: unknown[]) => {
+    const r = await requireAdminMock(...a);
+    return { barqUser: {}, admin: r?.admin ?? { id: "admin-1" } };
+  }, }));
 
 const adminFindUniqueMock = vi.fn();
 const auditFindFirstMock = vi.fn();

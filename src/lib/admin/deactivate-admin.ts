@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireOwner, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -36,7 +36,7 @@ export async function deactivateAdmin(adminId: string): Promise<DeactivateAdminR
 
   let actorAdmin;
   try {
-    const auth = await requireAdmin();
+    const auth = await requireOwner();
     actorAdmin = auth.admin;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {

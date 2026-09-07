@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect, getPathname } from "@/i18n/navigation";
 import { ShieldCheck, UserPlus } from "lucide-react";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireInternal, requireOwner, UnauthenticatedError, ForbiddenError, type PermissionKey } from "@/lib/auth";
 import { getAdmins, type AdminListItem } from "@/lib/admin/get-admins";
 import { getStaff, type StaffListItem } from "@/lib/admin/get-staff";
 import { getProviders, type ProviderListItem } from "@/lib/admin/get-providers";
@@ -99,7 +99,40 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const t = await getServerTranslator("admin");
   const locale = await getLocale();
 
-  const tab: Tab = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : "administrators";
+  // STAFF RBAC (Gate Z-3) — /admin/users mixes privilege administration
+  // (Administrators/Staff tabs — OWNER-only) with customer administration
+  // (Customers — users.read) and provider administration (Providers —
+  // providers.read). Resolve the actor once and show only the tabs they may
+  // access; every per-tab read model still enforces its own gate below.
+  let allowedTabs: Tab[];
+  let isOwner = false;
+  try {
+    const { actor } = await requireInternal();
+    isOwner = actor.isOwner;
+    const perms = actor.permissions;
+    const can = (k: PermissionKey) => perms === "ALL" || perms.has(k);
+    allowedTabs = TABS.filter((tk) =>
+      tk === "administrators" || tk === "staff"
+        ? isOwner
+        : tk === "providers"
+          ? can("providers.read")
+          : can("users.read")
+    );
+  } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      redirect({ href: "/login", locale });
+      return null;
+    }
+    notFound();
+    return null;
+  }
+  if (allowedTabs.length === 0) {
+    notFound();
+    return null;
+  }
+
+  const requestedTab: Tab | null = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : null;
+  const tab: Tab = requestedTab && allowedTabs.includes(requestedTab) ? requestedTab : allowedTabs[0];
   const pageParsed = params.page ? Number(params.page) : 1;
   const page = Number.isInteger(pageParsed) && pageParsed > 0 ? pageParsed : 1;
   const q = params.q?.trim() || undefined;
@@ -179,7 +212,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   let currentAdminId: string | null = null;
   try {
     if (tab === "administrators") {
-      const [auth, r] = await Promise.all([requireAdmin(), getAdmins({ q, status: status as AdminStatus | undefined, page })]);
+      const [auth, r] = await Promise.all([requireOwner(), getAdmins({ q, status: status as AdminStatus | undefined, page })]);
       currentAdminId = auth.admin.id;
       result = r;
       adminItems = r.items;
@@ -236,7 +269,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       </div>
 
       <div className="flex flex-wrap gap-2" role="tablist">
-        {TABS.map((tabKey) => (
+        {allowedTabs.map((tabKey) => (
           <Link
             key={tabKey}
             href={`/admin/users?tab=${tabKey}`}

@@ -2,13 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireOwner, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 
 // Add / grant Administrator — User & Access Management (Batch 3). Promotes an
 // existing, verified BARQ User (matched by normalized phone number) to Admin.
-// Mirrors approve-provider.ts's shape exactly: "use server", requireAdmin()
+// Mirrors approve-provider.ts's shape: "use server", requireOwner() (granting
+// an Admin is privilege administration — OWNER-only, STAFF RBAC Gate Z-3)
 // with the same Unauthenticated/Forbidden handling, re-fetch-and-verify, a
 // single $transaction wrapping the mutation + recordAuditEvent, typed result.
 //
@@ -39,7 +40,7 @@ export async function addAdmin(phoneNumberInput: string): Promise<AddAdminResult
 
   let actorAdmin;
   try {
-    const auth = await requireAdmin();
+    const auth = await requireOwner();
     actorAdmin = auth.admin;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {

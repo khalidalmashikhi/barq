@@ -1,13 +1,13 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { isValidUuid } from "@/lib/uuid";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 
 // Admin Customer detail query — Admin Operations Platform. Same
 // "read regardless of ownership" shape as get-provider-detail.ts/
-// get-booking-detail.ts — behind requireAdmin(), no ownership
+// get-booking-detail.ts — behind requirePermission("users.read"), no ownership
 // restriction (distinct from the customer-facing get-my-bookings.ts/
 // get-my-reviews.ts, which hard-scope to the calling Customer's own
 // id). Bounded preview lists (10 each), not the full history — this is
@@ -52,7 +52,7 @@ export type CustomerDetail = {
 const PREVIEW_LIMIT = 10;
 
 export async function getCustomerDetail(customerId: string): Promise<CustomerDetail> {
-  await requireAdmin();
+  await requirePermission("users.read");
 
   if (!isValidUuid(customerId)) {
     return null;
