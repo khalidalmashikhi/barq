@@ -20,6 +20,9 @@ vi.mock("@/lib/auth", () => ({
   // Gate A: the page redirects an active admin before rendering the form; every
   // case here is a normal (non-admin) applicant, so it never redirects.
   hasActiveAdminProfile: async () => false,
+  // Gate Z-2: the page redirects an effective CUSTOMER away. These cases are
+  // applicants/existing providers (UNCLASSIFIED here), so it renders the form.
+  resolveEffectiveAccountType: async () => "UNCLASSIFIED",
 }));
 
 const providerFindUniqueMock = vi.fn();

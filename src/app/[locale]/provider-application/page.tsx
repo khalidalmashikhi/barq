@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { redirect, Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
-import { requireAuth, UnauthenticatedError, hasActiveAdminProfile } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, hasActiveAdminProfile, resolveEffectiveAccountType } from "@/lib/auth";
 import { applyAsProvider } from "@/lib/provider/apply-as-provider";
 import { resubmitProviderApplication } from "@/lib/provider/resubmit-provider-application";
 import { assertProviderApprovable } from "@/lib/provider/documents/assert-provider-approvable";
@@ -106,6 +106,16 @@ export default async function ProviderApplicationPage({ searchParams }: Props) {
   // form renders; the applyAsProvider action independently denies it too.
   if (await hasActiveAdminProfile(barqUserId)) {
     redirect({ href: "/admin", locale });
+    return null;
+  }
+
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — a self-service CUSTOMER account may not become a
+  // provider; there is no self-service Customer→Provider conversion. Redirect it back to
+  // the customer dashboard SERVER-SIDE (the applyAsProvider action denies it too, defense
+  // in depth). An effective PROVIDER (has a provider row) is not a CUSTOMER and still sees
+  // its application status here; an UNCLASSIFIED identity is left to the normal flow.
+  if ((await resolveEffectiveAccountType(barqUserId)) === "CUSTOMER") {
+    redirect({ href: "/dashboard", locale });
     return null;
   }
 

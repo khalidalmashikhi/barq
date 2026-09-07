@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireCustomer, UnauthenticatedError, ForbiddenError, resolveEffectiveAccountType } from "@/lib/auth";
 import { isCustomerCompleteForAction } from "@/lib/auth/require-complete-customer";
 import { isValidUuid } from "@/lib/uuid";
 import { recordBookingCreated, transitionBooking } from "@/lib/booking/lifecycle";
@@ -124,9 +124,11 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
   const requestFingerprint = computeBookingRequestFingerprint({ serviceId, priceId, availabilityId, seats });
 
   let customer;
+  let bookingBarqUserId: string;
   try {
     const auth = await requireCustomer();
     customer = auth.customer;
+    bookingBarqUserId = auth.barqUser.id;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -135,6 +137,15 @@ export async function createBooking(formData: FormData): Promise<CreateBookingRe
       return { ok: false, error: "NO_CUSTOMER_PROFILE" };
     }
     throw error;
+  }
+
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — an effective PROVIDER (including a legacy
+  // Customer+Provider dual, which resolves PROVIDER) must NOT create a NEW customer
+  // booking. requireCustomer() is intentionally left unchanged so those legacy accounts
+  // keep READ access to their historical bookings; only this create mutation is refused.
+  // Active admins are already blocked by requireCustomer()'s assertNotActiveAdmin.
+  if ((await resolveEffectiveAccountType(bookingBarqUserId)) === "PROVIDER") {
+    return { ok: false, error: "PROVIDER_CANNOT_BOOK" };
   }
 
   // BOOKING-IDEMPOTENCY — pre-transaction fast path for the SEQUENTIAL retry (the original attempt

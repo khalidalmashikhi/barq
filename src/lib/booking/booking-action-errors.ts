@@ -25,6 +25,11 @@ export type BookingActionErrorCode =
   // NO_CUSTOMER_PROFILE, which means there is no Customer row at all: this one is
   // actionable by the customer, and the API must say so rather than redirect.
   | "CUSTOMER_INCOMPLETE"
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — an effective PROVIDER may not create NEW
+  // customer bookings. A legacy Customer+Provider dual keeps READ access to its
+  // historical bookings (requireCustomer stays unchanged); only the create mutation is
+  // refused here. Distinct from NO_CUSTOMER_PROFILE (no Customer row at all).
+  | "PROVIDER_CANNOT_BOOK"
   | "NO_PROVIDER_PROFILE"
   | "SERVICE_UNAVAILABLE"
   | "PRICE_UNAVAILABLE"
@@ -103,6 +108,7 @@ export type BookingActionErrorCode =
 const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "INVALID_INPUT",
   "NO_CUSTOMER_PROFILE",
+  "PROVIDER_CANNOT_BOOK",
   "NO_PROVIDER_PROFILE",
   "SERVICE_UNAVAILABLE",
   "PRICE_UNAVAILABLE",

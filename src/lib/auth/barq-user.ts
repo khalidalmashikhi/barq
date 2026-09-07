@@ -46,8 +46,11 @@ function isUniqueViolation(error: unknown): boolean {
  *   A. AuthUser already linked → return that User (no writes, no overwrite).
  *   B. Verified phone matches an existing UNLINKED legacy User → atomically
  *      claim/link it (preserves Customer/Provider/Admin/Staff/bookings/etc.).
- *   C. No verified phone, nobody to link → create a phone-less User + Customer.
- *   D. Verified phone owned by nobody → create a User (with phone) + Customer.
+ *   C. No verified phone, nobody to link → create a phone-less User (no profile).
+ *   D. Verified phone owned by nobody → create a User with phone (no profile).
+ *
+ * Gate Z-2: cases C/D create the User ONLY. The single self-service profile is created
+ * later by finalizeRegistration(), from the declared accountType — never here.
  */
 export async function resolveBarqUser(authUserId: string): Promise<User> {
   // Case A — already linked (authUserId is the primary bridge key).
@@ -89,24 +92,29 @@ async function claimUnlinkedUserByPhone(phone: string, authUserId: string): Prom
 }
 
 /**
- * Create a fresh BARQ User (+ Customer) for this AuthUser, atomically. If a
- * concurrent resolve for the SAME authUserId won (users.authUserId unique) — or,
- * defensively, the verified phone was claimed concurrently (users.phoneNumber
- * unique) — the unique violation is caught and the already-linked winner is
- * returned, so there is never a second BARQ User for one AuthUser.
+ * Create a fresh BARQ User for this AuthUser, atomically.
+ *
+ * EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — the bridge NO LONGER auto-creates a Customer
+ * here. Under exclusive registration a brand-new self-service identity is UNCLASSIFIED
+ * (no profile, accountType NULL) until it explicitly declares CUSTOMER or PROVIDER and
+ * finalizes exactly one profile (finalizeRegistration). Auto-creating a Customer would
+ * both pre-decide the account type and make a Customer+Provider dual possible again.
+ * Legacy users are unaffected — Case A/B above return their existing User (and its
+ * existing profiles) without ever reaching this create path.
+ *
+ * If a concurrent resolve for the SAME authUserId won (users.authUserId unique) — or,
+ * defensively, the verified phone was claimed concurrently (users.phoneNumber unique) —
+ * the unique violation is caught and the already-linked winner is returned, so there is
+ * never a second BARQ User for one AuthUser.
  */
 async function createBarqUserForAuthUser(authUserId: string, verifiedPhone: string | null): Promise<User> {
   try {
-    return await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          phoneNumber: verifiedPhone, // null for a social-first user (Case C)
-          phoneNumberVerified: verifiedPhone !== null,
-          authUserId,
-        },
-      });
-      await tx.customer.create({ data: { userId: user.id } });
-      return user;
+    return await prisma.user.create({
+      data: {
+        phoneNumber: verifiedPhone, // null for a social-first user (Case C)
+        phoneNumberVerified: verifiedPhone !== null,
+        authUserId,
+      },
     });
   } catch (error) {
     if (isUniqueViolation(error)) {

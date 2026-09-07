@@ -12,9 +12,10 @@ const NO_MONEY: BookingMoneyView = { available: false };
 describe("toMeDTO", () => {
   it("maps identity + provider state; never leaks internal user fields", () => {
     const dto = toMeDTO(
-      { id: "u1", name: "Sara", phoneNumber: "+96890000000", phoneNumberVerified: true },
+      { id: "u1", name: "Sara", phoneNumber: "+96890000000", phoneNumberVerified: true, accountType: "PROVIDER" },
       { exists: true, status: "APPROVED", type: "COMPANY", workspaceAvailable: true },
       "PROVIDER",
+      "DONE",
       "ar"
     );
     expect(dto).toEqual({
@@ -24,6 +25,8 @@ describe("toMeDTO", () => {
       phoneVerified: true,
       locale: "ar",
       effectiveAccountType: "PROVIDER",
+      declaredAccountType: "PROVIDER",
+      registrationStep: "DONE",
       provider: { exists: true, status: "APPROVED", type: "COMPANY", workspaceAvailable: true },
     });
   });
@@ -33,10 +36,13 @@ describe("toMeDTO", () => {
       { id: "u1", name: null, phoneNumber: null, phoneNumberVerified: false },
       { exists: false, status: null, type: null, workspaceAvailable: false },
       "CUSTOMER",
+      "CHOOSE_USAGE",
       "en"
     );
     expect(dto.provider).toEqual({ exists: false, status: null, type: null, workspaceAvailable: false });
     expect(dto.effectiveAccountType).toBe("CUSTOMER");
+    expect(dto.declaredAccountType).toBeNull();
+    expect(dto.registrationStep).toBe("CHOOSE_USAGE");
     expect(dto.name).toBeNull();
     expect(dto.phone).toBeNull();
   });
@@ -46,6 +52,7 @@ describe("toMeDTO", () => {
       { id: "u1", name: "x", phoneNumber: "p", phoneNumberVerified: true, authUserId: "au1", status: "ACTIVE" } as never,
       { exists: false, status: null, type: null, workspaceAvailable: false },
       "CUSTOMER",
+      "DONE",
       "en"
     );
     const keys = Object.keys(dto);

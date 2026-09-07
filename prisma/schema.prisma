@@ -424,6 +424,17 @@ enum AdminStatus {
   DEACTIVATED
 }
 
+/// EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — the DECLARED self-service intent captured
+/// during exclusive phone-first registration. Distinct from the runtime
+/// `effectiveAccountType` resolver (Gate Z-1), which stays authoritative for
+/// legacy/admin/staff precedence. NULL on User = legacy / admin-or-staff-only /
+/// not-yet-declared; only new-era self-service registrations set it, and it is
+/// immutable through self-service once a profile is finalized. Never backfilled.
+enum AccountType {
+  CUSTOMER
+  PROVIDER
+}
+
 enum AIAgentStatus {
   DEFINED
   DEPLOYED
@@ -458,6 +469,12 @@ model User {
   /// was added, per explicit instruction.
   phoneNumberVerified Boolean    @default(false)
   status              UserStatus @default(CREATED)
+  /// EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — the DECLARED self-service intent set during
+  /// exclusive registration (choose-usage). NULLABLE, NO default: NULL means legacy /
+  /// admin-or-staff-only / not-yet-declared, and is classified by the Z-1 effective
+  /// resolver. Additive, never backfilled. The runtime authority remains
+  /// resolveEffectiveAccountType(); this is only the durable registration intent.
+  accountType         AccountType?
   createdAt           DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime   @updatedAt @db.Timestamptz(6)
 

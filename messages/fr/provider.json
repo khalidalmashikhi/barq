@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "Cette action n'est pas disponible pour votre statut actuel",
   "applicationErrorInvalidInput": "Veuillez vérifier les erreurs du formulaire",
   "applicationErrorAlreadyApplied": "Vous avez déjà une demande de prestataire en cours",
+  "applicationErrorCustomerAccount": "Ceci est un compte client ; il ne peut donc pas proposer de services. Les comptes client et prestataire sont distincts sur BARQ.",
   "applicationErrorUnknown": "Une erreur s'est produite, veuillez réessayer",
   "serviceErrorInvalidInput": "Veuillez vérifier les erreurs du formulaire",
   "serviceErrorNoProviderProfile": "Vous devez disposer d'un profil prestataire pour effectuer cette action",

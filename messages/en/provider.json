@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "This action isn't available for your current status",
   "applicationErrorInvalidInput": "Please check the form for errors",
   "applicationErrorAlreadyApplied": "You already have a provider application on file",
+  "applicationErrorCustomerAccount": "This is a customer account, so it can’t offer services. Customer and provider accounts are separate on BARQ.",
   "applicationErrorUnknown": "Something went wrong, please try again",
   "serviceErrorInvalidInput": "Please check the form for errors",
   "serviceErrorNoProviderProfile": "You need a provider profile to perform this action",

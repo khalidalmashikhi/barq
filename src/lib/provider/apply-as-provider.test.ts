@@ -11,6 +11,7 @@ vi.mock("server-only", () => ({}));
 
 const requireAuthMock = vi.fn();
 const assertNotActiveAdminMock = vi.fn();
+const resolveEffectiveAccountTypeMock = vi.fn();
 
 class ForbiddenError extends Error {
   code?: string;
@@ -23,6 +24,7 @@ class ForbiddenError extends Error {
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
   assertNotActiveAdmin: (...args: unknown[]) => assertNotActiveAdminMock(...args),
+  resolveEffectiveAccountType: (...args: unknown[]) => resolveEffectiveAccountTypeMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError,
 }));
@@ -63,6 +65,7 @@ function buildFormData(fields: Record<string, string>): FormData {
 afterEach(() => {
   requireAuthMock.mockReset();
   assertNotActiveAdminMock.mockReset();
+  resolveEffectiveAccountTypeMock.mockReset();
   findUniqueMock.mockReset();
   createMock.mockReset();
   pcCreateMock.mockReset();
@@ -74,6 +77,15 @@ describe("applyAsProvider", () => {
     const result = await applyAsProvider(buildFormData({ businessNameAr: "", businessNameEn: "Acme" }));
     expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(requireAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("Gate Z-2: refuses a self-service CUSTOMER account with CUSTOMER_ACCOUNT (no provider created)", async () => {
+    requireAuthMock.mockResolvedValue({ barqUser: { id: "user-1" } });
+    assertNotActiveAdminMock.mockResolvedValue(undefined);
+    resolveEffectiveAccountTypeMock.mockResolvedValue("CUSTOMER");
+    const result = await applyAsProvider(buildFormData({ businessNameAr: "شركة", businessNameEn: "Acme" }));
+    expect(result).toEqual({ ok: false, error: "CUSTOMER_ACCOUNT" });
+    expect(createMock).not.toHaveBeenCalled();
   });
 
   it("returns ALREADY_HAS_PROVIDER_PROFILE when the user already has a Provider row", async () => {

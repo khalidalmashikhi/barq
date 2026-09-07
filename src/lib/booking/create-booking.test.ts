@@ -20,9 +20,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 const requireCustomerMock = vi.fn();
+// EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — createBooking now blocks an effective PROVIDER.
+// Mocked here (default CUSTOMER) so the existing booking tests exercise createBooking's
+// own logic; the resolver has its own tests in effective-account-type.test.ts.
+const resolveEffectiveAccountTypeMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireCustomer: (...args: unknown[]) => requireCustomerMock(...args),
+  resolveEffectiveAccountType: (...args: unknown[]) => resolveEffectiveAccountTypeMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -103,6 +108,9 @@ function formData(fields: Record<string, string>): FormData {
 
 afterEach(() => {
   requireCustomerMock.mockReset();
+  // Gate Z-2 default: a plain CUSTOMER, so every pre-existing booking test is unaffected.
+  resolveEffectiveAccountTypeMock.mockReset();
+  resolveEffectiveAccountTypeMock.mockResolvedValue("CUSTOMER");
   recordBookingCreatedMock.mockReset();
   transitionBookingMock.mockReset();
   dispatchLifecycleHookMock.mockReset();
@@ -142,7 +150,7 @@ describe("createBooking", () => {
   });
 
   it("creates a booking on the happy path (no slot selected)", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -154,8 +162,22 @@ describe("createBooking", () => {
     expect(dispatchLifecycleHookMock).toHaveBeenCalledWith({ hook: "context" });
   });
 
+  it("Gate Z-2: an effective PROVIDER (e.g. legacy dual) is blocked with PROVIDER_CANNOT_BOOK — no booking created", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
+    // The caller resolves as PROVIDER (a legacy Customer+Provider dual). requireCustomer
+    // still succeeds (historical reads preserved), but the create mutation is refused.
+    resolveEffectiveAccountTypeMock.mockResolvedValue("PROVIDER");
+
+    const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
+
+    expect(result).toEqual({ ok: false, error: "PROVIDER_CANNOT_BOOK" });
+    // Fail closed BEFORE any service/price read or booking write.
+    expect(serviceFindFirstMock).not.toHaveBeenCalled();
+    expect(bookingCreateMock).not.toHaveBeenCalled();
+  });
+
   it("BOOKING-VEHICLE-1 — a customer can NEVER set the vehicle: a client vehicleId field is ignored", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -175,7 +197,7 @@ describe("createBooking", () => {
 
   describe("provider deactivation enforcement (Production Blocker fix)", () => {
     it("queries the service with the provider APPROVED+visible gate, not just Service.status", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       serviceFindFirstMock.mockResolvedValue(null);
 
       await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
@@ -186,7 +208,7 @@ describe("createBooking", () => {
     });
 
     it("returns SERVICE_UNAVAILABLE for a service whose provider has since been deactivated — the exact scenario this fix closes", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       // A real deactivated-provider service is simply never returned by
       // the (now-guarded) query — simulated here by the mock resolving
       // null, exactly what the guarded `where` clause would produce
@@ -204,7 +226,7 @@ describe("createBooking", () => {
   // BOOKING-SLOT-AUTHORITY — the slot-required rule, and the capacity hole it closes.
   describe("slot requirement enforcement (BOOKING-SLOT-AUTHORITY)", () => {
     function slotBasedService() {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
       priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -328,7 +350,7 @@ describe("createBooking", () => {
 
     // A genuinely slotless booking carries no interval at create (provider schedules at acceptance).
     it("a slotless booking is created with no operational interval", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
       priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -355,7 +377,7 @@ describe("createBooking", () => {
   describe("rate limiting (Production Hardening)", () => {
     it("returns RATE_LIMITED once the per-customer booking-creation limit is exceeded, without touching the database", async () => {
       vi.stubEnv("RATE_LIMIT_BOOKING_CREATE_MAX", "1");
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
       priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -377,11 +399,11 @@ describe("createBooking", () => {
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
       transitionBookingMock.mockResolvedValue({ hook: "context" });
 
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       const first = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
       expect(first).toEqual({ ok: true, bookingId: "new-booking-id" });
 
-      requireCustomerMock.mockResolvedValue({ customer: { id: "a-different-customer-id" } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: "a-different-customer-id" }, barqUser: { id: "user-x" } });
       const second = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
       expect(second).toEqual({ ok: true, bookingId: "new-booking-id" });
     });
@@ -398,7 +420,7 @@ describe("createBooking", () => {
     it("returns CUSTOMER_INCOMPLETE rather than navigating anywhere", async () => {
       // A real, resolved customer — the gate sits after requireCustomer(), so this is
       // someone who HAS a Customer row and is refused purely on credential state.
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       isCustomerCompleteForActionMock.mockResolvedValue(false);
 
       const result = await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
@@ -412,7 +434,7 @@ describe("createBooking", () => {
      * any write, and this is what proves it stays there.
      */
     it("writes nothing at all when it refuses", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       isCustomerCompleteForActionMock.mockResolvedValue(false);
 
       await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
@@ -425,7 +447,7 @@ describe("createBooking", () => {
 
     it("still creates a booking for a complete customer", async () => {
       isCustomerCompleteForActionMock.mockResolvedValue(true);
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
       priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -438,7 +460,7 @@ describe("createBooking", () => {
 
     /** The completeness gate is consulted exactly once per attempt. */
     it("consults the shared authority, not an ad-hoc credential check", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       isCustomerCompleteForActionMock.mockResolvedValue(false);
 
       await createBooking(formData({ serviceId: SERVICE_ID, priceId: PRICE_ID }));
@@ -455,7 +477,7 @@ describe("createBooking", () => {
     // A slotless, bookable service carrying explicit min/max seat bounds. Slotless so the
     // happy path reaches booking creation without an availability lookup.
     function boundedService(bounds: { minBookingSeats: number | null; maxBookingSeats: number | null }) {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED", ...bounds });
       priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "50", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
       bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -518,7 +540,7 @@ describe("createBooking — authoritative pricing snapshot", () => {
   // A slotless, bookable service with a given ACTIVE price. Slotless so the create path
   // reaches booking.create without an availability lookup.
   function priced(price: { amount: string; currency?: string; pricingUnit: string | null }) {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: price.amount, currency: price.currency ?? "OMR", pricingUnit: price.pricingUnit, status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -588,7 +610,7 @@ describe("createBooking — authoritative pricing snapshot", () => {
 
 describe("createBooking — unpriceable units fail closed (no booking, no total guessed)", () => {
   function priced(pricingUnit: string | null) {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit, status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -631,7 +653,7 @@ describe("createBooking — unpriceable units fail closed (no booking, no total 
 // PRICING UNIT DATA INTEGRITY — strict booking-quantity parsing (shared web + API seam).
 describe("createBooking — strict seats parsing (fail closed on invalid explicit input)", () => {
   function bookable() {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -668,7 +690,7 @@ describe("createBooking — idempotency", () => {
 
   // A slotless, bookable, complete-customer service.
   function bookable() {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -746,7 +768,7 @@ describe("createBooking — idempotency", () => {
   // customer A created can NEVER see A's booking; the scoped lookup misses and B books their own.
   it("same key used by a DIFFERENT customer cannot surface the first customer's booking", async () => {
     bookable();
-    requireCustomerMock.mockResolvedValue({ customer: { id: OTHER_CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: OTHER_CUSTOMER_ID }, barqUser: { id: "user-o" } });
     // The lookup is scoped by customerId — model that: A's row exists, but not under B's id.
     idempotencyFindUniqueMock.mockImplementation((args: { where: { customerId_idempotencyKey: { customerId: string } } }) => {
       return Promise.resolve(args.where.customerId_idempotencyKey.customerId === CUSTOMER_ID
@@ -863,7 +885,7 @@ describe("createBooking — slot business-duplicate atomicity", () => {
   const OTHER_PRICE_ID = "019f4e4e-80b8-7cf2-b043-916c71648aaa";
 
   function slotBookable() {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });
@@ -908,7 +930,7 @@ describe("createBooking — slot business-duplicate atomicity", () => {
   // §19.8 / §14 — a different customer may book the same slot (scope includes customerId).
   it("a different customer may book the same slot", async () => {
     slotBookable();
-    requireCustomerMock.mockResolvedValue({ customer: { id: OTHER_CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: OTHER_CUSTOMER_ID }, barqUser: { id: "user-o" } });
     bookingFindFirstMock.mockResolvedValue(null);
     const r = await createBooking(slotForm());
     expect(r).toEqual({ ok: true, bookingId: "new-booking-id" });
@@ -959,7 +981,7 @@ describe("createBooking — slot business-duplicate atomicity", () => {
   // §19.10 / §13 — slotless bookings are entirely outside the invariant: the slot duplicate guard
   // is never consulted (and the partial index excludes NULL availabilityId).
   it("a slotless booking never consults the slot duplicate guard", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     serviceFindFirstMock.mockResolvedValue({ id: SERVICE_ID, providerId: PROVIDER_ID, status: "PUBLISHED" });
     priceFindFirstMock.mockResolvedValue({ id: PRICE_ID, serviceId: SERVICE_ID, amount: "10", currency: "OMR", pricingUnit: "PER_PERSON", status: "ACTIVE" });
     bookingCreateMock.mockResolvedValue({ id: "new-booking-id" });

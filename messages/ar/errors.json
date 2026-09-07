@@ -2,6 +2,7 @@
   "phase0Placeholder": "[ar/errors] Phase 0 infrastructure placeholder (Arabic) — not yet translated",
   "invalidInput": "بيانات الطلب غير صالحة",
   "noCustomerProfile": "يلزم إكمال الملف الشخصي كعميل قبل إتمام الحجز. تواصل مع الدعم إذا استمرت هذه الرسالة.",
+  "providerCannotBook": "هذا حساب مزوّد، لذا لا يمكنه حجز الخدمات — حسابات المزوّدين تقدّم الخدمات ولا تحجزها.",
   "customerIncomplete": "يرجى تأكيد بريدك الإلكتروني قبل الحجز.",
   "serviceUnavailable": "هذه التجربة غير متاحة للحجز حالياً",
   "priceUnavailable": "الخيار السعري المحدد غير متاح لهذه التجربة",

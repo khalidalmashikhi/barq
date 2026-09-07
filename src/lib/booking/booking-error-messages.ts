@@ -22,6 +22,7 @@ const BOOKING_ERROR_TRANSLATION_KEYS = {
   INVALID_INPUT: "invalidInput",
   NO_CUSTOMER_PROFILE: "noCustomerProfile",
   CUSTOMER_INCOMPLETE: "customerIncomplete",
+  PROVIDER_CANNOT_BOOK: "providerCannotBook",
   NO_PROVIDER_PROFILE: "noProviderProfile",
   SERVICE_UNAVAILABLE: "serviceUnavailable",
   PRICE_UNAVAILABLE: "priceUnavailable",

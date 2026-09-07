@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "Diese Aktion ist für Ihren aktuellen Status nicht verfügbar",
   "applicationErrorInvalidInput": "Bitte überprüfen Sie das Formular auf Fehler",
   "applicationErrorAlreadyApplied": "Sie haben bereits einen Anbieterantrag eingereicht",
+  "applicationErrorCustomerAccount": "Dies ist ein Kundenkonto und kann daher keine Dienste anbieten. Kunden- und Anbieterkonten sind bei BARQ getrennt.",
   "applicationErrorUnknown": "Etwas ist schiefgelaufen, bitte versuchen Sie es erneut",
   "serviceErrorInvalidInput": "Bitte überprüfen Sie das Formular auf Fehler",
   "serviceErrorNoProviderProfile": "Sie benötigen ein Anbieterprofil, um diese Aktion auszuführen",

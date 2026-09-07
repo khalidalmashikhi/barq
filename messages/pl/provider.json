@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "Ta akcja nie jest dostępna dla Twojego bieżącego statusu",
   "applicationErrorInvalidInput": "Sprawdź błędy w formularzu",
   "applicationErrorAlreadyApplied": "Masz już złożony wniosek o zostanie dostawcą",
+  "applicationErrorCustomerAccount": "To konto klienta, więc nie może oferować usług. Konta klienta i dostawcy w BARQ są oddzielne.",
   "applicationErrorUnknown": "Coś poszło nie tak, spróbuj ponownie",
   "serviceErrorInvalidInput": "Sprawdź błędy w formularzu",
   "serviceErrorNoProviderProfile": "Aby wykonać tę czynność, potrzebujesz profilu dostawcy",

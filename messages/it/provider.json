@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "Questa azione non è disponibile per il tuo stato attuale",
   "applicationErrorInvalidInput": "Controlla gli errori nel modulo",
   "applicationErrorAlreadyApplied": "Hai già una richiesta di fornitore in corso",
+  "applicationErrorCustomerAccount": "Questo è un account cliente, quindi non può offrire servizi. Su BARQ gli account cliente e fornitore sono separati.",
   "applicationErrorUnknown": "Qualcosa è andato storto, riprova",
   "serviceErrorInvalidInput": "Controlla gli errori nel modulo",
   "serviceErrorNoProviderProfile": "È necessario un profilo fornitore per eseguire questa azione",

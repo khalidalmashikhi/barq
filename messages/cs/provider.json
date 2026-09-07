@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "Tato akce není pro váš aktuální stav dostupná",
   "applicationErrorInvalidInput": "Zkontrolujte prosím údaje ve formuláři",
   "applicationErrorAlreadyApplied": "Již máte podanou žádost o poskytovatele",
+  "applicationErrorCustomerAccount": "Toto je zákaznický účet, takže nemůže nabízet služby. Účty zákazníka a poskytovatele jsou v BARQ oddělené.",
   "applicationErrorUnknown": "Něco se pokazilo, zkuste to prosím znovu",
   "serviceErrorInvalidInput": "Zkontrolujte prosím údaje ve formuláři",
   "serviceErrorNoProviderProfile": "K provedení této akce potřebujete profil poskytovatele",

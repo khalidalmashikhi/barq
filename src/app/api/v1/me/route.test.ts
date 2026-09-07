@@ -9,7 +9,7 @@ const h = vi.hoisted(() => {
       this.code = c;
     }
   }
-  return { requireAuth: vi.fn(), resolveProviderStatus: vi.fn(), resolveEffectiveAccountType: vi.fn(), UnauthenticatedError, ForbiddenError };
+  return { requireAuth: vi.fn(), resolveProviderStatus: vi.fn(), resolveEffectiveAccountType: vi.fn(), getRegistrationStep: vi.fn(), UnauthenticatedError, ForbiddenError };
 });
 
 vi.mock("server-only", () => ({}));
@@ -23,6 +23,9 @@ vi.mock("@/lib/auth", () => ({
   UnauthenticatedError: h.UnauthenticatedError,
   ForbiddenError: h.ForbiddenError,
 }));
+vi.mock("@/lib/registration/registration-state", () => ({
+  getRegistrationStepForUser: (...a: unknown[]) => h.getRegistrationStep(...a),
+}));
 
 const { GET } = await import("./route");
 
@@ -32,6 +35,8 @@ beforeEach(() => {
   h.resolveEffectiveAccountType.mockReset();
   // Default: a plain customer. Individual tests override where the effective type matters.
   h.resolveEffectiveAccountType.mockResolvedValue("CUSTOMER");
+  h.getRegistrationStep.mockReset();
+  h.getRegistrationStep.mockResolvedValue("DONE");
 });
 
 const USER = { id: "u1", name: "Sara", phoneNumber: "+96890000000", phoneNumberVerified: true, authUserId: "au-secret", status: "ACTIVE" };
@@ -71,6 +76,8 @@ describe("GET /api/v1/me", () => {
       phoneVerified: true,
       locale: "en",
       effectiveAccountType: "CUSTOMER",
+      declaredAccountType: null,
+      registrationStep: "DONE",
       provider: { exists: false, status: null, type: null, workspaceAvailable: false },
     });
     // no internal/auth leakage

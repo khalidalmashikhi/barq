@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "هذا الإجراء غير متاح لحالتك الحالية",
   "applicationErrorInvalidInput": "يرجى التحقق من بيانات النموذج",
   "applicationErrorAlreadyApplied": "لديك بالفعل طلب مزود خدمة مسجّل",
+  "applicationErrorCustomerAccount": "هذا حساب عميل، لذا لا يمكنه تقديم الخدمات. حسابات العملاء والمزوّدين منفصلة في برق.",
   "applicationErrorUnknown": "حدث خطأ ما، الرجاء المحاولة مرة أخرى",
   "serviceErrorInvalidInput": "يرجى التحقق من بيانات النموذج",
   "serviceErrorNoProviderProfile": "يلزم امتلاك ملف مزود خدمة لتنفيذ هذا الإجراء",

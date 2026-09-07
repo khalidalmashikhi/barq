@@ -13,12 +13,18 @@ import "server-only";
 export type ProviderApplicationErrorCode =
   | "INVALID_INPUT"
   | "ALREADY_HAS_PROVIDER_PROFILE"
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — a self-service CUSTOMER account may not
+  // become a provider; account type is chosen once at registration and there is no
+  // self-service Customer→Provider conversion (that is a separate audited Admin/Support
+  // workflow). Server-enforced here as defense-in-depth behind the page redirect.
+  | "CUSTOMER_ACCOUNT"
   | "NOT_REJECTED"
   | "UNKNOWN_ERROR";
 
 const PROVIDER_APPLICATION_ERROR_CODES: readonly ProviderApplicationErrorCode[] = [
   "INVALID_INPUT",
   "ALREADY_HAS_PROVIDER_PROFILE",
+  "CUSTOMER_ACCOUNT",
   "NOT_REJECTED",
   "UNKNOWN_ERROR",
 ];
@@ -33,6 +39,7 @@ export function isProviderApplicationErrorCode(value: unknown): value is Provide
 const TRANSLATION_KEYS = {
   INVALID_INPUT: "applicationErrorInvalidInput",
   ALREADY_HAS_PROVIDER_PROFILE: "applicationErrorAlreadyApplied",
+  CUSTOMER_ACCOUNT: "applicationErrorCustomerAccount",
   NOT_REJECTED: "applicationErrorNotRejected",
   UNKNOWN_ERROR: "applicationErrorUnknown",
 } as const satisfies Record<ProviderApplicationErrorCode, string>;

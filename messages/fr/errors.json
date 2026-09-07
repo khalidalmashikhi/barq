@@ -2,6 +2,7 @@
   "phase0Placeholder": "[fr/errors] Phase 0 infrastructure placeholder (French) — not yet translated",
   "invalidInput": "Données de requête invalides",
   "noCustomerProfile": "Vous devez compléter votre profil client avant de finaliser cette réservation. Contactez l'assistance si ce message persiste.",
+  "providerCannotBook": "Ceci est un compte prestataire ; il ne peut donc pas réserver de services — les comptes prestataires proposent des services au lieu de les réserver.",
   "customerIncomplete": "Veuillez vérifier votre e-mail avant de réserver.",
   "serviceUnavailable": "Cette expérience n'est actuellement pas disponible à la réservation",
   "priceUnavailable": "L'option tarifaire sélectionnée n'est pas disponible pour cette expérience",

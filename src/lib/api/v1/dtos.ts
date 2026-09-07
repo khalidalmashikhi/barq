@@ -6,7 +6,9 @@ import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/
 import type { BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { defaultLocale } from "@/i18n/locales";
+import type { AccountType } from "@prisma/client";
 import type { EffectiveAccountType } from "@/lib/auth/effective-account-type";
+import type { RegistrationStep } from "@/lib/registration/registration-state";
 import type { ProviderProfile } from "@/lib/services/get-provider-profile";
 import type { PublicRootCategory } from "@/lib/categories/get-public-root-categories";
 import type { AvailableSlot } from "@/lib/booking/get-available-slots";
@@ -342,6 +344,12 @@ export interface MeDTO {
   /// A native client uses this to pick the right home; `provider` remains a SEPARATE
   /// field carrying the provider lifecycle status (they answer different questions).
   effectiveAccountType: EffectiveAccountType;
+  /// EXCLUSIVE PHONE-FIRST REGISTRATION (Gate Z-2) — the DECLARED self-service intent
+  /// (null for legacy/admin/staff/undeclared), and the next registration step the client
+  /// (web or native) should drive. registrationStep is "DONE" for any finalized/legacy/
+  /// admin/staff identity. Additive fields; existing clients ignore them.
+  declaredAccountType: AccountType | null;
+  registrationStep: RegistrationStep;
   provider: MeProviderDTO;
 }
 
@@ -350,9 +358,16 @@ export interface MeDTO {
 // role) — so provider is always present as an object with `exists`. The effective
 // account type is the authoritative classification for routing.
 export function toMeDTO(
-  user: { id: string; name: string | null; phoneNumber: string | null; phoneNumberVerified: boolean },
+  user: {
+    id: string;
+    name: string | null;
+    phoneNumber: string | null;
+    phoneNumberVerified: boolean;
+    accountType?: AccountType | null;
+  },
   provider: MeProviderDTO,
   effectiveAccountType: EffectiveAccountType,
+  registrationStep: RegistrationStep,
   locale: string
 ): MeDTO {
   return {
@@ -362,6 +377,8 @@ export function toMeDTO(
     phoneVerified: user.phoneNumberVerified,
     locale,
     effectiveAccountType,
+    declaredAccountType: user.accountType ?? null,
+    registrationStep,
     provider,
   };
 }

@@ -89,6 +89,9 @@ vi.mock("@/lib/db", () => ({
     user: {
       findUnique: (...a: unknown[]) => userFindUnique(...(a as [{ where: Record<string, unknown> }])),
       findUniqueOrThrow: (...a: unknown[]) => userFindUniqueOrThrow(...(a as [{ where: { id: string } }])),
+      // Gate Z-2: createBarqUserForAuthUser now creates the User directly (no $transaction,
+      // no auto-Customer), so user.create is a top-level prisma method here.
+      create: (...a: unknown[]) => txUserCreate(...(a as [{ data: Partial<UserRow> }])),
       updateMany: (...a: unknown[]) =>
         userUpdateMany(...(a as [{ where: Record<string, unknown>; data: Record<string, unknown> }])),
     },
@@ -147,23 +150,24 @@ describe("resolveBarqUser — existing OTP identity", () => {
 });
 
 describe("resolveBarqUser — social-first identity", () => {
-  it("7. creates a phone-less User + Customer for a social AuthUser with no phone", async () => {
+  it("7. Gate Z-2: creates a phone-less UNCLASSIFIED User (NO auto-Customer) for a social AuthUser", async () => {
     authUsers.push({ id: "g1", email: "person@gmail.com", name: "Person", phoneNumber: null, phoneNumberVerified: false });
     const user = await resolveBarqUser("g1");
     expect(user.phoneNumber).toBeNull();
     expect(user.phoneNumberVerified).toBe(false);
     expect(user.authUserId).toBe("g1");
-    expect(customerCreates).toEqual([user.id]); // exactly one Customer
+    // The bridge no longer pre-decides the account type — no Customer is auto-created.
+    expect(customerCreates).toHaveLength(0);
     expect(userUpdateMany).not.toHaveBeenCalled(); // no claim attempt (no verified phone)
   });
 
-  it("8. repeated resolve returns the SAME User (idempotent)", async () => {
+  it("8. repeated resolve returns the SAME User (idempotent, still no Customer)", async () => {
     authUsers.push({ id: "g1", email: "person@gmail.com", name: null, phoneNumber: null, phoneNumberVerified: false });
     const first = await resolveBarqUser("g1");
     const second = await resolveBarqUser("g1");
     expect(second.id).toBe(first.id);
     expect(users).toHaveLength(1);
-    expect(customerCreates).toHaveLength(1);
+    expect(customerCreates).toHaveLength(0);
   });
 
   it("9. concurrent first-resolve yields ONE User (P2002 on authUserId → refetch winner)", async () => {
@@ -256,13 +260,15 @@ describe("resolveBarqUser — security invariants", () => {
 });
 
 describe("resolveBarqUser — regression", () => {
-  it("22. brand-new verified-phone OTP user → User(with phone)+Customer (phone-only flow preserved)", async () => {
+  it("22. Gate Z-2: brand-new verified-phone OTP user → User(with phone), UNCLASSIFIED (NO auto-Customer)", async () => {
     authUsers.push({ id: "a1", email: "+96820@phone.barq.internal", name: null, phoneNumber: "+96820", phoneNumberVerified: true });
     const user = await resolveBarqUser("a1");
     expect(user.phoneNumber).toBe("+96820");
     expect(user.phoneNumberVerified).toBe(true);
     expect(user.authUserId).toBe("a1");
-    expect(customerCreates).toEqual([user.id]);
+    // Phone-first registration now declares CUSTOMER/PROVIDER and finalizes ONE profile
+    // later; the bridge creates the User only.
+    expect(customerCreates).toHaveLength(0);
   });
 
   it("23-26. a linked User (any role) is returned unchanged — the bridge never inspects role/status", async () => {

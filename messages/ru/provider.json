@@ -137,6 +137,7 @@
   "applicationErrorNotRejected": "Это действие недоступно для вашего текущего статуса",
   "applicationErrorInvalidInput": "Пожалуйста, проверьте форму на наличие ошибок",
   "applicationErrorAlreadyApplied": "У вас уже есть поданная заявка поставщика",
+  "applicationErrorCustomerAccount": "Это аккаунт клиента, поэтому он не может предоставлять услуги. В BARQ аккаунты клиента и поставщика раздельны.",
   "applicationErrorUnknown": "Что-то пошло не так, попробуйте ещё раз",
   "serviceErrorInvalidInput": "Пожалуйста, проверьте форму на наличие ошибок",
   "serviceErrorNoProviderProfile": "Для выполнения этого действия требуется профиль поставщика",

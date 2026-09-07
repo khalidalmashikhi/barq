@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAuth, UnauthenticatedError, ForbiddenError, assertNotActiveAdmin } from "@/lib/auth";
+import { requireAuth, UnauthenticatedError, ForbiddenError, assertNotActiveAdmin, resolveEffectiveAccountType } from "@/lib/auth";
 import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
 import { logger } from "@/lib/logger";
@@ -96,6 +96,16 @@ export async function applyAsProvider(formData: FormData): Promise<ApplyAsProvid
   }
 
   try {
+    // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — a self-service CUSTOMER account cannot become
+    // a provider. Account type is chosen once at registration; there is no self-service
+    // Customer→Provider conversion. This is the server-side enforcement behind the page
+    // redirect (defense in depth). An UNCLASSIFIED identity that declared PROVIDER is
+    // allowed through here (equivalent to finalizing as provider); a legacy dual is
+    // effective PROVIDER and hits ALREADY_HAS_PROVIDER_PROFILE below.
+    if ((await resolveEffectiveAccountType(barqUserId)) === "CUSTOMER") {
+      return { ok: false, error: "CUSTOMER_ACCOUNT" };
+    }
+
     const existing = await prisma.provider.findUnique({ where: { userId: barqUserId } });
 
     if (existing) {

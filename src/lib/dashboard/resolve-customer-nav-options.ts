@@ -52,10 +52,16 @@ export async function resolveCustomerNavOptions(): Promise<CustomerNavOptions> {
   // from every customer page before this nav renders, so this is the display-layer
   // companion to that server-side redirect, never the enforcement itself.) The
   // Admin Panel entry is still surfaced via isAdmin.
-  const providerDoorway: ProviderDoorway | undefined = isAdmin
-    ? undefined
-    : !provider
-      ? "become"
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — there is NO self-service "Become a Provider"
+  // doorway any more: a self-service account is exclusively CUSTOMER or PROVIDER, chosen
+  // at registration, and a customer never self-converts. A user with NO provider row
+  // therefore gets no doorway. The workspace/application links remain ONLY for an account
+  // that already HAS a provider row (a legacy Customer+Provider dual reading historical
+  // customer pages) so it can navigate back to its provider workspace — this is not a
+  // conversion path. Active admins get no doorway (Gate A).
+  const providerDoorway: ProviderDoorway | undefined =
+    isAdmin || !provider
+      ? undefined
       : provider.status === "APPROVED"
         ? "workspace"
         : "application";

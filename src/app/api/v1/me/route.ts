@@ -1,4 +1,5 @@
 import { resolveProviderStatus, resolveEffectiveAccountType } from "@/lib/auth";
+import { getRegistrationStepForUser } from "@/lib/registration/registration-state";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 import { withApiV1Auth } from "@/lib/api/v1/auth";
 import { apiOk } from "@/lib/api/v1/respond";
@@ -22,9 +23,10 @@ export async function GET(request: Request) {
       // Provider lifecycle status and the authoritative effective account type answer
       // different questions (approval state vs which home the account belongs to), so
       // both are resolved and returned as separate fields. Independent reads, batched.
-      const [lookup, effectiveAccountType] = await Promise.all([
+      const [lookup, effectiveAccountType, registrationStep] = await Promise.all([
         resolveProviderStatus(barqUser.id),
         resolveEffectiveAccountType(barqUser.id),
+        getRegistrationStepForUser(barqUser),
       ]);
 
       const provider: MeProviderDTO =
@@ -37,7 +39,7 @@ export async function GET(request: Request) {
               workspaceAvailable: lookup.provider.status === "APPROVED",
             };
 
-      return apiOk(toMeDTO(barqUser, provider, effectiveAccountType, locale));
+      return apiOk(toMeDTO(barqUser, provider, effectiveAccountType, registrationStep, locale));
     })
   );
 }

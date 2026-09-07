@@ -33,10 +33,10 @@ afterEach(() => {
 });
 
 describe("resolveCustomerNavOptions — provider doorway mapping", () => {
-  it("returns 'become' when the user has no provider profile", async () => {
+  it("Gate Z-2: returns NO doorway when the user has no provider profile (self-service Become-a-Provider removed)", async () => {
     providerFindUniqueMock.mockResolvedValue(null);
     const result = await resolveCustomerNavOptions();
-    expect(result.providerDoorway).toBe("become");
+    expect(result.providerDoorway).toBeUndefined();
   });
 
   it("returns 'workspace' for an APPROVED provider", async () => {
