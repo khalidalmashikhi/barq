@@ -17,6 +17,10 @@ vi.mock("next-intl/server", () => ({ getLocale: vi.fn().mockResolvedValue("en") 
 
 vi.mock("@/lib/auth", () => ({
   requireAdmin: vi.fn().mockResolvedValue({ admin: { id: "admin-1" } }),
+  // Gate Z-3: the provider read models now gate on requirePermission("providers.read");
+  // return an ADMIN actor so this integration flow (create -> query) is authorized.
+  requirePermission: vi.fn().mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } }),
+  requireOwner: vi.fn().mockResolvedValue({ admin: { id: "admin-1" } }),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
