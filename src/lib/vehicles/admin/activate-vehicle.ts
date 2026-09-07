@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -28,10 +28,12 @@ import type { VehicleAdminActionResult } from "./vehicle-admin-errors";
 export async function activateVehicle(assetId: string): Promise<VehicleAdminActionResult> {
   if (!isValidUuid(assetId)) return { ok: false, error: "INVALID_INPUT" };
 
-  let adminId: string;
+  // STAFF RBAC (Gate Z-3) — operational vehicle activation is providers.manage
+  // (management, distinct from providers.review verification); actor-attributed audit.
+  let actor;
   try {
-    const { admin } = await requireAdmin();
-    adminId = admin.id;
+    const auth = await requirePermission("providers.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
     if (error instanceof UnauthenticatedError) throw error;
@@ -75,8 +77,8 @@ export async function activateVehicle(assetId: string): Promise<VehicleAdminActi
       if (updated.count === 0) return false;
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: adminId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "vehicle.activated",
           entityType: "Vehicle",
           entityId: assetId,

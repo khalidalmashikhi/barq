@@ -3,7 +3,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/uuid", () => ({ isValidUuid: (v: unknown) => typeof v === "string" && v.startsWith("asset-") }));
 const requireAdminMock = vi.fn();
-vi.mock("@/lib/auth", () => ({ requireAdmin: (...a: unknown[]) => requireAdminMock(...a) }));
+vi.mock("@/lib/auth", () => ({
+  requireAdmin: (...a: unknown[]) => requireAdminMock(...a),
+  requirePermission: async (...a: unknown[]) => {
+    const r = await requireAdminMock(...a);
+    const adm = r?.admin ?? { id: "admin-1" };
+    return { barqUser: {}, actor: { actorType: "ADMIN", actorId: adm.id, admin: adm, isOwner: false } };
+  },
+}));
 // The real token is a sha256 hash that never contains the objectKey; the mock must
 // likewise NOT echo the key, so the objectKey-leak assertion is meaningful.
 vi.mock("@/lib/provider/documents/document-version-token", () => ({ documentVersionToken: () => "VTOKEN" }));

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -22,10 +22,10 @@ export type ReactivateProviderResult =
 export async function reactivateProvider(providerId: string): Promise<ReactivateProviderResult> {
   if (!isValidUuid(providerId)) return { ok: false, error: "INVALID_INPUT" };
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("providers.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) redirect("/");
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
@@ -44,8 +44,8 @@ export async function reactivateProvider(providerId: string): Promise<Reactivate
       await tx.provider.update({ where: { id: providerId }, data: { status: "APPROVED" } });
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "provider.reactivated",
           entityType: "Provider",
           entityId: providerId,

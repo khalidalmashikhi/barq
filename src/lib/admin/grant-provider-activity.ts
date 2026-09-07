@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { assertAssignableCategory } from "@/lib/categories/assert-assignable-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
@@ -28,9 +28,9 @@ export async function grantProviderActivity(providerId: string, categoryId: stri
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    ({ admin } = await requireAdmin());
+    ({ actor } = await requirePermission("providers.manage"));
   } catch (error) {
     if (error instanceof UnauthenticatedError) redirect("/");
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
@@ -63,14 +63,14 @@ export async function grantProviderActivity(providerId: string, categoryId: stri
               categoryId,
               source: "ADMIN",
               isPrimary: false,
-              grantedByAdminId: admin.id,
+              grantedByAdminId: actor.admin?.id ?? null,
               grantedAt: new Date(),
             },
           });
           await recordAuditEvent(
             {
-              actorType: "ADMIN",
-              actorId: admin.id,
+              actorType: actor.actorType,
+              actorId: actor.actorId,
               action: "provider.activity_granted",
               entityType: "Provider",
               entityId: providerId,

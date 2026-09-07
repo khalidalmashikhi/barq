@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { requiredAssetDocumentTypesFor } from "@/lib/vehicles/documents/asset-document-types";
 
 // VEHICLE-LC3 / LC5 — the admin review QUEUE read model. requireAdmin()-gated.
@@ -33,7 +33,7 @@ export type VehicleReviewQueueItem = {
 };
 
 export async function getVehicleReviewQueue(): Promise<VehicleReviewQueueItem[]> {
-  await requireAdmin();
+  await requirePermission("providers.read");
 
   const requiredTypes = requiredAssetDocumentTypesFor("VEHICLE");
 

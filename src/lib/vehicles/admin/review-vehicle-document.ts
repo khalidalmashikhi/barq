@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { documentVersionToken } from "@/lib/provider/documents/document-version-token";
@@ -40,9 +40,12 @@ export async function reviewVehicleDocument(input: {
    */
   confirmedExpiryDate?: string | null;
 }): Promise<VehicleAdminActionResult> {
-  let admin;
+  // STAFF RBAC (Gate Z-3) — reviewing a vehicle verification document requires
+  // providers.review; audit is actor-attributed and the reviewedByAdminId FK is
+  // set only for an Admin actor (null for a Staff reviewer; nullable column).
+  let actor;
   try {
-    ({ admin } = await requireAdmin());
+    ({ actor } = await requirePermission("providers.review"));
   } catch (error) {
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
     if (error instanceof UnauthenticatedError) throw error;
@@ -101,7 +104,7 @@ export async function reviewVehicleDocument(input: {
         data: {
           status: nextStatus,
           reviewedAt,
-          reviewedByAdminId: admin.id,
+          reviewedByAdminId: actor.admin?.id ?? null,
           rejectionReason: reason, // null on APPROVE (clears any prior reason)
           // LC6: APPROVE (re)establishes the trusted expiry from the confirmed date
           // (or null); REJECT never touches it.
@@ -111,8 +114,8 @@ export async function reviewVehicleDocument(input: {
       if (updated.count === 0) throw new StaleReview();
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: input.decision === "APPROVE" ? "vehicle.document_approved" : "vehicle.document_rejected",
           entityType: "Vehicle",
           entityId: doc.assetId,

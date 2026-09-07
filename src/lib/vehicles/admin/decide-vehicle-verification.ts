@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -24,10 +24,16 @@ import type { VehicleAdminActionResult, VehicleAdminActionErrorCode } from "./ve
 
 const MAX_REASON_LENGTH = 2000;
 
-async function resolveAdmin(): Promise<{ ok: true; adminId: string } | { ok: false; error: VehicleAdminActionErrorCode }> {
+// STAFF RBAC (Gate Z-3) — vehicle verification decisions require providers.review.
+// The audit is attributed to the resolved actor (STAFF/Staff.id or ADMIN/Admin.id);
+// the verificationReviewedByAdminId FK is set only for an Admin actor (null for a
+// Staff reviewer — nullable column — the AuditLog carries the reviewer identity).
+type VehicleReviewActor = { actorType: "ADMIN" | "STAFF"; actorId: string; adminFkId: string | null };
+
+async function resolveAdmin(): Promise<{ ok: true; actor: VehicleReviewActor } | { ok: false; error: VehicleAdminActionErrorCode }> {
   try {
-    const { admin } = await requireAdmin();
-    return { ok: true, adminId: admin.id };
+    const { actor } = await requirePermission("providers.review");
+    return { ok: true, actor: { actorType: actor.actorType, actorId: actor.actorId, adminFkId: actor.admin?.id ?? null } };
   } catch (error) {
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
     if (error instanceof UnauthenticatedError) throw error;
@@ -79,7 +85,7 @@ export async function approveVehicleVerification(assetId: string): Promise<Vehic
         data: {
           verificationStatus: "APPROVED",
           verificationReviewedAt: reviewedAt,
-          verificationReviewedByAdminId: auth.adminId,
+          verificationReviewedByAdminId: auth.actor.adminFkId,
           verificationReason: null,
           // Deliberately NO status change — verification approval is NOT activation.
         },
@@ -87,8 +93,8 @@ export async function approveVehicleVerification(assetId: string): Promise<Vehic
       if (updated.count === 0) return false;
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: auth.adminId,
+          actorType: auth.actor.actorType,
+          actorId: auth.actor.actorId,
           action: "vehicle.verification_approved",
           entityType: "Vehicle",
           entityId: assetId,
@@ -125,7 +131,7 @@ export async function rejectVehicleVerification(assetId: string, reasonInput: st
   if (!reasonCheck.ok) return reasonCheck;
   const auth = await resolveAdmin();
   if (!auth.ok) return auth;
-  return transitionSubmitted(assetId, "REJECTED", reasonCheck.reason, "vehicle.verification_rejected", auth.adminId);
+  return transitionSubmitted(assetId, "REJECTED", reasonCheck.reason, "vehicle.verification_rejected", auth.actor);
 }
 
 // SUBMITTED → CHANGES_REQUESTED, with a mandatory reason. Does NOT change
@@ -137,7 +143,7 @@ export async function requestVehicleChanges(assetId: string, reasonInput: string
   if (!reasonCheck.ok) return reasonCheck;
   const auth = await resolveAdmin();
   if (!auth.ok) return auth;
-  return transitionSubmitted(assetId, "CHANGES_REQUESTED", reasonCheck.reason, "vehicle.changes_requested", auth.adminId);
+  return transitionSubmitted(assetId, "CHANGES_REQUESTED", reasonCheck.reason, "vehicle.changes_requested", auth.actor);
 }
 
 async function transitionSubmitted(
@@ -145,7 +151,7 @@ async function transitionSubmitted(
   nextStatus: "REJECTED" | "CHANGES_REQUESTED",
   reason: string,
   action: "vehicle.verification_rejected" | "vehicle.changes_requested",
-  adminId: string,
+  actor: VehicleReviewActor,
 ): Promise<VehicleAdminActionResult> {
   const asset = await prisma.asset.findFirst({
     where: { id: assetId, assetType: "VEHICLE" },
@@ -162,7 +168,7 @@ async function transitionSubmitted(
         data: {
           verificationStatus: nextStatus,
           verificationReviewedAt: reviewedAt,
-          verificationReviewedByAdminId: adminId,
+          verificationReviewedByAdminId: actor.adminFkId,
           verificationReason: reason,
           // Deliberately NO status change.
         },
@@ -170,13 +176,13 @@ async function transitionSubmitted(
       if (updated.count === 0) return false;
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: adminId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action,
           entityType: "Vehicle",
           entityId: assetId,
           previousValue: { verificationStatus: "SUBMITTED" },
-          newValue: { verificationStatus: nextStatus, reason, byAdminId: adminId },
+          newValue: { verificationStatus: nextStatus, reason, byAdminId: actor.adminFkId },
         },
         tx,
       );

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
@@ -35,9 +35,9 @@ export async function revokeProviderActivity(providerId: string, categoryId: str
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    ({ admin } = await requireAdmin());
+    ({ actor } = await requirePermission("providers.manage"));
   } catch (error) {
     if (error instanceof UnauthenticatedError) redirect("/");
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
@@ -65,8 +65,8 @@ export async function revokeProviderActivity(providerId: string, categoryId: str
         await tx.providerCategory.delete({ where: { providerId_categoryId: { providerId, categoryId } } });
         await recordAuditEvent(
           {
-            actorType: "ADMIN",
-            actorId: admin.id,
+            actorType: actor.actorType,
+            actorId: actor.actorId,
             action: "provider.activity_revoked",
             entityType: "Provider",
             entityId: providerId,

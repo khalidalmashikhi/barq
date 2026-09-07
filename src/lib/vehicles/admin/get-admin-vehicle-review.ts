@@ -1,7 +1,7 @@
 import "server-only";
 import type { AssetStatus, AssetVerificationStatus, AssetDocumentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { documentVersionToken } from "@/lib/provider/documents/document-version-token";
 import {
@@ -79,7 +79,7 @@ export type AdminVehicleReview = {
 };
 
 export async function getAdminVehicleReview(assetId: string): Promise<AdminVehicleReview | null> {
-  await requireAdmin();
+  await requirePermission("providers.read");
   if (!isValidUuid(assetId)) return null;
 
   const asset = await prisma.asset.findFirst({

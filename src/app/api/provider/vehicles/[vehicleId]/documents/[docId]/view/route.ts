@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth, hasActiveAdminProfile, resolveProviderStatus, UnauthenticatedError } from "@/lib/auth";
+import { requireAuth, hasPermission, resolveProviderStatus, UnauthenticatedError } from "@/lib/auth";
 import { getVehicleDocumentSignedUrl, type VehicleDocumentCaller } from "@/lib/vehicles/documents/get-vehicle-document-signed-url";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 
@@ -19,16 +19,22 @@ export async function GET(_request: Request, ctx: { params: Promise<{ vehicleId:
   return withRequestTracing("provider.vehicles.documents.view", async () => {
     const { vehicleId, docId } = await ctx.params;
 
-    let barqUserId: string;
+    let barqUser;
     try {
-      ({ barqUser: { id: barqUserId } } = await requireAuth());
+      ({ barqUser } = await requireAuth());
     } catch (error) {
       if (error instanceof UnauthenticatedError) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       throw error;
     }
+    const barqUserId = barqUser.id;
 
+    // STAFF RBAC (Gate Z-3) — an internal actor authorized to read verification documents
+    // (OWNER/ADMIN, or a Staff member granted providerDocuments.read) may view ANY vehicle's
+    // documents; everyone else is only the OWNING (active) provider. Authorization happens
+    // BEFORE any signed URL is minted. A providers.review-only or booking/finance staff
+    // WITHOUT providerDocuments.read falls through to the owning-provider path and gets a 404.
     let caller: VehicleDocumentCaller;
-    if (await hasActiveAdminProfile(barqUserId)) {
+    if (await hasPermission(barqUser, "providerDocuments.read")) {
       caller = { kind: "admin" };
     } else {
       const lookup = await resolveProviderStatus(barqUserId);

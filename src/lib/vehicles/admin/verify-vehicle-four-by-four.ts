@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -24,10 +24,12 @@ export async function verifyVehicleFourByFour(assetId: string, verified: boolean
   if (!isValidUuid(assetId)) return { ok: false, error: "INVALID_INPUT" };
   if (typeof verified !== "boolean") return { ok: false, error: "INVALID_INPUT" };
 
-  let adminId: string;
+  // STAFF RBAC (Gate Z-3) — the 4x4 capability verification is a providers.review
+  // decision; audit is attributed to the resolved actor (STAFF/Staff.id or ADMIN/Admin.id).
+  let actor;
   try {
-    const { admin } = await requireAdmin();
-    adminId = admin.id;
+    const auth = await requirePermission("providers.review");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
     if (error instanceof UnauthenticatedError) throw error;
@@ -52,8 +54,8 @@ export async function verifyVehicleFourByFour(assetId: string, verified: boolean
       });
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: adminId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "vehicle.four_by_four_verified",
           entityType: "Vehicle",
           entityId: assetId,
