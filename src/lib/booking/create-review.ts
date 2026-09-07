@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireCustomer, UnauthenticatedError, ForbiddenError, resolveEffectiveAccountType } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canReviewBooking } from "@/lib/booking/cancellation-policy";
 import { notifyBookingEvent, resolveBookingParties } from "@/lib/booking/lifecycle/notify";
@@ -82,9 +82,11 @@ export async function createReview(bookingId: string, formData: FormData): Promi
   }
 
   let customer;
+  let barqUserId: string;
   try {
     const auth = await requireCustomer();
     customer = auth.customer;
+    barqUserId = auth.barqUser.id;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -93,6 +95,14 @@ export async function createReview(bookingId: string, formData: FormData): Promi
       return { ok: false, error: "NO_CUSTOMER_PROFILE" };
     }
     throw error;
+  }
+
+  // EXCLUSIVE ACCOUNT TYPES (Z-2) + STAFF RBAC (Z-3 §18) — writing a review is customer
+  // self-service; refuse it for a non-CUSTOMER effective type (an effective PROVIDER or
+  // STAFF holding a legacy Customer row). Historical READ access is preserved via
+  // requireCustomer(); only this mutation is refused.
+  if ((await resolveEffectiveAccountType(barqUserId)) !== "CUSTOMER") {
+    return { ok: false, error: "NO_CUSTOMER_PROFILE" };
   }
 
   // Production Hardening — Rate Limiting. Same convention as

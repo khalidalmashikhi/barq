@@ -12,9 +12,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 const requireCustomerMock = vi.fn();
+const resolveEffectiveAccountTypeMock = vi.fn().mockResolvedValue("CUSTOMER");
 
 vi.mock("@/lib/auth", () => ({
   requireCustomer: (...args: unknown[]) => requireCustomerMock(...args),
+  resolveEffectiveAccountType: (...args: unknown[]) => resolveEffectiveAccountTypeMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -90,6 +92,18 @@ describe("createReview", () => {
     expect(requireCustomerMock).not.toHaveBeenCalled();
   });
 
+  // STAFF RBAC (Gate Z-3 §18) — writing a review is customer self-service; an effective
+  // STAFF/PROVIDER holding a legacy Customer row is refused before any booking is read.
+  it("refuses an effective STAFF actor (legacy Customer row) with NO_CUSTOMER_PROFILE, no mutation", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
+    resolveEffectiveAccountTypeMock.mockResolvedValueOnce("STAFF");
+
+    const result = await createReview(BOOKING_ID, formData({ rating: "5", content: "Great!" }));
+
+    expect(result).toEqual({ ok: false, error: "NO_CUSTOMER_PROFILE" });
+    expect(bookingFindFirstMock).not.toHaveBeenCalled();
+  });
+
   it.each(["0", "6", "abc", "3.5"])("returns INVALID_RATING for an out-of-range or non-integer rating (%s)", async (rating) => {
     const result = await createReview(BOOKING_ID, formData({ rating, content: "Great experience!" }));
 
@@ -110,7 +124,7 @@ describe("createReview", () => {
   });
 
   it("returns BOOKING_NOT_FOUND when the booking doesn't belong to the authenticated customer (or doesn't exist)", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindFirstMock.mockResolvedValue(null);
 
     const result = await createReview(BOOKING_ID, formData({ rating: "5", content: "Great experience!" }));
@@ -123,7 +137,7 @@ describe("createReview", () => {
   });
 
   it("returns BOOKING_NOT_REVIEWABLE when the booking's status isn't eligible", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindFirstMock.mockResolvedValue({
       id: BOOKING_ID,
       providerId: PROVIDER_ID,
@@ -139,7 +153,7 @@ describe("createReview", () => {
   });
 
   it("returns ALREADY_REVIEWED when the booking already has a Review (pre-check)", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindFirstMock.mockResolvedValue({
       id: BOOKING_ID,
       providerId: PROVIDER_ID,
@@ -155,7 +169,7 @@ describe("createReview", () => {
   });
 
   it("returns ALREADY_REVIEWED when a concurrent request wins the race (P2002 unique constraint on bookingId)", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindFirstMock.mockResolvedValue({
       id: BOOKING_ID,
       providerId: PROVIDER_ID,
@@ -173,7 +187,7 @@ describe("createReview", () => {
   });
 
   it("creates a Review+Rating using only the booking's own providerId/customerId — never trusting client-submitted linkage", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindFirstMock.mockResolvedValue({
       id: BOOKING_ID,
       providerId: PROVIDER_ID,
@@ -209,7 +223,7 @@ describe("createReview", () => {
   });
 
   it("returns UNKNOWN_ERROR and logs, without exposing internal details, on an unexpected failure", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindFirstMock.mockResolvedValue({
       id: BOOKING_ID,
       providerId: PROVIDER_ID,
@@ -226,7 +240,7 @@ describe("createReview", () => {
 
   describe("provider notification (Provider Notifications & Operational Alerts phase)", () => {
     it("notifies the provider only after the review is actually created", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue({ id: BOOKING_ID, providerId: PROVIDER_ID, status: "COMPLETED", review: null });
       canReviewBookingMock.mockReturnValue(true);
       reviewCreateMock.mockResolvedValue({ id: "new-review" });
@@ -243,7 +257,7 @@ describe("createReview", () => {
     });
 
     it("does not notify when the booking isn't found", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue(null);
 
       await createReview(BOOKING_ID, formData({ rating: "5", content: "Great experience!" }));
@@ -252,7 +266,7 @@ describe("createReview", () => {
     });
 
     it("does not notify when the booking isn't reviewable", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue({ id: BOOKING_ID, providerId: PROVIDER_ID, status: "CONFIRMED", review: null });
       canReviewBookingMock.mockReturnValue(false);
 
@@ -262,7 +276,7 @@ describe("createReview", () => {
     });
 
     it("does not notify on a duplicate review (pre-check or race)", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue({
         id: BOOKING_ID,
         providerId: PROVIDER_ID,
@@ -283,7 +297,7 @@ describe("createReview", () => {
     });
 
     it("does not notify when review creation itself fails unexpectedly", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue({ id: BOOKING_ID, providerId: PROVIDER_ID, status: "COMPLETED", review: null });
       canReviewBookingMock.mockReturnValue(true);
       reviewCreateMock.mockRejectedValue(new Error("connection reset"));
@@ -294,7 +308,7 @@ describe("createReview", () => {
     });
 
     it("still returns ok:true when the notification itself fails — a notification failure never undoes an already-successful review", async () => {
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue({ id: BOOKING_ID, providerId: PROVIDER_ID, status: "COMPLETED", review: null });
       canReviewBookingMock.mockReturnValue(true);
       reviewCreateMock.mockResolvedValue({ id: "new-review" });
@@ -309,7 +323,7 @@ describe("createReview", () => {
   describe("rate limiting (Production Hardening)", () => {
     it("returns RATE_LIMITED once the per-customer review-creation limit is exceeded, without touching the database", async () => {
       vi.stubEnv("RATE_LIMIT_REVIEW_CREATE_MAX", "1");
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       bookingFindFirstMock.mockResolvedValue({ id: BOOKING_ID, providerId: PROVIDER_ID, status: "COMPLETED", review: null });
       canReviewBookingMock.mockReturnValue(true);
       reviewCreateMock.mockResolvedValue({ id: "new-review" });
@@ -329,11 +343,11 @@ describe("createReview", () => {
       canReviewBookingMock.mockReturnValue(true);
       reviewCreateMock.mockResolvedValue({ id: "new-review" });
 
-      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
       const first = await createReview(BOOKING_ID, formData({ rating: "5", content: "Great experience!" }));
       expect(first).toEqual({ ok: true });
 
-      requireCustomerMock.mockResolvedValue({ customer: { id: "a-different-customer-id" } });
+      requireCustomerMock.mockResolvedValue({ customer: { id: "a-different-customer-id" }, barqUser: { id: "user-2" } });
       const second = await createReview(BOOKING_ID, formData({ rating: "5", content: "Great experience!" }));
       expect(second).toEqual({ ok: true });
     });

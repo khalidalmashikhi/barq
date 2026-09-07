@@ -15,9 +15,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 const requireCustomerMock = vi.fn();
+const resolveEffectiveAccountTypeMock = vi.fn().mockResolvedValue("CUSTOMER");
 
 vi.mock("@/lib/auth", () => ({
   requireCustomer: (...args: unknown[]) => requireCustomerMock(...args),
+  resolveEffectiveAccountType: (...args: unknown[]) => resolveEffectiveAccountTypeMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -81,8 +83,26 @@ describe("cancelBooking (customer) — vehicle reservation release", () => {
     expect(requireCustomerMock).not.toHaveBeenCalled();
   });
 
+  // STAFF RBAC (Gate Z-3 §18) — an effective STAFF/PROVIDER holding a legacy Customer row
+  // cannot self-service cancel a booking; refused before any booking is read or mutated.
+  it("refuses an effective STAFF actor (legacy Customer row) with NO_CUSTOMER_PROFILE, no mutation", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
+    resolveEffectiveAccountTypeMock.mockResolvedValueOnce("STAFF");
+    const result = await cancelBooking(BOOKING_ID);
+    expect(result).toEqual({ ok: false, error: "NO_CUSTOMER_PROFILE" });
+    expect(bookingFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an effective PROVIDER actor (legacy Customer row) with NO_CUSTOMER_PROFILE", async () => {
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
+    resolveEffectiveAccountTypeMock.mockResolvedValueOnce("PROVIDER");
+    const result = await cancelBooking(BOOKING_ID);
+    expect(result).toEqual({ ok: false, error: "NO_CUSTOMER_PROFILE" });
+    expect(bookingFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("returns BOOKING_NOT_FOUND when the booking belongs to another customer", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindUniqueMock.mockResolvedValue({ id: BOOKING_ID, customerId: "someone-else", status: "CONFIRMED" });
 
     const result = await cancelBooking(BOOKING_ID);
@@ -92,7 +112,7 @@ describe("cancelBooking (customer) — vehicle reservation release", () => {
   });
 
   it("releases the vehicle reservation + capacity in the same transaction on an eligible cancel", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindUniqueMock.mockResolvedValue({
       id: BOOKING_ID,
       customerId: CUSTOMER_ID,
@@ -119,7 +139,7 @@ describe("cancelBooking (customer) — vehicle reservation release", () => {
   });
 
   it("still releases the reservation when the booking has no availability slot (idempotent, no capacity release)", async () => {
-    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID } });
+    requireCustomerMock.mockResolvedValue({ customer: { id: CUSTOMER_ID }, barqUser: { id: "user-1" } });
     bookingFindUniqueMock.mockResolvedValue({
       id: BOOKING_ID,
       customerId: CUSTOMER_ID,

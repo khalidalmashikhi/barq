@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireCustomer, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireCustomer, UnauthenticatedError, ForbiddenError, resolveEffectiveAccountType } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
@@ -53,9 +53,11 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
   }
 
   let customer;
+  let barqUserId: string;
   try {
     const auth = await requireCustomer();
     customer = auth.customer;
+    barqUserId = auth.barqUser.id;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -64,6 +66,15 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
       return { ok: false, error: "NO_CUSTOMER_PROFILE" };
     }
     throw error;
+  }
+
+  // EXCLUSIVE ACCOUNT TYPES (Z-2) + STAFF RBAC (Z-3 §18) — customer self-service
+  // cancellation is refused for a non-CUSTOMER effective type (an effective PROVIDER or
+  // STAFF that still holds a legacy Customer row). requireCustomer() is left unchanged so
+  // those accounts keep READ access to their historical bookings; only this mutation is
+  // refused. Admin cancellation is a separate authority (admin/cancel-booking, bookings.cancel).
+  if ((await resolveEffectiveAccountType(barqUserId)) !== "CUSTOMER") {
+    return { ok: false, error: "NO_CUSTOMER_PROFILE" };
   }
 
   try {

@@ -30,20 +30,20 @@ export function getAdminNavItems(t: AdminTranslator, locale: Locale, ctx: AdminN
   const items: InternalNavItem[] = [
     { show: "ownerOrAdmin", label: t("navOverview"), href: getPathname({ href: "/admin", locale }), icon: <LayoutDashboard size={18} strokeWidth={1.75} /> },
     { show: "providers.read", label: t("navProviders"), href: getPathname({ href: "/admin/providers", locale }), icon: <Users size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navVehicles"), href: getPathname({ href: "/admin/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navServices"), href: getPathname({ href: "/admin/services", locale }), icon: <Compass size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navPrices"), href: getPathname({ href: "/admin/prices", locale }), icon: <Tag size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navAvailability"), href: getPathname({ href: "/admin/availability", locale }), icon: <CalendarClock size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navBookings"), href: getPathname({ href: "/admin/bookings", locale }), icon: <ClipboardList size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navCustomers"), href: getPathname({ href: "/admin/customers", locale }), icon: <UserRound size={18} strokeWidth={1.75} /> },
+    { show: "providers.read", label: t("navVehicles"), href: getPathname({ href: "/admin/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
+    { show: "content.read", label: t("navServices"), href: getPathname({ href: "/admin/services", locale }), icon: <Compass size={18} strokeWidth={1.75} /> },
+    { show: "finance.read", label: t("navPrices"), href: getPathname({ href: "/admin/prices", locale }), icon: <Tag size={18} strokeWidth={1.75} /> },
+    { show: "bookings.read", label: t("navAvailability"), href: getPathname({ href: "/admin/availability", locale }), icon: <CalendarClock size={18} strokeWidth={1.75} /> },
+    { show: "bookings.read", label: t("navBookings"), href: getPathname({ href: "/admin/bookings", locale }), icon: <ClipboardList size={18} strokeWidth={1.75} /> },
+    { show: "users.read", label: t("navCustomers"), href: getPathname({ href: "/admin/customers", locale }), icon: <UserRound size={18} strokeWidth={1.75} /> },
     { show: "reviews.read", label: t("navReviews"), href: getPathname({ href: "/admin/reviews", locale }), icon: <Star size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navPayments"), href: getPathname({ href: "/admin/payments", locale }), icon: <CreditCard size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navEmailDeliveries"), href: getPathname({ href: "/admin/email-deliveries", locale }), icon: <MailWarning size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navUserManagement"), href: getPathname({ href: "/admin/users", locale }), icon: <ShieldCheck size={18} strokeWidth={1.75} /> },
+    { show: "finance.read", label: t("navPayments"), href: getPathname({ href: "/admin/payments", locale }), icon: <CreditCard size={18} strokeWidth={1.75} /> },
+    { show: "bookings.read", label: t("navEmailDeliveries"), href: getPathname({ href: "/admin/email-deliveries", locale }), icon: <MailWarning size={18} strokeWidth={1.75} /> },
+    { show: "users.read", label: t("navUserManagement"), href: getPathname({ href: "/admin/users", locale }), icon: <ShieldCheck size={18} strokeWidth={1.75} /> },
     { show: "owner", label: t("navStaff"), href: getPathname({ href: "/admin/staff", locale }), icon: <UserCog size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navCategories"), href: getPathname({ href: "/admin/categories", locale }), icon: <FolderTree size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navFeatureFlags"), href: getPathname({ href: "/admin/feature-flags", locale }), icon: <ToggleLeft size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navHomepageSections"), href: getPathname({ href: "/admin/homepage-sections", locale }), icon: <LayoutTemplate size={18} strokeWidth={1.75} /> },
+    { show: "content.read", label: t("navCategories"), href: getPathname({ href: "/admin/categories", locale }), icon: <FolderTree size={18} strokeWidth={1.75} /> },
+    { show: "settings.manage", label: t("navFeatureFlags"), href: getPathname({ href: "/admin/feature-flags", locale }), icon: <ToggleLeft size={18} strokeWidth={1.75} /> },
+    { show: "content.read", label: t("navHomepageSections"), href: getPathname({ href: "/admin/homepage-sections", locale }), icon: <LayoutTemplate size={18} strokeWidth={1.75} /> },
   ];
 
   return items
@@ -61,10 +61,16 @@ export function getAdminNavItems(t: AdminTranslator, locale: Locale, ctx: AdminN
 
 // The first STAFF-reachable internal module path for a permission set (in nav order), or
 // null if none. Lands a Staff member on a working module instead of the admin-only Overview.
-// Lists ONLY domains whose pages are permission-refactored (grows per gate turn).
+// All internal domains are permission-refactored (Gate Z-3 Part 3), so every read key maps
+// to a landing page here, matching the nav order above.
 const STAFF_LANDING_ORDER: ReadonlyArray<readonly [PermissionKey, string]> = [
   ["providers.read", "/admin/providers"],
+  ["content.read", "/admin/services"],
+  ["finance.read", "/admin/prices"],
+  ["bookings.read", "/admin/bookings"],
+  ["users.read", "/admin/customers"],
   ["reviews.read", "/admin/reviews"],
+  ["settings.manage", "/admin/feature-flags"],
 ];
 
 export function firstAllowedAdminPath(permissions: ReadonlySet<PermissionKey>): string | null {

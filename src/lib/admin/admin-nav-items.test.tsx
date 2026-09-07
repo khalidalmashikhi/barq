@@ -35,14 +35,41 @@ describe("getAdminNavItems — STAFF (permission-driven)", () => {
     expect(items.some((i) => i.href === "/admin/users")).toBe(false);
   });
 
-  it("a PROVIDER_VERIFICATION staff sees ONLY Providers", () => {
+  it("a PROVIDER_VERIFICATION staff sees Providers + Vehicles (both providers.read)", () => {
     const items = getAdminNavItems(t, "en", staff(["providers.read", "providers.review", "providerDocuments.read"])) as NavItem[];
-    expect(items.map((i) => i.href)).toEqual(["/admin/providers"]);
+    expect(items.map((i) => i.href)).toEqual(["/admin/providers", "/admin/vehicles"]);
     expect(items.some((i) => i.href === "/admin/reviews")).toBe(false);
+    expect(items.some((i) => i.href === "/admin")).toBe(false);
   });
 
-  it("a staff whose permitted modules are all still admin-only (finance) sees NO nav → no-access", () => {
-    expect(getAdminNavItems(t, "en", staff(["finance.read", "finance.manage", "bookings.read"]))).toEqual([]);
+  it("a FINANCE staff sees Prices + Payments + Bookings (finance.read + bookings.read), never privilege/content", () => {
+    const items = getAdminNavItems(t, "en", staff(["finance.read", "finance.manage", "bookings.read"])) as NavItem[];
+    expect(items.map((i) => i.href)).toEqual(
+      expect.arrayContaining(["/admin/prices", "/admin/payments", "/admin/bookings", "/admin/availability", "/admin/email-deliveries"])
+    );
+    expect(items.some((i) => i.href === "/admin/users")).toBe(false);
+    expect(items.some((i) => i.href === "/admin/staff")).toBe(false);
+    expect(items.some((i) => i.href === "/admin/categories")).toBe(false);
+    expect(items.some((i) => i.href === "/admin")).toBe(false);
+  });
+
+  it("a BOOKING_OPS staff sees booking surfaces + Providers/Vehicles, not finance/content/users", () => {
+    const items = getAdminNavItems(t, "en", staff(["bookings.read", "bookings.manage", "providers.read"])) as NavItem[];
+    const hrefs = items.map((i) => i.href);
+    expect(hrefs).toEqual(expect.arrayContaining(["/admin/bookings", "/admin/availability", "/admin/email-deliveries", "/admin/providers", "/admin/vehicles"]));
+    expect(hrefs).not.toContain("/admin/prices");
+    expect(hrefs).not.toContain("/admin/customers");
+    expect(hrefs).not.toContain("/admin/categories");
+    expect(hrefs).not.toContain("/admin/staff");
+  });
+
+  it("a CONTENT_MANAGER staff sees Services/Categories/Homepage, not bookings/finance/users", () => {
+    const items = getAdminNavItems(t, "en", staff(["content.read", "content.manage"])) as NavItem[];
+    const hrefs = items.map((i) => i.href);
+    expect(hrefs).toEqual(expect.arrayContaining(["/admin/services", "/admin/categories", "/admin/homepage-sections"]));
+    expect(hrefs).not.toContain("/admin/bookings");
+    expect(hrefs).not.toContain("/admin/prices");
+    expect(hrefs).not.toContain("/admin/users");
   });
 
   it("a zero-permission staff sees no nav items", () => {
@@ -51,11 +78,19 @@ describe("getAdminNavItems — STAFF (permission-driven)", () => {
 });
 
 describe("firstAllowedAdminPath", () => {
-  it("returns the first converted module a staff can reach", () => {
+  it("returns the first converted module a staff can reach (nav order)", () => {
     expect(firstAllowedAdminPath(new Set(["reviews.read"]))).toBe("/admin/reviews");
+    expect(firstAllowedAdminPath(new Set(["finance.read"]))).toBe("/admin/prices");
+    expect(firstAllowedAdminPath(new Set(["bookings.read"]))).toBe("/admin/bookings");
+    expect(firstAllowedAdminPath(new Set(["content.read"]))).toBe("/admin/services");
+    expect(firstAllowedAdminPath(new Set(["users.read"]))).toBe("/admin/customers");
+    expect(firstAllowedAdminPath(new Set(["settings.manage"]))).toBe("/admin/feature-flags");
+    // providers.read is first in nav order → wins when multiple are held
+    expect(firstAllowedAdminPath(new Set(["reviews.read", "providers.read"]))).toBe("/admin/providers");
   });
-  it("returns null when no converted module is permitted", () => {
-    expect(firstAllowedAdminPath(new Set(["finance.read"]))).toBeNull();
+  it("returns null when no module-backed permission is held (e.g. only providerDocuments.read/audit.read)", () => {
+    expect(firstAllowedAdminPath(new Set(["providerDocuments.read"]))).toBeNull();
+    expect(firstAllowedAdminPath(new Set(["audit.read"]))).toBeNull();
     expect(firstAllowedAdminPath(new Set())).toBeNull();
   });
 });
