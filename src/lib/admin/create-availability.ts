@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -54,10 +54,10 @@ export async function createAvailability(formData: FormData): Promise<CreateAvai
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("bookings.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -81,8 +81,8 @@ export async function createAvailability(formData: FormData): Promise<CreateAvai
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "availability.slot_created",
           entityType: "Availability",
           entityId: slot.id,
@@ -97,7 +97,7 @@ export async function createAvailability(formData: FormData): Promise<CreateAvai
     return { ok: true, slotId };
   } catch (error) {
     logger.error("createAvailability.unexpected_error", {
-      adminId: admin.id,
+      actorId: actor.actorId,
       message: error instanceof Error ? error.message : String(error),
     });
     return { ok: false, error: "UNKNOWN_ERROR" };

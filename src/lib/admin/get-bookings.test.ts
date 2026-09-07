@@ -9,6 +9,11 @@ const requireAdminMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requirePermission: async (...args: unknown[]) => {
+    const r = await requireAdminMock(...args);
+    const a = r?.admin ?? { id: "admin-1" };
+    return { barqUser: {}, actor: { actorType: "ADMIN", actorId: a.id, admin: a, isOwner: false } };
+  },
 }));
 
 const getLocaleMock = vi.fn();

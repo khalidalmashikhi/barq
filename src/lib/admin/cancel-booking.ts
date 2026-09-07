@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
@@ -49,10 +49,10 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("bookings.cancel");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -81,8 +81,8 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
         {
           bookingId: booking.id,
           toStatus: "CANCELLED",
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           reason: reason?.trim() || undefined,
         },
         tx

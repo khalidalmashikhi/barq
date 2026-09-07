@@ -48,10 +48,10 @@ export default async function AdminAvailabilityPage({ searchParams }: { searchPa
   const pageParsed = params.page ? Number(params.page) : 1;
   const page = Number.isInteger(pageParsed) && pageParsed > 0 ? pageParsed : 1;
 
-  // getAvailabilitySlots() calls requireAdmin() internally — same
-  // catch-and-handle pattern as every other role-gated query call site
-  // in this codebase, even though admin/layout.tsx already gates this
-  // route: defense in depth, not redundancy.
+  // getAvailabilitySlots() calls requirePermission("bookings.read")
+  // internally — same catch-and-handle pattern as every other role-gated
+  // query call site in this codebase, even though admin/layout.tsx already
+  // gates this route: defense in depth, not redundancy.
   let result;
   try {
     result = await getAvailabilitySlots({ q: params.q, state, serviceId: params.serviceId, page });

@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
@@ -49,7 +49,7 @@ export type AvailabilitySlotListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getAvailabilitySlots(filters: AvailabilitySlotListFilters = {}): Promise<AvailabilitySlotListResult> {
-  await requireAdmin();
+  await requirePermission("bookings.read");
   const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);

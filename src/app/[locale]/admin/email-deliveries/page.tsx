@@ -15,8 +15,8 @@ import type { EmailDeliveryStatus } from "@prisma/client";
 
 // BOOKING OPS OBSERVABILITY — the read-only admin surface for the BookingEmailDelivery outbox.
 // A single list answers every operational question (enqueued? which event? status? attempts? last
-// attempt/sent? why failed? which booking?) — no separate detail route (§18). requireAdmin()-gated
-// (via the query). No email body/address/secret is stored on a row, so none can leak. No mutation:
+// attempt/sent? why failed? which booking?) — no separate detail route (§18). bookings.read-gated
+// (via the query; STAFF RBAC Gate Z-3). No email body/address/secret is stored on a row, so none can leak. No mutation:
 // no manual resend/unlock in this gate.
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };

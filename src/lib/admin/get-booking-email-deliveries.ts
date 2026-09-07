@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { STALE_CLAIM_MS } from "@/lib/notifications/email/deliver-booking-emails";
 import type { EmailDeliveryStatus } from "@prisma/client";
 
@@ -54,7 +54,7 @@ const DEFAULT_PAGE_SIZE = 20;
 export async function getBookingEmailDeliveries(
   filters: GetBookingEmailDeliveriesFilters = {},
 ): Promise<GetBookingEmailDeliveriesResult> {
-  await requireAdmin();
+  await requirePermission("bookings.read");
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
