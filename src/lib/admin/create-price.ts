@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -56,10 +56,10 @@ export async function createPrice(formData: FormData): Promise<CreatePriceResult
     return { ok: false, error: "PRICING_UNIT_REQUIRED" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("finance.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -93,8 +93,8 @@ export async function createPrice(formData: FormData): Promise<CreatePriceResult
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "price.created",
           entityType: "Price",
           entityId: price.id,
@@ -109,7 +109,7 @@ export async function createPrice(formData: FormData): Promise<CreatePriceResult
     return { ok: true, priceId };
   } catch (error) {
     logger.error("createPrice.unexpected_error", {
-      adminId: admin.id,
+      actorId: actor.actorId,
       message: error instanceof Error ? error.message : String(error),
     });
     return { ok: false, error: "UNKNOWN_ERROR" };

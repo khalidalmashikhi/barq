@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import type { PaymentStatus } from "@prisma/client";
 
 // Admin Payment Overview metrics — Payment Experience & Financial
@@ -29,7 +29,7 @@ const ZERO_COUNTS: Record<PaymentStatus, number> = {
 };
 
 export async function getPaymentOverviewMetrics(): Promise<PaymentOverviewMetrics> {
-  await requireAdmin();
+  await requirePermission("finance.read");
 
   const groups = await prisma.payment.groupBy({
     by: ["status", "currency"],

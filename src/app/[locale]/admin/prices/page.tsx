@@ -42,9 +42,9 @@ export default async function AdminPricesPage({ searchParams }: { searchParams: 
   const pageParsed = params.page ? Number(params.page) : 1;
   const page = Number.isInteger(pageParsed) && pageParsed > 0 ? pageParsed : 1;
 
-  // getPrices() calls requireAdmin() internally — same catch-and-handle
-  // pattern as every other role-gated query call site in this
-  // codebase, even though admin/layout.tsx already gates this route:
+  // getPrices() calls requirePermission("finance.read") internally — same
+  // catch-and-handle pattern as every other role-gated query call site in
+  // this codebase, even though admin/layout.tsx already gates this route:
   // defense in depth, not redundancy.
   let result;
   try {

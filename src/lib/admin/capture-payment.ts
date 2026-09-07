@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -108,10 +108,10 @@ export async function capturePayment(paymentId: string): Promise<CapturePaymentR
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("finance.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -157,8 +157,8 @@ export async function capturePayment(paymentId: string): Promise<CapturePaymentR
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "payment.captured",
           entityType: "Payment",
           entityId: paymentId,

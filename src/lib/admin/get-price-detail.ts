@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
@@ -22,7 +22,7 @@ export type PriceDetail = {
 } | null;
 
 export async function getPriceDetail(priceId: string): Promise<PriceDetail> {
-  await requireAdmin();
+  await requirePermission("finance.read");
 
   if (!isValidUuid(priceId)) {
     return null;

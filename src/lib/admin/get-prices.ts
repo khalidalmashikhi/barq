@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { PriceStatus } from "@prisma/client";
@@ -41,7 +41,7 @@ export type PriceListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getPrices(filters: PriceListFilters = {}): Promise<PriceListResult> {
-  await requireAdmin();
+  await requirePermission("finance.read");
   const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);
