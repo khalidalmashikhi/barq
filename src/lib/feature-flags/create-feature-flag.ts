@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import type { FeatureFlagActionErrorCode } from "./feature-flag-errors";
@@ -35,10 +35,10 @@ export async function createFeatureFlag(formData: FormData): Promise<CreateFeatu
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("settings.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -65,8 +65,8 @@ export async function createFeatureFlag(formData: FormData): Promise<CreateFeatu
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "feature_flag.created",
           entityType: "FeatureFlag",
           entityId: flag.id,
@@ -84,7 +84,7 @@ export async function createFeatureFlag(formData: FormData): Promise<CreateFeatu
       return { ok: false, error: "KEY_TAKEN" };
     }
     logger.error("createFeatureFlag.unexpected_error", {
-      adminId: admin.id,
+      actorId: actor.actorId,
       message: error instanceof Error ? error.message : String(error),
     });
     return { ok: false, error: "UNKNOWN_ERROR" };

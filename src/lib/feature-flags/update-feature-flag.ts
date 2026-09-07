@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -30,10 +30,10 @@ export async function updateFeatureFlag(flagId: string, formData: FormData): Pro
 
   const trimmedDescription = description.trim();
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("settings.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -59,8 +59,8 @@ export async function updateFeatureFlag(flagId: string, formData: FormData): Pro
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "feature_flag.updated",
           entityType: "FeatureFlag",
           entityId: flagId,

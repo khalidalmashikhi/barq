@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 
 // Audit-history read layer — User & Access Management (Batch 6). The first
@@ -31,7 +31,7 @@ export async function getAuditEventsForEntity(
   entityId: string,
   cap: number = DEFAULT_CAP
 ): Promise<AuditEventItem[]> {
-  await requireAdmin();
+  await requirePermission("audit.read");
 
   // entityId is a @db.Uuid column — guard against a non-UUID crashing the query.
   if (!isValidUuid(entityId)) return [];

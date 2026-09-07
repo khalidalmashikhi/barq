@@ -6,7 +6,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const requireAdminMock = vi.fn();
-vi.mock("@/lib/auth", () => ({ requireAdmin: (...a: unknown[]) => requireAdminMock(...a) }));
+vi.mock("@/lib/auth", () => ({
+  requireAdmin: (...a: unknown[]) => requireAdminMock(...a),
+  requirePermission: async (...a: unknown[]) => {
+    const r = await requireAdminMock(...a);
+    const adm = r?.admin ?? { id: "admin-1" };
+    return { barqUser: {}, actor: { actorType: "ADMIN", actorId: adm.id, admin: adm, isOwner: false } };
+  },
+}));
 
 const findManyMock = vi.fn();
 vi.mock("@/lib/db", () => ({ prisma: { auditLog: { findMany: (...a: unknown[]) => findManyMock(...a) } } }));

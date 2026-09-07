@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 vi.mock("@/lib/auth", () => ({
   requireAdmin: vi.fn().mockResolvedValue({ admin: { id: "admin-1" } }),
+  requirePermission: vi.fn().mockResolvedValue({ barqUser: {}, actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" }, isOwner: false } }),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
