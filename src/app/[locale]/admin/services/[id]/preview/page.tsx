@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect } from "@/i18n/navigation";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import {
   getServiceForPreview,
   getRelatedServices,
@@ -34,7 +34,7 @@ export default async function AdminServicePreviewPage({ params }: Props) {
   const locale = await getLocale();
 
   try {
-    await requireAdmin();
+    await requirePermission("content.read");
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
       redirect({ href: "/login", locale });

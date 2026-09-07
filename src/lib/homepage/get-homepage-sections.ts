@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 
 // Admin Homepage Section list query — Phase 1.4 (Core Business Platform).
 // Mirrors get-feature-flags.ts's paginated filters-in/result-out shape.
@@ -40,7 +40,7 @@ export type HomepageSectionListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getHomepageSections(filters: HomepageSectionListFilters = {}): Promise<HomepageSectionListResult> {
-  await requireAdmin();
+  await requirePermission("content.read");
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;

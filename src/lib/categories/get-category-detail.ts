@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { isCategoryEffectivelyVisible } from "./category-visibility-policy";
 
@@ -31,7 +31,7 @@ export type CategoryDetail = {
 } | null;
 
 export async function getCategoryDetail(categoryId: string): Promise<CategoryDetail> {
-  await requireAdmin();
+  await requirePermission("content.read");
 
   if (!isValidUuid(categoryId)) {
     return null;

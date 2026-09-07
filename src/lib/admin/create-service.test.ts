@@ -16,6 +16,11 @@ const requireAdminMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requirePermission: async (...args: unknown[]) => {
+    const r = await requireAdminMock(...args);
+    const adm = r?.admin ?? { id: "admin-1" };
+    return { barqUser: {}, actor: { actorType: "ADMIN", actorId: adm.id, admin: adm, isOwner: false } };
+  },
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));

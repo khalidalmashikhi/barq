@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
@@ -37,7 +37,7 @@ export type ServiceDetail = {
 } | null;
 
 export async function getServiceDetail(serviceId: string): Promise<ServiceDetail> {
-  await requireAdmin();
+  await requirePermission("content.read");
 
   if (!isValidUuid(serviceId)) {
     return null;

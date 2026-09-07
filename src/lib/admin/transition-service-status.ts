@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
 import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
@@ -46,10 +46,10 @@ async function transition(
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("content.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -86,8 +86,8 @@ async function transition(
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: AUDIT_ACTION_BY_STATUS[toStatus],
           entityType: "Service",
           entityId: serviceId,

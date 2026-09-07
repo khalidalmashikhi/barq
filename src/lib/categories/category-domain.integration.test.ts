@@ -25,6 +25,7 @@ vi.mock("next-intl/server", () => ({ getLocale: vi.fn().mockResolvedValue("en") 
 
 vi.mock("@/lib/auth", () => ({
   requireAdmin: vi.fn().mockResolvedValue({ admin: { id: "admin-1" } }),
+  requirePermission: vi.fn().mockResolvedValue({ barqUser: {}, actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" }, isOwner: false } }),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));

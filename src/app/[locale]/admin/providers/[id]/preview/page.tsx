@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect, getPathname } from "@/i18n/navigation";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderProfileForPreview } from "@/lib/services/get-provider-profile";
 import { getProviderPublishedServicesForPreview } from "@/lib/services/get-provider-services-for-preview";
 import { ProviderProfileView } from "@/components/providers/provider-profile-view";
@@ -31,7 +31,7 @@ export default async function AdminProviderPreviewPage({ params, searchParams }:
   const locale = await getLocale();
 
   try {
-    await requireAdmin();
+    await requirePermission("providers.read");
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect({ href: "/login", locale });

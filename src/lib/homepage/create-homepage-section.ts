@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import type { HomepageSectionActionErrorCode } from "./homepage-section-errors";
@@ -38,10 +38,10 @@ export async function createHomepageSection(formData: FormData): Promise<CreateH
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("content.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -77,8 +77,8 @@ export async function createHomepageSection(formData: FormData): Promise<CreateH
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "homepage_section.created",
           entityType: "HomepageSection",
           entityId: section.id,
@@ -96,7 +96,7 @@ export async function createHomepageSection(formData: FormData): Promise<CreateH
       return { ok: false, error: "KEY_TAKEN" };
     }
     logger.error("createHomepageSection.unexpected_error", {
-      adminId: admin.id,
+      actorId: actor.actorId,
       message: error instanceof Error ? error.message : String(error),
     });
     return { ok: false, error: "UNKNOWN_ERROR" };

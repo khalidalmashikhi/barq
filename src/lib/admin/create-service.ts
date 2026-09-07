@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -73,10 +73,10 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("content.manage");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -122,8 +122,8 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "service.created",
           entityType: "Service",
           entityId: service.id,
@@ -139,8 +139,8 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
       if (categoryId) {
         await recordAuditEvent(
           {
-            actorType: "ADMIN",
-            actorId: admin.id,
+            actorType: actor.actorType,
+            actorId: actor.actorId,
             action: "service.category_assigned",
             entityType: "Service",
             entityId: service.id,
@@ -157,7 +157,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     return { ok: true, serviceId };
   } catch (error) {
     logger.error("createService.unexpected_error", {
-      adminId: admin.id,
+      actorId: actor.actorId,
       message: error instanceof Error ? error.message : String(error),
     });
     return { ok: false, error: "UNKNOWN_ERROR" };

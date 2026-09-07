@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 
 // Admin Homepage Section detail query — Phase 1.4 (Core Business
@@ -17,7 +17,7 @@ export type HomepageSectionDetail = {
 } | null;
 
 export async function getHomepageSectionDetail(sectionId: string): Promise<HomepageSectionDetail> {
-  await requireAdmin();
+  await requirePermission("content.read");
 
   if (!isValidUuid(sectionId)) {
     return null;

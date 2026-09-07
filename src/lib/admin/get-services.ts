@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { ServiceStatus } from "@prisma/client";
@@ -45,7 +45,7 @@ export type ServiceListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getServices(filters: ServiceListFilters = {}): Promise<ServiceListResult> {
-  await requireAdmin();
+  await requirePermission("content.read");
   const locale = await getLocale();
 
   const page = Math.max(1, filters.page ?? 1);
