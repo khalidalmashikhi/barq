@@ -7,10 +7,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/uuid", () => ({ isValidUuid: (v: string) => /^[0-9a-f-]{36}$/i.test(v) }));
 
-const requireAdminMock = vi.fn();
-vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
-}));
+const requireAdminMock = vi.fn(); // now backs requireOwner (staff mgmt is OWNER-only)
+vi.mock("@/lib/auth", async () => {
+  const perms = await vi.importActual<typeof import("@/lib/auth/permissions")>("@/lib/auth/permissions");
+  return {
+    requireOwner: (...args: unknown[]) => requireAdminMock(...args),
+    sanitizePermissionKeys: perms.sanitizePermissionKeys,
+  };
+});
 
 const findManyMock = vi.fn();
 const countMock = vi.fn();

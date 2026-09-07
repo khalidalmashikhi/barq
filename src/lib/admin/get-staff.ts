@@ -1,21 +1,22 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOwner, sanitizePermissionKeys } from "@/lib/auth";
+import type { PermissionKey } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import type { StaffStatus, StaffRole } from "@prisma/client";
 
-// Staff list query — User & Access Management (Batch 2). Same shape and
-// phone/User-ID search rules as get-admins.ts. Surfaces the multi-value
-// `roles` (StaffRole[]) so the list can show each member's role assignments;
-// no name/email is stored or searched.
-//
-// AUTH: requireAdmin().
+// Staff list query — STAFF RBAC (Gate Z-3): the OWNER-only staff-management list. Surfaces
+// each member's AUTHORITATIVE permission keys + status + created-by attribution (never
+// email/OTP/tokens). AUTH: requireOwner() — staff administration is OWNER-only.
 
 export type StaffListItem = {
   id: string;
   userId: string;
+  name: string | null;
   phoneNumber: string;
   roles: StaffRole[];
+  permissions: PermissionKey[];
+  invitedByAdminId: string | null;
   status: string;
   createdAt: Date;
 };
@@ -38,7 +39,7 @@ export type StaffListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getStaff(filters: StaffListFilters = {}): Promise<StaffListResult> {
-  await requireAdmin();
+  await requireOwner();
 
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -61,17 +62,29 @@ export async function getStaff(filters: StaffListFilters = {}): Promise<StaffLis
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { user: { select: { phoneNumber: true } } },
+      include: { user: { select: { phoneNumber: true, name: true } } },
     }),
   ]);
 
-  type StaffRow = { id: string; userId: string; status: string; roles: StaffRole[]; createdAt: Date; user: { phoneNumber: string } };
+  type StaffRow = {
+    id: string;
+    userId: string;
+    status: string;
+    roles: StaffRole[];
+    permissions: string[];
+    invitedByAdminId: string | null;
+    createdAt: Date;
+    user: { phoneNumber: string; name: string | null };
+  };
 
   const items: StaffListItem[] = (staff as StaffRow[]).map((member) => ({
     id: member.id,
     userId: member.userId,
+    name: member.user.name,
     phoneNumber: member.user.phoneNumber,
     roles: member.roles,
+    permissions: sanitizePermissionKeys(member.permissions ?? []),
+    invitedByAdminId: member.invitedByAdminId,
     status: member.status,
     createdAt: member.createdAt,
   }));
