@@ -16,7 +16,7 @@ const { requireAdminMock, ForbiddenError, UnauthenticatedError } = vi.hoisted(()
   UnauthenticatedError: class UnauthenticatedError extends Error {},
 }));
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...a: unknown[]) => requireAdminMock(...a),
+  requirePermission: (...a: unknown[]) => requireAdminMock(...a),
   UnauthenticatedError,
   ForbiddenError,
 }));
@@ -50,7 +50,7 @@ afterEach(() => {
 });
 
 function adminOk() {
-  requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+  requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
 }
 
 describe("requestProviderChanges", () => {

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { notifyProviderOfEvent, PROVIDER_NOTIFICATION_EVENT } from "@/lib/notifications/provider-notification-events";
@@ -34,9 +34,9 @@ export async function reviewProviderDocument(input: {
   decision: ReviewDecision;
   reason?: string;
 }): Promise<ProviderDocumentActionResult> {
-  let admin;
+  let actor;
   try {
-    ({ admin } = await requireAdmin());
+    ({ actor } = await requirePermission("providers.review"));
   } catch (error) {
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
     if (error instanceof UnauthenticatedError) throw error;
@@ -72,15 +72,15 @@ export async function reviewProviderDocument(input: {
         data: {
           status: nextStatus,
           reviewedAt,
-          reviewedByAdminId: admin.id,
+          reviewedByAdminId: actor.admin?.id ?? null,
           rejectionReason: reason, // null on APPROVE (clears any prior reason)
         },
       });
       if (updated.count === 0) throw new StaleReview();
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: input.decision === "APPROVE" ? "provider.document_approved" : "provider.document_rejected",
           entityType: "ProviderDocument",
           entityId: doc.id,

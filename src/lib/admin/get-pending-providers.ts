@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 
@@ -18,7 +18,7 @@ export type PendingProviderListItem = {
 };
 
 export async function getPendingProviders(): Promise<PendingProviderListItem[]> {
-  await requireAdmin();
+  await requirePermission("providers.read");
   const locale = await getLocale();
 
   const providers = await prisma.provider.findMany({

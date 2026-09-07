@@ -1,7 +1,7 @@
 import "server-only";
 import type { ProviderDocumentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { documentVersionToken } from "./document-version-token";
 
 // Admin view of ANY provider's verification documents — Gate 2. requireAdmin()
@@ -26,7 +26,7 @@ export type AdminProviderDocumentListItem = {
 };
 
 export async function listProviderDocumentsForAdmin(providerId: string): Promise<AdminProviderDocumentListItem[]> {
-  await requireAdmin();
+  await requirePermission("providerDocuments.read");
 
   const rows = await prisma.providerDocument.findMany({
     where: { providerId },

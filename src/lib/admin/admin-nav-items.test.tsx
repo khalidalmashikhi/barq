@@ -35,6 +35,12 @@ describe("getAdminNavItems — STAFF (permission-driven)", () => {
     expect(items.some((i) => i.href === "/admin/users")).toBe(false);
   });
 
+  it("a PROVIDER_VERIFICATION staff sees ONLY Providers", () => {
+    const items = getAdminNavItems(t, "en", staff(["providers.read", "providers.review", "providerDocuments.read"])) as NavItem[];
+    expect(items.map((i) => i.href)).toEqual(["/admin/providers"]);
+    expect(items.some((i) => i.href === "/admin/reviews")).toBe(false);
+  });
+
   it("a staff whose permitted modules are all still admin-only (finance) sees NO nav → no-access", () => {
     expect(getAdminNavItems(t, "en", staff(["finance.read", "finance.manage", "bookings.read"]))).toEqual([]);
   });

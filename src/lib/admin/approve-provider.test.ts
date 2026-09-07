@@ -11,7 +11,7 @@ vi.mock("server-only", () => ({}));
 const requireAdminMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requirePermission: (...args: unknown[]) => requireAdminMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -64,7 +64,7 @@ afterEach(() => {
 
 describe("approveProvider", () => {
   it("returns PROVIDER_NOT_FOUND when the provider doesn't exist", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue(null);
 
     const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
@@ -74,7 +74,7 @@ describe("approveProvider", () => {
   });
 
   it("returns PROVIDER_NOT_PENDING for a provider not in APPLIED/UNDER_REVIEW", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPROVED" });
 
     const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
@@ -84,7 +84,7 @@ describe("approveProvider", () => {
   });
 
   it("Gate 1A: a DRAFT provider is NOT admin-approvable (must submit first) — PROVIDER_NOT_PENDING", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "DRAFT" });
 
     const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
@@ -94,7 +94,7 @@ describe("approveProvider", () => {
   });
 
   it("updates the provider and records an audit event atomically, in the same transaction", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
     assertApprovableMock.mockResolvedValue([]);
     updateMock.mockResolvedValue({});
@@ -121,7 +121,7 @@ describe("approveProvider", () => {
   });
 
   it("creates a PROVIDER_APPROVED notification for the provider's user AFTER a successful approval", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
     assertApprovableMock.mockResolvedValue([]);
     updateMock.mockResolvedValue({});
@@ -149,7 +149,7 @@ describe("approveProvider", () => {
   });
 
   it("still succeeds (status + audit committed) even if the post-approval notification write throws", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "UNDER_REVIEW", userId: "user-9" });
     assertApprovableMock.mockResolvedValue([]);
     updateMock.mockResolvedValue({});
@@ -170,7 +170,7 @@ describe("approveProvider", () => {
   });
 
   it("refuses approval with INCOMPLETE_DOCUMENTS (and the blockers) when required documents are not complete", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
     const blockers = [{ type: "IDENTITY_PROOF", reason: "MISSING" }];
     assertApprovableMock.mockResolvedValue(blockers);
@@ -181,7 +181,7 @@ describe("approveProvider", () => {
   });
 
   it("does NOT transition, audit, or notify when approval is blocked by incomplete documents", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "UNDER_REVIEW", userId: "user-9" });
     assertApprovableMock.mockResolvedValue([{ type: "COMMERCIAL_REGISTRATION", reason: "NOT_APPROVED" }]);
 
@@ -196,7 +196,7 @@ describe("approveProvider", () => {
   });
 
   it("returns UNKNOWN_ERROR when an unexpected exception occurs", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockRejectedValue(new Error("db unavailable"));
 
     const result = await approveProvider("019f4e4e-8116-7052-b15e-b79b5ccb1af9");
@@ -209,7 +209,7 @@ describe("approveProvider", () => {
   // approval must FAIL CLOSED: no transition, no audit, no notify, and a safe generic
   // error (never a leaked Prisma/storage message, never an assumed-empty "approvable").
   it("FAILS CLOSED (UNKNOWN_ERROR, no side effects) when the readiness read throws at mutation time", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
     findUniqueMock.mockResolvedValue({ id: "provider-1", status: "APPLIED", userId: "user-9" });
     assertApprovableMock.mockRejectedValue(new Error("verification store down: secret-connection-string"));
 

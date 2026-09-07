@@ -8,7 +8,7 @@ vi.mock("server-only", () => ({}));
 const requireAdminMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...args: unknown[]) => requireAdminMock(...args),
+  requirePermission: (...args: unknown[]) => requireAdminMock(...args),
 }));
 
 const findUniqueMock = vi.fn();

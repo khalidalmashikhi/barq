@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 
 // Admin Provider detail query — Phase 2 (Provider Foundation). Returns
@@ -35,7 +35,7 @@ export type ProviderDetail = {
 } | null;
 
 export async function getProviderDetail(providerId: string): Promise<ProviderDetail> {
-  await requireAdmin();
+  await requirePermission("providers.read");
 
   if (!isValidUuid(providerId)) {
     return null;

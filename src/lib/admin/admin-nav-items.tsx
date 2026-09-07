@@ -29,7 +29,7 @@ type InternalNavItem = AppNavItem & { show: NavVisibility };
 export function getAdminNavItems(t: AdminTranslator, locale: Locale, ctx: AdminNavContext): AppNavItem[] {
   const items: InternalNavItem[] = [
     { show: "ownerOrAdmin", label: t("navOverview"), href: getPathname({ href: "/admin", locale }), icon: <LayoutDashboard size={18} strokeWidth={1.75} /> },
-    { show: "ownerOrAdmin", label: t("navProviders"), href: getPathname({ href: "/admin/providers", locale }), icon: <Users size={18} strokeWidth={1.75} /> },
+    { show: "providers.read", label: t("navProviders"), href: getPathname({ href: "/admin/providers", locale }), icon: <Users size={18} strokeWidth={1.75} /> },
     { show: "ownerOrAdmin", label: t("navVehicles"), href: getPathname({ href: "/admin/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
     { show: "ownerOrAdmin", label: t("navServices"), href: getPathname({ href: "/admin/services", locale }), icon: <Compass size={18} strokeWidth={1.75} /> },
     { show: "ownerOrAdmin", label: t("navPrices"), href: getPathname({ href: "/admin/prices", locale }), icon: <Tag size={18} strokeWidth={1.75} /> },
@@ -62,6 +62,7 @@ export function getAdminNavItems(t: AdminTranslator, locale: Locale, ctx: AdminN
 // null if none. Lands a Staff member on a working module instead of the admin-only Overview.
 // Lists ONLY domains whose pages are permission-refactored (grows per gate turn).
 const STAFF_LANDING_ORDER: ReadonlyArray<readonly [PermissionKey, string]> = [
+  ["providers.read", "/admin/providers"],
   ["reviews.read", "/admin/reviews"],
 ];
 

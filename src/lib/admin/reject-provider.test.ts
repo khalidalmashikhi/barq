@@ -12,7 +12,7 @@ vi.mock("server-only", () => ({}));
 
 const requireAdminMock = vi.fn();
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...a: unknown[]) => requireAdminMock(...a),
+  requirePermission: (...a: unknown[]) => requireAdminMock(...a),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 function adminOk() {
-  requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+  requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1", admin: { id: "admin-1" } } });
 }
 
 describe("rejectProvider", () => {

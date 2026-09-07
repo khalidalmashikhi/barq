@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -47,10 +47,10 @@ export async function requestProviderChanges(providerId: string, reasonInput: st
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("providers.review");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -90,15 +90,15 @@ export async function requestProviderChanges(providerId: string, reasonInput: st
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "provider.changes_requested",
           entityType: "Provider",
           entityId: providerId,
           previousValue: { status: provider.status },
           // Reason retained here permanently — survives the provider's re-submit,
           // which clears Provider.rejectionReason but never touches the audit trail.
-          newValue: { status: "CHANGES_REQUESTED", reason, byAdminId: admin.id },
+          newValue: { status: "CHANGES_REQUESTED", reason, byAdminId: actor.admin?.id ?? null },
         },
         tx
       );

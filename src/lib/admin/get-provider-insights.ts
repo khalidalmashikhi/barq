@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import type { BookingStatus } from "@prisma/client";
@@ -55,7 +55,7 @@ function toInsightItem(provider: { id: string; businessName: unknown; createdAt:
 }
 
 export async function getProviderInsights(): Promise<ProviderInsights> {
-  await requireAdmin();
+  await requirePermission("providers.read");
   const locale = await getLocale();
 
   const noRecentActivitySince = new Date(Date.now() - NO_RECENT_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000);

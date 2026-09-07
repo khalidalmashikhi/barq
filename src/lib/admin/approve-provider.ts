@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -44,10 +44,13 @@ export async function approveProvider(providerId: string): Promise<ApproveProvid
     return { ok: false, error: "INVALID_INPUT" };
   }
 
-  let admin;
+  // STAFF RBAC (Gate Z-3) — provider approval requires providers.review. The actor drives
+  // audit attribution (ADMIN/Admin.id or STAFF/Staff.id); the approvedByAdminId FK is set
+  // only for an Admin actor (null for a Staff reviewer — the AuditLog carries the identity).
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("providers.review");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect("/");
@@ -90,19 +93,19 @@ export async function approveProvider(providerId: string): Promise<ApproveProvid
         data: {
           status: "APPROVED",
           approvedAt,
-          approvedByAdminId: admin.id,
+          approvedByAdminId: actor.admin?.id ?? null,
         },
       });
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: "provider.approved",
           entityType: "Provider",
           entityId: providerId,
           previousValue: { status: provider.status },
-          newValue: { status: "APPROVED", approvedAt: approvedAt.toISOString(), approvedByAdminId: admin.id },
+          newValue: { status: "APPROVED", approvedAt: approvedAt.toISOString(), approvedByAdminId: actor.admin?.id ?? null },
         },
         tx
       );
