@@ -777,5 +777,15 @@
   "module_users": "المستخدمون",
   "module_content": "المحتوى",
   "module_settings": "الإعدادات",
-  "module_audit": "سجل التدقيق"
+  "module_audit": "سجل التدقيق",
+  "staffEditPermsHeading": "صلاحيات تفصيلية",
+  "staffEditPermsHint": "فعّل أو عطّل كل صلاحية على حدة. يتجاوز هذا الدور أعلاه.",
+  "staffEditPermsSave": "حفظ الصلاحيات",
+  "staffEditPermsToggle": "تخصيص الصلاحيات",
+  "permAction_read": "عرض",
+  "permAction_manage": "إدارة",
+  "permAction_review": "المراجعة والتوثيق",
+  "permAction_cancel": "إلغاء الحجوزات",
+  "permAction_moderate": "الإشراف",
+  "permHighImpact": "تأثير عالٍ"
 }

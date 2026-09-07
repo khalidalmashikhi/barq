@@ -777,5 +777,15 @@
   "module_users": "Uživatelé",
   "module_content": "Obsah",
   "module_settings": "Nastavení",
-  "module_audit": "Auditní záznam"
+  "module_audit": "Auditní záznam",
+  "staffEditPermsHeading": "Podrobná oprávnění",
+  "staffEditPermsHint": "Zapněte nebo vypněte jednotlivé funkce. Přepíše to roli výše.",
+  "staffEditPermsSave": "Uložit oprávnění",
+  "staffEditPermsToggle": "Přizpůsobit oprávnění",
+  "permAction_read": "Zobrazit",
+  "permAction_manage": "Spravovat",
+  "permAction_review": "Kontrola a ověření",
+  "permAction_cancel": "Rušit rezervace",
+  "permAction_moderate": "Moderovat",
+  "permHighImpact": "Vysoký dopad"
 }

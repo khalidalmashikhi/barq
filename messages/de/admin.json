@@ -777,5 +777,15 @@
   "module_users": "Benutzer",
   "module_content": "Inhalte",
   "module_settings": "Einstellungen",
-  "module_audit": "Audit-Protokoll"
+  "module_audit": "Audit-Protokoll",
+  "staffEditPermsHeading": "Detaillierte Berechtigungen",
+  "staffEditPermsHint": "Einzelne Berechtigungen aktivieren oder deaktivieren. Dies überschreibt die Rolle oben.",
+  "staffEditPermsSave": "Berechtigungen speichern",
+  "staffEditPermsToggle": "Berechtigungen anpassen",
+  "permAction_read": "Ansehen",
+  "permAction_manage": "Verwalten",
+  "permAction_review": "Prüfen & verifizieren",
+  "permAction_cancel": "Buchungen stornieren",
+  "permAction_moderate": "Moderieren",
+  "permHighImpact": "Hohe Auswirkung"
 }

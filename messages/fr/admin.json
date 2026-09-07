@@ -777,5 +777,15 @@
   "module_users": "Utilisateurs",
   "module_content": "Contenu",
   "module_settings": "Paramètres",
-  "module_audit": "Journal d'audit"
+  "module_audit": "Journal d'audit",
+  "staffEditPermsHeading": "Autorisations détaillées",
+  "staffEditPermsHint": "Activez ou désactivez chaque capacité. Cela remplace le rôle ci-dessus.",
+  "staffEditPermsSave": "Enregistrer les autorisations",
+  "staffEditPermsToggle": "Personnaliser les autorisations",
+  "permAction_read": "Voir",
+  "permAction_manage": "Gérer",
+  "permAction_review": "Examiner et vérifier",
+  "permAction_cancel": "Annuler des réservations",
+  "permAction_moderate": "Modérer",
+  "permHighImpact": "Impact élevé"
 }

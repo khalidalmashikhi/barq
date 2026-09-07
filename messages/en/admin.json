@@ -777,5 +777,15 @@
   "module_users": "Users",
   "module_content": "Content",
   "module_settings": "Settings",
-  "module_audit": "Audit log"
+  "module_audit": "Audit log",
+  "staffEditPermsHeading": "Fine-grained permissions",
+  "staffEditPermsHint": "Turn individual capabilities on or off. This overrides the role above.",
+  "staffEditPermsSave": "Save permissions",
+  "staffEditPermsToggle": "Customize permissions",
+  "permAction_read": "View",
+  "permAction_manage": "Manage",
+  "permAction_review": "Review & verify",
+  "permAction_cancel": "Cancel bookings",
+  "permAction_moderate": "Moderate",
+  "permHighImpact": "High impact"
 }

@@ -777,5 +777,15 @@
   "module_users": "Utenti",
   "module_content": "Contenuti",
   "module_settings": "Impostazioni",
-  "module_audit": "Registro di controllo"
+  "module_audit": "Registro di controllo",
+  "staffEditPermsHeading": "Autorizzazioni dettagliate",
+  "staffEditPermsHint": "Attiva o disattiva le singole capacità. Sostituisce il ruolo sopra.",
+  "staffEditPermsSave": "Salva autorizzazioni",
+  "staffEditPermsToggle": "Personalizza autorizzazioni",
+  "permAction_read": "Visualizza",
+  "permAction_manage": "Gestisci",
+  "permAction_review": "Esamina e verifica",
+  "permAction_cancel": "Annulla prenotazioni",
+  "permAction_moderate": "Modera",
+  "permHighImpact": "Alto impatto"
 }

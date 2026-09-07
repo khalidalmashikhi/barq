@@ -777,5 +777,15 @@
   "module_users": "Użytkownicy",
   "module_content": "Treści",
   "module_settings": "Ustawienia",
-  "module_audit": "Dziennik audytu"
+  "module_audit": "Dziennik audytu",
+  "staffEditPermsHeading": "Szczegółowe uprawnienia",
+  "staffEditPermsHint": "Włącz lub wyłącz poszczególne uprawnienia. Zastępuje to rolę powyżej.",
+  "staffEditPermsSave": "Zapisz uprawnienia",
+  "staffEditPermsToggle": "Dostosuj uprawnienia",
+  "permAction_read": "Podgląd",
+  "permAction_manage": "Zarządzaj",
+  "permAction_review": "Przegląd i weryfikacja",
+  "permAction_cancel": "Anuluj rezerwacje",
+  "permAction_moderate": "Moderuj",
+  "permHighImpact": "Duży wpływ"
 }

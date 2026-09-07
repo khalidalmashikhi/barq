@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect } from "@/i18n/navigation";
 import { UserCog, ShieldAlert } from "lucide-react";
-import { ForbiddenError, UnauthenticatedError, STAFF_PRESET_NAMES, PERMISSION_MODULE } from "@/lib/auth";
-import type { StaffPresetName } from "@/lib/auth";
+import { ForbiddenError, UnauthenticatedError, STAFF_PRESET_NAMES, PERMISSION_MODULE, PERMISSION_KEYS } from "@/lib/auth";
+import type { StaffPresetName, PermissionKey } from "@/lib/auth";
 import { getStaff } from "@/lib/admin/get-staff";
 import { createStaff } from "@/lib/admin/create-staff";
 import { setStaffPermissions } from "@/lib/admin/set-staff-permissions";
@@ -34,6 +34,25 @@ const PRESET_LEGACY_ROLE: Record<StaffPresetName, "OPERATIONS" | "SUPPORT" | "FI
   SUPPORT: "SUPPORT",
   REVIEW_MODERATOR: "SUPPORT",
 };
+
+// Permission keys grouped by module in canonical taxonomy order — backs the fine-grained
+// editor. Presets are convenience templates; this editor writes the authoritative
+// Staff.permissions set directly (setStaffPermissions with an explicit list).
+const PERMISSIONS_BY_MODULE: Array<[string, PermissionKey[]]> = (() => {
+  const groups = new Map<string, PermissionKey[]>();
+  for (const key of PERMISSION_KEYS) {
+    const module = PERMISSION_MODULE[key];
+    const list = groups.get(module) ?? [];
+    list.push(key);
+    groups.set(module, list);
+  }
+  return [...groups.entries()];
+})();
+
+// The action verb of a permission key ("bookings.cancel" -> "cancel") maps to a small,
+// translatable set of action labels (read/manage/review/cancel/moderate) shown under each
+// module group, instead of 17 separate per-key strings.
+const permActionKey = (key: PermissionKey): string => `permAction_${key.split(".")[1]}`;
 
 type Props = { searchParams: Promise<{ error?: string; notice?: string }> };
 
@@ -227,6 +246,50 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                       </form>
                     )}
                   </div>
+
+                  {/* Fine-grained editor (§10/§11) — writes the AUTHORITATIVE Staff.permissions
+                      set directly via setStaffPermissions (explicit list, OWNER-only, sanitized
+                      server-side). Overrides whatever preset was last applied. */}
+                  <details className="border-t border-border/40 pt-3">
+                    <summary className="cursor-pointer text-xs font-medium text-foreground/60">{t("staffEditPermsToggle")}</summary>
+                    <form
+                      action={async (formData: FormData) => {
+                        "use server";
+                        const l = await getLocale();
+                        const staffId = String(formData.get("staffId") ?? "");
+                        const perms = formData.getAll("perm").filter((v): v is string => typeof v === "string");
+                        const r = await setStaffPermissions(staffId, { permissions: perms });
+                        redirect({ href: r.ok ? "/admin/staff?notice=1" : "/admin/staff?error=1", locale: l });
+                      }}
+                      className="mt-3 flex flex-col gap-3"
+                    >
+                      <input type="hidden" name="staffId" value={member.id} />
+                      <p className="text-xs text-foreground/50">{t("staffEditPermsHint")}</p>
+                      {PERMISSIONS_BY_MODULE.map(([module, keys]) => (
+                        <fieldset key={module} className="flex flex-col gap-1.5">
+                          <legend className="text-xs font-semibold text-foreground/70">{moduleLabel(keys[0])}</legend>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                            {keys.map((key) => (
+                              <label key={key} className="inline-flex items-center gap-1.5 text-xs text-foreground/70">
+                                <input
+                                  type="checkbox"
+                                  name="perm"
+                                  value={key}
+                                  defaultChecked={member.permissions.includes(key)}
+                                  className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20"
+                                />
+                                {t(permActionKey(key) as AdminKey)}
+                                {key === "bookings.cancel" && <span className="text-warning">({t("permHighImpact")})</span>}
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
+                      ))}
+                      <SubmitButton className="self-start rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent/20 disabled:opacity-50">
+                        {t("staffEditPermsSave")}
+                      </SubmitButton>
+                    </form>
+                  </details>
                 </li>
               );
             })}

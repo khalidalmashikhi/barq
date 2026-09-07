@@ -777,5 +777,15 @@
   "module_users": "Пользователи",
   "module_content": "Контент",
   "module_settings": "Настройки",
-  "module_audit": "Журнал аудита"
+  "module_audit": "Журнал аудита",
+  "staffEditPermsHeading": "Точные разрешения",
+  "staffEditPermsHint": "Включайте или отключайте отдельные возможности. Это переопределяет роль выше.",
+  "staffEditPermsSave": "Сохранить разрешения",
+  "staffEditPermsToggle": "Настроить разрешения",
+  "permAction_read": "Просмотр",
+  "permAction_manage": "Управление",
+  "permAction_review": "Проверка и верификация",
+  "permAction_cancel": "Отмена броней",
+  "permAction_moderate": "Модерация",
+  "permHighImpact": "Высокий риск"
 }
