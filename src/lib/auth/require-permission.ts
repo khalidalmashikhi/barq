@@ -101,6 +101,22 @@ export async function requirePermission(permission: PermissionKey): Promise<{ ba
 }
 
 /**
+ * Require ANY authenticated internal actor (ACTIVE Admin/OWNER or ACTIVE Staff), with NO
+ * specific permission. For the shared internal shell/layout so a legitimate Staff member
+ * can enter — every page/action/API BELOW it still enforces its own requirePermission(key).
+ * Customers/providers and deactivated internal accounts are denied.
+ */
+export async function requireInternal(): Promise<{ barqUser: User; actor: InternalActor }> {
+  const { barqUser } = await requireAuth();
+  const actor = await resolveInternalActor(barqUser);
+  if (!actor) {
+    logger.warn("auth.internal_forbidden", { userId: barqUser.id, requiredPermission: "<internal>" });
+    internalForbidden();
+  }
+  return { barqUser, actor };
+}
+
+/**
  * Require the platform OWNER (Admin.level=OWNER, ACTIVE). The ONLY authority for staff/
  * admin/permission administration. A non-owner Admin, any Staff, or a customer/provider
  * is denied with the same canonical error (never revealing that owner power exists).

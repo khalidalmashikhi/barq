@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect } from "@/i18n/navigation";
 import { ShieldCheck, ClipboardList, Loader2, XCircle, Star, UserPlus, Users, PackageX, CalendarOff, UserRound, Trophy, PenLine } from "lucide-react";
-import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { UnauthenticatedError, ForbiddenError, requireInternal } from "@/lib/auth";
+import { firstAllowedAdminPath } from "@/lib/admin/admin-nav-items";
 import { getAdminOverview } from "@/lib/admin/get-admin-overview";
 import { getProviderInsights } from "@/lib/admin/get-provider-insights";
 import { getCustomers } from "@/lib/admin/get-customers";
@@ -33,6 +34,20 @@ export default async function AdminOverviewPage() {
   const t = await getServerTranslator("admin");
   const tBooking = await getServerTranslator("booking");
   const locale = await getLocale();
+
+  // STAFF RBAC (Gate Z-3) — the Overview is admin-only operational data. A STAFF actor is
+  // landed on their first permitted module instead (the layout shows a "no access" state
+  // for a zero-permission staff member, so a staff reaching here has at least one module).
+  const { actor } = await requireInternal();
+  if (actor.kind === "STAFF") {
+    const landing = firstAllowedAdminPath(actor.permissions);
+    if (landing) {
+      redirect({ href: landing, locale });
+    } else {
+      notFound();
+    }
+    return null;
+  }
 
   let overview, providerInsights, recentCustomersResult, mostBookedCustomers, customersAwaitingReviews;
   try {

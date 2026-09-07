@@ -56,6 +56,10 @@ export async function BookingTimeline({ events }: BookingTimelineProps) {
     PROVIDER: t("timelineActorProvider"),
     SYSTEM: t("timelineActorSystem"),
     ADMIN: t("timelineActorAdmin"),
+    // STAFF RBAC (Gate Z-3) — a customer-facing timeline shows an internal Staff actor with
+    // the SAME generic "BARQ team" label as ADMIN; it never reveals the internal staff/admin
+    // distinction (privacy). Attribution to the specific STAFF actor lives only in AuditLog.
+    STAFF: t("timelineActorAdmin"),
   };
 
   return (

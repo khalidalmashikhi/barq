@@ -1,80 +1,55 @@
 import { describe, it, expect, vi } from "vitest";
+import type { PermissionKey } from "@/lib/auth/permissions";
 
-// Admin Operations Platform — regression tests for getAdminNavItems(),
-// mirroring src/lib/dashboard/customer-nav-items.test.tsx's shape.
+// STAFF RBAC (Gate Z-3) — getAdminNavItems() is PERMISSION-DRIVEN. Pure (no @/lib/auth
+// call): it renders from the {permissions, isAdmin, isOwner} context it is given.
 
-vi.mock("@/i18n/navigation", () => ({
-  getPathname: ({ href }: { href: string }) => href,
-}));
+vi.mock("@/i18n/navigation", () => ({ getPathname: ({ href }: { href: string }) => href }));
 
+const { getAdminNavItems, firstAllowedAdminPath } = await import("./admin-nav-items");
 type NavItem = { label: string; href?: string };
-
-const { getAdminNavItems } = await import("./admin-nav-items");
-
 const t = ((key: string) => key) as unknown as Parameters<typeof getAdminNavItems>[0];
 
-describe("getAdminNavItems", () => {
-  it("puts Overview first", () => {
-    const items = getAdminNavItems(t, "en") as NavItem[];
+const OWNER = { permissions: new Set<PermissionKey>(), isAdmin: true, isOwner: true };
+const staff = (perms: PermissionKey[]) => ({ permissions: new Set(perms), isAdmin: false, isOwner: false });
+
+describe("getAdminNavItems — OWNER/ADMIN", () => {
+  it("OWNER sees Overview first and every module", () => {
+    const items = getAdminNavItems(t, "en", OWNER) as NavItem[];
     expect(items[0]).toEqual(expect.objectContaining({ label: "navOverview", href: "/admin" }));
-  });
-
-  it("includes real, navigable Customers and Reviews routes", () => {
-    const items = getAdminNavItems(t, "en") as NavItem[];
-    expect(items).toEqual(
+    expect(items.map((i) => i.href)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: "navCustomers", href: "/admin/customers" }),
-        expect.objectContaining({ label: "navReviews", href: "/admin/reviews" }),
+        "/admin/providers", "/admin/reviews", "/admin/customers", "/admin/payments",
+        "/admin/email-deliveries", "/admin/users", "/admin/services", "/admin/prices",
+        "/admin/availability", "/admin/bookings", "/admin/categories", "/admin/feature-flags", "/admin/homepage-sections",
       ])
     );
   });
+});
 
-  // Payment Experience & Financial Operations phase.
-  it("includes a real, navigable Payments route", () => {
-    const items = getAdminNavItems(t, "en") as NavItem[];
-    expect(items).toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: "navPayments", href: "/admin/payments" })])
-    );
+describe("getAdminNavItems — STAFF (permission-driven)", () => {
+  it("a REVIEW_MODERATOR staff sees ONLY Reviews (no Overview, no admin-only modules)", () => {
+    const items = getAdminNavItems(t, "en", staff(["reviews.read", "reviews.moderate"])) as NavItem[];
+    expect(items.map((i) => i.href)).toEqual(["/admin/reviews"]);
+    expect(items.some((i) => i.href === "/admin")).toBe(false);
+    expect(items.some((i) => i.href === "/admin/users")).toBe(false);
   });
 
-  // BOOKING OPS OBSERVABILITY — the email-delivery ops route.
-  it("includes a navigable Email Delivery ops route", () => {
-    const items = getAdminNavItems(t, "en") as NavItem[];
-    expect(items).toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: "navEmailDeliveries", href: "/admin/email-deliveries" })])
-    );
+  it("a staff whose permitted modules are all still admin-only (finance) sees NO nav → no-access", () => {
+    expect(getAdminNavItems(t, "en", staff(["finance.read", "finance.manage", "bookings.read"]))).toEqual([]);
   });
 
-  // User & Access Management (Batch 2).
-  it("includes a navigable User Management route", () => {
-    const items = getAdminNavItems(t, "en") as NavItem[];
-    expect(items).toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: "navUserManagement", href: "/admin/users" })])
-    );
+  it("a zero-permission staff sees no nav items", () => {
+    expect(getAdminNavItems(t, "en", staff([]))).toEqual([]);
   });
+});
 
-  it("preserves every pre-existing admin route", () => {
-    const items = getAdminNavItems(t, "en") as NavItem[];
-    const hrefs = items.map((item) => item.href);
-    expect(hrefs).toEqual(
-      expect.arrayContaining([
-        "/admin/providers",
-        "/admin/services",
-        "/admin/prices",
-        "/admin/availability",
-        "/admin/bookings",
-        "/admin/categories",
-        "/admin/feature-flags",
-        "/admin/homepage-sections",
-      ])
-    );
+describe("firstAllowedAdminPath", () => {
+  it("returns the first converted module a staff can reach", () => {
+    expect(firstAllowedAdminPath(new Set(["reviews.read"]))).toBe("/admin/reviews");
   });
-
-  it("imports without mocking @/lib/auth — proving no internal RBAC call", async () => {
-    // If getAdminNavItems() called requireAdmin()/hasActiveAdminProfile()
-    // itself, importing it in this file (which never mocks "@/lib/auth")
-    // would throw at call time. It doesn't — the helper only renders
-    // from data it's given.
-    expect(() => getAdminNavItems(t, "en")).not.toThrow();
+  it("returns null when no converted module is permitted", () => {
+    expect(firstAllowedAdminPath(new Set(["finance.read"]))).toBeNull();
+    expect(firstAllowedAdminPath(new Set())).toBeNull();
   });
 });

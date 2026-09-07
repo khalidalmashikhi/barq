@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "Voir la réservation",
   "emailDeliveryNoneLabel": "Aucune livraison d'e-mail pour le moment",
   "emailDeliveryNoneDescription": "Les e-mails de notification de réservation apparaîtront ici dès que les réservations en généreront.",
-  "emailDeliveryNoResultsLabel": "Aucune livraison d'e-mail ne correspond à ce filtre"
+  "emailDeliveryNoResultsLabel": "Aucune livraison d'e-mail ne correspond à ce filtre",
+  "staffNoAccessTitle": "Aucun accès attribué",
+  "staffNoAccessBody": "Aucun module n'est encore attribué à votre compte. Veuillez contacter le propriétaire pour obtenir un accès."
 }

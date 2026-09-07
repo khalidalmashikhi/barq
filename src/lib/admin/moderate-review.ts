@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requirePermission, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -45,10 +45,13 @@ export async function moderateReview(reviewId: string, formData: FormData): Prom
   const reason = typeof rawReason === "string" ? rawReason.trim() : "";
   if (reason.length > REASON_MAX) return { ok: false, error: "INVALID_INPUT" };
 
-  let admin;
+  // STAFF RBAC (Gate Z-3) — moderation requires reviews.moderate (OWNER, non-owner ADMIN by
+  // compatibility, or a Staff member granted it). The actor drives correct audit attribution
+  // (ADMIN with Admin.id, or STAFF with Staff.id).
+  let actor;
   try {
-    const auth = await requireAdmin();
-    admin = auth.admin;
+    const auth = await requirePermission("reviews.moderate");
+    actor = auth.actor;
   } catch (error) {
     if (error instanceof UnauthenticatedError) redirect("/");
     if (error instanceof ForbiddenError) return { ok: false, error: "NO_ADMIN_PROFILE" };
@@ -76,8 +79,8 @@ export async function moderateReview(reviewId: string, formData: FormData): Prom
 
       await recordAuditEvent(
         {
-          actorType: "ADMIN",
-          actorId: admin.id,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
           action: moderationAuditAction(action),
           entityType: "Review",
           entityId: reviewId,

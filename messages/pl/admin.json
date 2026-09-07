@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "Zobacz rezerwację",
   "emailDeliveryNoneLabel": "Brak dostarczeń e-maili",
   "emailDeliveryNoneDescription": "E-maile z powiadomieniami o rezerwacjach pojawią się tutaj, gdy rezerwacje je wygenerują.",
-  "emailDeliveryNoResultsLabel": "Żadne dostarczenie e-maila nie pasuje do tego filtra"
+  "emailDeliveryNoResultsLabel": "Żadne dostarczenie e-maila nie pasuje do tego filtra",
+  "staffNoAccessTitle": "Brak przypisanego dostępu",
+  "staffNoAccessBody": "Do Twojego konta nie przypisano jeszcze żadnych modułów. Skontaktuj się z właścicielem, aby uzyskać dostęp."
 }

@@ -34,6 +34,7 @@ export {
 export type { EffectiveAccountType, AccountProfileSnapshot } from "./effective-account-type";
 export {
   resolveInternalActor,
+  requireInternal,
   requirePermission,
   requireOwner,
   getEffectivePermissions,

@@ -11,7 +11,7 @@ const requireAdminMock = vi.fn();
 class UnauthenticatedError extends Error {}
 class ForbiddenError extends Error {}
 vi.mock("@/lib/auth", () => ({
-  requireAdmin: (...a: unknown[]) => requireAdminMock(...a),
+  requirePermission: (...a: unknown[]) => requireAdminMock(...a),
   UnauthenticatedError,
   ForbiddenError,
 }));
@@ -61,7 +61,7 @@ describe("moderateReview — authority & input", () => {
   });
 
   it("INVALID_INPUT for an unknown/absent action (no arbitrary state write)", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     expect(await moderateReview(REVIEW_ID, form({ action: "PUBLISH" }))).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(await moderateReview(REVIEW_ID, form({}))).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(findUniqueMock).not.toHaveBeenCalled();
@@ -74,27 +74,27 @@ describe("moderateReview — authority & input", () => {
   });
 
   it("rejects an over-length reason", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     expect(await moderateReview(REVIEW_ID, form({ action: "FLAG", reason: "x".repeat(501) }))).toEqual({ ok: false, error: "INVALID_INPUT" });
   });
 });
 
 describe("moderateReview — resolution & transitions", () => {
   it("REVIEW_NOT_FOUND for an unknown review (no existence leak beyond the code)", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue(null);
     expect(await moderateReview(REVIEW_ID, form({ action: "FLAG" }))).toEqual({ ok: false, error: "REVIEW_NOT_FOUND" });
   });
 
   it("INVALID_TRANSITION when the action doesn't apply to the current state (e.g. FLAG an already-FLAGGED)", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: "FLAGGED" });
     expect(await moderateReview(REVIEW_ID, form({ action: "FLAG" }))).toEqual({ ok: false, error: "INVALID_TRANSITION" });
     expect(updateManyMock).not.toHaveBeenCalled();
   });
 
   it("FLAG: PUBLISHED → FLAGGED via a state-guarded update (never a hard delete), audited with state only", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: "PUBLISHED" });
 
     expect(await moderateReview(REVIEW_ID, form({ action: "FLAG", reason: "spam" }))).toEqual({ ok: true });
@@ -118,13 +118,25 @@ describe("moderateReview — resolution & transitions", () => {
     );
   });
 
+  it("STAFF RBAC (Gate Z-3): a Staff moderator's action is audited as actorType STAFF, actorId = Staff.id", async () => {
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "STAFF", actorId: "staff-9" } });
+    findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: "PUBLISHED" });
+
+    expect(await moderateReview(REVIEW_ID, form({ action: "FLAG" }))).toEqual({ ok: true });
+
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: "STAFF", actorId: "staff-9", action: "review.flagged" }),
+      expect.anything(),
+    );
+  });
+
   it.each([
     ["REMOVE", "PUBLISHED", "REMOVED", "review.removed"],
     ["REMOVE", "FLAGGED", "REMOVED", "review.removed"],
     ["RESTORE", "FLAGGED", "PUBLISHED", "review.restored"],
     ["RESTORE", "REMOVED", "PUBLISHED", "review.restored"],
   ] as const)("%s from %s → %s (audit %s)", async (action, current, target, auditAction) => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: current });
     expect(await moderateReview(REVIEW_ID, form({ action }))).toEqual({ ok: true });
     expect(updateManyMock).toHaveBeenCalledWith({ where: { id: REVIEW_ID, moderationState: current }, data: { moderationState: target } });
@@ -132,7 +144,7 @@ describe("moderateReview — resolution & transitions", () => {
   });
 
   it("audit newValue omits reason when none is given (no empty-string noise)", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: "PUBLISHED" });
     await moderateReview(REVIEW_ID, form({ action: "REMOVE" }));
     expect(auditMock).toHaveBeenCalledWith(expect.objectContaining({ newValue: { moderationState: "REMOVED" } }), expect.anything());
@@ -141,7 +153,7 @@ describe("moderateReview — resolution & transitions", () => {
 
 describe("moderateReview — concurrency", () => {
   it("MODERATION_CONFLICT when a concurrent moderator already changed the state (guarded update matches 0 rows) — no audit", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: "PUBLISHED" });
     updateManyMock.mockResolvedValue({ count: 0 }); // lost the race
 
@@ -150,7 +162,7 @@ describe("moderateReview — concurrency", () => {
   });
 
   it("maps an unexpected DB failure to UNKNOWN_ERROR (no internal leak)", async () => {
-    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    requireAdminMock.mockResolvedValue({ actor: { actorType: "ADMIN", actorId: "admin-1" } });
     findUniqueMock.mockResolvedValue({ id: REVIEW_ID, moderationState: "PUBLISHED" });
     updateManyMock.mockRejectedValue(new Error("db exploded"));
     expect(await moderateReview(REVIEW_ID, form({ action: "FLAG" }))).toEqual({ ok: false, error: "UNKNOWN_ERROR" });

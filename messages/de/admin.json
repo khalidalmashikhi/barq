@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "Buchung ansehen",
   "emailDeliveryNoneLabel": "Noch keine E-Mail-Zustellungen",
   "emailDeliveryNoneDescription": "Buchungsbenachrichtigungs-E-Mails erscheinen hier, sobald Buchungen sie erzeugen.",
-  "emailDeliveryNoResultsLabel": "Keine E-Mail-Zustellungen entsprechen diesem Filter"
+  "emailDeliveryNoResultsLabel": "Keine E-Mail-Zustellungen entsprechen diesem Filter",
+  "staffNoAccessTitle": "Kein Zugriff zugewiesen",
+  "staffNoAccessBody": "Ihrem Konto sind noch keine Module zugewiesen. Bitte wenden Sie sich an den Inhaber, um Zugriff zu erhalten."
 }

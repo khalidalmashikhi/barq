@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "عرض الحجز",
   "emailDeliveryNoneLabel": "لا توجد عمليات تسليم بريد بعد",
   "emailDeliveryNoneDescription": "ستظهر رسائل إشعارات الحجز هنا بمجرد أن تنشئها الحجوزات.",
-  "emailDeliveryNoResultsLabel": "لا توجد عمليات تسليم بريد تطابق هذا المرشّح"
+  "emailDeliveryNoResultsLabel": "لا توجد عمليات تسليم بريد تطابق هذا المرشّح",
+  "staffNoAccessTitle": "لم يتم تعيين أي صلاحيات",
+  "staffNoAccessBody": "لا يحتوي حسابك على أي وحدات معيّنة بعد. يرجى التواصل مع المالك للحصول على صلاحية الوصول."
 }

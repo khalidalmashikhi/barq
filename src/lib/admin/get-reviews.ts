@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getLocale } from "next-intl/server";
 import { isValidUuid } from "@/lib/uuid";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
@@ -60,7 +60,7 @@ export type ReviewAdminListResult = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export async function getReviews(filters: ReviewAdminListFilters = {}): Promise<ReviewAdminListResult> {
-  await requireAdmin();
+  await requirePermission("reviews.read");
   const locale = await getLocale();
   const fallbackServiceName = locale === "ar" ? "تجربة" : "Experience";
   const fallbackProviderName = locale === "ar" ? "مزود خدمة" : "Service Provider";

@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "Zobrazit rezervaci",
   "emailDeliveryNoneLabel": "Zatím žádná doručení e-mailů",
   "emailDeliveryNoneDescription": "E-maily s oznámeními o rezervacích se zde objeví, jakmile je rezervace vygenerují.",
-  "emailDeliveryNoResultsLabel": "Tomuto filtru neodpovídají žádná doručení e-mailů"
+  "emailDeliveryNoResultsLabel": "Tomuto filtru neodpovídají žádná doručení e-mailů",
+  "staffNoAccessTitle": "Nepřidělen žádný přístup",
+  "staffNoAccessBody": "K vašemu účtu zatím nejsou přiřazeny žádné moduly. Požádejte o přístup vlastníka."
 }

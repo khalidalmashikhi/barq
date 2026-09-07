@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "View booking",
   "emailDeliveryNoneLabel": "No email deliveries yet",
   "emailDeliveryNoneDescription": "Booking notification emails will appear here once bookings generate them.",
-  "emailDeliveryNoResultsLabel": "No email deliveries match this filter"
+  "emailDeliveryNoResultsLabel": "No email deliveries match this filter",
+  "staffNoAccessTitle": "No access assigned",
+  "staffNoAccessBody": "Your account doesn't have any modules assigned yet. Please contact the owner to get access."
 }

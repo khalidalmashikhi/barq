@@ -1418,6 +1418,10 @@ enum BookingActorType {
   PROVIDER
   SYSTEM
   ADMIN
+  /// STAFF RBAC (Gate Z-3) — an internal Staff actor. A staff member performing an
+  /// audited internal write is attributed to STAFF with actorId = Staff.id, rather than
+  /// being falsely recorded as ADMIN. Additive; existing rows/attribution unchanged.
+  STAFF
 }
 
 /// Booking Lifecycle Engine (Phase E.1) — append-only log of every

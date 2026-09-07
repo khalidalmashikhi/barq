@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "Vedi prenotazione",
   "emailDeliveryNoneLabel": "Nessuna consegna email ancora",
   "emailDeliveryNoneDescription": "Le email di notifica di prenotazione appariranno qui non appena le prenotazioni le generano.",
-  "emailDeliveryNoResultsLabel": "Nessuna consegna email corrisponde a questo filtro"
+  "emailDeliveryNoResultsLabel": "Nessuna consegna email corrisponde a questo filtro",
+  "staffNoAccessTitle": "Nessun accesso assegnato",
+  "staffNoAccessBody": "Al tuo account non è ancora assegnato alcun modulo. Contatta il titolare per ottenere l'accesso."
 }

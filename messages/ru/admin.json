@@ -738,5 +738,7 @@
   "emailDeliveryViewBookingLabel": "Открыть бронирование",
   "emailDeliveryNoneLabel": "Пока нет отправлений",
   "emailDeliveryNoneDescription": "Письма-уведомления о бронированиях появятся здесь, как только бронирования их создадут.",
-  "emailDeliveryNoResultsLabel": "Нет отправлений, соответствующих этому фильтру"
+  "emailDeliveryNoResultsLabel": "Нет отправлений, соответствующих этому фильтру",
+  "staffNoAccessTitle": "Доступ не назначен",
+  "staffNoAccessBody": "Вашему аккаунту пока не назначены модули. Обратитесь к владельцу, чтобы получить доступ."
 }
