@@ -132,7 +132,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   }
 
   const requestedTab: Tab | null = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : null;
-  const tab: Tab = requestedTab && allowedTabs.includes(requestedTab) ? requestedTab : allowedTabs[0];
+  const tab: Tab = requestedTab && allowedTabs.includes(requestedTab) ? requestedTab : allowedTabs[0]!;
   const pageParsed = params.page ? Number(params.page) : 1;
   const page = Number.isInteger(pageParsed) && pageParsed > 0 ? pageParsed : 1;
   const q = params.q?.trim() || undefined;

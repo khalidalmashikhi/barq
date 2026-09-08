@@ -41,10 +41,10 @@ const PRESET_LEGACY_ROLE: Record<StaffPresetName, "OPERATIONS" | "SUPPORT" | "FI
 const PERMISSIONS_BY_MODULE: Array<[string, PermissionKey[]]> = (() => {
   const groups = new Map<string, PermissionKey[]>();
   for (const key of PERMISSION_KEYS) {
-    const module = PERMISSION_MODULE[key];
-    const list = groups.get(module) ?? [];
+    const mod = PERMISSION_MODULE[key];
+    const list = groups.get(mod) ?? [];
     list.push(key);
-    groups.set(module, list);
+    groups.set(mod, list);
   }
   return [...groups.entries()];
 })();
@@ -265,9 +265,9 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                     >
                       <input type="hidden" name="staffId" value={member.id} />
                       <p className="text-xs text-foreground/50">{t("staffEditPermsHint")}</p>
-                      {PERMISSIONS_BY_MODULE.map(([module, keys]) => (
-                        <fieldset key={module} className="flex flex-col gap-1.5">
-                          <legend className="text-xs font-semibold text-foreground/70">{moduleLabel(keys[0])}</legend>
+                      {PERMISSIONS_BY_MODULE.map(([mod, keys]) => (
+                        <fieldset key={mod} className="flex flex-col gap-1.5">
+                          <legend className="text-xs font-semibold text-foreground/70">{t(`module_${mod}` as AdminKey)}</legend>
                           <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                             {keys.map((key) => (
                               <label key={key} className="inline-flex items-center gap-1.5 text-xs text-foreground/70">
