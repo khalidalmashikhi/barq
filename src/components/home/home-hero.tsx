@@ -4,6 +4,7 @@ import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { homeGovernorateHref } from "@/lib/discovery/home-nav";
 import { regionLabelKey } from "@/lib/regions";
 import { clsx } from "@/components/ui/clsx";
+import { GovernorateIcon } from "@/components/ui/governorate-icon";
 
 // HOME-1 — Layer 1: HERO / SEARCH / GOVERNORATE.
 //
@@ -82,8 +83,9 @@ export async function HomeHero({ governorates, selectedGovernorate }: HomeHeroPr
                 key={gov.code}
                 href={homeGovernorateHref(gov.code)}
                 aria-current={active ? "page" : undefined}
-                className={clsx(chipBase, active ? chipActive : chipIdle)}
+                className={clsx(chipBase, "inline-flex items-center gap-1.5", active ? chipActive : chipIdle)}
               >
+                <GovernorateIcon code={gov.code} size={14} strokeWidth={1.75} />
                 {tCommon(labelKey)}
               </Link>
             );

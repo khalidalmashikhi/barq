@@ -1,10 +1,10 @@
-import { MapPin } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { regionLabelKey } from "@/lib/regions";
 import { governorateBrowseHref } from "@/lib/discovery/home-nav";
 import type { HomeGovernorate } from "@/lib/discovery/get-home-discovery";
 import { BrandPattern, getBrandPatternTone } from "@/components/ui/brand-pattern";
+import { GovernorateIcon } from "@/components/ui/governorate-icon";
 
 // HOME-1 — Layer 4: EXPLORE OMAN.
 //
@@ -46,7 +46,7 @@ export async function ExploreOman({ destinations }: ExploreOmanProps) {
                 >
                   <BrandPattern tone={getBrandPatternTone(gov.code)} className="absolute inset-0 opacity-70" />
                   <span className="relative flex items-center gap-1.5 p-4 text-sm font-semibold text-foreground">
-                    <MapPin size={14} strokeWidth={1.75} aria-hidden />
+                    <GovernorateIcon code={gov.code} size={14} strokeWidth={1.75} />
                     {tCommon(labelKey)}
                   </span>
                 </Link>
