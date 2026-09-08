@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireOwner, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { requireOwner, UnauthenticatedError, ForbiddenError, resolveEffectiveAccountType } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { parseStaffRoles, sameRoleSet } from "./staff-roles";
@@ -27,6 +27,9 @@ export type CreateStaffErrorCode =
   | "USER_NOT_FOUND"
   | "USER_NOT_VERIFIED"
   | "USER_INACTIVE"
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-3 §BB, option c) — the target is an effective Provider
+  // and cannot be newly added as / reactivated into Staff (Provider↔Staff overlap refused).
+  | "PROVIDER_ACCOUNT"
   | "UNKNOWN_ERROR";
 
 export type CreateStaffOutcome = "created" | "reactivated" | "roles_updated" | "already_current";
@@ -62,6 +65,18 @@ export async function createStaff(phoneNumberInput: string, rolesInput: string[]
     if (!user) return { ok: false, error: "USER_NOT_FOUND" };
     if (!user.phoneNumberVerified) return { ok: false, error: "USER_NOT_VERIFIED" };
     if (user.status === "SUSPENDED" || user.status === "DEACTIVATED") return { ok: false, error: "USER_INACTIVE" };
+
+    // EXCLUSIVE ACCOUNT TYPES (Gate Z-3 §BB, option c) — BARQ authority is exclusive: a user
+    // who is an effective PROVIDER (holds a Provider row in ANY status, with no ACTIVE
+    // Admin/Staff masking it) must not be NEWLY added as Staff, nor reactivated from
+    // DEACTIVATED into a Provider↔Staff overlap. An ALREADY-ACTIVE staff member who also
+    // holds a legacy Provider row resolves to STAFF here — grandfathered — so this guard does
+    // NOT block the OWNER from managing their roles/permissions. This purely reads and
+    // refuses: it never deletes/deactivates/alters the Provider, never cancels or reassigns
+    // bookings, never converts either way.
+    if ((await resolveEffectiveAccountType(user.id)) === "PROVIDER") {
+      return { ok: false, error: "PROVIDER_ACCOUNT" };
+    }
 
     if (user.staff) {
       const staff = user.staff;

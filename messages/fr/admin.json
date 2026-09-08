@@ -787,5 +787,6 @@
   "permAction_review": "Examiner et vérifier",
   "permAction_cancel": "Annuler des réservations",
   "permAction_moderate": "Modérer",
-  "permHighImpact": "Impact élevé"
+  "permHighImpact": "Impact élevé",
+  "staffCreateProviderError": "Ce compte est enregistré en tant que prestataire et ne peut pas être ajouté comme membre de l’équipe."
 }

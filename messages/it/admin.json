@@ -787,5 +787,6 @@
   "permAction_review": "Esamina e verifica",
   "permAction_cancel": "Annulla prenotazioni",
   "permAction_moderate": "Modera",
-  "permHighImpact": "Alto impatto"
+  "permHighImpact": "Alto impatto",
+  "staffCreateProviderError": "Questo account è registrato come fornitore e non può essere aggiunto come membro del personale."
 }

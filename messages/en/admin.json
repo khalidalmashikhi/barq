@@ -787,5 +787,6 @@
   "permAction_review": "Review & verify",
   "permAction_cancel": "Cancel bookings",
   "permAction_moderate": "Moderate",
-  "permHighImpact": "High impact"
+  "permHighImpact": "High impact",
+  "staffCreateProviderError": "This account is registered as a provider and cannot be added as a staff member."
 }

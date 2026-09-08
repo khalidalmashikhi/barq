@@ -6,8 +6,10 @@ import { ForbiddenError } from "@/lib/auth";
 vi.mock("server-only", () => ({}));
 
 const requireAdminMock = vi.fn();
+const resolveEffectiveAccountTypeMock = vi.fn().mockResolvedValue("CUSTOMER");
 vi.mock("@/lib/auth", () => ({
   requireOwner: (...args: unknown[]) => requireAdminMock(...args),
+  resolveEffectiveAccountType: (...args: unknown[]) => resolveEffectiveAccountTypeMock(...args),
   UnauthenticatedError: class UnauthenticatedError extends Error {},
   ForbiddenError: class ForbiddenError extends Error {},
 }));
@@ -35,6 +37,7 @@ const { createStaff } = await import("./create-staff");
 
 afterEach(() => {
   requireAdminMock.mockReset();
+  resolveEffectiveAccountTypeMock.mockReset().mockResolvedValue("CUSTOMER");
   userFindUniqueMock.mockReset();
   staffCreateMock.mockReset();
   staffUpdateMock.mockReset();
@@ -126,5 +129,73 @@ describe("createStaff", () => {
     expect(result).toEqual({ ok: true, outcome: "reactivated" });
     expect(staffUpdateMock).toHaveBeenCalledWith({ where: { id: "staff-1" }, data: { status: "ACTIVE", roles: ["SUPPORT"] } });
     expect(auditCreateMock).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "staff.reactivated" }) });
+  });
+
+  // EXCLUSIVE ACCOUNT TYPES (Gate Z-3 §BB, option c) — Provider↔Staff overlap is refused.
+  describe("exclusive authority — an effective Provider cannot be added as Staff", () => {
+    it("DENIES a NEW staff from an effective Provider account (PROVIDER_ACCOUNT); no Staff row, no Provider mutation", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      userFindUniqueMock.mockResolvedValue({ ...VERIFIED_USER });
+      resolveEffectiveAccountTypeMock.mockResolvedValue("PROVIDER");
+
+      const result = await createStaff("+96890000001", ["SUPPORT"]);
+
+      expect(result).toEqual({ ok: false, error: "PROVIDER_ACCOUNT" });
+      // No Staff row created/updated. The action never touches a Provider (no provider write is
+      // even wired into this store), never cancels/reassigns a booking, and never converts.
+      expect(staffCreateMock).not.toHaveBeenCalled();
+      expect(staffUpdateMock).not.toHaveBeenCalled();
+      expect(auditCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("reactivation CANNOT bypass the rule: a DEACTIVATED staff who is now an effective Provider is refused", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      userFindUniqueMock.mockResolvedValue({ ...VERIFIED_USER, staff: { id: "staff-1", status: "DEACTIVATED", roles: ["FINANCE"] } });
+      // The DEACTIVATED staff is not "active", so the same user's Provider row makes them an
+      // effective Provider — reactivation into a Provider↔Staff overlap is refused.
+      resolveEffectiveAccountTypeMock.mockResolvedValue("PROVIDER");
+
+      const result = await createStaff("+96890000001", ["SUPPORT"]);
+
+      expect(result).toEqual({ ok: false, error: "PROVIDER_ACCOUNT" });
+      expect(staffUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("GRANDFATHERS an existing ACTIVE Staff+Provider overlap: role management still works (resolves to STAFF)", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      userFindUniqueMock.mockResolvedValue({ ...VERIFIED_USER, staff: { id: "staff-1", status: "ACTIVE", roles: ["SUPPORT"] } });
+      // An already-ACTIVE staff member masks the Provider row → effective STAFF, not PROVIDER →
+      // the guard does not fire, so the OWNER can still manage the grandfathered overlap.
+      resolveEffectiveAccountTypeMock.mockResolvedValue("STAFF");
+
+      const result = await createStaff("+96890000001", ["OPERATIONS", "SUPPORT"]);
+
+      expect(result).toEqual({ ok: true, outcome: "roles_updated" });
+      expect(staffUpdateMock).toHaveBeenCalledWith({ where: { id: "staff-1" }, data: { roles: ["OPERATIONS", "SUPPORT"] } });
+    });
+
+    it("ALLOWS a Customer account to become Staff (effective CUSTOMER; history preserved, not deleted)", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      userFindUniqueMock.mockResolvedValue({ ...VERIFIED_USER });
+      resolveEffectiveAccountTypeMock.mockResolvedValue("CUSTOMER");
+      staffCreateMock.mockResolvedValue({ id: "staff-new" });
+
+      const result = await createStaff("+96890000001", ["SUPPORT"]);
+
+      expect(result).toEqual({ ok: true, outcome: "created" });
+      expect(staffCreateMock).toHaveBeenCalled();
+    });
+
+    it("ALLOWS a non-provider verified account (UNCLASSIFIED) to become Staff", async () => {
+      requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+      userFindUniqueMock.mockResolvedValue({ ...VERIFIED_USER });
+      resolveEffectiveAccountTypeMock.mockResolvedValue("UNCLASSIFIED");
+      staffCreateMock.mockResolvedValue({ id: "staff-new" });
+
+      const result = await createStaff("+96890000001", ["SUPPORT"]);
+
+      expect(result).toEqual({ ok: true, outcome: "created" });
+      expect(staffCreateMock).toHaveBeenCalled();
+    });
   });
 });

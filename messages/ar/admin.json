@@ -787,5 +787,6 @@
   "permAction_review": "المراجعة والتوثيق",
   "permAction_cancel": "إلغاء الحجوزات",
   "permAction_moderate": "الإشراف",
-  "permHighImpact": "تأثير عالٍ"
+  "permHighImpact": "تأثير عالٍ",
+  "staffCreateProviderError": "هذا الحساب مسجَّل كمزوّد خدمة ولا يمكن إضافته كعضو في الفريق."
 }

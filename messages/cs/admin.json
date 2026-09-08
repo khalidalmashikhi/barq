@@ -787,5 +787,6 @@
   "permAction_review": "Kontrola a ověření",
   "permAction_cancel": "Rušit rezervace",
   "permAction_moderate": "Moderovat",
-  "permHighImpact": "Vysoký dopad"
+  "permHighImpact": "Vysoký dopad",
+  "staffCreateProviderError": "Tento účet je registrován jako poskytovatel a nelze jej přidat jako člena týmu."
 }

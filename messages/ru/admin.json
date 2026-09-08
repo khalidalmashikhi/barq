@@ -787,5 +787,6 @@
   "permAction_review": "Проверка и верификация",
   "permAction_cancel": "Отмена броней",
   "permAction_moderate": "Модерация",
-  "permHighImpact": "Высокий риск"
+  "permHighImpact": "Высокий риск",
+  "staffCreateProviderError": "Этот аккаунт зарегистрирован как поставщик и не может быть добавлен как сотрудник."
 }

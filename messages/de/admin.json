@@ -787,5 +787,6 @@
   "permAction_review": "Prüfen & verifizieren",
   "permAction_cancel": "Buchungen stornieren",
   "permAction_moderate": "Moderieren",
-  "permHighImpact": "Hohe Auswirkung"
+  "permHighImpact": "Hohe Auswirkung",
+  "staffCreateProviderError": "Dieses Konto ist als Anbieter registriert und kann nicht als Teammitglied hinzugefügt werden."
 }

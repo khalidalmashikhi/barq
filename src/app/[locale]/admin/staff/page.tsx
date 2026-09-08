@@ -92,7 +92,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {error && <Alert variant="danger">{t("staffActionError")}</Alert>}
+      {error && <Alert variant="danger">{error === "provider" ? t("staffCreateProviderError") : t("staffActionError")}</Alert>}
       {notice && <Alert variant="success">{t("staffActionSuccess")}</Alert>}
 
       {/* Create / promote — resolves an existing, phone-verified BARQ identity and grants a
@@ -113,7 +113,10 @@ export default async function AdminStaffPage({ searchParams }: Props) {
             }
             const created = await createStaff(phone, [PRESET_LEGACY_ROLE[presetName]]);
             if (!created.ok) {
-              redirect({ href: "/admin/staff?error=1", locale: l });
+              // Surface the exclusive-authority refusal specifically (Gate Z-3 §BB); all other
+              // failures fall back to the generic error. No internal id/auth detail is exposed.
+              const code = created.error === "PROVIDER_ACCOUNT" ? "provider" : "1";
+              redirect({ href: `/admin/staff?error=${code}`, locale: l });
               return;
             }
             // Resolve the just-created/updated Staff row by phone and apply the preset's

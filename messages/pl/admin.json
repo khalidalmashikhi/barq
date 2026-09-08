@@ -787,5 +787,6 @@
   "permAction_review": "Przegląd i weryfikacja",
   "permAction_cancel": "Anuluj rezerwacje",
   "permAction_moderate": "Moderuj",
-  "permHighImpact": "Duży wpływ"
+  "permHighImpact": "Duży wpływ",
+  "staffCreateProviderError": "To konto jest zarejestrowane jako dostawca i nie można go dodać jako członka zespołu."
 }
