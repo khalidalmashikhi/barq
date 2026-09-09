@@ -803,5 +803,6 @@
   "confirmArchiveProviderTitle": "Archive this provider?",
   "confirmArchiveProviderBody": "The provider will be removed from active listings and their services hidden. You can reactivate them later.",
   "confirmRejectProviderTitle": "Reject this provider application?",
-  "confirmRejectProviderBody": "The application will be marked as rejected and the provider will be notified. This decision is recorded."
+  "confirmRejectProviderBody": "The application will be marked as rejected and the provider will be notified. This decision is recorded.",
+  "metricsOperationalLabel": "Operational"
 }

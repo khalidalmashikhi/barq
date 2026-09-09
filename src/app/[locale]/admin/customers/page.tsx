@@ -54,7 +54,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
   const customersBasePath = getPathname({ href: "/admin/customers", locale });
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-8 py-8">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">{t("customersTitle")}</h1>
         <p className="mt-1 text-sm text-foreground/60">{t("customersDescription")}</p>

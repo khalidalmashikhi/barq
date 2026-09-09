@@ -94,7 +94,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const errorMessage = params.error && isBookingAdminActionErrorCode(params.error) ? t(getBookingAdminErrorTranslationKey(params.error)) : null;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-8 py-8">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">{t("bookingAdminTitle")}</h1>
         <p className="mt-1 text-sm text-foreground/60">{t("bookingAdminDescription")}</p>

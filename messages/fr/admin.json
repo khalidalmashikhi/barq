@@ -803,5 +803,6 @@
   "confirmArchiveProviderTitle": "Archiver ce prestataire ?",
   "confirmArchiveProviderBody": "Le prestataire sera retiré des annonces actives et ses services masqués. Vous pourrez le réactiver plus tard.",
   "confirmRejectProviderTitle": "Rejeter cette candidature de prestataire ?",
-  "confirmRejectProviderBody": "La candidature sera marquée comme rejetée et le prestataire sera informé. Cette décision est enregistrée."
+  "confirmRejectProviderBody": "La candidature sera marquée comme rejetée et le prestataire sera informé. Cette décision est enregistrée.",
+  "metricsOperationalLabel": "Opérationnel"
 }

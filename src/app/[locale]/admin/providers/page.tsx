@@ -81,7 +81,7 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
   const errorMessage = params.error && isProviderAdminActionErrorCode(params.error) ? t(getProviderAdminErrorTranslationKey(params.error)) : null;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-8 py-8">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t("providersTitle")}</h1>

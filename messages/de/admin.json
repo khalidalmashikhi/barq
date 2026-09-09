@@ -803,5 +803,6 @@
   "confirmArchiveProviderTitle": "Diesen Anbieter archivieren?",
   "confirmArchiveProviderBody": "Der Anbieter wird aus den aktiven Einträgen entfernt und seine Dienste ausgeblendet. Sie können ihn später wieder aktivieren.",
   "confirmRejectProviderTitle": "Diese Anbieterbewerbung ablehnen?",
-  "confirmRejectProviderBody": "Die Bewerbung wird als abgelehnt markiert und der Anbieter benachrichtigt. Diese Entscheidung wird protokolliert."
+  "confirmRejectProviderBody": "Die Bewerbung wird als abgelehnt markiert und der Anbieter benachrichtigt. Diese Entscheidung wird protokolliert.",
+  "metricsOperationalLabel": "Betrieb"
 }

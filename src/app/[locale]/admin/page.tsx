@@ -159,7 +159,7 @@ export default async function AdminOverviewPage() {
   }));
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 px-8 py-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-6 sm:px-8 sm:py-8">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">{t("overviewTitle")}</h1>
         <p className="mt-1 text-sm text-foreground/60">{t("overviewDescription")}</p>

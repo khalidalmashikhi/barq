@@ -803,5 +803,6 @@
   "confirmArchiveProviderTitle": "أرشفة هذا المزوّد؟",
   "confirmArchiveProviderBody": "ستتم إزالة المزوّد من القوائم النشطة وإخفاء خدماته. يمكنك إعادة تفعيله لاحقًا.",
   "confirmRejectProviderTitle": "رفض طلب هذا المزوّد؟",
-  "confirmRejectProviderBody": "سيتم وضع علامة على الطلب كمرفوض وإشعار المزوّد. يُسجَّل هذا القرار."
+  "confirmRejectProviderBody": "سيتم وضع علامة على الطلب كمرفوض وإشعار المزوّد. يُسجَّل هذا القرار.",
+  "metricsOperationalLabel": "العمليات"
 }

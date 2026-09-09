@@ -40,7 +40,7 @@ export default async function AdminVehiclesPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
           <Car size={22} strokeWidth={1.75} aria-hidden />

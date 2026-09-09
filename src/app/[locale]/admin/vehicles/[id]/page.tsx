@@ -133,7 +133,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
   ];
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <Link href="/admin/vehicles" className="inline-flex w-fit items-center gap-2 text-sm text-foreground/60 hover:text-foreground">
         <ArrowRight size={16} strokeWidth={1.75} className="rtl:rotate-180" />
         {t("backToVehiclesLabel")}

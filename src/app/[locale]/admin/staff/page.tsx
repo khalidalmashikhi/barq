@@ -84,7 +84,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
   const presetLabel = (name: StaffPresetName): string => t(`preset_${name}` as AdminKey);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-8 py-8">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <div className="flex items-center gap-2">
         <UserCog size={22} strokeWidth={1.75} className="text-primary" />
         <div>

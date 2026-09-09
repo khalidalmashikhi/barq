@@ -89,7 +89,13 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
 
       {centerContent}
 
-      <div className="flex items-center gap-2">
+      {/* ADMIN MOBILE POLISH — a deliberate mobile toolbar carries only the one
+          high-value control (notifications); the not-yet-live language/messages
+          placeholders, the decorative avatar, and desktop logout appear from `md` up
+          (where the sidebar regime and the horizontal room exist). On mobile, logout
+          lives in the hamburger drawer (AppMobileNav) — every function is preserved,
+          nothing is removed. */}
+      <div className="flex items-center gap-1 sm:gap-2">
         <span className="hidden text-xs text-foreground/60 lg:inline">{today}</span>
 
         <button
@@ -97,7 +103,7 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
           disabled
           aria-disabled
           title={t("comingSoonLabel")}
-          className="cursor-not-allowed rounded-full p-2 text-foreground/35"
+          className="hidden cursor-not-allowed rounded-full p-2 text-foreground/35 md:inline-flex"
           aria-label={t("languageAriaLabel")}
         >
           <Globe size={18} strokeWidth={1.75} />
@@ -107,7 +113,7 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
           disabled
           aria-disabled
           title={t("comingSoonLabel")}
-          className="cursor-not-allowed rounded-full p-2 text-foreground/35"
+          className="hidden cursor-not-allowed rounded-full p-2 text-foreground/35 md:inline-flex"
           aria-label={t("messagesAriaLabel")}
         >
           <MessageCircle size={18} strokeWidth={1.75} />
@@ -117,8 +123,10 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
           initialItems={notificationsPreview.items}
           viewAllHref={resolvedNotificationsHref}
         />
-        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-secondary" />
-        <LogoutButton variant="ghost" />
+        <div className="hidden h-9 w-9 rounded-full bg-gradient-to-br from-primary to-secondary md:block" />
+        <span className="hidden md:block">
+          <LogoutButton variant="ghost" />
+        </span>
       </div>
     </div>
   );

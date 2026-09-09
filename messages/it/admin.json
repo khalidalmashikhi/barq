@@ -803,5 +803,6 @@
   "confirmArchiveProviderTitle": "Archiviare questo fornitore?",
   "confirmArchiveProviderBody": "Il fornitore verrà rimosso dagli elenchi attivi e i suoi servizi nascosti. Potrai riattivarlo in seguito.",
   "confirmRejectProviderTitle": "Rifiutare questa candidatura del fornitore?",
-  "confirmRejectProviderBody": "La candidatura verrà contrassegnata come rifiutata e il fornitore verrà avvisato. Questa decisione viene registrata."
+  "confirmRejectProviderBody": "La candidatura verrà contrassegnata come rifiutata e il fornitore verrà avvisato. Questa decisione viene registrata.",
+  "metricsOperationalLabel": "Operativo"
 }

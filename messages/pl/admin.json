@@ -803,5 +803,6 @@
   "confirmArchiveProviderTitle": "Zarchiwizować tego dostawcę?",
   "confirmArchiveProviderBody": "Dostawca zostanie usunięty z aktywnych ofert, a jego usługi ukryte. Możesz go później ponownie aktywować.",
   "confirmRejectProviderTitle": "Odrzucić to zgłoszenie dostawcy?",
-  "confirmRejectProviderBody": "Zgłoszenie zostanie oznaczone jako odrzucone, a dostawca powiadomiony. Ta decyzja jest rejestrowana."
+  "confirmRejectProviderBody": "Zgłoszenie zostanie oznaczone jako odrzucone, a dostawca powiadomiony. Ta decyzja jest rejestrowana.",
+  "metricsOperationalLabel": "Operacyjne"
 }

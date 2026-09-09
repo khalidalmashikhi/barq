@@ -11,17 +11,22 @@ type StatCardProps = {
   value: string;
   icon: LucideIcon;
   trend?: string;
+  // ADMIN MOBILE POLISH (§2/§9) — "lg" makes the VALUE dominant for primary KPIs; the
+  // default "md" is byte-for-byte the previous look, so every existing caller (the customer
+  // dashboard included) is unchanged. The icon supports the metric, it never dominates it.
+  size?: "md" | "lg";
 };
 
-export function StatCard({ label, value, icon: Icon, trend }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, trend, size = "md" }: StatCardProps) {
+  const lg = size === "lg";
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/40 bg-glass px-4 py-3.5 shadow-sm">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-primary">
-        <Icon size={16} strokeWidth={1.75} />
+    <div className={`flex items-center gap-3 rounded-xl border border-white/40 bg-glass px-4 shadow-sm ${lg ? "py-4" : "py-3.5"}`}>
+      <div className={`flex shrink-0 items-center justify-center rounded-lg bg-accent/20 text-primary ${lg ? "h-10 w-10" : "h-9 w-9"}`}>
+        <Icon size={lg ? 18 : 16} strokeWidth={1.75} />
       </div>
-      <div className="flex flex-col">
-        <span className="text-lg font-semibold text-foreground">{value}</span>
-        <span className="text-xs text-foreground/70">{label}</span>
+      <div className="flex min-w-0 flex-col">
+        <span className={`font-semibold text-foreground ${lg ? "text-2xl leading-tight" : "text-lg"}`}>{value}</span>
+        <span className="truncate text-xs text-foreground/70">{label}</span>
       </div>
       {trend && <span className="ms-auto text-xs text-success">{trend}</span>}
     </div>

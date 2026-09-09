@@ -67,7 +67,7 @@ export default async function AdminCategoryPreviewPage({ params }: Props) {
   return (
     <div className="flex min-h-screen flex-col">
       <PreviewBanner title={t("previewCategoryBannerTitle")} description={t("previewCategoryBannerDescription")} />
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-8 py-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <Link
           href={`/admin/categories/${id}`}
           className="inline-flex w-fit items-center gap-2 text-sm text-foreground/60 hover:text-foreground"

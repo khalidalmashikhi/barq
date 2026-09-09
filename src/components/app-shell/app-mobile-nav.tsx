@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Logo } from "@/components/ui/logo";
 import { clsx } from "@/components/ui/clsx";
+import { LogoutButton } from "@/components/auth/logout-button";
 import type { AppNavItem } from "./app-sidebar";
 
 // Mobile navigation for the authenticated app shell — Phase F.3
@@ -121,7 +122,12 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
             })}
           </nav>
 
-          <div className="border-t border-border px-6 py-4 text-xs text-foreground/60">{roleLabel}</div>
+          {/* ADMIN MOBILE POLISH — logout lives here on mobile (consolidated out of the
+              toolbar), alongside the role label. Reachable, not cluttering the top bar. */}
+          <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
+            <span className="text-xs text-foreground/60">{roleLabel}</span>
+            <LogoutButton variant="ghost" />
+          </div>
         </div>
       )}
     </div>
