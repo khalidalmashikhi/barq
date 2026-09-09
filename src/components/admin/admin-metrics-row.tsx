@@ -69,7 +69,11 @@ export async function AdminMetricsRow({
           <StatCard label={t("metricCancelledBookingsLabel")} value={String(cancelledBookings)} icon={XCircle} />
           <StatCard label={t("metricTodaysBookingsLabel")} value={String(todaysBookingsCount)} icon={CalendarDays} />
           <StatCard label={t("metricPublishedReviewsLabel")} value={`${publishedReviewCount} / ${totalReviewCount}`} icon={Star} />
-          <StatCard label={t("metricAverageRatingLabel")} value={averageRating !== null ? averageRating.toFixed(1) : "—"} icon={Star} />
+          {/* The trailing metric would sit alone in one half of the 2-col mobile grid — let it
+              span the full width on mobile (compact wide card); normal single cell from lg. */}
+          <div className="col-span-2 lg:col-span-1">
+            <StatCard label={t("metricAverageRatingLabel")} value={averageRating !== null ? averageRating.toFixed(1) : "—"} icon={Star} />
+          </div>
           {completedGrossRevenueByCurrency.map((entry) => (
             <StatCard key={entry.currency} label={t("metricCompletedGrossRevenueLabel")} value={`${entry.amount} ${entry.currency}`} icon={TrendingUp} />
           ))}

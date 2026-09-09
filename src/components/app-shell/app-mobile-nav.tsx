@@ -33,12 +33,19 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
   const t = useTranslations("common");
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!open) return;
     closeButtonRef.current?.focus();
+    // §3 — always open at the TOP of the nav list, never mid-scroll from a previous session.
+    if (navRef.current) navRef.current.scrollTop = 0;
+    // Lock the page behind so it can't scroll under the full-screen drawer (iOS).
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const triggerButton = menuButtonRef.current;
     return () => {
+      document.body.style.overflow = prevOverflow;
       triggerButton?.focus();
     };
   }, [open]);
@@ -76,7 +83,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
             </button>
           </div>
 
-          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-6 py-6">
+          <nav ref={navRef} className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-4 py-3">
             {navItems.map((item) => {
               const isInteractive = item.href !== undefined;
               const isActive = isInteractive && item.href === activeHref;
@@ -97,7 +104,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
                 </>
               );
               const itemClassName = clsx(
-                "flex items-center gap-3 rounded-xl px-4 py-3 text-base font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-base font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 isActive
                   ? "bg-accent/25 text-primary"
                   : isInteractive
@@ -124,7 +131,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
 
           {/* ADMIN MOBILE POLISH — logout lives here on mobile (consolidated out of the
               toolbar), alongside the role label. Reachable, not cluttering the top bar. */}
-          <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
+          <div className="flex items-center justify-between gap-3 border-t border-border px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <span className="text-xs text-foreground/60">{roleLabel}</span>
             <LogoutButton variant="ghost" />
           </div>

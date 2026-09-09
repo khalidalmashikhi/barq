@@ -26,7 +26,9 @@ export function StatCard({ label, value, icon: Icon, trend, size = "md" }: StatC
       </div>
       <div className="flex min-w-0 flex-col">
         <span className={`font-semibold text-foreground ${lg ? "text-2xl leading-tight" : "text-lg"}`}>{value}</span>
-        <span className="truncate text-xs text-foreground/70">{label}</span>
+        {/* Fixed KPI labels are known copy, not user content — wrap naturally (max 2 lines),
+            never truncate mid-word. line-clamp-2 caps height so cards stay aligned/compact. */}
+        <span className="line-clamp-2 text-xs leading-snug text-foreground/70">{label}</span>
       </div>
       {trend && <span className="ms-auto text-xs text-success">{trend}</span>}
     </div>
