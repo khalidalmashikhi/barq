@@ -25,7 +25,7 @@ export async function TopServices({ items }: TopServicesProps) {
       </h2>
 
       {items.length === 0 ? (
-        <EmptyState icon={TrendingUp} iconSize={22} gap="gap-1.5" padding="py-6" message={t("noServicePerformanceLabel")} messageClassName="text-sm text-foreground/50" />
+        <EmptyState icon={TrendingUp} iconSize={22} gap="gap-1.5" padding="py-6" message={t("noServicePerformanceLabel")} messageClassName="text-sm text-foreground/70" />
       ) : (
         <ol className="flex flex-col gap-2.5">
           {items.map((service, index) => (
@@ -39,7 +39,7 @@ export async function TopServices({ items }: TopServicesProps) {
               >
                 {service.serviceName}
               </Link>
-              <span className="shrink-0 text-xs text-foreground/50">{t("bookingsCountSuffix", { count: service.bookingsCount })}</span>
+              <span className="shrink-0 text-xs text-foreground/70">{t("bookingsCountSuffix", { count: service.bookingsCount })}</span>
             </li>
           ))}
         </ol>

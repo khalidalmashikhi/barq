@@ -87,38 +87,38 @@ export default async function ProviderPaymentsPage({ searchParams }: { searchPar
         <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <Banknote size={18} strokeWidth={1.75} className="text-success" />
           {result.summary.capturedByCurrency.length === 0 ? (
-            <span className="text-sm text-foreground/40">—</span>
+            <span className="text-sm text-foreground/60">—</span>
           ) : (
             result.summary.capturedByCurrency.map((entry) => (
               <span key={entry.currency} className="text-lg font-semibold text-foreground">
-                {entry.amount} <span className="text-xs font-medium text-foreground/50">{entry.currency}</span>
+                {entry.amount} <span className="text-xs font-medium text-foreground/70">{entry.currency}</span>
               </span>
             ))
           )}
-          <span className="text-xs text-foreground/50">{t("capturedByCurrencyLabel")}</span>
+          <span className="text-xs text-foreground/70">{t("capturedByCurrencyLabel")}</span>
         </div>
         <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <Undo2 size={18} strokeWidth={1.75} className="text-secondary" />
           {result.summary.refundedByCurrency.length === 0 ? (
-            <span className="text-sm text-foreground/40">—</span>
+            <span className="text-sm text-foreground/60">—</span>
           ) : (
             result.summary.refundedByCurrency.map((entry) => (
               <span key={entry.currency} className="text-lg font-semibold text-foreground">
-                {entry.amount} <span className="text-xs font-medium text-foreground/50">{entry.currency}</span>
+                {entry.amount} <span className="text-xs font-medium text-foreground/70">{entry.currency}</span>
               </span>
             ))
           )}
-          <span className="text-xs text-foreground/50">{t("refundedByCurrencyLabel")}</span>
+          <span className="text-xs text-foreground/70">{t("refundedByCurrencyLabel")}</span>
         </div>
         <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <Clock size={18} strokeWidth={1.75} className="text-accent-foreground" />
           <span className="text-lg font-semibold text-foreground">{result.summary.initiatedCount}</span>
-          <span className="text-xs text-foreground/50">{t("initiatedCountLabel")}</span>
+          <span className="text-xs text-foreground/70">{t("initiatedCountLabel")}</span>
         </div>
         <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <XCircle size={18} strokeWidth={1.75} className="text-danger" />
           <span className="text-lg font-semibold text-foreground">{result.summary.failedCount}</span>
-          <span className="text-xs text-foreground/50">{t("failedCountLabel")}</span>
+          <span className="text-xs text-foreground/70">{t("failedCountLabel")}</span>
         </div>
       </div>
 
@@ -153,7 +153,7 @@ export default async function ProviderPaymentsPage({ searchParams }: { searchPar
             <div key={payment.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-medium text-foreground">{payment.serviceName}</span>
-                <span className="text-xs text-foreground/40">
+                <span className="text-xs text-foreground/60">
                   {formatDate(payment.createdAt, locale, { day: "numeric", month: "short", year: "numeric" })}
                 </span>
               </div>

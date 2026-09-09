@@ -87,7 +87,7 @@ export function SmartTourGuideSection({ config, guideProfile, initialState, malf
             {guideProfile.name}
             {guideProfile.isApproved && <ShieldCheck size={14} className="text-primary" aria-label={t("tourGuideVerifiedLabel")} />}
           </span>
-          <span className="flex flex-wrap items-center gap-x-2 text-xs text-foreground/50">
+          <span className="flex flex-wrap items-center gap-x-2 text-xs text-foreground/70">
             {guideProfile.city && <span>{guideProfile.city}</span>}
             {guideProfile.reviewCount > 0 && guideProfile.averageRating !== null && (
               <span className="inline-flex items-center gap-0.5">
@@ -105,7 +105,7 @@ export function SmartTourGuideSection({ config, guideProfile, initialState, malf
 
       {/* Package selector — accessible radio cards. */}
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-xs font-medium text-foreground/50">{t("tourPackageSectionTitle")}</legend>
+        <legend className="mb-1 text-xs font-medium text-foreground/70">{t("tourPackageSectionTitle")}</legend>
         <div role="radiogroup" aria-label={t("tourPackageSectionTitle")} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {config.packages.map((pkg) => {
             const selected = state.packageType === pkg.key;
@@ -122,7 +122,7 @@ export function SmartTourGuideSection({ config, guideProfile, initialState, malf
                 )}
               >
                 <span className={clsx("text-sm font-medium", selected ? "text-primary" : "text-foreground")}>{pkg.label}</span>
-                {pkg.description && <span className="text-xs text-foreground/50">{pkg.description}</span>}
+                {pkg.description && <span className="text-xs text-foreground/70">{pkg.description}</span>}
               </button>
             );
           })}
@@ -132,13 +132,13 @@ export function SmartTourGuideSection({ config, guideProfile, initialState, malf
       {/* Vehicle section — visibility from package semantics (app-owned). */}
       {showVehicle && (
         <fieldset className="flex flex-col gap-3">
-          <legend className="text-xs font-medium text-foreground/50">
+          <legend className="text-xs font-medium text-foreground/70">
             {t("tourVehicleSectionTitle")}
             {vehicleRequired && <span className="text-danger"> *</span>}
           </legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs text-foreground/50">{t("tourVehicleType")}</span>
+              <span className="text-xs text-foreground/70">{t("tourVehicleType")}</span>
               <select
                 className={INPUT_CLASS}
                 value={forcedType ?? state.vehicle.type}
@@ -184,7 +184,7 @@ export function SmartTourGuideSection({ config, guideProfile, initialState, malf
         )}
         {visible("difficulty") && (
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-foreground/50">{requiredLabel(t("tourFieldDifficulty"), required("difficulty"))}</span>
+            <span className="text-xs text-foreground/70">{requiredLabel(t("tourFieldDifficulty"), required("difficulty"))}</span>
             <select className={INPUT_CLASS} value={state.difficulty} onChange={(e) => set("difficulty", e.target.value as TourFormState["difficulty"])}>
               <option value="">{t("tourNotSpecified")}</option>
               {TOUR_DIFFICULTY_LEVELS.map((d) => (
@@ -270,7 +270,7 @@ function TextInput({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs text-foreground/50">{label}</span>
+      <span className="text-xs text-foreground/70">{label}</span>
       <input type="text" inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} className={INPUT_CLASS} />
     </label>
   );
@@ -279,7 +279,7 @@ function TextInput({
 function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs text-foreground/50">{label}</span>
+      <span className="text-xs text-foreground/70">{label}</span>
       <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} className={INPUT_CLASS} />
     </label>
   );
@@ -315,14 +315,14 @@ function ItineraryEditor({
     onChange(stops.map((s, i) => (i === index ? { ...s, ...patch } : s)));
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium text-foreground/50">{label}</span>
+      <span className="text-xs font-medium text-foreground/70">{label}</span>
       {stops.map((stop, index) => (
         <div key={index} className="flex items-start gap-2 rounded-xl border border-border bg-card p-2">
           <div className="flex flex-1 flex-col gap-2">
             <input type="text" aria-label={titleLabel} placeholder={titleLabel} value={stop.title} onChange={(e) => update(index, { title: e.target.value })} className={INPUT_CLASS} />
             <input type="text" aria-label={descLabel} placeholder={descLabel} value={stop.description} onChange={(e) => update(index, { description: e.target.value })} className={INPUT_CLASS} />
           </div>
-          <button type="button" aria-label={removeLabel} onClick={() => onChange(stops.filter((_, i) => i !== index))} className="mt-1 text-foreground/40 hover:text-danger">
+          <button type="button" aria-label={removeLabel} onClick={() => onChange(stops.filter((_, i) => i !== index))} className="mt-1 text-foreground/60 hover:text-danger">
             <X size={16} />
           </button>
         </div>

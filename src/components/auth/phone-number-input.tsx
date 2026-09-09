@@ -62,7 +62,7 @@ export function PhoneNumberInput({
             {isoToFlagEmoji(country.iso)}
           </span>
           <span className="text-sm font-medium tabular-nums">{country.callingCode}</span>
-          <span aria-hidden="true" className="text-xs text-foreground/50">
+          <span aria-hidden="true" className="text-xs text-foreground/70">
             ▾
           </span>
         </button>

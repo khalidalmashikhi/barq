@@ -112,7 +112,7 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
             <div key={provider.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <Link href={`/admin/providers/${provider.id}`} className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{provider.businessName}</p>
-                <p className="mt-0.5 truncate text-xs text-foreground/40">
+                <p className="mt-0.5 truncate text-xs text-foreground/60">
                   {t(provider.providerType === "INDIVIDUAL" ? "providerTypeIndividual" : "providerTypeCompany")}
                   {" · "}
                   {provider.slug ? `/${provider.slug}` : t("noSlugLabel")}

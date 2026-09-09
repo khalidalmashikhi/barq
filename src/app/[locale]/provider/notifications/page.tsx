@@ -125,7 +125,7 @@ export default async function ProviderNotificationsPage({
         <div className="flex flex-col gap-6">
           {groupNotificationsByDate(result.items, locale).map(([dateLabel, items]) => (
             <div key={dateLabel}>
-              <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-foreground/40">{dateLabel}</h2>
+              <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-foreground/60">{dateLabel}</h2>
               <ul className="flex flex-col gap-3">
                 {items.map((item) => {
                   const { Icon, badgeVariant, categoryKey } = getNotificationPresentation(item.kind);
@@ -139,7 +139,7 @@ export default async function ProviderNotificationsPage({
                       <div className="flex items-start gap-3">
                         <span
                           className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                            item.isRead ? "bg-accent/15 text-foreground/40" : "bg-primary/10 text-primary"
+                            item.isRead ? "bg-accent/15 text-foreground/60" : "bg-primary/10 text-primary"
                           }`}
                         >
                           <Icon size={15} strokeWidth={1.75} />
@@ -151,7 +151,7 @@ export default async function ProviderNotificationsPage({
                             </p>
                             <Badge variant={badgeVariant}>{t(categoryKey)}</Badge>
                           </div>
-                          <p className="mt-1 text-xs text-foreground/40">
+                          <p className="mt-1 text-xs text-foreground/60">
                             {formatDate(new Date(item.createdAt), locale, { hour: "2-digit", minute: "2-digit" })}
                           </p>
                           <div className="mt-2">
@@ -173,7 +173,7 @@ export default async function ProviderNotificationsPage({
                         >
                           <SubmitButton
                             aria-label={`${t("markReadAriaLabel")}: ${item.message}`}
-                            className="flex shrink-0 items-center gap-1.5 rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex shrink-0 items-center gap-1.5 rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Check size={16} strokeWidth={1.75} />
                           </SubmitButton>

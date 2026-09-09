@@ -56,7 +56,7 @@ export default async function NewPricePage({ searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("priceServiceIdLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("priceServiceIdLabel")}</span>
             <input
               type="text"
               name="serviceId"
@@ -65,11 +65,11 @@ export default async function NewPricePage({ searchParams }: Props) {
               placeholder="019f4e4e-8116-7052-b15e-000000000000"
               className="rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("priceServiceIdHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("priceServiceIdHintLabel")}</span>
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("priceAmountLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("priceAmountLabel")}</span>
             <input
               type="text"
               name="amount"

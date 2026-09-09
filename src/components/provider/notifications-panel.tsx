@@ -72,7 +72,7 @@ export async function NotificationsPanel({ unreadCount, items, viewAllHref, high
               <li key={item.id} className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-card px-3 py-2.5 text-sm">
                 <span
                   className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                    item.isRead ? "bg-accent/15 text-foreground/40" : "bg-primary/10 text-primary"
+                    item.isRead ? "bg-accent/15 text-foreground/60" : "bg-primary/10 text-primary"
                   }`}
                 >
                   <Icon size={13} strokeWidth={1.75} />

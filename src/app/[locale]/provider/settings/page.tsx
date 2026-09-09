@@ -127,7 +127,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5 sm:w-64">
-            <span className="text-xs font-medium text-foreground/50">{t("providerTypeLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("providerTypeLabel")}</span>
             <select
               name="providerType"
               defaultValue={profile.providerType}
@@ -140,7 +140,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("publicNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("publicNameArLabel")}</span>
               <input
                 type="text"
                 name="businessNameAr"
@@ -151,7 +151,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("publicNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("publicNameEnLabel")}</span>
               <input
                 type="text"
                 name="businessNameEn"
@@ -165,7 +165,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("businessDescriptionArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("businessDescriptionArLabel")}</span>
               <textarea
                 name="businessDescriptionAr"
                 rows={3}
@@ -175,7 +175,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("businessDescriptionEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("businessDescriptionEnLabel")}</span>
               <textarea
                 name="businessDescriptionEn"
                 rows={3}
@@ -188,7 +188,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("contactEmailLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("contactEmailLabel")}</span>
               <input
                 type="email"
                 name="contactEmail"
@@ -198,7 +198,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("cityLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("cityLabel")}</span>
               <input
                 type="text"
                 name="city"
@@ -233,19 +233,19 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
               <input type="hidden" name="locale" value={locale} />
               <div>
                 <h2 className="text-sm font-semibold text-foreground">{logoTitle}</h2>
-                <p className="mt-0.5 text-xs text-foreground/50">{logoHint}</p>
+                <p className="mt-0.5 text-xs text-foreground/70">{logoHint}</p>
               </div>
               <div className="flex items-center gap-4">
                 {profile.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the public profile page
                   <img src={profile.logoUrl} alt="" className="h-16 w-16 rounded-full border border-border object-cover" />
                 ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-center text-[10px] leading-tight text-foreground/40">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-center text-[10px] leading-tight text-foreground/60">
                     {logoEmpty}
                   </div>
                 )}
                 <label className="flex flex-1 flex-col gap-1.5">
-                  <span className="text-xs font-medium text-foreground/50">{t("logoFileLabel")}</span>
+                  <span className="text-xs font-medium text-foreground/70">{t("logoFileLabel")}</span>
                   <input
                     type="file"
                     name="file"
@@ -281,18 +281,18 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
               <input type="hidden" name="locale" value={locale} />
               <div>
                 <h2 className="text-sm font-semibold text-foreground">{t("coverSectionTitle")}</h2>
-                <p className="mt-0.5 text-xs text-foreground/50">{t("coverSectionHint")}</p>
+                <p className="mt-0.5 text-xs text-foreground/70">{t("coverSectionHint")}</p>
               </div>
               {media.cover ? (
                 // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the public profile page
                 <img src={media.cover.url} alt="" className="h-32 w-full rounded-xl border border-border object-cover" />
               ) : (
-                <div className="flex h-32 w-full items-center justify-center rounded-xl border border-dashed border-border text-xs text-foreground/40">
+                <div className="flex h-32 w-full items-center justify-center rounded-xl border border-dashed border-border text-xs text-foreground/60">
                   {t("noCoverLabel")}
                 </div>
               )}
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("logoFileLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("logoFileLabel")}</span>
                 <input
                   type="file"
                   name="file"
@@ -325,7 +325,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
           <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("portfolioSectionTitle")}</h2>
-              <p className="mt-0.5 text-xs text-foreground/50">{t("portfolioSectionHint")}</p>
+              <p className="mt-0.5 text-xs text-foreground/70">{t("portfolioSectionHint")}</p>
             </div>
             {media.portfolio.length > 0 ? (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -348,12 +348,12 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-foreground/40">{t("portfolioEmptyLabel")}</p>
+              <p className="text-xs text-foreground/60">{t("portfolioEmptyLabel")}</p>
             )}
             <form action="/api/provider/media/portfolio" method="post" encType="multipart/form-data" className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
               <input type="hidden" name="locale" value={locale} />
               <label className="flex flex-1 flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("portfolioAddLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("portfolioAddLabel")}</span>
                 <input
                   type="file"
                   name="file"
@@ -383,7 +383,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">{t("myActivitiesTitle")}</h2>
-            <p className="mt-0.5 text-xs text-foreground/50">{t("myActivitiesHint")}</p>
+            <p className="mt-0.5 text-xs text-foreground/70">{t("myActivitiesHint")}</p>
           </div>
 
           <ul className="flex flex-col gap-2">
@@ -392,20 +392,20 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
                 {activities.primary ? activities.primary.label : t("primaryActivityNone")}
               </span>
               <Badge variant="success">{t("primaryActivityLabel")}</Badge>
-              <span className="text-xs text-foreground/40">{t("primaryActivityNote")}</span>
+              <span className="text-xs text-foreground/60">{t("primaryActivityNote")}</span>
             </li>
             {activities.adminGranted.map((a) => (
               <li key={a.categoryId} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
                 <span className="text-sm text-foreground">{a.label}</span>
                 <Badge variant="info">{t("adminGrantedActivityLabel")}</Badge>
-                <span className="text-xs text-foreground/40">{t("adminGrantedActivityNote")}</span>
+                <span className="text-xs text-foreground/60">{t("adminGrantedActivityNote")}</span>
               </li>
             ))}
             {activities.legacy.map((a) => (
               <li key={a.categoryId} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
                 <span className="text-sm text-foreground">{a.label}</span>
                 <Badge variant="default">{t("legacyActivityLabel")}</Badge>
-                <span className="text-xs text-foreground/40">{t("legacyActivityNote")}</span>
+                <span className="text-xs text-foreground/60">{t("legacyActivityNote")}</span>
               </li>
             ))}
           </ul>
@@ -425,7 +425,7 @@ export default async function ProviderSettingsPage({ searchParams }: Props) {
             >
               <div>
                 <h3 className="text-sm font-medium text-foreground">{t("choosePrimaryActivityTitle")}</h3>
-                <p className="mt-0.5 text-xs text-foreground/50">{t("choosePrimaryActivityHint")}</p>
+                <p className="mt-0.5 text-xs text-foreground/70">{t("choosePrimaryActivityHint")}</p>
               </div>
               <ProviderPrimaryActivityPicker
                 tree={primaryPickerTree}

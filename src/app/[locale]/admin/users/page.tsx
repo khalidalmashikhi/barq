@@ -304,7 +304,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           }}
           className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
         >
-          <UserPlus size={18} strokeWidth={1.75} className="shrink-0 text-foreground/50" aria-hidden />
+          <UserPlus size={18} strokeWidth={1.75} className="shrink-0 text-foreground/70" aria-hidden />
           <input
             type="tel"
             name="phone"
@@ -333,7 +333,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <UserPlus size={18} strokeWidth={1.75} className="shrink-0 text-foreground/50" aria-hidden />
+            <UserPlus size={18} strokeWidth={1.75} className="shrink-0 text-foreground/70" aria-hidden />
             <input
               type="tel"
               name="phone"
@@ -345,7 +345,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             />
           </div>
           <fieldset className="flex flex-wrap items-center gap-4">
-            <span className="text-xs text-foreground/50">{t("um_rolesLabel")}</span>
+            <span className="text-xs text-foreground/70">{t("um_rolesLabel")}</span>
             {STAFF_ROLES.map((role) => (
               <label key={role} className="inline-flex items-center gap-1.5 text-xs text-foreground/80">
                 <input type="checkbox" name="roles" value={role} className="h-3.5 w-3.5 rounded border-border" />
@@ -392,7 +392,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               <div key={admin.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <Link href={`/admin/users/administrators/${admin.id}`} className="min-w-0 flex-1">
                   <p dir="ltr" className="truncate text-start font-medium text-foreground">{admin.phoneNumber}</p>
-                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">ID {admin.userId} · {dateFmt(admin.createdAt)}</p>
+                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/60">ID {admin.userId} · {dateFmt(admin.createdAt)}</p>
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   {admin.id === currentAdminId && <Badge variant="info">{t("um_youLabel")}</Badge>}
@@ -443,7 +443,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                   <p dir="ltr" className="truncate text-start font-medium text-foreground">{member.phoneNumber}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     {member.roles.length === 0 ? (
-                      <span className="text-xs text-foreground/40">{t("um_noRoles")}</span>
+                      <span className="text-xs text-foreground/60">{t("um_noRoles")}</span>
                     ) : (
                       member.roles.map((role) => <Badge key={role} variant="default">{t(`um_role_${role}`)}</Badge>)
                     )}
@@ -519,7 +519,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <Link href={`/admin/providers/${p.id}`} className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">{p.businessName}</p>
-                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">{p.phoneNumber} · ID {p.userId}</p>
+                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/60">{p.phoneNumber} · ID {p.userId}</p>
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge variant={getProviderStatusBadgeVariant(p.status)}>{t(getProviderStatusTranslationKey(p.status))}</Badge>
@@ -577,7 +577,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <Link href={`/admin/customers/${c.id}`} className="min-w-0 flex-1">
                   <p dir="ltr" className="truncate text-start font-medium text-foreground">{c.phoneNumber ?? "—"}</p>
-                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/40">ID {c.userId} · {c.phoneNumberVerified ? t("um_phoneVerified") : t("um_phoneUnverified")}</p>
+                  <p dir="ltr" className="mt-0.5 truncate text-start text-xs text-foreground/60">ID {c.userId} · {c.phoneNumberVerified ? t("um_phoneVerified") : t("um_phoneUnverified")}</p>
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge variant={statusVariant(c.status)}>{statusLabel(c.status)}</Badge>

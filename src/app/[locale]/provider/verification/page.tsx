@@ -77,7 +77,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
           {t("verificationTitle")}
         </h1>
         <p className="text-sm text-foreground/60">{t("verificationIntro")}</p>
-        <p className="text-xs text-foreground/40">
+        <p className="text-xs text-foreground/60">
           {t("verificationReadiness", { approved: data.requiredApproved, total: data.requiredTotal })}
         </p>
       </div>
@@ -144,14 +144,14 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                   </Badge>
                   {doc && <Badge variant={STATUS_BADGE[doc.status]}>{t(STATUS_LABEL_KEY[doc.status])}</Badge>}
                 </div>
-                {description && <p className="text-xs text-foreground/50">{description}</p>}
-                {item.required && <p className="text-xs text-foreground/40">{t("documentRequiredHint")}</p>}
+                {description && <p className="text-xs text-foreground/70">{description}</p>}
+                {item.required && <p className="text-xs text-foreground/60">{t("documentRequiredHint")}</p>}
 
                 {doc ? (
                   <div className="flex flex-col gap-2">
                     <p className="text-sm text-foreground/70">
                       {doc.originalFilename}{" "}
-                      <span className="text-foreground/40" dir="ltr">
+                      <span className="text-foreground/60" dir="ltr">
                         · {formatFileSize(doc.sizeBytes)}
                       </span>
                     </p>
@@ -188,7 +188,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
                     canUpload={item.canUpload}
                   />
                 ) : (
-                  <p className="text-xs text-foreground/40">{t("documentUploadUnavailableShort")}</p>
+                  <p className="text-xs text-foreground/60">{t("documentUploadUnavailableShort")}</p>
                 )}
               </div>
             </Card>
@@ -204,7 +204,7 @@ export default async function ProviderVerificationPage({ searchParams }: Props) 
             <h2 className="text-base font-semibold text-foreground">{t("verificationSubmitTitle")}</h2>
             <p className="text-sm text-foreground/60">{t("verificationSubmitIntro")}</p>
           </div>
-          {!data.canSubmit && <p className="text-xs text-foreground/50">{t("verificationSubmitDisabledHint")}</p>}
+          {!data.canSubmit && <p className="text-xs text-foreground/70">{t("verificationSubmitDisabledHint")}</p>}
           <form action="/api/provider/verification/submit" method="post">
             <input type="hidden" name="locale" value={locale} />
             <SubmitButton

@@ -103,7 +103,7 @@ export default async function EditAvailabilityPage({ params, searchParams }: Pro
           {canEditTime ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("availabilityStartTimeLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("availabilityStartTimeLabel")}</span>
                 <input
                   type="datetime-local"
                   name="startTime"
@@ -113,7 +113,7 @@ export default async function EditAvailabilityPage({ params, searchParams }: Pro
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("availabilityEndTimeLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("availabilityEndTimeLabel")}</span>
                 <input
                   type="datetime-local"
                   name="endTime"
@@ -126,13 +126,13 @@ export default async function EditAvailabilityPage({ params, searchParams }: Pro
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-foreground/50">{t("availabilityStartTimeLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("availabilityStartTimeLabel")}</span>
                 <span className="text-foreground">
                   {formatDate(slot.startTime, locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-foreground/50">{t("availabilityEndTimeLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("availabilityEndTimeLabel")}</span>
                 <span className="text-foreground">
                   {formatDate(slot.endTime, locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                 </span>
@@ -141,7 +141,7 @@ export default async function EditAvailabilityPage({ params, searchParams }: Pro
           )}
 
           <label className="flex flex-col gap-1.5 sm:w-48">
-            <span className="text-xs font-medium text-foreground/50">{t("availabilityCapacityLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("availabilityCapacityLabel")}</span>
             <input
               type="number"
               name="capacity"

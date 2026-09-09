@@ -34,7 +34,7 @@ export async function PricingUnitField({
 
   return (
     <label htmlFor={id} className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-foreground/50">{t("pricingUnit.fieldLabel")}</span>
+      <span className="text-xs font-medium text-foreground/70">{t("pricingUnit.fieldLabel")}</span>
       <select
         id={id}
         name={name}

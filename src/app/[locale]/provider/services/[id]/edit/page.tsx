@@ -175,7 +175,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("nameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("nameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -186,7 +186,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("nameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("nameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -200,7 +200,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("descriptionArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("descriptionArLabel")}</span>
               <textarea
                 name="descriptionAr"
                 rows={3}
@@ -210,7 +210,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("descriptionEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("descriptionEnLabel")}</span>
               <textarea
                 name="descriptionEn"
                 rows={3}
@@ -222,7 +222,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categoryFieldLabel")}</span>
             <TourAwareCategoryField
               name="categoryId"
               tree={categoryTree}
@@ -272,18 +272,18 @@ export default async function EditServicePage({ params, searchParams }: Props) {
               <input type="hidden" name="op" value="cover" />
               <div>
                 <h2 className="text-sm font-semibold text-foreground">{t("serviceCoverTitle")}</h2>
-                <p className="mt-0.5 text-xs text-foreground/50">{t("serviceCoverHint")}</p>
+                <p className="mt-0.5 text-xs text-foreground/70">{t("serviceCoverHint")}</p>
               </div>
               {media.cover ? (
                 // eslint-disable-next-line @next/next/no-img-element -- provider-supplied Supabase host; next/image remotePatterns is a POST-LAUNCH follow-up
                 <img src={media.cover.url} alt="" className="h-40 w-full rounded-xl border border-border object-cover" />
               ) : (
-                <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-border text-xs text-foreground/40">
+                <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-border text-xs text-foreground/60">
                   {t("noServiceCoverLabel")}
                 </div>
               )}
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("serviceCoverUploadButton")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("serviceCoverUploadButton")}</span>
                 <input
                   type="file"
                   name="file"
@@ -317,7 +317,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
           <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("serviceGalleryTitle")}</h2>
-              <p className="mt-0.5 text-xs text-foreground/50">{t("serviceGalleryHint")}</p>
+              <p className="mt-0.5 text-xs text-foreground/70">{t("serviceGalleryHint")}</p>
             </div>
             {media.gallery.length > 0 ? (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -341,13 +341,13 @@ export default async function EditServicePage({ params, searchParams }: Props) {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-foreground/40">{t("serviceGalleryEmptyLabel")}</p>
+              <p className="text-xs text-foreground/60">{t("serviceGalleryEmptyLabel")}</p>
             )}
             <form action={`/api/provider/services/${id}/media`} method="post" encType="multipart/form-data" className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="op" value="gallery" />
               <label className="flex flex-1 flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("serviceGalleryAddLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("serviceGalleryAddLabel")}</span>
                 <input
                   type="file"
                   name="file"

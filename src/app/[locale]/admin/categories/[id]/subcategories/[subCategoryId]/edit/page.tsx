@@ -88,7 +88,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("categoryNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("categoryNameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -99,7 +99,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("categoryNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("categoryNameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -112,7 +112,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("categorySlugLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categorySlugLabel")}</span>
             <input
               type="text"
               name="slug"
@@ -122,7 +122,7 @@ export default async function EditSubCategoryPage({ params, searchParams }: Prop
               defaultValue={child.slug}
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("categorySlugHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("categorySlugHintLabel")}</span>
           </label>
 
           <SubmitButton className="mt-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">

@@ -56,6 +56,20 @@ body {
   color: var(--color-foreground);
 }
 
+/*
+  TEXT CONTRAST TIERS (Global UI Quality pass — typography contrast foundation).
+  Secondary text is expressed as `text-foreground/<opacity>` over the light surface.
+  Contrast of #0F172A over #F7F8FA was measured; only these tiers are AA-safe, so text
+  MUST NOT go below /60:
+    • primary   → text-foreground        (~15:1)
+    • secondary → text-foreground/70      (6.45:1 — AA)   strong secondary / list metadata
+    • muted     → text-foreground/60      (4.60:1 — AA)   timestamps, helper text, quiet labels
+  /40 (2.53:1) and /50 (3.36:1) previously used for metadata FAIL AA and read thin/faint on
+  a high-DPI phone — they were lifted to /60 and /70 respectively across the app. Only
+  `placeholder:text-foreground/40|50` stays lighter on purpose (a placeholder must read as
+  empty, not pre-filled). New code: use foreground / /70 / /60 — never /40 or /50 for text.
+*/
+
 /* Arabic reads more comfortably with slightly looser leading than the Latin
    default. Scoped to RTL so Latin layouts are untouched; applied to running
    prose (not headings/controls, which carry their own line-height) to lift

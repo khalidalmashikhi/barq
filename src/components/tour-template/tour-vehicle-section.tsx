@@ -51,16 +51,16 @@ export async function TourVehicleSection({ summary }: Props) {
                     </span>
                     {v.isFourByFour && <Badge variant="info">{t("tourVehicle4x4Badge")}</Badge>}
                   </div>
-                  <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+                  <p className="mt-0.5 text-xs text-foreground/70">{facts(v)}</p>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-foreground/50">{t("tourVehiclesRepresentativeNote")}</p>
+            <p className="text-xs text-foreground/70">{t("tourVehiclesRepresentativeNote")}</p>
           </div>
         ) : (
           // Transport-promised tour that is temporarily degraded (no currently-eligible
           // vehicle). Show the promise, not stale vehicle data.
-          <p className="text-xs text-foreground/50">{t("tourVehicleUnavailable")}</p>
+          <p className="text-xs text-foreground/70">{t("tourVehicleUnavailable")}</p>
         )}
       </div>
     </Card>

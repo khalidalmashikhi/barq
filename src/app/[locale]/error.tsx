@@ -51,7 +51,7 @@ export default function ErrorBoundary({
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
       <AlertTriangle size={40} strokeWidth={1.5} className="text-danger/60" />
       <h1 className="text-xl font-semibold text-foreground">{t("errorTitle")}</h1>
-      <p className="text-sm text-foreground/50">{t("errorDescription")}</p>
+      <p className="text-sm text-foreground/70">{t("errorDescription")}</p>
       <div className="mt-2 flex items-center gap-3">
         <button
           type="button"

@@ -81,7 +81,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
               const isActive = isInteractive && item.href === activeHref;
               const content = (
                 <>
-                  <span className={isActive ? "text-primary" : "text-foreground/40"}>{item.icon}</span>
+                  <span className={isActive ? "text-primary" : "text-foreground/60"}>{item.icon}</span>
                   {item.label}
                   {item.badge !== undefined && item.badge > 0 && (
                     <span className="ms-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[0.65rem] font-semibold text-white">
@@ -89,7 +89,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
                     </span>
                   )}
                   {!isInteractive && item.disabledHint && (
-                    <span className="ms-auto rounded-full bg-accent/15 px-2 py-0.5 text-[0.65rem] font-medium text-foreground/40">
+                    <span className="ms-auto rounded-full bg-accent/15 px-2 py-0.5 text-[0.65rem] font-medium text-foreground/60">
                       {item.disabledHint}
                     </span>
                   )}
@@ -121,7 +121,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
             })}
           </nav>
 
-          <div className="border-t border-border px-6 py-4 text-xs text-foreground/40">{roleLabel}</div>
+          <div className="border-t border-border px-6 py-4 text-xs text-foreground/60">{roleLabel}</div>
         </div>
       )}
     </div>

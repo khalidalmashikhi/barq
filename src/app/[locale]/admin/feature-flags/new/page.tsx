@@ -50,7 +50,7 @@ export default async function NewFeatureFlagPage({ searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("featureFlagKeyLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("featureFlagKeyLabel")}</span>
             <input
               type="text"
               name="key"
@@ -60,11 +60,11 @@ export default async function NewFeatureFlagPage({ searchParams }: Props) {
               dir="ltr"
               className="rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("featureFlagKeyHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("featureFlagKeyHintLabel")}</span>
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("featureFlagDescriptionLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("featureFlagDescriptionLabel")}</span>
             <textarea
               name="description"
               rows={3}

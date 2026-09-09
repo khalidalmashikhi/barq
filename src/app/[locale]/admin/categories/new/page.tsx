@@ -55,7 +55,7 @@ export default async function NewCategoryPage({ searchParams }: Props) {
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("categoryNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("categoryNameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -65,7 +65,7 @@ export default async function NewCategoryPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("categoryNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("categoryNameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -77,7 +77,7 @@ export default async function NewCategoryPage({ searchParams }: Props) {
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("categorySlugLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categorySlugLabel")}</span>
             <input
               type="text"
               name="slug"
@@ -87,7 +87,7 @@ export default async function NewCategoryPage({ searchParams }: Props) {
               dir="ltr"
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("categorySlugHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("categorySlugHintLabel")}</span>
           </label>
 
           {/* ServiceType (vertical) — ADR-0015. The option set is the
@@ -95,7 +95,7 @@ export default async function NewCategoryPage({ searchParams }: Props) {
               list. A root category chooses its vertical here; child categories
               inherit their parent's and have no selector. */}
           <label className="flex flex-col gap-1.5 sm:w-64">
-            <span className="text-xs font-medium text-foreground/50">{t("categoryServiceTypeLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categoryServiceTypeLabel")}</span>
             <select
               name="serviceTypeKey"
               required

@@ -24,7 +24,7 @@ export function AuditHistory({ events, title, emptyLabel, actorLabel, locale }: 
   return (
     <Card hoverLift={false}>
       <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <History size={16} strokeWidth={1.75} className="text-foreground/40" />
+        <History size={16} strokeWidth={1.75} className="text-foreground/60" />
         {title}
       </h2>
       {events.length === 0 ? (
@@ -35,16 +35,16 @@ export function AuditHistory({ events, title, emptyLabel, actorLabel, locale }: 
             <li key={event.id} className="rounded-xl border border-border/60 px-3 py-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <code className="text-xs font-medium text-foreground">{event.action}</code>
-                <time className="text-xs text-foreground/40">
+                <time className="text-xs text-foreground/60">
                   {formatDate(event.createdAt, locale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </time>
               </div>
-              <p className="mt-1 text-xs text-foreground/50">
+              <p className="mt-1 text-xs text-foreground/70">
                 {actorLabel}: {event.actorType}
                 {event.actorId ? ` · ${event.actorId}` : ""}
               </p>
               {event.previousValue != null || event.newValue != null ? (
-                <p dir="ltr" className="mt-0.5 break-all text-start text-xs text-foreground/40">
+                <p dir="ltr" className="mt-0.5 break-all text-start text-xs text-foreground/60">
                   {JSON.stringify(event.previousValue ?? null)} → {JSON.stringify(event.newValue ?? null)}
                 </p>
               ) : null}

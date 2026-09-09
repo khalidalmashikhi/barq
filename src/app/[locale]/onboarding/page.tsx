@@ -127,7 +127,7 @@ export default async function OnboardingPage() {
           <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("onboardingEmailTitle")}</h2>
-              <p className="mt-0.5 text-xs text-foreground/50">{t("onboardingEmailSubtitle")}</p>
+              <p className="mt-0.5 text-xs text-foreground/70">{t("onboardingEmailSubtitle")}</p>
             </div>
             {emailAvailable ? (
               <AddEmailButton />
@@ -143,7 +143,7 @@ export default async function OnboardingPage() {
           <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("registrationFinalizeHeading")}</h2>
-              <p className="mt-0.5 text-xs text-foreground/50">{t("registrationFinalizeSubtitle")}</p>
+              <p className="mt-0.5 text-xs text-foreground/70">{t("registrationFinalizeSubtitle")}</p>
             </div>
             <FinalizeRegistrationButton
               errorLabels={errorLabels}

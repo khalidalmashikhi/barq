@@ -64,10 +64,10 @@ export async function AssignedVehicleCard({
             <span className="text-sm font-semibold text-foreground">{title}</span>
             {vehicle.isFourByFour && <Badge variant="info">{labels.fourByFour}</Badge>}
           </div>
-          {facts && <p className="text-xs text-foreground/50">{facts}</p>}
+          {facts && <p className="text-xs text-foreground/70">{facts}</p>}
           {showPlate && (
             <div className="mt-1 flex items-center justify-between text-sm">
-              <span className="text-foreground/50">{labels.plate}</span>
+              <span className="text-foreground/70">{labels.plate}</span>
               <span className="font-medium text-foreground">{vehicle.registrationNumber}</span>
             </div>
           )}

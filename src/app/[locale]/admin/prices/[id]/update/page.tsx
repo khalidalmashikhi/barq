@@ -98,14 +98,14 @@ export default async function UpdatePricePage({ params, searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <div>
-            <span className="text-xs font-medium text-foreground/50">{t("currentPriceLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("currentPriceLabel")}</span>
             <p className="mt-1 text-sm text-foreground">
               {price.amount} {price.currency}
             </p>
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("newPriceAmountLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("newPriceAmountLabel")}</span>
             <input
               type="text"
               name="amount"

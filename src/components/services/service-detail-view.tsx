@@ -148,7 +148,7 @@ export async function ServiceDetailView({
                   </Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm text-foreground/50">{service.providerName}</p>
+              <p className="mt-1 text-sm text-foreground/70">{service.providerName}</p>
               {service.description && (
                 <p className="mt-4 text-sm leading-relaxed text-foreground/70">{service.description}</p>
               )}
@@ -255,13 +255,13 @@ export async function ServiceDetailView({
           {info.exclusions.length > 0 && (
             <div>
               <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
-                <X size={18} strokeWidth={2} className="text-foreground/40" />
+                <X size={18} strokeWidth={2} className="text-foreground/60" />
                 {t("exclusionsTitle")}
               </h2>
               <ul className="flex flex-col gap-2">
                 {info.exclusions.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-foreground/80">
-                    <X size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-foreground/40" aria-hidden />
+                    <X size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-foreground/60" aria-hidden />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -368,11 +368,11 @@ export async function ServiceDetailView({
                   <>
                     <span
                       aria-disabled="true"
-                      className="mt-4 block w-full cursor-not-allowed rounded-full bg-foreground/10 px-6 py-2.5 text-center text-sm font-medium text-foreground/50"
+                      className="mt-4 block w-full cursor-not-allowed rounded-full bg-foreground/10 px-6 py-2.5 text-center text-sm font-medium text-foreground/70"
                     >
                       {unavailableCtaLabel}
                     </span>
-                    <p className="mt-2 text-xs text-foreground/50">{unavailableCtaHint}</p>
+                    <p className="mt-2 text-xs text-foreground/70">{unavailableCtaHint}</p>
                   </>
                 )
               ) : (
@@ -386,7 +386,7 @@ export async function ServiceDetailView({
                   >
                     {t("bookNowButton")}
                   </span>
-                  <p className="mt-2 text-xs text-foreground/50">{t("previewBookingDisabledLabel")}</p>
+                  <p className="mt-2 text-xs text-foreground/70">{t("previewBookingDisabledLabel")}</p>
                 </>
               )}
               {/* Share is a PUBLIC-only action: the target /services/[id] URL is

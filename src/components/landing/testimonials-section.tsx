@@ -34,7 +34,7 @@ export async function TestimonialsSection() {
             <blockquote className="text-base leading-relaxed text-foreground/80">
               &ldquo;{t(`testimonials.${quoteKey}`)}&rdquo;
             </blockquote>
-            <figcaption className="text-sm font-medium text-foreground/50">{t(`testimonials.${authorKey}`)}</figcaption>
+            <figcaption className="text-sm font-medium text-foreground/70">{t(`testimonials.${authorKey}`)}</figcaption>
           </figure>
         ))}
       </div>

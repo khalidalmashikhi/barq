@@ -86,28 +86,28 @@ export default async function PaymentDetailPage({ params }: Props) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">{payment.serviceName}</h1>
-            <p className="mt-0.5 text-sm text-foreground/50">{payment.providerName}</p>
+            <p className="mt-0.5 text-sm text-foreground/70">{payment.providerName}</p>
           </div>
           <Badge variant={getPaymentStatusBadgeVariant(payment.status)}>{getPaymentStatusLabel(payment.status, t)}</Badge>
         </div>
 
         <Card hoverLift={false}>
           <h2 className="text-sm font-semibold text-foreground">{t("paymentDetailsTitle")}</h2>
-          <p className="mt-1 text-xs text-foreground/50">{t("paymentRecordDescription")}</p>
+          <p className="mt-1 text-xs text-foreground/70">{t("paymentRecordDescription")}</p>
           <dl className="mt-4 flex flex-col gap-3 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-foreground/50">{t("amountLabel")}</dt>
+              <dt className="text-foreground/70">{t("amountLabel")}</dt>
               <dd className="font-medium text-foreground">
                 {payment.amount} {payment.currency}
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-foreground/50">{t("statusLabel")}</dt>
+              <dt className="text-foreground/70">{t("statusLabel")}</dt>
               <dd className="font-medium text-foreground">{getPaymentStatusLabel(payment.status, t)}</dd>
             </div>
             {payment.refundAmount !== null && (
               <div className="flex items-center justify-between">
-                <dt className="text-foreground/50">{t("refundAmountLabel")}</dt>
+                <dt className="text-foreground/70">{t("refundAmountLabel")}</dt>
                 <dd className="font-medium text-foreground">
                   {payment.refundAmount} {payment.currency}
                 </dd>
@@ -115,14 +115,14 @@ export default async function PaymentDetailPage({ params }: Props) {
             )}
             {payment.capturedAt && (
               <div className="flex items-center justify-between">
-                <dt className="text-foreground/50">{t("capturedOnLabel")}</dt>
+                <dt className="text-foreground/70">{t("capturedOnLabel")}</dt>
                 <dd className="font-medium text-foreground">
                   {formatDate(payment.capturedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                 </dd>
               </div>
             )}
             <div className="flex items-center justify-between">
-              <dt className="text-foreground/50">{t("createdOnLabel")}</dt>
+              <dt className="text-foreground/70">{t("createdOnLabel")}</dt>
               <dd className="font-medium text-foreground">
                 {formatDate(payment.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
               </dd>
@@ -132,23 +132,23 @@ export default async function PaymentDetailPage({ params }: Props) {
 
         <Card hoverLift={false}>
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <FileText size={16} strokeWidth={1.75} className="text-foreground/40" />
+            <FileText size={16} strokeWidth={1.75} className="text-foreground/60" />
             {t("invoiceTitle")}
           </h2>
           {payment.invoice ? (
             <dl className="mt-3 flex flex-col gap-3 text-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-foreground/50">{t("invoiceNumberLabel")}</dt>
+                <dt className="text-foreground/70">{t("invoiceNumberLabel")}</dt>
                 <dd dir="ltr" className="font-medium text-foreground">
                   {payment.invoice.invoiceNumber}
                 </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-foreground/50">{t("statusLabel")}</dt>
+                <dt className="text-foreground/70">{t("statusLabel")}</dt>
                 <dd className="font-medium text-foreground">{t(INVOICE_STATUS_LABEL_KEYS[payment.invoice.status])}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-foreground/50">{t("invoiceIssuedOnLabel")}</dt>
+                <dt className="text-foreground/70">{t("invoiceIssuedOnLabel")}</dt>
                 <dd className="font-medium text-foreground">
                   {formatDate(payment.invoice.issuedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                 </dd>
@@ -156,7 +156,7 @@ export default async function PaymentDetailPage({ params }: Props) {
               <p className="text-foreground/70">{payment.invoice.content}</p>
             </dl>
           ) : (
-            <p className="mt-2 text-sm text-foreground/50">{t("invoiceNotIssuedLabel")}</p>
+            <p className="mt-2 text-sm text-foreground/70">{t("invoiceNotIssuedLabel")}</p>
           )}
         </Card>
 

@@ -123,7 +123,7 @@ export default async function ReviewsPage({ searchParams }: Props) {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-medium text-foreground">{review.serviceName}</p>
-                      <p className="text-xs text-foreground/40">{review.providerName}</p>
+                      <p className="text-xs text-foreground/60">{review.providerName}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-0.5" aria-label={t("reviewStarValueLabel", { value: review.rating })}>
                       {[1, 2, 3, 4, 5].map((value) => (
@@ -139,7 +139,7 @@ export default async function ReviewsPage({ searchParams }: Props) {
                   </div>
                   <p className="text-sm text-foreground/70">{review.content}</p>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-xs text-foreground/40">
+                    <span className="text-xs text-foreground/60">
                       {formatDate(new Date(review.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}
                     </span>
                     <Link

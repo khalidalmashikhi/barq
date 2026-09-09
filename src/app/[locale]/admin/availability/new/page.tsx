@@ -56,7 +56,7 @@ export default async function NewAvailabilityPage({ searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("availabilityServiceIdLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("availabilityServiceIdLabel")}</span>
             <input
               type="text"
               name="serviceId"
@@ -65,12 +65,12 @@ export default async function NewAvailabilityPage({ searchParams }: Props) {
               placeholder="019f4e4e-8116-7052-b15e-000000000000"
               className="rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("availabilityServiceIdHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("availabilityServiceIdHintLabel")}</span>
           </label>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("availabilityStartTimeLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("availabilityStartTimeLabel")}</span>
               <input
                 type="datetime-local"
                 name="startTime"
@@ -79,7 +79,7 @@ export default async function NewAvailabilityPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("availabilityEndTimeLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("availabilityEndTimeLabel")}</span>
               <input
                 type="datetime-local"
                 name="endTime"
@@ -90,7 +90,7 @@ export default async function NewAvailabilityPage({ searchParams }: Props) {
           </div>
 
           <label className="flex flex-col gap-1.5 sm:w-48">
-            <span className="text-xs font-medium text-foreground/50">{t("availabilityCapacityLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("availabilityCapacityLabel")}</span>
             <input
               type="number"
               name="capacity"

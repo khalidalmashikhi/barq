@@ -48,7 +48,7 @@ export default async function FaqPage({ searchParams }: Props) {
   return (
     <StaticPageLayout title={t("faq.title")} subtitle={t("faq.subtitle")}>
       <form action="/help/faq" method="GET" className="mb-6 flex items-center gap-2 rounded-full border border-border bg-card p-2 shadow-premium">
-        <Search size={18} strokeWidth={1.75} className="ms-3 shrink-0 text-foreground/40" aria-hidden />
+        <Search size={18} strokeWidth={1.75} className="ms-3 shrink-0 text-foreground/60" aria-hidden />
         <input
           type="search"
           name="q"

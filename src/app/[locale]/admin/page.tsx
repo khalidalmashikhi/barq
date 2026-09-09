@@ -181,7 +181,7 @@ export default async function AdminOverviewPage() {
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/40">{t("operationalQueuesTitle")}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/60">{t("operationalQueuesTitle")}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <AdminQueueCard
             icon={ShieldCheck}
@@ -232,7 +232,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/40">{t("providerOperationsTitle")}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/60">{t("providerOperationsTitle")}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <AdminQueueCard
             icon={UserPlus}
@@ -274,7 +274,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/40">{t("customerOperationsTitle")}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/60">{t("customerOperationsTitle")}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <AdminQueueCard
             icon={UserRound}
@@ -307,7 +307,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/40">{t("latestBookingsTitle")}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground/60">{t("latestBookingsTitle")}</h2>
         <AdminQueueCard
           icon={Users}
           title={t("latestBookingsTitle")}

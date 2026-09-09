@@ -75,7 +75,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{category.name.en}</h1>
-          <p className="mt-0.5 text-sm text-foreground/40">/{category.slug}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">/{category.slug}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${getCategoryVisibilityStyle(category.visibilityStatus)}`}>
@@ -128,7 +128,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
             className="mt-3 flex flex-wrap items-end gap-3"
           >
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("visibilityControlTitle")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("visibilityControlTitle")}</span>
               <select
                 name="visibilityStatus"
                 defaultValue={category.visibilityStatus}
@@ -142,7 +142,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
               </select>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("scheduledVisibleAtLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("scheduledVisibleAtLabel")}</span>
               <input
                 type="datetime-local"
                 name="scheduledVisibleAt"
@@ -231,7 +231,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
             <div key={child.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{child.name.en}</p>
-                <p className="mt-0.5 text-xs text-foreground/40">/{child.slug}</p>
+                <p className="mt-0.5 text-xs text-foreground/60">/{child.slug}</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -239,7 +239,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
                   {t(getCategoryVisibilityTranslationKey(child.visibilityStatus))}
                 </span>
                 {!child.effectivelyVisible && child.visibilityStatus === "PUBLIC" && (
-                  <span className="text-xs text-foreground/40">{t("hiddenByParentLabel")}</span>
+                  <span className="text-xs text-foreground/60">{t("hiddenByParentLabel")}</span>
                 )}
 
                 {/* Child categories use the SAME Category actions as roots
@@ -251,7 +251,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
                     redirect({ href: `/admin/categories/${id}`, locale });
                   }}
                 >
-                  <SubmitButton aria-label={t("moveUpLabel")} className="rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50">
+                  <SubmitButton aria-label={t("moveUpLabel")} className="rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50">
                     <ArrowUp size={16} strokeWidth={1.75} />
                   </SubmitButton>
                 </form>
@@ -262,14 +262,14 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
                     redirect({ href: `/admin/categories/${id}`, locale });
                   }}
                 >
-                  <SubmitButton aria-label={t("moveDownLabel")} className="rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50">
+                  <SubmitButton aria-label={t("moveDownLabel")} className="rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50">
                     <ArrowDown size={16} strokeWidth={1.75} />
                   </SubmitButton>
                 </form>
 
                 <Link
                   href={`/admin/categories/${id}/subcategories/${child.id}/edit`}
-                  className="rounded-full border border-border p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground"
+                  className="rounded-full border border-border p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground"
                   aria-label={t("editSubcategoryButton")}
                 >
                   <Edit size={14} strokeWidth={1.75} />

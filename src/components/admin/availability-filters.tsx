@@ -47,7 +47,7 @@ export async function AvailabilityFilters({ currentSearch, currentState }: Avail
     <div className="flex flex-col gap-3">
       <form method="get" className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-          <Search size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <Search size={16} strokeWidth={1.75} className="text-foreground/60" />
           <input
             type="search"
             name="q"
@@ -59,7 +59,7 @@ export async function AvailabilityFilters({ currentSearch, currentState }: Avail
         </div>
 
         <label className="flex flex-col gap-1.5 sm:w-64">
-          <span className="text-xs font-medium text-foreground/50">{t("availabilityStatusAll")}</span>
+          <span className="text-xs font-medium text-foreground/70">{t("availabilityStatusAll")}</span>
           <select
             name="state"
             defaultValue={currentState ?? ""}
@@ -84,7 +84,7 @@ export async function AvailabilityFilters({ currentSearch, currentState }: Avail
 
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-foreground/40">{t("categoryActiveFiltersLabel")}</span>
+          <span className="text-xs text-foreground/60">{t("categoryActiveFiltersLabel")}</span>
           {chips.map((chip) => (
             <Link
               key={chip.key}
@@ -95,7 +95,7 @@ export async function AvailabilityFilters({ currentSearch, currentState }: Avail
               <X size={12} strokeWidth={2} />
             </Link>
           ))}
-          <Link href={basePath} className="text-xs font-medium text-foreground/40 underline-offset-2 hover:text-foreground/60 hover:underline">
+          <Link href={basePath} className="text-xs font-medium text-foreground/60 underline-offset-2 hover:text-foreground/60 hover:underline">
             {t("categoryClearAllFiltersLabel")}
           </Link>
         </div>

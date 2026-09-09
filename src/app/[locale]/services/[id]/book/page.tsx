@@ -102,7 +102,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
           {t("backToExperienceButton")}
         </Link>
         <h1 className="text-2xl font-semibold text-foreground">{t("bookServiceTitle", { serviceName: service.name })}</h1>
-        <p className="mt-1 text-sm text-foreground/50">{service.providerName}</p>
+        <p className="mt-1 text-sm text-foreground/70">{service.providerName}</p>
       </div>
       {errorMessage && error !== "NO_CUSTOMER_PROFILE" && <Alert variant="danger">{errorMessage}</Alert>}
       {!customer && <Alert variant="warning">{tErrors("noCustomerProfile")}</Alert>}
@@ -142,7 +142,7 @@ export default async function BookServicePage({ params, searchParams }: Props) {
                     <input type="radio" name="availabilityId" value={slot.id} required className="accent-primary" />
                     {formatDate(new Date(slot.startTime), locale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                   </span>
-                  <span className="text-xs text-foreground/50">{slot.remainingSeats} {t("remainingSeatsLabel")}</span>
+                  <span className="text-xs text-foreground/70">{slot.remainingSeats} {t("remainingSeatsLabel")}</span>
                 </label>
               ))}
             </fieldset>

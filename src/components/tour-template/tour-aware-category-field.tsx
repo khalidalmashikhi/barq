@@ -71,7 +71,7 @@ export function TourAwareCategoryField({
           onQueryChange={setQuery}
           labels={labels}
         />
-        {hint && <span className="text-xs text-foreground/40">{hint}</span>}
+        {hint && <span className="text-xs text-foreground/60">{hint}</span>}
       </div>
 
       {smartActive && (

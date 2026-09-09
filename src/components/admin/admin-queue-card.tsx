@@ -36,7 +36,7 @@ export function AdminQueueCard({ icon: Icon, title, count, items, emptyMessage, 
     <Card hoverLift={false} className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Icon size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <Icon size={16} strokeWidth={1.75} className="text-foreground/60" />
           {title}
         </h2>
         <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-foreground/70">{count}</span>
@@ -50,7 +50,7 @@ export function AdminQueueCard({ icon: Icon, title, count, items, emptyMessage, 
             <li key={item.id}>
               <Link href={item.href} className="flex flex-col rounded-xl px-2 py-1.5 transition-colors hover:bg-accent/10">
                 <span className="truncate text-sm text-foreground">{item.primaryText}</span>
-                {item.secondaryText && <span className="truncate text-xs text-foreground/40">{item.secondaryText}</span>}
+                {item.secondaryText && <span className="truncate text-xs text-foreground/60">{item.secondaryText}</span>}
               </Link>
             </li>
           ))}

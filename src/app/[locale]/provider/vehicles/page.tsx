@@ -50,7 +50,7 @@ export default async function ProviderVehiclesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t("vehiclesTitle")}</h1>
-          <p className="mt-1 text-sm text-foreground/50">{t("vehiclesSubtitle")}</p>
+          <p className="mt-1 text-sm text-foreground/70">{t("vehiclesSubtitle")}</p>
         </div>
         <Link
           href="/provider/vehicles/new"
@@ -106,14 +106,14 @@ export default async function ProviderVehiclesPage() {
                   {facts.length > 0 && <p className="text-sm text-foreground/60">{facts.join(" · ")}</p>}
 
                   {v.passengerCapacity ? (
-                    <span className="flex items-center gap-1 text-xs text-foreground/50">
+                    <span className="flex items-center gap-1 text-xs text-foreground/70">
                       <Users size={13} strokeWidth={1.75} aria-hidden />
                       {v.passengerCapacity}
                     </span>
                   ) : null}
 
                   {v.registrationNumber ? (
-                    <span className="mt-auto text-xs text-foreground/40">
+                    <span className="mt-auto text-xs text-foreground/60">
                       {t("vehicleRegistrationLabel")}: {v.registrationNumber}
                     </span>
                   ) : null}

@@ -108,7 +108,7 @@ export default async function AdminAvailabilityPage({ searchParams }: { searchPa
                   {" – "}
                   {formatDate(new Date(slot.endTime), locale, { hour: "2-digit", minute: "2-digit" })}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-foreground/40">
+                <p className="mt-0.5 truncate text-xs text-foreground/60">
                   {slot.serviceName} · {slot.bookedCount}/{slot.capacity} booked
                 </p>
               </Link>

@@ -165,7 +165,7 @@ export default async function ProviderBookingsPage({
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-foreground/40">
+                    <p className="mt-0.5 text-xs text-foreground/60">
                       {t("bookingCustomerLabel")} ·{" "}
                       {item.slotStartTime
                         ? formatDate(new Date(item.slotStartTime), locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
@@ -173,7 +173,7 @@ export default async function ProviderBookingsPage({
                     </p>
                   </Link>
                   <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-xs text-foreground/50">×{item.seats}</span>
+                    <span className="text-xs text-foreground/70">×{item.seats}</span>
                     {/* BOOKING TOTAL PRESENTATION — the value of the booking (§15) is the effective
                         TOTAL, not the unit price. ×{seats} above is the physical guest count. */}
                     {formatBookingTotal(item.bookingMoney) && (

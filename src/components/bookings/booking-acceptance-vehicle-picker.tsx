@@ -61,7 +61,7 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
     <div className="flex flex-col gap-3">
       <div>
         <h3 className="text-sm font-semibold text-foreground">{t("acceptVehicleSelectHeading")}</h3>
-        {options.vehicleRequired && <p className="mt-0.5 text-xs text-foreground/50">{t("acceptVehicleRequiredHint")}</p>}
+        {options.vehicleRequired && <p className="mt-0.5 text-xs text-foreground/70">{t("acceptVehicleRequiredHint")}</p>}
       </div>
 
       {selectable.length === 0 ? (
@@ -83,7 +83,7 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
                     <span className="text-sm font-medium text-foreground">{title(v)}</span>
                     {v.isFourByFour && <Badge variant="info">{t("tourVehiclePool4x4Badge")}</Badge>}
                   </span>
-                  <span className="mt-0.5 block text-xs text-foreground/50">{facts(v)}</span>
+                  <span className="mt-0.5 block text-xs text-foreground/70">{facts(v)}</span>
                 </span>
               </label>
             </li>
@@ -100,7 +100,7 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
                 {v.isFourByFour && <Badge variant="info">{t("tourVehiclePool4x4Badge")}</Badge>}
                 <Badge variant="warning">{t("acceptVehicleBusyBadge")}</Badge>
               </div>
-              <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+              <p className="mt-0.5 text-xs text-foreground/70">{facts(v)}</p>
               {/* Generic reason only — never the conflicting booking / customer / interval. */}
               <p className="mt-1 text-xs text-danger">{t("acceptVehicleBusyReason")}</p>
             </li>
@@ -117,7 +117,7 @@ export async function BookingAcceptanceVehiclePicker({ options }: { options: Boo
                 {v.isFourByFour && <Badge variant="info">{t("tourVehiclePool4x4Badge")}</Badge>}
                 <Badge variant="warning">{t("tourVehiclePoolUnavailableBadge")}</Badge>
               </div>
-              <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+              <p className="mt-0.5 text-xs text-foreground/70">{facts(v)}</p>
               <ul className="mt-1 flex flex-col gap-0.5">
                 {v.blockers.map((b) => (
                   <li key={b} className="text-xs text-danger">

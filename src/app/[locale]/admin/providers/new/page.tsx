@@ -54,7 +54,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("providerUserIdLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("providerUserIdLabel")}</span>
             <input
               type="text"
               name="userId"
@@ -63,12 +63,12 @@ export default async function NewProviderPage({ searchParams }: Props) {
               placeholder="019f4e4e-8116-7052-b15e-000000000000"
               className="rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("providerUserIdHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("providerUserIdHintLabel")}</span>
           </label>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerNameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -78,7 +78,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerNameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -91,7 +91,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerDescriptionArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerDescriptionArLabel")}</span>
               <textarea
                 name="descriptionAr"
                 rows={3}
@@ -100,7 +100,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerDescriptionEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerDescriptionEnLabel")}</span>
               <textarea
                 name="descriptionEn"
                 rows={3}
@@ -111,7 +111,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("providerSlugLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("providerSlugLabel")}</span>
             <input
               type="text"
               name="slug"
@@ -120,12 +120,12 @@ export default async function NewProviderPage({ searchParams }: Props) {
               dir="ltr"
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("providerSlugHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("providerSlugHintLabel")}</span>
           </label>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerContactEmailLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerContactEmailLabel")}</span>
               <input
                 type="email"
                 name="contactEmail"
@@ -134,7 +134,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerCityLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerCityLabel")}</span>
               <input
                 type="text"
                 name="city"
@@ -145,7 +145,7 @@ export default async function NewProviderPage({ searchParams }: Props) {
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("providerLogoUrlLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("providerLogoUrlLabel")}</span>
             <input
               type="url"
               name="logoUrl"

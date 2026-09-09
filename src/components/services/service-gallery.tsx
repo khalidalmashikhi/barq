@@ -39,7 +39,7 @@ export async function ServiceGallery({ images = [], alt }: ServiceGalleryProps) 
     <div className="relative flex h-80 flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl border border-border bg-accent/5 text-center sm:h-[28rem]">
       <BrandPattern tone="navy" className="absolute inset-0" />
       <ImageOff size={32} strokeWidth={1.5} className="relative text-foreground/25" />
-      <p className="relative text-sm text-foreground/50">{t("noImagesLabel")}</p>
+      <p className="relative text-sm text-foreground/70">{t("noImagesLabel")}</p>
     </div>
   );
 }

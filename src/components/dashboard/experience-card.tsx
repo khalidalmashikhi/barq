@@ -139,10 +139,10 @@ export function ExperienceCard({
         <div className={clsx("flex flex-col gap-2 p-5", isHorizontal && "flex-1 justify-center")}>
           <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground">{title}</h3>
 
-          <p className="text-sm text-foreground/50">{providerName}</p>
+          <p className="text-sm text-foreground/70">{providerName}</p>
 
           {location || duration ? (
-            <div className="flex items-center justify-between gap-3 text-xs text-foreground/50">
+            <div className="flex items-center justify-between gap-3 text-xs text-foreground/70">
               {location ? (
                 <span className="flex items-center gap-1">
                   <MapPin size={13} strokeWidth={1.75} />

@@ -77,7 +77,7 @@ export default async function AdminCategoryPreviewPage({ params }: Props) {
         </Link>
 
         {/* Parent -> this breadcrumb (as customer-facing discovery would nest it) */}
-        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-foreground/50">
+        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-foreground/70">
           {parentLabel && (
             <>
               <span>{parentLabel}</span>
@@ -100,7 +100,7 @@ export default async function AdminCategoryPreviewPage({ params }: Props) {
         <Card hoverLift={false}>
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-foreground/40">{t("previewVisibilityLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("previewVisibilityLabel")}</dt>
               <dd className="mt-1">
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${getCategoryVisibilityStyle(
@@ -112,22 +112,22 @@ export default async function AdminCategoryPreviewPage({ params }: Props) {
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-foreground/40">{t("previewEffectiveVisibilityLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("previewEffectiveVisibilityLabel")}</dt>
               <dd className="mt-1 text-sm text-foreground">
                 {category.effectivelyVisible ? t("previewEffectivelyVisibleYes") : t("previewEffectivelyVisibleNo")}
                 {!category.effectivelyVisible && category.visibilityStatus === "PUBLIC" && category.parent && (
-                  <span className="ms-1 text-xs text-foreground/40">{t("hiddenByParentLabel")}</span>
+                  <span className="ms-1 text-xs text-foreground/60">{t("hiddenByParentLabel")}</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-foreground/40">{t("previewOrderingLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("previewOrderingLabel")}</dt>
               <dd className="mt-1 text-sm text-foreground">
                 {t("previewOrderingValue", { position: category.sortOrder + 1, total: category.siblingCount })}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-foreground/40">{t("previewLinkedServicesLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("previewLinkedServicesLabel")}</dt>
               <dd className="mt-1 text-sm text-foreground">
                 {t("previewLinkedServicesValue", { count: category.linkedPublishedServiceCount })}
               </dd>

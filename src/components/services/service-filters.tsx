@@ -129,7 +129,7 @@ export async function ServiceFilters({
             param here already gets. */}
         {currentCategory && <input type="hidden" name="category" value={currentCategory} />}
         <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-          <Search size={18} strokeWidth={1.75} className="shrink-0 text-foreground/40" />
+          <Search size={18} strokeWidth={1.75} className="shrink-0 text-foreground/60" />
           <input
             type="search"
             name="q"
@@ -161,7 +161,7 @@ export async function ServiceFilters({
             {/* Governorate — the primary discovery filter (Gate 4). Native select,
                 stable CODE submitted, localized label shown. */}
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{tCommon("governorate.fieldLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{tCommon("governorate.fieldLabel")}</span>
               <select
                 name="region"
                 defaultValue={currentRegion && isValidRegionCode(currentRegion) ? currentRegion : ""}
@@ -176,7 +176,7 @@ export async function ServiceFilters({
               </select>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("minPriceLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("minPriceLabel")}</span>
               <input
                 type="number"
                 name="minPrice"
@@ -187,7 +187,7 @@ export async function ServiceFilters({
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("maxPriceLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("maxPriceLabel")}</span>
               <input
                 type="number"
                 name="maxPrice"
@@ -198,7 +198,7 @@ export async function ServiceFilters({
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("providerLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("providerLabel")}</span>
               <select
                 name="providerId"
                 defaultValue={currentProviderId ?? ""}
@@ -213,7 +213,7 @@ export async function ServiceFilters({
               </select>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("sortLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("sortLabel")}</span>
               <select
                 name="sort"
                 defaultValue={currentSort ?? "newest"}
@@ -248,7 +248,7 @@ export async function ServiceFilters({
               <X size={12} strokeWidth={2} />
             </Link>
           ))}
-          <Link href={basePath} className="text-xs font-medium text-foreground/40 underline-offset-2 hover:text-foreground/60 hover:underline">
+          <Link href={basePath} className="text-xs font-medium text-foreground/60 underline-offset-2 hover:text-foreground/60 hover:underline">
             {t("clearAllFiltersLabel")}
           </Link>
         </div>

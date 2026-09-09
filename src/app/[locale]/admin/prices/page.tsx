@@ -100,7 +100,7 @@ export default async function AdminPricesPage({ searchParams }: { searchParams: 
                 <p className="truncate font-medium text-foreground">
                   {price.amount} {price.currency}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-foreground/40">{price.serviceName}</p>
+                <p className="mt-0.5 truncate text-xs text-foreground/60">{price.serviceName}</p>
               </Link>
 
               <div className="flex flex-wrap items-center gap-2">

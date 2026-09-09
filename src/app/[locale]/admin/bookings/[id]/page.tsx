@@ -85,7 +85,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{booking.serviceName}</h1>
-          <p className="mt-0.5 text-sm text-foreground/40">{booking.providerName}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">{booking.providerName}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-sm font-medium ${getBookingStatusStyle(booking.status)}`}>
           {getBookingStatusLabel(booking.status, tBooking)}
@@ -98,24 +98,24 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
         <h2 className="text-sm font-semibold text-foreground">{t("bookingDetailsTitle")}</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("bookingServiceLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("bookingServiceLabel")}</dt>
             <dd className="text-sm text-foreground">{booking.serviceName}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("bookingProviderLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("bookingProviderLabel")}</dt>
             <dd className="text-sm text-foreground">{booking.providerName}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("bookingCustomerIdLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("bookingCustomerIdLabel")}</dt>
             <dd className="text-sm text-foreground">{booking.customerId}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("bookingSeatsFieldLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("bookingSeatsFieldLabel")}</dt>
             <dd className="text-sm text-foreground">{booking.seats}</dd>
           </div>
           {booking.slotStartTime && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("bookingSlotTimeLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("bookingSlotTimeLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {formatDate(booking.slotStartTime, locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                 {booking.slotEndTime && <> – {formatDate(booking.slotEndTime, locale, { hour: "2-digit", minute: "2-digit" })}</>}
@@ -130,8 +130,8 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
             if (!rows) {
               return (
                 <div>
-                  <dt className="text-xs text-foreground/40">{t("bookingPriceLabel")}</dt>
-                  <dd className="text-sm text-foreground/40">{tBooking("bookingAmountUnavailableLabel")}</dd>
+                  <dt className="text-xs text-foreground/60">{t("bookingPriceLabel")}</dt>
+                  <dd className="text-sm text-foreground/60">{tBooking("bookingAmountUnavailableLabel")}</dd>
                 </div>
               );
             }
@@ -140,7 +140,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
                 const basisKey = pricingUnitLabelKey(row.pricingUnit);
                 return (
                   <div key="unit">
-                    <dt className="text-xs text-foreground/40">
+                    <dt className="text-xs text-foreground/60">
                       {tBooking("unitPriceLabel")}
                       {basisKey ? ` · ${tCommon(basisKey)}` : ""}
                     </dt>
@@ -153,7 +153,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
               if (row.kind === "quantity") {
                 return (
                   <div key="quantity">
-                    <dt className="text-xs text-foreground/40">{tBooking("billableQuantityLabel")}</dt>
+                    <dt className="text-xs text-foreground/60">{tBooking("billableQuantityLabel")}</dt>
                     <dd className="text-sm text-foreground">{row.value}</dd>
                   </div>
                 );
@@ -162,7 +162,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
               const basisKey = row.pricingUnit ? pricingUnitLabelKey(row.pricingUnit) : null;
               return (
                 <div key="total">
-                  <dt className="text-xs text-foreground/40">
+                  <dt className="text-xs text-foreground/60">
                     {label}
                     {basisKey ? ` · ${tCommon(basisKey)}` : ""}
                   </dt>
@@ -175,7 +175,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
           })()}
           {booking.commissionSnapshot && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("bookingCommissionLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("bookingCommissionLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {booking.commissionSnapshot.amount} ({booking.commissionSnapshot.tier})
               </dd>
@@ -183,14 +183,14 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
           )}
           {booking.confirmedAt && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("bookingConfirmedAtLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("bookingConfirmedAtLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {formatDate(booking.confirmedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
               </dd>
             </div>
           )}
           <div>
-            <dt className="text-xs text-foreground/40">{t("bookingCreatedAtLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("bookingCreatedAtLabel")}</dt>
             <dd className="text-sm text-foreground">
               {formatDate(booking.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </dd>
@@ -207,7 +207,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
           <div className="mt-3 flex flex-col gap-3">
             {booking.fulfillmentInstructions.en.trim() !== "" && (
               <div>
-                <div className="text-xs text-foreground/40">{t("fulfillmentInstructionsEnLabel")}</div>
+                <div className="text-xs text-foreground/60">{t("fulfillmentInstructionsEnLabel")}</div>
                 <p dir="ltr" className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/80">
                   {booking.fulfillmentInstructions.en}
                 </p>
@@ -215,7 +215,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
             )}
             {booking.fulfillmentInstructions.ar.trim() !== "" && (
               <div>
-                <div className="text-xs text-foreground/40">{t("fulfillmentInstructionsArLabel")}</div>
+                <div className="text-xs text-foreground/60">{t("fulfillmentInstructionsArLabel")}</div>
                 <p dir="rtl" className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/80">
                   {booking.fulfillmentInstructions.ar}
                 </p>
@@ -223,7 +223,7 @@ export default async function AdminBookingDetailPage({ params, searchParams }: P
             )}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-foreground/50">{t("fulfillmentInstructionsEmptyLabel")}</p>
+          <p className="mt-2 text-sm text-foreground/70">{t("fulfillmentInstructionsEmptyLabel")}</p>
         )}
       </Card>
 

@@ -56,22 +56,22 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
       <Card hoverLift={false}>
         <dl className="grid grid-cols-2 gap-3">
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_userId")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_userId")}</dt>
             <dd dir="ltr" className="break-all text-start text-sm text-foreground">{staff.userId}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_created")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_created")}</dt>
             <dd className="text-sm text-foreground">{dateFmt(staff.createdAt)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_lastLogin")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_lastLogin")}</dt>
             <dd className="text-sm text-foreground">{staff.lastLoginAt ? dateFmt(staff.lastLoginAt) : t("um_lastLoginNever")}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_roles")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_roles")}</dt>
             <dd className="flex flex-wrap gap-1.5">
               {staff.roles.length === 0 ? (
-                <span className="text-sm text-foreground/40">{t("um_noRoles")}</span>
+                <span className="text-sm text-foreground/60">{t("um_noRoles")}</span>
               ) : (
                 staff.roles.map((role) => <Badge key={role} variant="default">{t(`um_role_${role}`)}</Badge>)
               )}

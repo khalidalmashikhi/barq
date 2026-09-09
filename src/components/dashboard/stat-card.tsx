@@ -21,7 +21,7 @@ export function StatCard({ label, value, icon: Icon, trend }: StatCardProps) {
       </div>
       <div className="flex flex-col">
         <span className="text-lg font-semibold text-foreground">{value}</span>
-        <span className="text-xs text-foreground/50">{label}</span>
+        <span className="text-xs text-foreground/70">{label}</span>
       </div>
       {trend && <span className="ms-auto text-xs text-success">{trend}</span>}
     </div>

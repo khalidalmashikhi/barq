@@ -39,7 +39,7 @@ export async function CredibilityStrip() {
     <section className="px-6 py-5">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3">
         {items.map(({ key, icon: Icon }) => (
-          <div key={key} className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/50">
+          <div key={key} className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/70">
             <Icon size={14} strokeWidth={1.75} className="shrink-0" aria-hidden />
             {t(`credibility.${key}`)}
           </div>

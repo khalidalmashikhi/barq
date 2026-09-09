@@ -90,7 +90,7 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
       {centerContent}
 
       <div className="flex items-center gap-2">
-        <span className="hidden text-xs text-foreground/40 lg:inline">{today}</span>
+        <span className="hidden text-xs text-foreground/60 lg:inline">{today}</span>
 
         <button
           type="button"

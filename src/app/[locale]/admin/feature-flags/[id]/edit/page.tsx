@@ -110,7 +110,7 @@ export default async function EditFeatureFlagPage({ params, searchParams }: Prop
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("featureFlagDescriptionLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("featureFlagDescriptionLabel")}</span>
             <textarea
               name="description"
               rows={3}

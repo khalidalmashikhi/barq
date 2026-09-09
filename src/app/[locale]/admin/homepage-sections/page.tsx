@@ -112,7 +112,7 @@ export default async function AdminHomepageSectionsPage({ searchParams }: { sear
             <div key={section.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <Link href={`/admin/homepage-sections/${section.id}/edit`} className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{section.label}</p>
-                <p className="mt-0.5 truncate font-mono text-xs text-foreground/40">{section.key}</p>
+                <p className="mt-0.5 truncate font-mono text-xs text-foreground/60">{section.key}</p>
               </Link>
 
               <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export default async function AdminHomepageSectionsPage({ searchParams }: { sear
                 >
                   <SubmitButton
                     aria-label={t("moveUpLabel")}
-                    className="rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
+                    className="rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
                   >
                     <ArrowUp size={16} strokeWidth={1.75} />
                   </SubmitButton>
@@ -143,7 +143,7 @@ export default async function AdminHomepageSectionsPage({ searchParams }: { sear
                 >
                   <SubmitButton
                     aria-label={t("moveDownLabel")}
-                    className="rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
+                    className="rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
                   >
                     <ArrowDown size={16} strokeWidth={1.75} />
                   </SubmitButton>

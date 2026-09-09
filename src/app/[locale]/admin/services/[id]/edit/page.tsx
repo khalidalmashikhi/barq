@@ -97,7 +97,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceNameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -108,7 +108,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceNameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -122,7 +122,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceDescriptionArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceDescriptionArLabel")}</span>
               <textarea
                 name="descriptionAr"
                 rows={3}
@@ -132,7 +132,7 @@ export default async function EditServicePage({ params, searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceDescriptionEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceDescriptionEnLabel")}</span>
               <textarea
                 name="descriptionEn"
                 rows={3}
@@ -144,14 +144,14 @@ export default async function EditServicePage({ params, searchParams }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categoryFieldLabel")}</span>
             <CategoryField
               name="categoryId"
               tree={categoryTree}
               defaultValue={service.categoryId}
               labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
             />
-            <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
+            <span className="text-xs text-foreground/60">{t("categoryFieldHint")}</span>
           </div>
 
           {/* Governorate (Gate 4), prefilled from the current value. */}

@@ -204,7 +204,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{provider.businessName.en}</h1>
-          <p className="mt-0.5 text-sm text-foreground/40">{provider.slug ? `/${provider.slug}` : t("noSlugLabel")}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">{provider.slug ? `/${provider.slug}` : t("noSlugLabel")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={getProviderStatusBadgeVariant(provider.status)}>{t(getProviderStatusTranslationKey(provider.status))}</Badge>
@@ -240,7 +240,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
         <Card hoverLift={false}>
           <h2 className="text-sm font-semibold text-danger">{t("providerRejectionReasonLabel")}</h2>
           {provider.rejectedAt && (
-            <p className="mt-1 text-xs text-foreground/40">
+            <p className="mt-1 text-xs text-foreground/60">
               {formatDate(provider.rejectedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </p>
           )}
@@ -252,53 +252,53 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
         <h2 className="text-sm font-semibold text-foreground">{t("providerDetailsTitle")}</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerNameArLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerNameArLabel")}</dt>
             <dd className="text-sm text-foreground" dir="rtl">{provider.businessName.ar}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerNameEnLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerNameEnLabel")}</dt>
             <dd className="text-sm text-foreground">{provider.businessName.en}</dd>
           </div>
           {provider.businessDescription && (
             <>
               <div>
-                <dt className="text-xs text-foreground/40">{t("providerDescriptionArLabel")}</dt>
+                <dt className="text-xs text-foreground/60">{t("providerDescriptionArLabel")}</dt>
                 <dd className="text-sm text-foreground" dir="rtl">{provider.businessDescription.ar || "—"}</dd>
               </div>
               <div>
-                <dt className="text-xs text-foreground/40">{t("providerDescriptionEnLabel")}</dt>
+                <dt className="text-xs text-foreground/60">{t("providerDescriptionEnLabel")}</dt>
                 <dd className="text-sm text-foreground">{provider.businessDescription.en || "—"}</dd>
               </div>
             </>
           )}
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerTypeLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerTypeLabel")}</dt>
             <dd className="text-sm text-foreground">
               {provider.providerType === "INDIVIDUAL" ? t("providerTypeIndividual") : t("providerTypeCompany")}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerContactEmailLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerContactEmailLabel")}</dt>
             <dd className="text-sm text-foreground">{provider.contactEmail || "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerCityLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerCityLabel")}</dt>
             <dd className="text-sm text-foreground">{provider.city || "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerLogoUrlLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerLogoUrlLabel")}</dt>
             <dd className="truncate text-sm text-foreground">{provider.logoUrl || "—"}</dd>
           </div>
           {provider.approvedAt && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("providerApprovedAtLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("providerApprovedAtLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {formatDate(provider.approvedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
               </dd>
             </div>
           )}
           <div>
-            <dt className="text-xs text-foreground/40">{t("providerCreatedAtLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("providerCreatedAtLabel")}</dt>
             <dd className="text-sm text-foreground">
               {formatDate(provider.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </dd>
@@ -332,7 +332,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
         {/* Gate 1B — verification progress + submittedAt. Rendered from the full
             resolved requirement checklist, so a MISSING required document is a row
             (not only a hidden approval blocker). */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-foreground/50">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-foreground/70">
           <span className="font-medium text-foreground/70">
             {verification.requiredTotal > 0 && verification.requiredApproved === verification.requiredTotal
               ? t("verificationAllRequiredApproved")
@@ -350,7 +350,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
         </div>
 
         {verification.items.length === 0 ? (
-          <p className="mt-3 text-sm text-foreground/50">{t("noVerificationRequirements")}</p>
+          <p className="mt-3 text-sm text-foreground/70">{t("noVerificationRequirements")}</p>
         ) : (
           <div className="mt-3 flex flex-col gap-4">
             {verification.items.map((item) => {
@@ -373,16 +373,16 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
                   </div>
 
                   {!doc ? (
-                    <p className="mt-2 text-sm text-foreground/50">{t("documentNotUploadedYet")}</p>
+                    <p className="mt-2 text-sm text-foreground/70">{t("documentNotUploadedYet")}</p>
                   ) : (
                     <>
                       <p className="mt-2 text-sm text-foreground/70">
                         {doc.originalFilename}{" "}
-                        <span className="text-foreground/40">
+                        <span className="text-foreground/60">
                           · {doc.mimeType} · {formatDocumentBytes(doc.sizeBytes)}
                         </span>
                       </p>
-                      <p className="mt-0.5 text-xs text-foreground/40">
+                      <p className="mt-0.5 text-xs text-foreground/60">
                         {t("documentUploadedAtLabel")}:{" "}
                         {formatDate(doc.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                         {doc.reviewedAt && (
@@ -436,7 +436,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
                           <input type="hidden" name="providerId" value={id} />
                           <input type="hidden" name="versionToken" value={doc.versionToken} />
                           <input type="hidden" name="decision" value="REJECT" />
-                          <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/50">
+                          <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/70">
                             {t("documentRejectReasonLabel")}
                           </label>
                           <textarea
@@ -641,7 +641,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             }}
             className="mt-4 flex flex-col gap-2 border-t border-border pt-4"
           >
-            <label htmlFor="reject-reason" className="text-xs font-medium text-foreground/50">
+            <label htmlFor="reject-reason" className="text-xs font-medium text-foreground/70">
               {t("rejectReasonLabel")}
             </label>
             <textarea
@@ -677,7 +677,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             }}
             className="mt-4 flex flex-col gap-2 border-t border-border pt-4"
           >
-            <label htmlFor="changes-reason" className="text-xs font-medium text-foreground/50">
+            <label htmlFor="changes-reason" className="text-xs font-medium text-foreground/70">
               {t("requestChangesReasonLabel")}
             </label>
             <textarea
@@ -709,7 +709,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
               {activities.primary ? activities.primary.label : t("primaryActivityNone")}
             </span>
             <Badge variant="success">{t("primaryActivityLabel")}</Badge>
-            <span className="text-xs text-foreground/40">{t("providerSelectedActivityNote")}</span>
+            <span className="text-xs text-foreground/60">{t("providerSelectedActivityNote")}</span>
           </li>
 
           {activities.adminGranted.map((a) => (
@@ -718,7 +718,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
                 <span className="text-sm text-foreground">{a.label}</span>
                 <Badge variant="info">{t("adminGrantedActivityLabel")}</Badge>
                 {a.grantedAt && (
-                  <span className="text-xs text-foreground/40">
+                  <span className="text-xs text-foreground/60">
                     {t("adminGrantedActivityNote")} · {formatDate(a.grantedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                   </span>
                 )}
@@ -741,7 +741,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             <li key={a.categoryId} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
               <span className="text-sm text-foreground">{a.label}</span>
               <Badge variant="default">{t("legacyActivityLabel")}</Badge>
-              <span className="text-xs text-foreground/40">{t("legacyActivityNote")}</span>
+              <span className="text-xs text-foreground/60">{t("legacyActivityNote")}</span>
             </li>
           ))}
         </ul>
@@ -759,7 +759,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
             className="mt-4 flex flex-wrap items-end gap-2 border-t border-border pt-4"
           >
             <label className="flex flex-1 flex-col gap-1">
-              <span className="text-xs font-medium text-foreground/50">{t("addActivityLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("addActivityLabel")}</span>
               <select
                 name="categoryId"
                 required

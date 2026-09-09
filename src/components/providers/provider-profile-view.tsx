@@ -89,7 +89,7 @@ export async function ProviderProfileView({
                 {provider.providerType === "INDIVIDUAL" ? t("providerTypeIndividual") : t("providerTypeCompany")}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/50">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/70">
               <span className="flex items-center gap-1.5">
                 <Package size={13} strokeWidth={1.75} />
                 {t("experiencesCountLabel", { count: provider.publishedServicesCount })}
@@ -116,7 +116,7 @@ export async function ProviderProfileView({
 
         {provider.categories.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-foreground/40">
+            <span className="text-xs font-medium uppercase tracking-wide text-foreground/60">
               {t("providerAreasHeading")}
             </span>
             <div className="flex flex-wrap gap-2">
@@ -148,7 +148,7 @@ export async function ProviderProfileView({
 
       {provider.portfolio.length > 0 && (
         <FadeIn delay={0.03} className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-foreground/40">{t("portfolioHeading")}</h2>
+          <h2 className="text-sm font-medium uppercase tracking-wide text-foreground/60">{t("portfolioHeading")}</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {provider.portfolio.map((url) => (
               // eslint-disable-next-line @next/next/no-img-element -- provider-supplied storage host; mirrors the logo <img> above

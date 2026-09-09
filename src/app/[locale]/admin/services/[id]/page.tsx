@@ -72,7 +72,7 @@ export default async function ServiceDetailPage({ params, searchParams }: Props)
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{service.name.en}</h1>
-          <p className="mt-0.5 text-sm text-foreground/40">{service.providerName}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">{service.providerName}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={getServiceStatusBadgeVariant(service.status)}>{t(getServiceStatusTranslationKey(service.status))}</Badge>
@@ -101,37 +101,37 @@ export default async function ServiceDetailPage({ params, searchParams }: Props)
         <h2 className="text-sm font-semibold text-foreground">{t("serviceDetailsTitle")}</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("serviceNameArLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("serviceNameArLabel")}</dt>
             <dd className="text-sm text-foreground" dir="rtl">{service.name.ar}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("serviceNameEnLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("serviceNameEnLabel")}</dt>
             <dd className="text-sm text-foreground">{service.name.en}</dd>
           </div>
           {service.description && (
             <>
               <div>
-                <dt className="text-xs text-foreground/40">{t("serviceDescriptionArLabel")}</dt>
+                <dt className="text-xs text-foreground/60">{t("serviceDescriptionArLabel")}</dt>
                 <dd className="text-sm text-foreground" dir="rtl">{service.description.ar || "—"}</dd>
               </div>
               <div>
-                <dt className="text-xs text-foreground/40">{t("serviceDescriptionEnLabel")}</dt>
+                <dt className="text-xs text-foreground/60">{t("serviceDescriptionEnLabel")}</dt>
                 <dd className="text-sm text-foreground">{service.description.en || "—"}</dd>
               </div>
             </>
           )}
           <div>
-            <dt className="text-xs text-foreground/40">{t("serviceProviderLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("serviceProviderLabel")}</dt>
             <dd className="text-sm text-foreground">{service.providerName}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("serviceActivePriceLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("serviceActivePriceLabel")}</dt>
             <dd className="text-sm text-foreground">
               {service.activePrice ? `${service.activePrice.amount} ${service.activePrice.currency}` : t("noActivePriceLabel")}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("serviceCreatedAtLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("serviceCreatedAtLabel")}</dt>
             <dd className="text-sm text-foreground">
               {formatDate(service.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </dd>

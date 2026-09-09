@@ -75,7 +75,7 @@ export default async function PriceDetailPage({ params, searchParams }: Props) {
           <h1 className="text-2xl font-semibold text-foreground">
             {price.amount} {price.currency}
           </h1>
-          <p className="mt-0.5 text-sm text-foreground/40">{price.serviceName}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">{price.serviceName}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={getPriceStatusBadgeVariant(price.status)}>{t(getPriceStatusTranslationKey(price.status))}</Badge>
@@ -96,17 +96,17 @@ export default async function PriceDetailPage({ params, searchParams }: Props) {
         <h2 className="text-sm font-semibold text-foreground">{t("priceDetailsTitle")}</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("priceServiceLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("priceServiceLabel")}</dt>
             <dd className="text-sm text-foreground">{price.serviceName}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("priceAmountLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("priceAmountLabel")}</dt>
             <dd className="text-sm text-foreground">
               {price.amount} {price.currency}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("priceCreatedAtLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("priceCreatedAtLabel")}</dt>
             <dd className="text-sm text-foreground">
               {formatDate(price.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </dd>

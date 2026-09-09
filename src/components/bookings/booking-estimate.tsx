@@ -59,27 +59,27 @@ export function BookingEstimate({ prices, labels }: Props) {
 
   return (
     <div ref={rootRef} aria-live="polite" className="flex flex-col gap-1 rounded-xl border border-border bg-background/60 px-4 py-3">
-      <span className="text-xs font-medium text-foreground/50">{labels.title}</span>
+      <span className="text-xs font-medium text-foreground/70">{labels.title}</span>
       {view.state === "no-price" ? (
-        <span className="text-sm text-foreground/40">{labels.selectPrice}</span>
+        <span className="text-sm text-foreground/60">{labels.selectPrice}</span>
       ) : view.state === "invalid-quantity" ? (
-        <span className="text-sm text-foreground/40">{labels.invalidQuantity}</span>
+        <span className="text-sm text-foreground/60">{labels.invalidQuantity}</span>
       ) : view.state === "unavailable" ? (
-        <span className="text-sm text-foreground/40">{labels.unavailable}</span>
+        <span className="text-sm text-foreground/60">{labels.unavailable}</span>
       ) : view.showMultiplication ? (
         // A real per-person multiplication — rendered as separate semantic pieces (never one
         // interpolated string) so the figures stay readable in RTL, and wrapping on narrow screens.
         <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
           <span className="text-foreground/60">{view.unitAmount} {view.currency}</span>
-          <span aria-hidden className="text-foreground/40">×</span>
+          <span aria-hidden className="text-foreground/60">×</span>
           <span className="text-foreground/60">{view.quantity}</span>
-          <span aria-hidden className="text-foreground/40">=</span>
+          <span aria-hidden className="text-foreground/60">=</span>
           <span className="text-lg font-semibold text-primary">{view.totalAmount} {view.currency}</span>
         </div>
       ) : (
         <div className="flex flex-col gap-0.5">
           <span className="text-lg font-semibold text-primary">{view.totalAmount} {view.currency}</span>
-          {view.basisLabel && <span className="text-xs text-foreground/40">{view.basisLabel}</span>}
+          {view.basisLabel && <span className="text-xs text-foreground/60">{view.basisLabel}</span>}
         </div>
       )}
     </div>

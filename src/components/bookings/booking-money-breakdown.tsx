@@ -27,8 +27,8 @@ export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView
   if (!rows) {
     return (
       <div className="flex items-center justify-between text-sm">
-        <span className="text-foreground/50">{t("priceLabel")}</span>
-        <span className="font-medium text-foreground/40">{t("bookingAmountUnavailableLabel")}</span>
+        <span className="text-foreground/70">{t("priceLabel")}</span>
+        <span className="font-medium text-foreground/60">{t("bookingAmountUnavailableLabel")}</span>
       </div>
     );
   }
@@ -40,9 +40,9 @@ export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView
           const basisKey = pricingUnitLabelKey(row.pricingUnit);
           return (
             <div key="unit" className="flex items-center justify-between text-sm">
-              <span className="text-foreground/50">
+              <span className="text-foreground/70">
                 {t("unitPriceLabel")}
-                {basisKey && <span className="text-foreground/40"> · {tCommon(basisKey)}</span>}
+                {basisKey && <span className="text-foreground/60"> · {tCommon(basisKey)}</span>}
               </span>
               <span className="font-medium text-foreground">
                 {row.amount} {row.currency}
@@ -53,7 +53,7 @@ export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView
         if (row.kind === "quantity") {
           return (
             <div key="quantity" className="flex items-center justify-between text-sm">
-              <span className="text-foreground/50">{t("billableQuantityLabel")}</span>
+              <span className="text-foreground/70">{t("billableQuantityLabel")}</span>
               <span className="font-medium text-foreground">{row.value}</span>
             </div>
           );
@@ -62,9 +62,9 @@ export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView
         const basisKey = row.pricingUnit ? pricingUnitLabelKey(row.pricingUnit) : null;
         return (
           <div key="total" className="flex items-center justify-between text-sm">
-            <span className="text-foreground/50">
+            <span className="text-foreground/70">
               {label}
-              {basisKey && <span className="text-foreground/40"> · {tCommon(basisKey)}</span>}
+              {basisKey && <span className="text-foreground/60"> · {tCommon(basisKey)}</span>}
             </span>
             <span className="font-semibold text-primary">
               {row.amount} {row.currency}

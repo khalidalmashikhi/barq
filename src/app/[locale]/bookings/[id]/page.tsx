@@ -135,14 +135,14 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
       <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{booking.serviceName}</h1>
-          <p className="mt-1 text-sm text-foreground/50">{booking.providerName}</p>
+          <p className="mt-1 text-sm text-foreground/70">{booking.providerName}</p>
         </div>
 
         {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
 
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-foreground/50">{t("statusLabel")}</span>
+            <span className="text-foreground/70">{t("statusLabel")}</span>
             <span className="font-medium text-foreground">{getBookingStatusLabel(booking.status, t)}</span>
           </div>
           {/* BOOKING TOTAL PRESENTATION — authoritative TOTAL + (for a per-person booking) the
@@ -150,7 +150,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
               deliberately kept separate from any billable quantity. */}
           <BookingMoneyBreakdown money={booking.bookingMoney} />
           <div className="flex items-center justify-between text-sm">
-            <span className="text-foreground/50">{t("slotLabel")}</span>
+            <span className="text-foreground/70">{t("slotLabel")}</span>
             <span className="font-medium text-foreground">
               {booking.slotStartTime
                 ? formatDate(new Date(booking.slotStartTime), locale, {
@@ -164,11 +164,11 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-foreground/50">{t("seatsLabel")}</span>
+            <span className="text-foreground/70">{t("seatsLabel")}</span>
             <span className="font-medium text-foreground">{booking.seats}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-foreground/50">{t("requestDateLabel")}</span>
+            <span className="text-foreground/70">{t("requestDateLabel")}</span>
             <span className="font-medium text-foreground">
               {formatDate(new Date(booking.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}
             </span>
@@ -207,7 +207,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
                 {booking.fulfillmentInstructions}
               </p>
             ) : (
-              <p className="text-sm leading-relaxed text-foreground/50">{t("fulfillmentCustomerEmpty")}</p>
+              <p className="text-sm leading-relaxed text-foreground/70">{t("fulfillmentCustomerEmpty")}</p>
             )}
           </div>
         )}
@@ -234,7 +234,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
               {t("viewPaymentButton")}
             </Link>
           ) : (
-            <span className="text-xs text-foreground/40">{t("noPaymentYetLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("noPaymentYetLabel")}</span>
           )}
         </div>
 
@@ -302,7 +302,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
                 }}
               >
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="text-xs font-medium text-foreground/50">{t("reviewRatingLabel")}</legend>
+                  <legend className="text-xs font-medium text-foreground/70">{t("reviewRatingLabel")}</legend>
                   <div className="flex gap-3">
                     {[1, 2, 3, 4, 5].map((value) => (
                       <label key={value} className="group cursor-pointer">
@@ -319,7 +319,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
                 </fieldset>
 
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-foreground/50">{t("reviewContentLabel")}</span>
+                  <span className="text-xs font-medium text-foreground/70">{t("reviewContentLabel")}</span>
                   <textarea
                     name="content"
                     required

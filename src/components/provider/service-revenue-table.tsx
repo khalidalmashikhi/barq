@@ -43,12 +43,12 @@ export async function ServiceRevenueTable({ groups }: { groups: ProviderServiceR
       {groups.map((group) => (
         <div key={group.currency} className="flex flex-col gap-2.5">
           {groups.length > 1 && (
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/40">{group.currency}</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/60">{group.currency}</h3>
           )}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-sm">
               <thead>
-                <tr className="border-b border-border text-start text-xs uppercase tracking-wide text-foreground/40">
+                <tr className="border-b border-border text-start text-xs uppercase tracking-wide text-foreground/60">
                   <th scope="col" className="px-3 py-2 text-start font-medium">
                     {t("serviceColumnLabel")}
                   </th>

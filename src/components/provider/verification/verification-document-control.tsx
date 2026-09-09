@@ -209,7 +209,7 @@ export function VerificationDocumentControl({ locale, type, doc, canDelete, stor
             style={p.determinate ? { width: `${p.percent}%` } : undefined}
           />
         </div>
-        <div className="flex items-center justify-between text-xs text-foreground/50">
+        <div className="flex items-center justify-between text-xs text-foreground/70">
           <span dir="ltr">
             {p.determinate ? `${p.loadedLabel} / ${p.totalLabel}` : p.loadedLabel}
           </span>
@@ -223,7 +223,7 @@ export function VerificationDocumentControl({ locale, type, doc, canDelete, stor
     );
   }
 
-  const acceptDescription = <span className="text-xs text-foreground/40">{t("documentUploadHint")}</span>;
+  const acceptDescription = <span className="text-xs text-foreground/60">{t("documentUploadHint")}</span>;
 
   // Hidden native input shared by both "new" and "replace" chooser buttons.
   const hiddenInput = (

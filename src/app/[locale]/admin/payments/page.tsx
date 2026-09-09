@@ -84,37 +84,37 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
           {STATUSES.map((value) => (
             <div key={value} className="flex flex-col gap-1 rounded-xl bg-accent/10 p-3">
               <span className="text-lg font-semibold text-foreground">{overview.countsByStatus[value]}</span>
-              <span className="text-xs text-foreground/50">{getPaymentStatusLabel(value, t)}</span>
+              <span className="text-xs text-foreground/70">{getPaymentStatusLabel(value, t)}</span>
             </div>
           ))}
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-2 rounded-xl bg-accent/10 p-3">
-            <span className="flex items-center gap-1.5 text-xs text-foreground/50">
+            <span className="flex items-center gap-1.5 text-xs text-foreground/70">
               <Banknote size={14} strokeWidth={1.75} />
               {t("capturedByCurrencyLabel")}
             </span>
             {overview.capturedByCurrency.length === 0 ? (
-              <span className="text-sm text-foreground/40">—</span>
+              <span className="text-sm text-foreground/60">—</span>
             ) : (
               overview.capturedByCurrency.map((entry) => (
                 <span key={entry.currency} className="text-base font-semibold text-foreground">
-                  {entry.amount} <span className="text-xs font-medium text-foreground/50">{entry.currency}</span>
+                  {entry.amount} <span className="text-xs font-medium text-foreground/70">{entry.currency}</span>
                 </span>
               ))
             )}
           </div>
           <div className="flex flex-col gap-2 rounded-xl bg-accent/10 p-3">
-            <span className="flex items-center gap-1.5 text-xs text-foreground/50">
+            <span className="flex items-center gap-1.5 text-xs text-foreground/70">
               <Undo2 size={14} strokeWidth={1.75} />
               {t("refundedByCurrencyLabel")}
             </span>
             {overview.refundedByCurrency.length === 0 ? (
-              <span className="text-sm text-foreground/40">—</span>
+              <span className="text-sm text-foreground/60">—</span>
             ) : (
               overview.refundedByCurrency.map((entry) => (
                 <span key={entry.currency} className="text-base font-semibold text-foreground">
-                  {entry.amount} <span className="text-xs font-medium text-foreground/50">{entry.currency}</span>
+                  {entry.amount} <span className="text-xs font-medium text-foreground/70">{entry.currency}</span>
                 </span>
               ))
             )}
@@ -164,8 +164,8 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
             >
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-medium text-foreground">{payment.serviceName}</span>
-                <span className="mt-0.5 truncate text-xs text-foreground/40">{payment.providerName}</span>
-                <span className="text-xs text-foreground/40">
+                <span className="mt-0.5 truncate text-xs text-foreground/60">{payment.providerName}</span>
+                <span className="text-xs text-foreground/60">
                   {formatDate(payment.createdAt, locale, { day: "numeric", month: "short", year: "numeric" })}
                 </span>
               </div>

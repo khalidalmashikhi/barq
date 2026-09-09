@@ -27,8 +27,8 @@ export type VehicleFieldDefaults = {
 function labelSpan(text: string, hint?: string) {
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium text-foreground/50">{text}</span>
-      {hint ? <span className="text-[0.7rem] font-normal text-foreground/40">{hint}</span> : null}
+      <span className="text-xs font-medium text-foreground/70">{text}</span>
+      {hint ? <span className="text-[0.7rem] font-normal text-foreground/60">{hint}</span> : null}
     </span>
   );
 }
@@ -90,7 +90,7 @@ export async function VehicleFormFields({ defaults }: { defaults?: VehicleFieldD
           <input type="checkbox" name="claimedFourByFour" value="true" defaultChecked={defaults?.claimedFourByFour === true} className="mt-1" />
           <span className="flex flex-col gap-0.5">
             <span className="text-sm text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
-            <span className="text-[0.7rem] text-foreground/40">{t("vehicleClaimedFourByFourHint")}</span>
+            <span className="text-[0.7rem] text-foreground/60">{t("vehicleClaimedFourByFourHint")}</span>
           </span>
         </label>
       </fieldset>

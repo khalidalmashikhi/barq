@@ -52,7 +52,7 @@ export function EmptyState({
   icon: Icon,
   iconSize = 28,
   message,
-  messageClassName = "text-sm text-foreground/50",
+  messageClassName = "text-sm text-foreground/70",
   description,
   action,
   gap = "gap-2",
@@ -70,7 +70,7 @@ export function EmptyState({
     >
       <Icon size={iconSize} strokeWidth={1.5} className="text-foreground/25" />
       <p className={messageClassName}>{message}</p>
-      {description && <p className="text-xs text-foreground/40">{description}</p>}
+      {description && <p className="text-xs text-foreground/60">{description}</p>}
       {action}
     </div>
   );

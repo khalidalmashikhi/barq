@@ -166,7 +166,7 @@ export default async function ProviderAvailabilityPage({
         <div className="flex flex-col gap-6">
           {groupByDate(result.items, locale).map(([dateLabel, slots]) => (
             <div key={dateLabel}>
-              <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-foreground/40">{dateLabel}</h2>
+              <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-foreground/60">{dateLabel}</h2>
               <div className="flex flex-col gap-3">
                 {slots.map((item) => {
                   const occupancyPercent = item.capacity > 0 ? Math.min(100, Math.round((item.bookedCount / item.capacity) * 100)) : 0;
@@ -174,13 +174,13 @@ export default async function ProviderAvailabilityPage({
                     <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
                       <div className="min-w-0">
                         <p className="truncate font-medium text-foreground">{item.serviceName}</p>
-                        <p className="mt-0.5 text-xs text-foreground/40">
+                        <p className="mt-0.5 text-xs text-foreground/60">
                           {formatDate(new Date(item.startTime), locale, { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
                       <div className="flex flex-wrap shrink-0 items-center gap-2 sm:gap-4">
                         <div className="flex w-28 flex-col gap-1">
-                          <span className="text-xs text-foreground/50">
+                          <span className="text-xs text-foreground/70">
                             {t("capacityLabel", { booked: item.bookedCount, capacity: item.capacity })}
                           </span>
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-accent/15">

@@ -29,7 +29,7 @@ export async function ServiceInfoFields({ defaults }: Props) {
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-foreground/70">{t("durationMinutesLabel")}</span>
           <input type="number" inputMode="numeric" min={1} name="durationMinutes" defaultValue={defaults?.durationMinutes ?? ""} className={inputClass} />
-          <span className="text-xs text-foreground/50">{t("durationHint")}</span>
+          <span className="text-xs text-foreground/70">{t("durationHint")}</span>
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-foreground/70">{t("minSeatsLabel")}</span>
@@ -40,7 +40,7 @@ export async function ServiceInfoFields({ defaults }: Props) {
           <input type="number" inputMode="numeric" min={1} name="maxBookingSeats" defaultValue={defaults?.maxBookingSeats ?? ""} className={inputClass} />
         </label>
       </div>
-      <span className="-mt-2 text-xs text-foreground/50">{t("seatsHint")}</span>
+      <span className="-mt-2 text-xs text-foreground/70">{t("seatsHint")}</span>
 
       {/* Start instructions (bilingual free text) */}
       <div className="flex flex-col gap-1.5">
@@ -49,7 +49,7 @@ export async function ServiceInfoFields({ defaults }: Props) {
           <textarea name="startInstructionsAr" rows={2} dir="rtl" aria-label={t("arabicSublabel")} placeholder={t("arabicSublabel")} defaultValue={si?.ar ?? ""} className={inputClass} />
           <textarea name="startInstructionsEn" rows={2} dir="ltr" aria-label={t("englishSublabel")} placeholder={t("englishSublabel")} defaultValue={si?.en ?? ""} className={inputClass} />
         </div>
-        <span className="text-xs text-foreground/50">{t("startInstructionsHint")}</span>
+        <span className="text-xs text-foreground/70">{t("startInstructionsHint")}</span>
       </div>
 
       {/* Inclusions (bilingual, one item per line) */}
@@ -59,7 +59,7 @@ export async function ServiceInfoFields({ defaults }: Props) {
           <textarea name="inclusionsAr" rows={3} dir="rtl" aria-label={t("arabicSublabel")} placeholder={t("arabicSublabel")} defaultValue={lines(defaults?.inclusions?.ar)} className={inputClass} />
           <textarea name="inclusionsEn" rows={3} dir="ltr" aria-label={t("englishSublabel")} placeholder={t("englishSublabel")} defaultValue={lines(defaults?.inclusions?.en)} className={inputClass} />
         </div>
-        <span className="text-xs text-foreground/50">{t("listHint")}</span>
+        <span className="text-xs text-foreground/70">{t("listHint")}</span>
       </div>
 
       {/* Exclusions (bilingual, one item per line) */}
@@ -69,7 +69,7 @@ export async function ServiceInfoFields({ defaults }: Props) {
           <textarea name="exclusionsAr" rows={3} dir="rtl" aria-label={t("arabicSublabel")} placeholder={t("arabicSublabel")} defaultValue={lines(defaults?.exclusions?.ar)} className={inputClass} />
           <textarea name="exclusionsEn" rows={3} dir="ltr" aria-label={t("englishSublabel")} placeholder={t("englishSublabel")} defaultValue={lines(defaults?.exclusions?.en)} className={inputClass} />
         </div>
-        <span className="text-xs text-foreground/50">{t("listHint")}</span>
+        <span className="text-xs text-foreground/70">{t("listHint")}</span>
       </div>
 
       {/* Customer requirements (bilingual, one item per line) */}
@@ -79,7 +79,7 @@ export async function ServiceInfoFields({ defaults }: Props) {
           <textarea name="requirementsAr" rows={3} dir="rtl" aria-label={t("arabicSublabel")} placeholder={t("arabicSublabel")} defaultValue={lines(defaults?.customerRequirements?.ar)} className={inputClass} />
           <textarea name="requirementsEn" rows={3} dir="ltr" aria-label={t("englishSublabel")} placeholder={t("englishSublabel")} defaultValue={lines(defaults?.customerRequirements?.en)} className={inputClass} />
         </div>
-        <span className="text-xs text-foreground/50">{t("requirementsHint")}</span>
+        <span className="text-xs text-foreground/70">{t("requirementsHint")}</span>
       </div>
     </fieldset>
   );

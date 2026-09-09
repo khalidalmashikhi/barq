@@ -30,12 +30,12 @@ export async function BookingStepsIndicator({ currentStep }: BookingStepsIndicat
             <span
               className={clsx(
                 "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                isDone ? "bg-primary text-primary-foreground" : isActive ? "bg-primary/15 text-primary ring-2 ring-primary/30" : "bg-accent/15 text-foreground/40"
+                isDone ? "bg-primary text-primary-foreground" : isActive ? "bg-primary/15 text-primary ring-2 ring-primary/30" : "bg-accent/15 text-foreground/60"
               )}
             >
               {isDone ? <Check size={13} strokeWidth={2.5} /> : step}
             </span>
-            <span className={clsx("text-xs font-medium", isActive ? "text-foreground" : "text-foreground/40")}>{label}</span>
+            <span className={clsx("text-xs font-medium", isActive ? "text-foreground" : "text-foreground/60")}>{label}</span>
             {index < steps.length - 1 && <span className="mx-1 h-px w-6 bg-border" aria-hidden />}
           </li>
         );

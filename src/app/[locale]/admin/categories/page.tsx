@@ -99,7 +99,7 @@ export default async function AdminCategoriesPage({ searchParams }: { searchPara
             <div key={category.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <Link href={`/admin/categories/${category.id}`} className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{category.name}</p>
-                <p className="mt-0.5 text-xs text-foreground/40">
+                <p className="mt-0.5 text-xs text-foreground/60">
                   /{category.slug} · {category.children.length} {t("subcategoriesLabel")}
                 </p>
               </Link>
@@ -118,7 +118,7 @@ export default async function AdminCategoriesPage({ searchParams }: { searchPara
                 >
                   <SubmitButton
                     aria-label={t("moveUpLabel")}
-                    className="rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
+                    className="rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
                   >
                     <ArrowUp size={16} strokeWidth={1.75} />
                   </SubmitButton>
@@ -132,7 +132,7 @@ export default async function AdminCategoriesPage({ searchParams }: { searchPara
                 >
                   <SubmitButton
                     aria-label={t("moveDownLabel")}
-                    className="rounded-full p-2 text-foreground/50 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
+                    className="rounded-full p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground disabled:opacity-50"
                   >
                     <ArrowDown size={16} strokeWidth={1.75} />
                   </SubmitButton>

@@ -70,7 +70,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
       <div className="flex flex-col gap-5">
         <div>
           <h2 className="text-sm font-semibold text-foreground">{t("tourVehiclePoolTitle")}</h2>
-          <p className="mt-0.5 text-xs text-foreground/50">{t("tourVehiclePoolSubtitle")}</p>
+          <p className="mt-0.5 text-xs text-foreground/70">{t("tourVehiclePoolSubtitle")}</p>
         </div>
 
         {notice === "added" && <Alert variant="success">{t("tourVehiclePoolAddedLabel")}</Alert>}
@@ -86,7 +86,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
             <div className="flex flex-col gap-2">
               <h3 className="text-xs font-semibold text-foreground/70">{t("tourVehiclePoolConfiguredTitle")}</h3>
               {view.pool.length === 0 ? (
-                <p className="text-xs text-foreground/40">{t("tourVehiclePoolNoneConfigured")}</p>
+                <p className="text-xs text-foreground/60">{t("tourVehiclePoolNoneConfigured")}</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {view.pool.map((v) => (
@@ -104,7 +104,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
                             <Badge variant="warning">{t("tourVehiclePoolUnavailableBadge")}</Badge>
                           )}
                         </div>
-                        <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+                        <p className="mt-0.5 text-xs text-foreground/70">{facts(v)}</p>
                         {!v.eligible && blockerList(v)}
                       </div>
                       <form action={removeAction}>
@@ -128,7 +128,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
 
               {eligibleAvailable.length === 0 && view.pool.length === 0 && ineligibleAvailable.length === 0 ? (
                 <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed border-border p-4">
-                  <p className="text-xs text-foreground/50">{t("tourVehiclePoolNoVehiclesEmptyState")}</p>
+                  <p className="text-xs text-foreground/70">{t("tourVehiclePoolNoVehiclesEmptyState")}</p>
                   <Link
                     href="/provider/vehicles"
                     className="text-xs font-medium text-primary transition-opacity hover:opacity-80"
@@ -139,7 +139,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
               ) : (
                 <>
                   {eligibleAvailable.length === 0 ? (
-                    <p className="text-xs text-foreground/40">{t("tourVehiclePoolNoEligibleToAdd")}</p>
+                    <p className="text-xs text-foreground/60">{t("tourVehiclePoolNoEligibleToAdd")}</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {eligibleAvailable.map((v) => (
@@ -152,7 +152,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
                               <span className="text-sm font-medium text-foreground">{title(v)}</span>
                               {v.isFourByFour && <Badge variant="info">{t("tourVehiclePool4x4Badge")}</Badge>}
                             </div>
-                            <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+                            <p className="mt-0.5 text-xs text-foreground/70">{facts(v)}</p>
                           </div>
                           <form action={addAction}>
                             <input type="hidden" name="vehicleId" value={v.vehicleId} />
@@ -171,7 +171,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
                   {/* Owned-but-not-yet-eligible vehicles, read-only with reasons. */}
                   {ineligibleAvailable.length > 0 && (
                     <div className="mt-1 flex flex-col gap-2">
-                      <h4 className="text-xs font-medium text-foreground/40">{t("tourVehiclePoolNotEligibleTitle")}</h4>
+                      <h4 className="text-xs font-medium text-foreground/60">{t("tourVehiclePoolNotEligibleTitle")}</h4>
                       <ul className="flex flex-col gap-2">
                         {ineligibleAvailable.map((v) => (
                           <li key={v.vehicleId} className="rounded-xl border border-dashed border-border p-3 opacity-70">
@@ -179,7 +179,7 @@ export async function VehiclePoolSection({ view, addAction, removeAction, notice
                               <span className="text-sm font-medium text-foreground">{title(v)}</span>
                               {v.isFourByFour && <Badge variant="info">{t("tourVehiclePool4x4Badge")}</Badge>}
                             </div>
-                            <p className="mt-0.5 text-xs text-foreground/50">{facts(v)}</p>
+                            <p className="mt-0.5 text-xs text-foreground/70">{facts(v)}</p>
                             {blockerList(v)}
                           </li>
                         ))}

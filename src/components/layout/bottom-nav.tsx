@@ -50,7 +50,7 @@ export function BottomNav({ isAuthenticated }: { isAuthenticated: boolean }) {
                 href={tab.href}
                 aria-current={tab.active ? "page" : undefined}
                 className={`flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                  tab.active ? "text-primary" : "text-foreground/55 hover:text-foreground"
+                  tab.active ? "text-primary" : "text-foreground/60 hover:text-foreground"
                 }`}
               >
                 <Icon size={20} strokeWidth={tab.active ? 2.25 : 1.75} aria-hidden />

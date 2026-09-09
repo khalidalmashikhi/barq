@@ -177,12 +177,12 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
                     )}
                   </Badge>
                 </div>
-                <span className="text-xs text-foreground/40">
+                <span className="text-xs text-foreground/60">
                   {formatDate(review.createdAt, locale, { day: "numeric", month: "short", year: "numeric" })}
                 </span>
               </div>
               <p className="text-sm text-foreground/80">{review.content}</p>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/50">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/70">
                 <span dir="ltr">{review.customerPhoneNumber ?? "—"}</span>
                 <Link href={`/admin/providers/${review.providerId}`} className="hover:text-foreground hover:underline">
                   {review.providerName}

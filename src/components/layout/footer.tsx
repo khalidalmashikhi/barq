@@ -48,13 +48,13 @@ export async function Footer() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-start">
             <Logo variant="wordmark" className="h-8 w-auto object-contain" />
-            <p className="max-w-xs text-sm text-foreground/50">{t("footer.tagline")}</p>
+            <p className="max-w-xs text-sm text-foreground/70">{t("footer.tagline")}</p>
           </div>
 
           {/* Browse — real customer destinations only. Customer Sign In deliberately
               lives in the Header, not repeated here (AUTH-NAV-2). */}
           <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-start">
-            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("footer.browseHeading")}</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/60">{t("footer.browseHeading")}</span>
             <nav className="flex flex-col items-center gap-2 sm:items-start">
               {navLinks.map((link) => {
                 const className =
@@ -76,7 +76,7 @@ export async function Footer() {
           </div>
 
           <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-start">
-            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("footer.companyHeading")}</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/60">{t("footer.companyHeading")}</span>
             <nav className="flex flex-col items-center gap-2 sm:items-start">
               {companyLinks.map((link) => (
                 <Link key={link.href} href={link.href} className="rounded-sm text-sm text-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
@@ -89,7 +89,7 @@ export async function Footer() {
           {/* For partners — restrained provider entry, distinct from the customer
               Header login. Reuses existing onboarding + shared login. */}
           <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-start">
-            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("footer.partnersHeading")}</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-foreground/60">{t("footer.partnersHeading")}</span>
             <nav className="flex flex-col items-center gap-2 sm:items-start">
               {partnerLinks.map((link) => (
                 <Link key={link.href} href={link.href} className="rounded-sm text-sm text-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
@@ -105,7 +105,7 @@ export async function Footer() {
             requireStaff remain the sole authorization boundary (link visibility is
             UX only, never access). No /staff portal is invented here. */}
         <div className="flex flex-col items-center justify-between gap-3 border-t border-border pt-6 sm:flex-row">
-          <p className="text-center text-xs text-foreground/40 sm:text-start">
+          <p className="text-center text-xs text-foreground/60 sm:text-start">
             © {new Date().getFullYear()} BARQ — {t("footer.rightsReserved")}
           </p>
           <Link

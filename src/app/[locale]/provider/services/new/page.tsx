@@ -80,7 +80,7 @@ export default async function NewServicePage({ searchParams }: Props) {
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("nameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("nameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -90,7 +90,7 @@ export default async function NewServicePage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("nameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("nameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -103,7 +103,7 @@ export default async function NewServicePage({ searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("descriptionArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("descriptionArLabel")}</span>
               <textarea
                 name="descriptionAr"
                 rows={3}
@@ -112,7 +112,7 @@ export default async function NewServicePage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("descriptionEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("descriptionEnLabel")}</span>
               <textarea
                 name="descriptionEn"
                 rows={3}
@@ -123,7 +123,7 @@ export default async function NewServicePage({ searchParams }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categoryFieldLabel")}</span>
             <TourAwareCategoryField
               name="categoryId"
               tree={categoryTree}
@@ -146,7 +146,7 @@ export default async function NewServicePage({ searchParams }: Props) {
               from sm they sit side by side. The unit is DISPLAY METADATA ONLY. */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("priceAmountLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("priceAmountLabel")}</span>
               <input
                 type="text"
                 inputMode="decimal"

@@ -18,7 +18,7 @@ export function ProviderPrimaryActivityPicker({ tree, selectedId, emptyLabel, na
 
   if (nodes.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-foreground/50">
+      <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-foreground/70">
         {emptyLabel}
       </p>
     );

@@ -75,7 +75,7 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{payment.serviceName}</h1>
-          <p className="mt-0.5 text-sm text-foreground/40">{payment.providerName}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">{payment.providerName}</p>
         </div>
         <Badge variant={getPaymentStatusBadgeVariant(payment.status)}>{getPaymentStatusLabel(payment.status, t)}</Badge>
       </div>
@@ -86,18 +86,18 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
         <h2 className="text-sm font-semibold text-foreground">{t("paymentDetailsAdminTitle")}</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("amountLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("amountLabel")}</dt>
             <dd className="text-sm text-foreground">
               {payment.amount} {payment.currency}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("statusLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("statusLabel")}</dt>
             <dd className="text-sm text-foreground">{getPaymentStatusLabel(payment.status, t)}</dd>
           </div>
           {payment.refundAmount !== null && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("refundAmountLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("refundAmountLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {payment.refundAmount} {payment.currency}
               </dd>
@@ -105,21 +105,21 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
           )}
           {payment.capturedAt && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("capturedOnLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("capturedOnLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {formatDate(payment.capturedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
               </dd>
             </div>
           )}
           <div>
-            <dt className="text-xs text-foreground/40">{t("createdOnLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("createdOnLabel")}</dt>
             <dd className="text-sm text-foreground">
               {formatDate(payment.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </dd>
           </div>
           {payment.providerReference && (
             <div>
-              <dt className="text-xs text-foreground/40">{t("gatewayReferenceLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("gatewayReferenceLabel")}</dt>
               <dd dir="ltr" className="truncate text-sm text-foreground">
                 {payment.providerReference}
               </dd>
@@ -130,30 +130,30 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
 
       <Card hoverLift={false}>
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <FileText size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <FileText size={16} strokeWidth={1.75} className="text-foreground/60" />
           {t("invoiceTitle")}
         </h2>
         {payment.invoice ? (
           <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-foreground/40">{t("invoiceNumberLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("invoiceNumberLabel")}</dt>
               <dd dir="ltr" className="text-sm text-foreground">
                 {payment.invoice.invoiceNumber}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-foreground/40">{t("statusLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("statusLabel")}</dt>
               <dd className="text-sm text-foreground">{t(INVOICE_STATUS_LABEL_KEYS[payment.invoice.status])}</dd>
             </div>
             <div>
-              <dt className="text-xs text-foreground/40">{t("invoiceIssuedOnLabel")}</dt>
+              <dt className="text-xs text-foreground/60">{t("invoiceIssuedOnLabel")}</dt>
               <dd className="text-sm text-foreground">
                 {formatDate(payment.invoice.issuedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
               </dd>
             </div>
           </dl>
         ) : (
-          <p className="mt-2 text-sm text-foreground/50">{t("invoiceNotIssuedLabel")}</p>
+          <p className="mt-2 text-sm text-foreground/70">{t("invoiceNotIssuedLabel")}</p>
         )}
       </Card>
 

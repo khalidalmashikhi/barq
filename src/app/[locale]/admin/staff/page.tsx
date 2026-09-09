@@ -89,7 +89,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
         <UserCog size={22} strokeWidth={1.75} className="text-primary" />
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t("staffMgmtTitle")}</h1>
-          <p className="mt-0.5 text-sm text-foreground/50">{t("staffMgmtSubtitle")}</p>
+          <p className="mt-0.5 text-sm text-foreground/70">{t("staffMgmtSubtitle")}</p>
         </div>
       </div>
 
@@ -100,7 +100,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
           preset. No UUIDs, no second login, no unverified identities (createStaff enforces). */}
       <Card hoverLift={false}>
         <h2 className="text-sm font-semibold text-foreground">{t("staffCreateHeading")}</h2>
-        <p className="mt-1 text-xs text-foreground/50">{t("staffCreateHint")}</p>
+        <p className="mt-1 text-xs text-foreground/70">{t("staffCreateHint")}</p>
         <form
           action={async (formData: FormData) => {
             "use server";
@@ -156,7 +156,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
       <Card hoverLift={false}>
         <h2 className="text-sm font-semibold text-foreground">{t("staffListHeading")}</h2>
         {staffResult.items.length === 0 ? (
-          <p className="mt-3 text-sm text-foreground/50">{t("staffListEmpty")}</p>
+          <p className="mt-3 text-sm text-foreground/70">{t("staffListEmpty")}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {staffResult.items.map((member) => {
@@ -166,7 +166,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">{member.name || member.phoneNumber}</span>
-                      <span className="text-xs text-foreground/40">{member.phoneNumber}</span>
+                      <span className="text-xs text-foreground/60">{member.phoneNumber}</span>
                     </div>
                     <Badge variant={member.status === "ACTIVE" ? "success" : "default"}>
                       {member.status === "ACTIVE" ? t("staffStatusActiveLabel") : t("staffStatusDeactivatedLabel")}
@@ -207,7 +207,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                     >
                       <input type="hidden" name="staffId" value={member.id} />
                       <label className="flex flex-col gap-1">
-                        <span className="text-xs font-medium text-foreground/50">{t("staffApplyPresetLabel")}</span>
+                        <span className="text-xs font-medium text-foreground/70">{t("staffApplyPresetLabel")}</span>
                         <select name="preset" required defaultValue="" className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none">
                           <option value="" disabled>{t("staffCreatePresetPlaceholder")}</option>
                           {STAFF_PRESET_NAMES.map((p) => (
@@ -274,7 +274,7 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                       className="mt-3 flex flex-col gap-3"
                     >
                       <input type="hidden" name="staffId" value={member.id} />
-                      <p className="text-xs text-foreground/50">{t("staffEditPermsHint")}</p>
+                      <p className="text-xs text-foreground/70">{t("staffEditPermsHint")}</p>
                       {PERMISSIONS_BY_MODULE.map(([mod, keys]) => (
                         <fieldset key={mod} className="flex flex-col gap-1.5">
                           <legend className="text-xs font-semibold text-foreground/70">{t(`module_${mod}` as AdminKey)}</legend>

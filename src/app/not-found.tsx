@@ -30,7 +30,7 @@ export default async function NotFound() {
         <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
           <Compass size={40} strokeWidth={1.5} className="text-foreground/25" />
           <h1 className="text-xl font-semibold text-foreground">{t("notFoundTitle")}</h1>
-          <p className="text-sm text-foreground/50">{t("notFoundDescription")}</p>
+          <p className="text-sm text-foreground/70">{t("notFoundDescription")}</p>
           <Link
             href="/"
             className="mt-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"

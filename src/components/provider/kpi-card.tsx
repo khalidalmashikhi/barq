@@ -42,9 +42,9 @@ export function KpiCard({ label, value, icon: Icon, helpText, tone = "default" }
       </span>
       <div className="flex flex-col gap-0.5">
         <span className={clsx("text-2xl font-semibold", TONE_VALUE_CLASSES[tone])}>{value}</span>
-        <span className="text-xs text-foreground/50">{label}</span>
+        <span className="text-xs text-foreground/70">{label}</span>
       </div>
-      {helpText && <span className="text-xs text-foreground/40">{helpText}</span>}
+      {helpText && <span className="text-xs text-foreground/60">{helpText}</span>}
     </div>
   );
 }

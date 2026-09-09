@@ -74,7 +74,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
       <div>
         <h1 dir="ltr" className="text-start text-2xl font-semibold text-foreground">{customer.phoneNumber ?? "—"}</h1>
-        <p className="mt-0.5 text-sm text-foreground/40">
+        <p className="mt-0.5 text-sm text-foreground/60">
           {t("customerRegisteredOnLabel")} {formatDate(customer.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
@@ -83,15 +83,15 @@ export default async function CustomerDetailPage({ params }: Props) {
         <h2 className="text-sm font-semibold text-foreground">{t("customerDetailsTitle")}</h2>
         <dl className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <dt className="text-xs text-foreground/40">{t("customerTotalBookingsLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("customerTotalBookingsLabel")}</dt>
             <dd className="text-sm text-foreground">{customer.bookingCount}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("customerTotalReviewsLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("customerTotalReviewsLabel")}</dt>
             <dd className="text-sm text-foreground">{customer.reviewCount}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_customerPaymentsTitle")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_customerPaymentsTitle")}</dt>
             <dd className="text-sm text-foreground">{customer.paymentCount}</dd>
           </div>
         </dl>
@@ -99,7 +99,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
       <Card hoverLift={false}>
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <ClipboardList size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <ClipboardList size={16} strokeWidth={1.75} className="text-foreground/60" />
           {t("customerBookingsGivenTitle")}
         </h2>
         {customer.recentBookings.length === 0 ? (
@@ -122,7 +122,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
       <Card hoverLift={false}>
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Star size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <Star size={16} strokeWidth={1.75} className="text-foreground/60" />
           {t("customerReviewsGivenTitle")}
         </h2>
         {customer.recentReviews.length === 0 ? (
@@ -132,7 +132,7 @@ export default async function CustomerDetailPage({ params }: Props) {
             {customer.recentReviews.map((review) => (
               <li key={review.id} className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5">
                 <span className="truncate text-sm text-foreground">{review.serviceName}</span>
-                <span className="shrink-0 text-xs text-foreground/50">{review.rating}/5</span>
+                <span className="shrink-0 text-xs text-foreground/70">{review.rating}/5</span>
               </li>
             ))}
           </ul>
@@ -141,7 +141,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
       <Card hoverLift={false}>
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <CreditCard size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <CreditCard size={16} strokeWidth={1.75} className="text-foreground/60" />
           {t("um_customerPaymentsTitle")}
         </h2>
         {customer.recentPayments.length === 0 ? (
@@ -151,7 +151,7 @@ export default async function CustomerDetailPage({ params }: Props) {
             {customer.recentPayments.map((payment) => (
               <li key={payment.id} className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5">
                 <span className="truncate text-sm text-foreground">{payment.serviceName}</span>
-                <span className="shrink-0 text-xs text-foreground/50" dir="ltr">{payment.amount} {payment.currency} · {payment.status}</span>
+                <span className="shrink-0 text-xs text-foreground/70" dir="ltr">{payment.amount} {payment.currency} · {payment.status}</span>
               </li>
             ))}
           </ul>

@@ -137,11 +137,11 @@ export default async function ProviderServiceDetailPage({ params, searchParams }
 
         <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4 text-sm sm:flex-row sm:gap-8">
           <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-foreground/50">{t("servicePriceLabel")}</span>
+            <span className="text-foreground/70">{t("servicePriceLabel")}</span>
             <span className="font-medium text-primary">{service.price ?? "—"}</span>
           </div>
           <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-foreground/50">{t("serviceCreatedLabel")}</span>
+            <span className="text-foreground/70">{t("serviceCreatedLabel")}</span>
             <span className="font-medium text-foreground">
               {formatDate(service.createdAt, locale, {
                 day: "numeric",
@@ -151,7 +151,7 @@ export default async function ProviderServiceDetailPage({ params, searchParams }
             </span>
           </div>
           <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-foreground/50">{t("serviceUpdatedLabel")}</span>
+            <span className="text-foreground/70">{t("serviceUpdatedLabel")}</span>
             <span className="font-medium text-foreground">
               {formatDate(service.updatedAt, locale, {
                 day: "numeric",
@@ -260,7 +260,7 @@ export default async function ProviderServiceDetailPage({ params, searchParams }
                   })}
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-foreground/50">
+                  <span className="text-xs text-foreground/70">
                     {slot.remainingSeats} {tBooking("remainingSeatsLabel")}
                   </span>
                   <span

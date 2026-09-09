@@ -102,7 +102,7 @@ export default async function AdminFeatureFlagsPage({ searchParams }: { searchPa
             <div key={flag.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <Link href={`/admin/feature-flags/${flag.id}/edit`} className="min-w-0 flex-1">
                 <p className="truncate font-mono text-sm font-medium text-foreground">{flag.key}</p>
-                {flag.description && <p className="mt-0.5 truncate text-xs text-foreground/40">{flag.description}</p>}
+                {flag.description && <p className="mt-0.5 truncate text-xs text-foreground/60">{flag.description}</p>}
               </Link>
 
               <div className="flex items-center gap-2">

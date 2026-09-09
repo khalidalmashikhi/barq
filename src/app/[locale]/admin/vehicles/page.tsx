@@ -46,12 +46,12 @@ export default async function AdminVehiclesPage() {
           <Car size={22} strokeWidth={1.75} aria-hidden />
           {t("vehicleReviewQueueTitle")}
         </h1>
-        <p className="mt-1 text-sm text-foreground/50">{t("vehicleReviewQueueSubtitle")}</p>
+        <p className="mt-1 text-sm text-foreground/70">{t("vehicleReviewQueueSubtitle")}</p>
       </div>
 
       {queue.length === 0 ? (
         <Card hoverLift={false}>
-          <p className="py-6 text-center text-sm text-foreground/50">{t("vehicleReviewQueueEmpty")}</p>
+          <p className="py-6 text-center text-sm text-foreground/70">{t("vehicleReviewQueueEmpty")}</p>
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
@@ -64,7 +64,7 @@ export default async function AdminVehiclesPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-semibold text-foreground">{title}</span>
-                      <span className="text-xs text-foreground/50">
+                      <span className="text-xs text-foreground/70">
                         {extractLocalizedText(v.providerName, locale) || t("unknownProviderLabel")}
                         {v.modelYear ? ` · ${v.modelYear}` : ""}
                       </span>
@@ -77,11 +77,11 @@ export default async function AdminVehiclesPage() {
                         {t("vehicleReviewDocProgress", { approved: v.requiredApproved, total: v.requiredTotal })}
                       </Badge>
                       {v.kind === "INITIAL" && v.submittedAt && (
-                        <span className="text-xs text-foreground/40">
+                        <span className="text-xs text-foreground/60">
                           {t("vehicleReviewSubmittedAtLabel")}: {formatDate(v.submittedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                         </span>
                       )}
-                      <ArrowRight size={16} strokeWidth={1.75} className="text-foreground/40 rtl:rotate-180" aria-hidden />
+                      <ArrowRight size={16} strokeWidth={1.75} className="text-foreground/60 rtl:rotate-180" aria-hidden />
                     </div>
                   </div>
                 </Card>

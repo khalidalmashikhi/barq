@@ -112,7 +112,7 @@ export default async function ProviderEarningsPage() {
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <CreditCard size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <CreditCard size={16} strokeWidth={1.75} className="text-foreground/60" />
           {tPayments("earningsVsPaymentsTitle")}
         </h2>
         <p className="text-xs leading-relaxed text-foreground/60">{tPayments("earningsVsPaymentsDescription")}</p>

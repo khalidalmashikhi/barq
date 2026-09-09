@@ -58,7 +58,7 @@ export async function VehicleVerificationSection({
         {hasExpiredDoc && <Alert variant="danger">{t("vehicleNotEligibleExpiredNote")}</Alert>}
 
         <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-foreground/40">{t("vehicleRequiredDocumentsTitle")}</h3>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleRequiredDocumentsTitle")}</h3>
           <ul className="flex flex-col divide-y divide-border">
             {data.items.map((item) => (
               <li key={item.type} className="flex flex-col gap-2 py-3">
@@ -83,7 +83,7 @@ export async function VehicleVerificationSection({
                     localized formatting keeps that exact calendar day (00:00Z stays same day
                     in Asia/Muscat), matching the admin surface. */}
                 {item.validThroughDate && (
-                  <p className={`text-xs ${item.isExpired ? "text-danger" : "text-foreground/50"}`}>
+                  <p className={`text-xs ${item.isExpired ? "text-danger" : "text-foreground/70"}`}>
                     <span className="font-medium">{t("vehicleDocExpiresLabel")}:</span>{" "}
                     {formatDate(new Date(`${item.validThroughDate}T00:00:00.000Z`), locale as Locale, { day: "numeric", month: "long", year: "numeric" })}
                     {item.isExpired && <> · {t("vehicleDocExpiredWarning")}</>}
@@ -93,7 +93,7 @@ export async function VehicleVerificationSection({
                 {/* VEHICLE-LC6 — the provider's ADVISORY claimed expiry, shown while it is
                     not yet the trusted value (an admin confirms it at approval). */}
                 {item.supportsExpiry && item.claimedExpiryDate && item.status !== "APPROVED" && (
-                  <p className="text-xs text-foreground/50">
+                  <p className="text-xs text-foreground/70">
                     <span className="font-medium">{t("vehicleDocClaimedExpiryLabel")}:</span> {item.claimedExpiryDate}{" "}
                     · {t("vehicleDocClaimedExpiryPending")}
                   </p>
@@ -192,9 +192,9 @@ export async function VehicleVerificationSection({
                   )}
                 </div>
 
-                {item.canUpload && <p className="text-[11px] text-foreground/40">{t("vehicleDocFileHint")}</p>}
+                {item.canUpload && <p className="text-[11px] text-foreground/60">{t("vehicleDocFileHint")}</p>}
                 {item.supportsExpiry && (item.canUpload || item.canReplace) && (
-                  <p className="text-[11px] text-foreground/40">{t("vehicleDocClaimedExpiryHint")}</p>
+                  <p className="text-[11px] text-foreground/60">{t("vehicleDocClaimedExpiryHint")}</p>
                 )}
               </li>
             ))}
@@ -203,7 +203,7 @@ export async function VehicleVerificationSection({
 
         {data.editable && (
           <div className="flex flex-col gap-2 border-t border-border pt-4">
-            {!data.submittable && <p className="text-xs text-foreground/50">{t("vehicleSubmitBlockedHint")}</p>}
+            {!data.submittable && <p className="text-xs text-foreground/70">{t("vehicleSubmitBlockedHint")}</p>}
             <form action={`${base}/verification/submit`} method="post" className="flex">
               <input type="hidden" name="locale" value={locale} />
               <button

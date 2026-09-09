@@ -126,7 +126,7 @@ export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
                 </span>
               )}
               {!isInteractive && item.disabledHint && (
-                <span className="ms-auto rounded-full bg-accent/15 px-2 py-0.5 text-[0.65rem] font-medium text-foreground/40">
+                <span className="ms-auto rounded-full bg-accent/15 px-2 py-0.5 text-[0.65rem] font-medium text-foreground/60">
                   {item.disabledHint}
                 </span>
               )}
@@ -154,7 +154,7 @@ export function AppSidebar({ navItems, roleLabel }: AppSidebarProps) {
         <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary to-secondary" />
         <div className="flex flex-col overflow-hidden">
           <span className="truncate text-sm font-medium text-foreground">{t("myAccountLabel")}</span>
-          <span className="truncate text-xs text-foreground/40">{roleLabel}</span>
+          <span className="truncate text-xs text-foreground/60">{roleLabel}</span>
         </div>
       </div>
     </motion.aside>

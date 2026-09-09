@@ -120,7 +120,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
         )}
 
         <div className="mt-2 w-full rounded-2xl border border-border bg-card p-5 text-start">
-          <h2 className="text-xs font-medium text-foreground/50">{t("whatsNextTitle")}</h2>
+          <h2 className="text-xs font-medium text-foreground/70">{t("whatsNextTitle")}</h2>
           <p className="mt-2 text-sm text-foreground/70">{t("confirmationNoticeText")}</p>
         </div>
 

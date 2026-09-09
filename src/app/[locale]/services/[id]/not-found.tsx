@@ -9,7 +9,7 @@ export default async function ServiceNotFound() {
     <main className="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-24 text-center">
       <PackageOpen size={40} strokeWidth={1.5} className="text-foreground/25" />
       <h1 className="text-xl font-semibold text-foreground">{t("notFoundTitle")}</h1>
-      <p className="text-sm text-foreground/50">
+      <p className="text-sm text-foreground/70">
         {t("notFoundDescription")}
       </p>
       <Link

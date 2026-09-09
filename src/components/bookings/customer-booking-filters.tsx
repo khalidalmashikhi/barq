@@ -58,7 +58,7 @@ export async function CustomerBookingFilters({ basePath, currentSearch, currentW
 
       <form method="get" className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 sm:w-72">
         {currentWhen && <input type="hidden" name="when" value={currentWhen} />}
-        <Search size={16} strokeWidth={1.75} className="text-foreground/40" />
+        <Search size={16} strokeWidth={1.75} className="text-foreground/60" />
         <input
           type="search"
           name="q"

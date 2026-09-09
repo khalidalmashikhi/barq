@@ -42,8 +42,8 @@ const STATUS_LABEL_KEY = {
 const STATUS_BADGE_CLASS: Record<ActivationStatus, string> = {
   COMPLETE: "bg-success/10 text-success",
   CURRENT: "bg-primary/10 text-primary",
-  BLOCKED: "bg-foreground/5 text-foreground/40",
-  OPTIONAL: "bg-foreground/5 text-foreground/50",
+  BLOCKED: "bg-foreground/5 text-foreground/60",
+  OPTIONAL: "bg-foreground/5 text-foreground/70",
 };
 
 export async function ProviderActivationChecklist({ activation }: { activation: ProviderActivation }) {
@@ -101,7 +101,7 @@ export async function ProviderActivationChecklist({ activation }: { activation: 
                     {t(STATUS_LABEL_KEY[step.status])}
                   </span>
                 </div>
-                <p className="mt-0.5 text-sm text-foreground/55">{t(STEP_DESC_KEY[step.key])}</p>
+                <p className="mt-0.5 text-sm text-foreground/60">{t(STEP_DESC_KEY[step.key])}</p>
               </div>
             </div>
           );

@@ -68,7 +68,7 @@ export function ShareButton({ url, title, text, label, copiedLabel, errorLabel, 
         {icon}
         {label}
       </button>
-      <span role="status" aria-live="polite" className="min-h-[1em] text-xs text-foreground/50">
+      <span role="status" aria-live="polite" className="min-h-[1em] text-xs text-foreground/70">
         {feedback}
       </span>
     </div>

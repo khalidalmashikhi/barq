@@ -77,7 +77,7 @@ export default async function AvailabilityDetailPage({ params, searchParams }: P
             {" – "}
             {formatDate(slot.endTime, locale, { hour: "2-digit", minute: "2-digit" })}
           </h1>
-          <p className="mt-0.5 text-sm text-foreground/40">{slot.serviceName}</p>
+          <p className="mt-0.5 text-sm text-foreground/60">{slot.serviceName}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={getAvailabilityStateBadgeVariant(slot.state)}>{t(getAvailabilityStateTranslationKey(slot.state))}</Badge>
@@ -97,23 +97,23 @@ export default async function AvailabilityDetailPage({ params, searchParams }: P
         <h2 className="text-sm font-semibold text-foreground">{t("availabilityDetailsTitle")}</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("availabilityServiceLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("availabilityServiceLabel")}</dt>
             <dd className="text-sm text-foreground">{slot.serviceName}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("availabilityCapacityLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("availabilityCapacityLabel")}</dt>
             <dd className="text-sm text-foreground">{slot.capacity}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("availabilityBookedCountLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("availabilityBookedCountLabel")}</dt>
             <dd className="text-sm text-foreground">{slot.bookedCount}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("availabilityRemainingSeatsLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("availabilityRemainingSeatsLabel")}</dt>
             <dd className="text-sm text-foreground">{slot.remainingSeats}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("availabilityCreatedAtLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("availabilityCreatedAtLabel")}</dt>
             <dd className="text-sm text-foreground">
               {formatDate(slot.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </dd>

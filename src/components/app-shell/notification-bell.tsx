@@ -160,7 +160,7 @@ export function NotificationBell({ initialUnreadCount, initialItems, viewAllHref
           </div>
 
           {items.length === 0 ? (
-            <p className="px-2 py-6 text-center text-sm text-foreground/50">{t("emptyStateLabel")}</p>
+            <p className="px-2 py-6 text-center text-sm text-foreground/70">{t("emptyStateLabel")}</p>
           ) : (
             <ul className="mt-1 flex max-h-80 flex-col gap-0.5 overflow-y-auto">
               {items.map((item) => {
@@ -189,7 +189,7 @@ export function NotificationBell({ initialUnreadCount, initialItems, viewAllHref
                       />
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         {item.isRead ? (
-                          <span role="menuitem" className="text-sm text-foreground/50">
+                          <span role="menuitem" className="text-sm text-foreground/70">
                             {item.message}
                           </span>
                         ) : (

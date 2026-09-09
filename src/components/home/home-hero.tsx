@@ -49,7 +49,7 @@ export async function HomeHero({ governorates, selectedGovernorate }: HomeHeroPr
 
         <form action="/services" method="GET" role="search" className="w-full max-w-xl">
           <div className="flex items-center gap-2 rounded-full border border-border bg-card p-2 shadow-premium-lg">
-            <Search size={20} strokeWidth={2} className="ms-3 shrink-0 text-foreground/40" aria-hidden />
+            <Search size={20} strokeWidth={2} className="ms-3 shrink-0 text-foreground/60" aria-hidden />
             <input
               type="search"
               name="q"

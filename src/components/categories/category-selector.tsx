@@ -99,7 +99,7 @@ export function CategorySelector({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-        <Search size={16} strokeWidth={1.75} className="shrink-0 text-foreground/40" />
+        <Search size={16} strokeWidth={1.75} className="shrink-0 text-foreground/60" />
         <input
           type="search"
           value={query}
@@ -127,7 +127,7 @@ export function CategorySelector({
       ) : null}
 
       {isEmpty ? (
-        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-foreground/50">
+        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-foreground/70">
           {labels.empty}
         </p>
       ) : (

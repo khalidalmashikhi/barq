@@ -19,7 +19,7 @@ export async function MeetingPointMap() {
       <div className="relative flex h-56 flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-border bg-accent/5 text-center">
         <BrandPattern tone="teal" className="absolute inset-0" />
         <MapPin size={28} strokeWidth={1.5} className="relative text-foreground/25" />
-        <p className="relative text-sm text-foreground/50">{t("meetingPointPlaceholderLabel")}</p>
+        <p className="relative text-sm text-foreground/70">{t("meetingPointPlaceholderLabel")}</p>
       </div>
     </div>
   );

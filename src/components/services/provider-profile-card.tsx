@@ -58,7 +58,7 @@ export async function ProviderProfileCard({
               </Badge>
             )}
           </div>
-          <span className="flex items-center gap-1.5 text-xs text-foreground/50">
+          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
             <Package size={13} strokeWidth={1.75} />
             {t("experiencesCountLabel", { count: publishedServicesCount })}
           </span>

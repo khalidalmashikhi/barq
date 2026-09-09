@@ -32,17 +32,17 @@ export function EarningsMetricCard({ label, icon: Icon, amounts, emptyLabel, hel
       </span>
       <div className="flex flex-col gap-1">
         {amounts.length === 0 ? (
-          <span className="text-sm text-foreground/40">{emptyLabel}</span>
+          <span className="text-sm text-foreground/60">{emptyLabel}</span>
         ) : (
           amounts.map((entry) => (
             <span key={entry.currency} className="text-2xl font-semibold text-foreground">
-              {entry.amount} <span className="text-base font-medium text-foreground/50">{entry.currency}</span>
+              {entry.amount} <span className="text-base font-medium text-foreground/70">{entry.currency}</span>
             </span>
           ))
         )}
-        <span className="text-xs text-foreground/50">{label}</span>
+        <span className="text-xs text-foreground/70">{label}</span>
       </div>
-      {helpText && <span className="text-xs text-foreground/40">{helpText}</span>}
+      {helpText && <span className="text-xs text-foreground/60">{helpText}</span>}
     </div>
   );
 }

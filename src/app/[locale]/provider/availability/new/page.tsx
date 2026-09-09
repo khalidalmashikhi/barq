@@ -61,7 +61,7 @@ export default async function NewAvailabilitySlotPage({ searchParams }: Props) {
             className="flex flex-col gap-4"
           >
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceLabel")}</span>
               <select
                 name="serviceId"
                 required
@@ -77,7 +77,7 @@ export default async function NewAvailabilitySlotPage({ searchParams }: Props) {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("startTimeLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("startTimeLabel")}</span>
                 <input
                   type="datetime-local"
                   name="startTime"
@@ -86,7 +86,7 @@ export default async function NewAvailabilitySlotPage({ searchParams }: Props) {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("endTimeLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("endTimeLabel")}</span>
                 <input
                   type="datetime-local"
                   name="endTime"
@@ -97,7 +97,7 @@ export default async function NewAvailabilitySlotPage({ searchParams }: Props) {
             </div>
 
             <label className="flex flex-col gap-1.5 sm:w-48">
-              <span className="text-xs font-medium text-foreground/50">{t("capacityFieldLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("capacityFieldLabel")}</span>
               <input
                 type="number"
                 name="capacity"

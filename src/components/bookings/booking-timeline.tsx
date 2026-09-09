@@ -81,7 +81,7 @@ export async function BookingTimeline({ events }: BookingTimelineProps) {
               </span>
               <div className={clsx("flex flex-col gap-0.5", isLast && "font-medium")}>
                 <span className="text-sm text-foreground">{getBookingStatusLabel(event.toStatus, t)}</span>
-                <span className="text-xs text-foreground/40">
+                <span className="text-xs text-foreground/60">
                   {formatDate(event.occurredAt, locale, {
                     day: "numeric",
                     month: "long",
@@ -92,7 +92,7 @@ export async function BookingTimeline({ events }: BookingTimelineProps) {
                   {" — "}
                   {actorLabels[event.actorType]}
                 </span>
-                {event.reason && <span className="text-xs text-foreground/50">{event.reason}</span>}
+                {event.reason && <span className="text-xs text-foreground/70">{event.reason}</span>}
               </div>
             </li>
           );

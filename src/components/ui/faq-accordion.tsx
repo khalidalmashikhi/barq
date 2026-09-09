@@ -24,7 +24,7 @@ export function FaqAccordion({ items }: FaqAccordionProps) {
         <details key={index} className="group rounded-2xl border border-border bg-card p-5 open:shadow-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 marker:content-none">
             {item.question}
-            <span aria-hidden className="shrink-0 text-lg leading-none text-foreground/40 transition-transform duration-200 group-open:rotate-45">
+            <span aria-hidden className="shrink-0 text-lg leading-none text-foreground/60 transition-transform duration-200 group-open:rotate-45">
               +
             </span>
           </summary>

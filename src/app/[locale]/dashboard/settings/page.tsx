@@ -107,7 +107,7 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
           className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("settingsNameLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("settingsNameLabel")}</span>
             <input
               type="text"
               name="name"
@@ -116,11 +116,11 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
               placeholder={t("settingsNamePlaceholder")}
               className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("settingsNameHint")}</span>
+            <span className="text-xs text-foreground/60">{t("settingsNameHint")}</span>
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("settingsPhoneLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("settingsPhoneLabel")}</span>
             <input
               type="tel"
               dir="ltr"
@@ -129,11 +129,11 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
               disabled
               className="rounded-xl border border-border bg-background/50 px-3 py-2 text-sm text-foreground/60"
             />
-            <span className="text-xs text-foreground/40">{t("settingsPhoneHint")}</span>
+            <span className="text-xs text-foreground/60">{t("settingsPhoneHint")}</span>
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("settingsLanguageLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("settingsLanguageLabel")}</span>
             <select
               name="languagePreference"
               defaultValue={settings.languagePreference}
@@ -160,7 +160,7 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
         <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("connectedAccountsTitle")}</h2>
-              <p className="mt-1 text-xs text-foreground/50">{t("connectedAccountsSubtitle")}</p>
+              <p className="mt-1 text-xs text-foreground/70">{t("connectedAccountsSubtitle")}</p>
             </div>
 
             {/* AUTH-DUAL-IDENTITY-1 — Phone method. Connected shows the masked number;
@@ -170,7 +170,7 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
               <span className="flex flex-col text-sm font-medium text-foreground">
                 {t("phoneMethodLabel")}
                 {linkedPhone?.hasPhone && linkedPhone.maskedPhone && (
-                  <span className="text-xs font-normal text-foreground/50" dir="ltr">
+                  <span className="text-xs font-normal text-foreground/70" dir="ltr">
                     {linkedPhone.maskedPhone}
                   </span>
                 )}
@@ -192,7 +192,7 @@ export default async function CustomerSettingsPage({ searchParams }: { searchPar
                 <span className="flex flex-col text-sm font-medium text-foreground">
                   {t("emailMethodLabel")}
                   {linkedEmail?.hasRealEmail && linkedEmail.maskedEmail && (
-                    <span className="text-xs font-normal text-foreground/50" dir="ltr">
+                    <span className="text-xs font-normal text-foreground/70" dir="ltr">
                       {linkedEmail.maskedEmail}
                     </span>
                   )}

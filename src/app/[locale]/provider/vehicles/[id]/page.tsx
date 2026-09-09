@@ -119,12 +119,12 @@ export default async function VehicleDetailPage({
         <dl className="flex flex-col divide-y divide-border">
           {rows.map((row) => (
             <div key={row.label} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-              <dt className="text-xs font-medium uppercase tracking-wide text-foreground/40">{row.label}</dt>
+              <dt className="text-xs font-medium uppercase tracking-wide text-foreground/60">{row.label}</dt>
               <dd className="text-sm text-foreground sm:text-end">{row.value ?? "—"}</dd>
             </div>
           ))}
           <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-            <dt className="text-xs font-medium uppercase tracking-wide text-foreground/40">{t("vehicleStatusLabel")}</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleStatusLabel")}</dt>
             <dd className="sm:text-end">
               <Badge variant={getVehicleStatusBadgeVariant(vehicle.status)}>{t(getVehicleStatusTranslationKey(vehicle.status))}</Badge>
             </dd>

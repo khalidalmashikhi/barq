@@ -93,7 +93,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
             >
               <div className="min-w-0 flex-1">
                 <p dir="ltr" className="truncate text-start font-medium text-foreground">{customer.phoneNumber ?? "—"}</p>
-                <p className="mt-0.5 truncate text-xs text-foreground/40">
+                <p className="mt-0.5 truncate text-xs text-foreground/60">
                   {formatDate(customer.createdAt, locale, { day: "numeric", month: "short", year: "numeric" })}
                 </p>
               </div>

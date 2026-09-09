@@ -40,7 +40,7 @@ export async function BookingPreviewList({ title, icon: Icon, items, emptyMessag
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon={CalendarX} iconSize={22} gap="gap-1.5" padding="py-6" message={emptyMessage} messageClassName="text-sm text-foreground/50" />
+        <EmptyState icon={CalendarX} iconSize={22} gap="gap-1.5" padding="py-6" message={emptyMessage} messageClassName="text-sm text-foreground/70" />
       ) : (
         <ul className="flex flex-col gap-2.5">
           {items.map((item) => (
@@ -51,7 +51,7 @@ export async function BookingPreviewList({ title, icon: Icon, items, emptyMessag
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="font-medium text-foreground">{item.serviceName}</span>
-                  <span className="text-xs text-foreground/40">
+                  <span className="text-xs text-foreground/60">
                     {formatDate(item.slotStartTime, locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     {" · "}
                     {item.seats} {t("seatsSuffixLabel")}

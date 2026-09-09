@@ -43,7 +43,7 @@ export async function RecentReviews({ items }: RecentReviewsProps) {
                 </span>
               </div>
               <p className="mt-1 line-clamp-2 text-sm text-foreground/60">{item.content}</p>
-              <p className="mt-1 text-xs text-foreground/40">
+              <p className="mt-1 text-xs text-foreground/60">
                 {formatDate(item.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
               </p>
             </li>

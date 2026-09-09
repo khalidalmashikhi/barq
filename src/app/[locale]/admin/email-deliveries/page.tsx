@@ -91,8 +91,8 @@ export default async function AdminEmailDeliveriesPage({ searchParams }: { searc
           <span className="text-foreground/60">{t("emailDeliveryProviderLabel")}</span>
           <Badge variant={providerVariant}>{t(providerLabelKey)}</Badge>
         </div>
-        {providerKind === "disabled" && <p className="text-xs text-foreground/50">{t("emailDeliveryProviderNote")}</p>}
-        <p className="text-xs text-foreground/40">{t("emailDeliverySentNote")}</p>
+        {providerKind === "disabled" && <p className="text-xs text-foreground/70">{t("emailDeliveryProviderNote")}</p>}
+        <p className="text-xs text-foreground/60">{t("emailDeliverySentNote")}</p>
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -127,12 +127,12 @@ export default async function AdminEmailDeliveriesPage({ searchParams }: { searc
                   {row.stale && <Badge variant="danger">{t("emailDeliveryStaleLabel")}</Badge>}
                   <span className="text-sm font-medium text-foreground">{row.kind}</span>
                 </div>
-                <span className="text-xs text-foreground/40">
+                <span className="text-xs text-foreground/60">
                   {formatDate(row.createdAt, locale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/50">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/70">
                 <span>
                   {t("emailDeliveryAttemptsLabel")}: <span className="font-medium text-foreground/70">{row.attemptCount}</span>
                 </span>
@@ -159,7 +159,7 @@ export default async function AdminEmailDeliveriesPage({ searchParams }: { searc
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/40">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/60">
                 <span dir="ltr">{t("emailDeliveryRecipientLabel")}: {row.recipientUserId}</span>
                 <Link href={`/admin/bookings/${row.bookingId}`} className="text-foreground/60 hover:text-foreground hover:underline">
                   {t("emailDeliveryViewBookingLabel")}

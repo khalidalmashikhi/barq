@@ -90,7 +90,8 @@ describe("ConfirmActionDialog", () => {
     openState = true;
     const tree = ConfirmActionDialog(baseProps);
     const buttons = flatten(tree).filter((e) => e.type === "button" && e.props.type === "button");
-    const cancel = buttons.find((b) => flatten(b.props.children).some((c) => c === "Cancel") || b.props.children === "Cancel");
+    // The Cancel button renders the cancelLabel string directly as its only child.
+    const cancel = buttons.find((b) => b.props.children === "Cancel");
     expect(cancel).toBeTruthy();
     (cancel!.props.onClick as () => void)();
     expect(setOpen).toHaveBeenCalledWith(false);

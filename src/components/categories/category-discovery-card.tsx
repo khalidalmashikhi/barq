@@ -31,7 +31,7 @@ export function CategoryDiscoveryCard({ slug, label, description, Icon = Compass
         <Icon size={22} strokeWidth={1.75} />
       </span>
       <span className="text-sm font-semibold text-foreground/90">{label}</span>
-      {description ? <span className="text-xs leading-relaxed text-foreground/50">{description}</span> : null}
+      {description ? <span className="text-xs leading-relaxed text-foreground/70">{description}</span> : null}
     </>
   );
 

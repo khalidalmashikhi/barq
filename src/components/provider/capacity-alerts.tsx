@@ -44,7 +44,7 @@ export async function CapacityAlerts({ items, availabilityHref }: CapacityAlerts
               >
                 {item.serviceName}
               </Link>
-              <span className="text-xs text-foreground/40">
+              <span className="text-xs text-foreground/60">
                 {formatDate(item.startTime, locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>

@@ -56,19 +56,19 @@ export default async function AdminDetailPage({ params }: { params: Promise<{ id
       <Card hoverLift={false}>
         <dl className="grid grid-cols-2 gap-3">
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_userId")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_userId")}</dt>
             <dd dir="ltr" className="break-all text-start text-sm text-foreground">{admin.userId}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_created")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_created")}</dt>
             <dd className="text-sm text-foreground">{dateFmt(admin.createdAt)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_lastLogin")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_lastLogin")}</dt>
             <dd className="text-sm text-foreground">{admin.lastLoginAt ? dateFmt(admin.lastLoginAt) : t("um_lastLoginNever")}</dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("um_detail_grantedBy")}</dt>
+            <dt className="text-xs text-foreground/60">{t("um_detail_grantedBy")}</dt>
             <dd dir="ltr" className="text-start text-sm text-foreground">{admin.grantedByPhone ?? t("um_grantedByUnknown")}</dd>
           </div>
         </dl>

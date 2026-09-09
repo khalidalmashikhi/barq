@@ -134,7 +134,7 @@ export default async function BookingsPage({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-foreground">{booking.serviceName}</p>
-                    <p className="mt-0.5 text-xs text-foreground/40">
+                    <p className="mt-0.5 text-xs text-foreground/60">
                       {booking.slotStartTime
                         ? formatDate(new Date(booking.slotStartTime), locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
                         : formatDate(new Date(booking.createdAt), locale, { day: "numeric", month: "long", year: "numeric" })}

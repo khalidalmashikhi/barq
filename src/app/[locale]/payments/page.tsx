@@ -116,7 +116,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 >
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate font-medium text-foreground">{payment.serviceName}</span>
-                    <span className="text-xs text-foreground/40">
+                    <span className="text-xs text-foreground/60">
                       {formatDate(payment.createdAt, locale, { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                   </div>

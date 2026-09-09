@@ -71,7 +71,7 @@ export default async function EditHomepageSectionPage({ params, searchParams }: 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{section.label}</h1>
-          <p className="mt-0.5 font-mono text-xs text-foreground/40">{section.key}</p>
+          <p className="mt-0.5 font-mono text-xs text-foreground/60">{section.key}</p>
         </div>
         <Badge variant={section.visible ? "success" : "default"}>
           {section.visible ? t("homepageSectionVisibleLabel") : t("homepageSectionHiddenLabel")}
@@ -112,7 +112,7 @@ export default async function EditHomepageSectionPage({ params, searchParams }: 
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("homepageSectionLabelLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("homepageSectionLabelLabel")}</span>
             <input
               type="text"
               name="label"
@@ -123,7 +123,7 @@ export default async function EditHomepageSectionPage({ params, searchParams }: 
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("homepageSectionDescriptionLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("homepageSectionDescriptionLabel")}</span>
             <textarea
               name="description"
               rows={3}

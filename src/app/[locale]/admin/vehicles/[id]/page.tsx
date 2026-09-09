@@ -142,7 +142,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
-          <p className="mt-0.5 text-sm text-foreground/40">
+          <p className="mt-0.5 text-sm text-foreground/60">
             {extractLocalizedText(review.providerName, locale) || t("unknownProviderLabel")}
           </p>
         </div>
@@ -193,7 +193,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
           ) : (
             <>
               <Alert variant="success" title={t("vehicleActivationReadyTitle")} className="mt-3" />
-              <p className="mt-2 text-xs text-foreground/50">{t("vehicleActivationHint")}</p>
+              <p className="mt-2 text-xs text-foreground/70">{t("vehicleActivationHint")}</p>
               <form
                 action={async () => {
                   "use server";
@@ -224,7 +224,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">{t("vehicleInfoTitle")}</h2>
           {review.verificationSubmittedAt && (
-            <span className="text-xs text-foreground/40">
+            <span className="text-xs text-foreground/60">
               {t("submittedAtLabel")}: {formatDate(review.verificationSubmittedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </span>
           )}
@@ -232,7 +232,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {rows.map((row) => (
             <div key={row.label}>
-              <dt className="text-xs text-foreground/40">{row.label}</dt>
+              <dt className="text-xs text-foreground/60">{row.label}</dt>
               <dd className="text-sm text-foreground">{row.value ?? "—"}</dd>
             </div>
           ))}
@@ -244,7 +244,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
       <Card hoverLift={false}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-foreground/40">{t("vehicleOperationalStatusLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("vehicleOperationalStatusLabel")}</dt>
             <dd className="mt-1">
               <Badge variant={getVehicleStatusBadgeVariant(review.operationalStatus)}>
                 {tv(getVehicleStatusTranslationKey(review.operationalStatus))}
@@ -252,7 +252,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-foreground/40">{t("vehicleVerificationStatusLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("vehicleVerificationStatusLabel")}</dt>
             <dd className="mt-1">
               <Badge variant={getVehicleVerificationBadgeVariant(review.verificationStatus)}>
                 {tv(getVehicleVerificationTranslationKey(review.verificationStatus))}
@@ -307,7 +307,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
             </SubmitButton>
           </form>
         </div>
-        <p className="mt-2 text-[11px] text-foreground/40">{t("vehicleFourByFourReviewHint")}</p>
+        <p className="mt-2 text-[11px] text-foreground/60">{t("vehicleFourByFourReviewHint")}</p>
       </Card>
 
       {/* Verification documents — REVIEW-FIRST, before the overall decision. */}
@@ -335,14 +335,14 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                 </div>
 
                 {!doc ? (
-                  <p className="mt-2 text-sm text-foreground/50">{t("documentNotUploadedYet")}</p>
+                  <p className="mt-2 text-sm text-foreground/70">{t("documentNotUploadedYet")}</p>
                 ) : (
                   <>
                     <p className="mt-2 text-sm text-foreground/70">
                       {doc.originalFilename}{" "}
-                      <span className="text-foreground/40">· {doc.mimeType} · {formatBytes(doc.sizeBytes)}</span>
+                      <span className="text-foreground/60">· {doc.mimeType} · {formatBytes(doc.sizeBytes)}</span>
                     </p>
-                    <p className="mt-0.5 text-xs text-foreground/40">
+                    <p className="mt-0.5 text-xs text-foreground/60">
                       {t("documentUploadedAtLabel")}: {formatDate(doc.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
                       {doc.reviewedAt && (
                         <> · {t("documentReviewedAtLabel")}: {formatDate(doc.reviewedAt, locale, { day: "numeric", month: "long", year: "numeric" })}</>
@@ -358,12 +358,12 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
 
                     {/* VEHICLE-LC6 — the provider's ADVISORY claimed expiry (never trusted). */}
                     {doc.supportsExpiry && doc.claimedExpiryDate && (
-                      <p className="mt-2 text-xs text-foreground/50">
+                      <p className="mt-2 text-xs text-foreground/70">
                         <span className="font-medium">{t("documentClaimedExpiryLabel")}:</span> {doc.claimedExpiryDate}
                       </p>
                     )}
                     {doc.supportsExpiry && doc.trustedExpiryDate && (
-                      <p className="mt-0.5 text-xs text-foreground/50">
+                      <p className="mt-0.5 text-xs text-foreground/70">
                         <span className="font-medium">{t("documentTrustedExpiryLabel")}:</span> {doc.trustedExpiryDate}
                       </p>
                     )}
@@ -398,7 +398,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                           className="flex flex-wrap items-end gap-2"
                         >
                           {doc.supportsExpiry && (
-                            <label className="flex flex-col gap-1 text-xs font-medium text-foreground/50">
+                            <label className="flex flex-col gap-1 text-xs font-medium text-foreground/70">
                               {t("documentConfirmExpiryLabel")}
                               <input
                                 type="date"
@@ -417,7 +417,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                     </div>
 
                     {doc.status === "PENDING" && doc.supportsExpiry && (
-                      <p className="mt-1 text-[11px] text-foreground/40">{t("documentConfirmExpiryHint")}</p>
+                      <p className="mt-1 text-[11px] text-foreground/60">{t("documentConfirmExpiryHint")}</p>
                     )}
 
                     {doc.status === "PENDING" && (
@@ -435,7 +435,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                         }}
                         className="mt-3 flex flex-col gap-2 border-t border-border pt-3"
                       >
-                        <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/50">
+                        <label htmlFor={`reject-doc-${doc.id}`} className="text-xs font-medium text-foreground/70">
                           {t("documentRejectReasonLabel")}
                         </label>
                         <textarea
@@ -521,7 +521,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
             }}
             className="mt-4 flex flex-col gap-2 border-t border-border pt-4"
           >
-            <label htmlFor="changes-reason" className="text-xs font-medium text-foreground/50">{t("requestChangesReasonLabel")}</label>
+            <label htmlFor="changes-reason" className="text-xs font-medium text-foreground/70">{t("requestChangesReasonLabel")}</label>
             <textarea
               id="changes-reason"
               name="reason"
@@ -544,7 +544,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
             }}
             className="mt-4 flex flex-col gap-2 border-t border-border pt-4"
           >
-            <label htmlFor="reject-reason" className="text-xs font-medium text-foreground/50">{t("rejectReasonLabel")}</label>
+            <label htmlFor="reject-reason" className="text-xs font-medium text-foreground/70">{t("rejectReasonLabel")}</label>
             <textarea
               id="reject-reason"
               name="reason"

@@ -453,7 +453,7 @@ export function LoginForm({
           {/* Divider: Google/email are alternatives; phone + OTP remains fully available. */}
           <div className="flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
-            <span className="text-xs uppercase tracking-wide text-foreground/40">{t("orDivider")}</span>
+            <span className="text-xs uppercase tracking-wide text-foreground/60">{t("orDivider")}</span>
             <span className="h-px flex-1 bg-border" />
           </div>
         </div>
@@ -557,7 +557,7 @@ export function LoginForm({
                   onClick={handleResendOtp}
                   disabled={resendState.disabled}
                   aria-disabled={resendState.disabled}
-                  className="text-sm font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-foreground/40 disabled:no-underline"
+                  className="text-sm font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-foreground/60 disabled:no-underline"
                 >
                   {resendState.label === "loading"
                     ? t("loading")
@@ -684,7 +684,7 @@ export function LoginForm({
                   onClick={handleResendEmailOtp}
                   disabled={resendState.disabled}
                   aria-disabled={resendState.disabled}
-                  className="text-sm font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-foreground/40 disabled:no-underline"
+                  className="text-sm font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-foreground/60 disabled:no-underline"
                 >
                   {resendState.label === "loading"
                     ? t("loading")

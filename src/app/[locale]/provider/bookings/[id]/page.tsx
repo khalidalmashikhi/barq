@@ -118,7 +118,7 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
 
         <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-foreground/50">{tBooking("slotLabel")}</span>
+            <span className="text-foreground/70">{tBooking("slotLabel")}</span>
             <span className="font-medium text-foreground">
               {booking.slotStartTime
                 ? formatDate(booking.slotStartTime, locale, {
@@ -132,7 +132,7 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-foreground/50">{tBooking("seatsLabel")}</span>
+            <span className="text-foreground/70">{tBooking("seatsLabel")}</span>
             <span className="font-medium text-foreground">{booking.seats}</span>
           </div>
           {/* BOOKING TOTAL PRESENTATION — the provider sees the effective booking TOTAL plus the
@@ -140,7 +140,7 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
               physical guest count. */}
           <BookingMoneyBreakdown money={booking.bookingMoney} />
           <div className="flex items-center justify-between">
-            <span className="text-foreground/50">{tBooking("requestDateLabel")}</span>
+            <span className="text-foreground/70">{tBooking("requestDateLabel")}</span>
             <span className="font-medium text-foreground">
               {formatDate(booking.createdAt, locale, { day: "numeric", month: "long", year: "numeric" })}
             </span>
@@ -191,7 +191,7 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
                 }}
                 className="flex flex-col gap-3"
               >
-                <p className="text-xs text-foreground/50">{tBooking("fulfillmentProviderHint")}</p>
+                <p className="text-xs text-foreground/70">{tBooking("fulfillmentProviderHint")}</p>
                 <label className="flex flex-col gap-1 text-xs text-foreground/60">
                   {tBooking("fulfillmentProviderEnLabel")}
                   <textarea
@@ -223,7 +223,7 @@ export default async function ProviderBookingDetailPage({ params, searchParams }
             ) : booking.fulfillmentInstructions ? (
               <p className="whitespace-pre-wrap text-sm text-foreground/80">{booking.fulfillmentInstructions}</p>
             ) : (
-              <p className="text-sm text-foreground/50">{tBooking("fulfillmentProviderEmpty")}</p>
+              <p className="text-sm text-foreground/70">{tBooking("fulfillmentProviderEmpty")}</p>
             )}
           </div>
         </Card>

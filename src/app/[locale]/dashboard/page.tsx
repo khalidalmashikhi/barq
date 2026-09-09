@@ -227,7 +227,7 @@ export default async function DashboardPage() {
 
         <RecentBookingsList bookings={data.recentBookings} />
 
-        <p className="text-center text-xs text-foreground/40">{t("accountIdLabel", { id: barqUserId })}</p>
+        <p className="text-center text-xs text-foreground/60">{t("accountIdLabel", { id: barqUserId })}</p>
       </div>
 
       <DashboardFooter />

@@ -65,7 +65,7 @@ export async function ProviderRecentActivity({ items, title, icon, emptyMessage 
             >
               <div>
                 <p className="text-sm font-medium text-foreground">{item.serviceName}</p>
-                <p className="mt-0.5 text-xs text-foreground/40">
+                <p className="mt-0.5 text-xs text-foreground/60">
                   {formatDate(new Date(item.createdAt), locale, {
                     day: "numeric",
                     month: "long",

@@ -116,7 +116,7 @@ export function CountryPicker({ open, selectedIso, onSelect, onClose }: CountryP
 
         <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3" role="listbox" aria-label={t("selectCountry")}>
           {results.length === 0 && (
-            <li className="px-4 py-8 text-center text-sm text-foreground/50">{t("noCountryResults")}</li>
+            <li className="px-4 py-8 text-center text-sm text-foreground/70">{t("noCountryResults")}</li>
           )}
           {results.map((c) => {
             const selected = c.iso === selectedIso;
@@ -147,7 +147,7 @@ export function CountryPicker({ open, selectedIso, onSelect, onClose }: CountryP
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{localizedName(c)}</span>
-                    <span className="block truncate text-xs text-foreground/50" dir="ltr">
+                    <span className="block truncate text-xs text-foreground/70" dir="ltr">
                       {c.iso} · {c.callingCode}
                       <span className="mx-1 text-foreground/30">·</span>
                       <span dir={locale === "ar" ? "rtl" : "ltr"}>{secondaryName(c)}</span>

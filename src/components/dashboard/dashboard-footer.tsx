@@ -17,19 +17,19 @@ export async function DashboardFooter() {
 
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {links.map((link) => (
-            <span key={link} className="cursor-default text-sm text-foreground/50">
+            <span key={link} className="cursor-default text-sm text-foreground/70">
               {link}
             </span>
           ))}
         </nav>
 
         <div className="flex items-center gap-3">
-          <Instagram size={16} strokeWidth={1.75} className="text-foreground/40" />
-          <Twitter size={16} strokeWidth={1.75} className="text-foreground/40" />
-          <Facebook size={16} strokeWidth={1.75} className="text-foreground/40" />
+          <Instagram size={16} strokeWidth={1.75} className="text-foreground/60" />
+          <Twitter size={16} strokeWidth={1.75} className="text-foreground/60" />
+          <Facebook size={16} strokeWidth={1.75} className="text-foreground/60" />
         </div>
       </div>
-      <p className="border-t border-border py-4 text-center text-xs text-foreground/50">
+      <p className="border-t border-border py-4 text-center text-xs text-foreground/70">
         {t("copyrightText", { year: new Date().getFullYear() })}
       </p>
     </footer>

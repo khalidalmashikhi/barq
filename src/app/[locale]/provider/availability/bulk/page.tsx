@@ -65,7 +65,7 @@ export default async function BulkCreateAvailabilityPage({ searchParams }: Props
             className="flex flex-col gap-4"
           >
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceLabel")}</span>
               <select
                 name="serviceId"
                 required
@@ -81,7 +81,7 @@ export default async function BulkCreateAvailabilityPage({ searchParams }: Props
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("startDateLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("startDateLabel")}</span>
                 <input
                   type="date"
                   name="startDate"
@@ -90,7 +90,7 @@ export default async function BulkCreateAvailabilityPage({ searchParams }: Props
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("endDateLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("endDateLabel")}</span>
                 <input
                   type="date"
                   name="endDate"
@@ -102,7 +102,7 @@ export default async function BulkCreateAvailabilityPage({ searchParams }: Props
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("startTimeOfDayLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("startTimeOfDayLabel")}</span>
                 <input
                   type="time"
                   name="startTimeOfDay"
@@ -111,7 +111,7 @@ export default async function BulkCreateAvailabilityPage({ searchParams }: Props
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-foreground/50">{t("endTimeOfDayLabel")}</span>
+                <span className="text-xs font-medium text-foreground/70">{t("endTimeOfDayLabel")}</span>
                 <input
                   type="time"
                   name="endTimeOfDay"
@@ -122,7 +122,7 @@ export default async function BulkCreateAvailabilityPage({ searchParams }: Props
             </div>
 
             <label className="flex flex-col gap-1.5 sm:w-48">
-              <span className="text-xs font-medium text-foreground/50">{t("capacityFieldLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("capacityFieldLabel")}</span>
               <input
                 type="number"
                 name="capacity"

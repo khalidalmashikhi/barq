@@ -63,7 +63,7 @@ export default async function NewServicePage({ searchParams }: Props) {
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("serviceProviderIdLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("serviceProviderIdLabel")}</span>
             <input
               type="text"
               name="providerId"
@@ -72,12 +72,12 @@ export default async function NewServicePage({ searchParams }: Props) {
               placeholder="019f4e4e-8116-7052-b15e-000000000000"
               className="rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <span className="text-xs text-foreground/40">{t("serviceProviderIdHintLabel")}</span>
+            <span className="text-xs text-foreground/60">{t("serviceProviderIdHintLabel")}</span>
           </label>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceNameArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceNameArLabel")}</span>
               <input
                 type="text"
                 name="nameAr"
@@ -87,7 +87,7 @@ export default async function NewServicePage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceNameEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceNameEnLabel")}</span>
               <input
                 type="text"
                 name="nameEn"
@@ -100,7 +100,7 @@ export default async function NewServicePage({ searchParams }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceDescriptionArLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceDescriptionArLabel")}</span>
               <textarea
                 name="descriptionAr"
                 rows={3}
@@ -109,7 +109,7 @@ export default async function NewServicePage({ searchParams }: Props) {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-foreground/50">{t("serviceDescriptionEnLabel")}</span>
+              <span className="text-xs font-medium text-foreground/70">{t("serviceDescriptionEnLabel")}</span>
               <textarea
                 name="descriptionEn"
                 rows={3}
@@ -120,13 +120,13 @@ export default async function NewServicePage({ searchParams }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-foreground/50">{t("categoryFieldLabel")}</span>
+            <span className="text-xs font-medium text-foreground/70">{t("categoryFieldLabel")}</span>
             <CategoryField
               name="categoryId"
               tree={categoryTree}
               labels={{ searchPlaceholder: t("categorySearchPlaceholder"), empty: t("categoryEmpty") }}
             />
-            <span className="text-xs text-foreground/40">{t("categoryFieldHint")}</span>
+            <span className="text-xs text-foreground/60">{t("categoryFieldHint")}</span>
           </div>
 
           {/* Governorate (Gate 4). No pricing-unit field here: this admin-create
