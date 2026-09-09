@@ -788,5 +788,20 @@
   "permAction_cancel": "Annulla prenotazioni",
   "permAction_moderate": "Modera",
   "permHighImpact": "Alto impatto",
-  "staffCreateProviderError": "Questo account è registrato come fornitore e non può essere aggiunto come membro del personale."
+  "staffCreateProviderError": "Questo account è registrato come fornitore e non può essere aggiunto come membro del personale.",
+  "confirmCancel": "Annulla",
+  "confirmDeactivateStaffTitle": "Disattivare questo membro del personale?",
+  "confirmDeactivateStaffBody": "Il membro del personale perderà immediatamente l'accesso allo spazio di lavoro interno. Potrai riattivarlo in seguito.",
+  "confirmDeactivateAdminTitle": "Disattivare questo amministratore?",
+  "confirmDeactivateAdminBody": "L'amministratore perderà immediatamente l'accesso all'area di amministrazione. Potrai riattivarlo in seguito.",
+  "confirmDeactivateCustomerTitle": "Disattivare questo cliente?",
+  "confirmDeactivateCustomerBody": "Il cliente perderà l'accesso al proprio account finché non lo riattivi. La cronologia delle prenotazioni viene conservata.",
+  "confirmSuspendCustomerTitle": "Sospendere questo cliente?",
+  "confirmSuspendCustomerBody": "Al cliente verrà temporaneamente impedito l'accesso finché non lo riattivi. I suoi dati vengono conservati.",
+  "confirmSuspendProviderTitle": "Sospendere questo fornitore?",
+  "confirmSuspendProviderBody": "I servizi del fornitore verranno nascosti e non potrà accettare nuove prenotazioni fino alla riattivazione.",
+  "confirmArchiveProviderTitle": "Archiviare questo fornitore?",
+  "confirmArchiveProviderBody": "Il fornitore verrà rimosso dagli elenchi attivi e i suoi servizi nascosti. Potrai riattivarlo in seguito.",
+  "confirmRejectProviderTitle": "Rifiutare questa candidatura del fornitore?",
+  "confirmRejectProviderBody": "La candidatura verrà contrassegnata come rifiutata e il fornitore verrà avvisato. Questa decisione viene registrata."
 }

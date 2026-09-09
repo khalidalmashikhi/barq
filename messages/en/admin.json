@@ -788,5 +788,20 @@
   "permAction_cancel": "Cancel bookings",
   "permAction_moderate": "Moderate",
   "permHighImpact": "High impact",
-  "staffCreateProviderError": "This account is registered as a provider and cannot be added as a staff member."
+  "staffCreateProviderError": "This account is registered as a provider and cannot be added as a staff member.",
+  "confirmCancel": "Cancel",
+  "confirmDeactivateStaffTitle": "Deactivate this staff account?",
+  "confirmDeactivateStaffBody": "The staff member will immediately lose access to the internal workspace. You can reactivate them later.",
+  "confirmDeactivateAdminTitle": "Deactivate this administrator?",
+  "confirmDeactivateAdminBody": "The administrator will immediately lose access to the admin area. You can reactivate them later.",
+  "confirmDeactivateCustomerTitle": "Deactivate this customer?",
+  "confirmDeactivateCustomerBody": "The customer will lose access to their account until you reactivate it. Their booking history is kept.",
+  "confirmSuspendCustomerTitle": "Suspend this customer?",
+  "confirmSuspendCustomerBody": "The customer will be temporarily blocked from signing in until you reactivate them. Their data is kept.",
+  "confirmSuspendProviderTitle": "Suspend this provider?",
+  "confirmSuspendProviderBody": "The provider's services will be hidden and they cannot take new bookings until reactivated.",
+  "confirmArchiveProviderTitle": "Archive this provider?",
+  "confirmArchiveProviderBody": "The provider will be removed from active listings and their services hidden. You can reactivate them later.",
+  "confirmRejectProviderTitle": "Reject this provider application?",
+  "confirmRejectProviderBody": "The application will be marked as rejected and the provider will be notified. This decision is recorded."
 }

@@ -788,5 +788,20 @@
   "permAction_cancel": "إلغاء الحجوزات",
   "permAction_moderate": "الإشراف",
   "permHighImpact": "تأثير عالٍ",
-  "staffCreateProviderError": "هذا الحساب مسجَّل كمزوّد خدمة ولا يمكن إضافته كعضو في الفريق."
+  "staffCreateProviderError": "هذا الحساب مسجَّل كمزوّد خدمة ولا يمكن إضافته كعضو في الفريق.",
+  "confirmCancel": "إلغاء",
+  "confirmDeactivateStaffTitle": "تعطيل حساب عضو الفريق؟",
+  "confirmDeactivateStaffBody": "سيفقد عضو الفريق الوصول إلى مساحة العمل الداخلية فورًا. يمكنك إعادة تفعيله لاحقًا.",
+  "confirmDeactivateAdminTitle": "تعطيل هذا المشرف؟",
+  "confirmDeactivateAdminBody": "سيفقد المشرف الوصول إلى لوحة الإدارة فورًا. يمكنك إعادة تفعيله لاحقًا.",
+  "confirmDeactivateCustomerTitle": "تعطيل هذا العميل؟",
+  "confirmDeactivateCustomerBody": "سيفقد العميل الوصول إلى حسابه حتى تعيد تفعيله. يُحتفظ بسجل حجوزاته.",
+  "confirmSuspendCustomerTitle": "تعليق هذا العميل؟",
+  "confirmSuspendCustomerBody": "سيتم منع العميل مؤقتًا من تسجيل الدخول حتى تعيد تفعيله. تُحفظ بياناته.",
+  "confirmSuspendProviderTitle": "تعليق هذا المزوّد؟",
+  "confirmSuspendProviderBody": "سيتم إخفاء خدمات المزوّد ولن يتمكن من استقبال حجوزات جديدة حتى إعادة تفعيله.",
+  "confirmArchiveProviderTitle": "أرشفة هذا المزوّد؟",
+  "confirmArchiveProviderBody": "ستتم إزالة المزوّد من القوائم النشطة وإخفاء خدماته. يمكنك إعادة تفعيله لاحقًا.",
+  "confirmRejectProviderTitle": "رفض طلب هذا المزوّد؟",
+  "confirmRejectProviderBody": "سيتم وضع علامة على الطلب كمرفوض وإشعار المزوّد. يُسجَّل هذا القرار."
 }

@@ -788,5 +788,20 @@
   "permAction_cancel": "Annuler des réservations",
   "permAction_moderate": "Modérer",
   "permHighImpact": "Impact élevé",
-  "staffCreateProviderError": "Ce compte est enregistré en tant que prestataire et ne peut pas être ajouté comme membre de l’équipe."
+  "staffCreateProviderError": "Ce compte est enregistré en tant que prestataire et ne peut pas être ajouté comme membre de l’équipe.",
+  "confirmCancel": "Annuler",
+  "confirmDeactivateStaffTitle": "Désactiver ce membre de l'équipe ?",
+  "confirmDeactivateStaffBody": "Le membre de l'équipe perdra immédiatement l'accès à l'espace de travail interne. Vous pourrez le réactiver plus tard.",
+  "confirmDeactivateAdminTitle": "Désactiver cet administrateur ?",
+  "confirmDeactivateAdminBody": "L'administrateur perdra immédiatement l'accès à l'espace d'administration. Vous pourrez le réactiver plus tard.",
+  "confirmDeactivateCustomerTitle": "Désactiver ce client ?",
+  "confirmDeactivateCustomerBody": "Le client perdra l'accès à son compte jusqu'à ce que vous le réactiviez. Son historique de réservations est conservé.",
+  "confirmSuspendCustomerTitle": "Suspendre ce client ?",
+  "confirmSuspendCustomerBody": "Le client sera temporairement empêché de se connecter jusqu'à sa réactivation. Ses données sont conservées.",
+  "confirmSuspendProviderTitle": "Suspendre ce prestataire ?",
+  "confirmSuspendProviderBody": "Les services du prestataire seront masqués et il ne pourra pas accepter de nouvelles réservations jusqu'à sa réactivation.",
+  "confirmArchiveProviderTitle": "Archiver ce prestataire ?",
+  "confirmArchiveProviderBody": "Le prestataire sera retiré des annonces actives et ses services masqués. Vous pourrez le réactiver plus tard.",
+  "confirmRejectProviderTitle": "Rejeter cette candidature de prestataire ?",
+  "confirmRejectProviderBody": "La candidature sera marquée comme rejetée et le prestataire sera informé. Cette décision est enregistrée."
 }

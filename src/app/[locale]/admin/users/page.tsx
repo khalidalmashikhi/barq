@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect, getPathname } from "@/i18n/navigation";
-import { ShieldCheck, UserPlus } from "lucide-react";
+import { ShieldCheck, UserPlus, PowerOff, Ban, Archive, CircleCheck, Check, Eye, EyeOff } from "lucide-react";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { requireInternal, requireOwner, UnauthenticatedError, ForbiddenError, type PermissionKey } from "@/lib/auth";
 import { getAdmins, type AdminListItem } from "@/lib/admin/get-admins";
 import { getStaff, type StaffListItem } from "@/lib/admin/get-staff";
@@ -404,22 +405,27 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                         redirect({ href: r.ok ? `/admin/users?tab=administrators&notice=${r.outcome}` : `/admin/users?tab=administrators&error=${r.error}`, locale });
                       }}
                     >
-                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                      <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                        <CircleCheck size={14} strokeWidth={1.75} aria-hidden />
                         {t("um_activateButton")}
                       </SubmitButton>
                     </form>
                   ) : (
-                    <form
+                    <ConfirmActionDialog
                       action={async () => {
                         "use server";
                         const r = await deactivateAdmin(admin.id);
                         redirect({ href: r.ok ? `/admin/users?tab=administrators&notice=${r.outcome}` : `/admin/users?tab=administrators&error=${r.error}`, locale });
                       }}
-                    >
-                      <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
-                        {t("um_deactivateButton")}
-                      </SubmitButton>
-                    </form>
+                      triggerLabel={t("um_deactivateButton")}
+                      triggerIcon={<PowerOff size={14} strokeWidth={1.75} aria-hidden />}
+                      triggerVariant="danger"
+                      title={t("confirmDeactivateAdminTitle")}
+                      description={t("confirmDeactivateAdminBody")}
+                      confirmLabel={t("um_deactivateButton")}
+                      cancelLabel={t("confirmCancel")}
+                      confirmVariant="danger"
+                    />
                   )}
                 </div>
               </div>
@@ -477,22 +483,27 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                         redirect({ href: r.ok ? `/admin/users?tab=staff&notice=staff_${r.outcome}` : `/admin/users?tab=staff&error=${r.error}`, locale });
                       }}
                     >
-                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                      <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                        <CircleCheck size={14} strokeWidth={1.75} aria-hidden />
                         {t("um_activateButton")}
                       </SubmitButton>
                     </form>
                   ) : (
-                    <form
+                    <ConfirmActionDialog
                       action={async () => {
                         "use server";
                         const r = await deactivateStaff(member.id);
                         redirect({ href: r.ok ? `/admin/users?tab=staff&notice=staff_${r.outcome}` : `/admin/users?tab=staff&error=${r.error}`, locale });
                       }}
-                    >
-                      <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
-                        {t("um_deactivateButton")}
-                      </SubmitButton>
-                    </form>
+                      triggerLabel={t("um_deactivateButton")}
+                      triggerIcon={<PowerOff size={14} strokeWidth={1.75} aria-hidden />}
+                      triggerVariant="danger"
+                      title={t("confirmDeactivateStaffTitle")}
+                      description={t("confirmDeactivateStaffBody")}
+                      confirmLabel={t("um_deactivateButton")}
+                      cancelLabel={t("confirmCancel")}
+                      confirmVariant="danger"
+                    />
                   )}
                 </div>
               </div>
@@ -515,26 +526,42 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                   <Badge variant={p.visible ? "success" : "default"}>{p.visible ? t("providerVisibleLabel") : t("providerHiddenLabel")}</Badge>
                   {(p.status === "APPLIED" || p.status === "UNDER_REVIEW") && (
                     <form action={async () => { "use server"; const r = await approveProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_approved` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{t("approveButton")}</SubmitButton>
+                      <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"><Check size={14} strokeWidth={2} aria-hidden />{t("approveButton")}</SubmitButton>
                     </form>
                   )}
                   {p.status === "APPROVED" && (
-                    <form action={async () => { "use server"; const r = await suspendProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_${r.outcome}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent-foreground hover:bg-accent/10 disabled:opacity-50">{t("um_suspendButton")}</SubmitButton>
-                    </form>
+                    <ConfirmActionDialog
+                      action={async () => { "use server"; const r = await suspendProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_${r.outcome}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}
+                      triggerLabel={t("um_suspendButton")}
+                      triggerIcon={<Ban size={14} strokeWidth={1.75} aria-hidden />}
+                      triggerVariant="danger"
+                      title={t("confirmSuspendProviderTitle")}
+                      description={t("confirmSuspendProviderBody")}
+                      confirmLabel={t("um_suspendButton")}
+                      cancelLabel={t("confirmCancel")}
+                      confirmVariant="danger"
+                    />
                   )}
                   {p.status === "SUSPENDED" && (
                     <form action={async () => { "use server"; const r = await reactivateProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_${r.outcome}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{t("um_reactivateButton")}</SubmitButton>
+                      <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"><CircleCheck size={14} strokeWidth={1.75} aria-hidden />{t("um_reactivateButton")}</SubmitButton>
                     </form>
                   )}
                   <form action={async () => { "use server"; const r = p.visible ? await unpublishProvider(p.id) : await publishProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=${p.visible ? "provider_unpublished" : "provider_published"}` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
-                    <SubmitButton className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/70 hover:bg-accent/20 disabled:opacity-50">{p.visible ? t("unpublishProviderButton") : t("publishProviderButton")}</SubmitButton>
+                    <SubmitButton className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/70 hover:bg-accent/20 disabled:opacity-50">{p.visible ? <EyeOff size={14} strokeWidth={1.75} aria-hidden /> : <Eye size={14} strokeWidth={1.75} aria-hidden />}{p.visible ? t("unpublishProviderButton") : t("publishProviderButton")}</SubmitButton>
                   </form>
                   {p.status !== "DEACTIVATED" && (
-                    <form action={async () => { "use server"; const r = await archiveProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_deactivated` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50">{t("um_deactivateButton")}</SubmitButton>
-                    </form>
+                    <ConfirmActionDialog
+                      action={async () => { "use server"; const r = await archiveProvider(p.id); redirect({ href: r.ok ? `/admin/users?tab=providers&notice=provider_deactivated` : `/admin/users?tab=providers&error=${r.error}`, locale }); }}
+                      triggerLabel={t("um_deactivateButton")}
+                      triggerIcon={<Archive size={14} strokeWidth={1.75} aria-hidden />}
+                      triggerVariant="danger"
+                      title={t("confirmArchiveProviderTitle")}
+                      description={t("confirmArchiveProviderBody")}
+                      confirmLabel={t("um_deactivateButton")}
+                      cancelLabel={t("confirmCancel")}
+                      confirmVariant="danger"
+                    />
                   )}
                 </div>
               </div>
@@ -555,19 +582,35 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge variant={statusVariant(c.status)}>{statusLabel(c.status)}</Badge>
                   {c.status === "ACTIVE" && (
-                    <form action={async () => { "use server"; const r = await suspendCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent-foreground hover:bg-accent/10 disabled:opacity-50">{t("um_suspendButton")}</SubmitButton>
-                    </form>
+                    <ConfirmActionDialog
+                      action={async () => { "use server"; const r = await suspendCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}
+                      triggerLabel={t("um_suspendButton")}
+                      triggerIcon={<Ban size={14} strokeWidth={1.75} aria-hidden />}
+                      triggerVariant="danger"
+                      title={t("confirmSuspendCustomerTitle")}
+                      description={t("confirmSuspendCustomerBody")}
+                      confirmLabel={t("um_suspendButton")}
+                      cancelLabel={t("confirmCancel")}
+                      confirmVariant="danger"
+                    />
                   )}
                   {c.status !== "ACTIVE" && (
                     <form action={async () => { "use server"; const r = await reactivateCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{t("um_activateButton")}</SubmitButton>
+                      <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"><CircleCheck size={14} strokeWidth={1.75} aria-hidden />{t("um_activateButton")}</SubmitButton>
                     </form>
                   )}
                   {c.status !== "DEACTIVATED" && (
-                    <form action={async () => { "use server"; const r = await deactivateCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}>
-                      <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50">{t("um_deactivateButton")}</SubmitButton>
-                    </form>
+                    <ConfirmActionDialog
+                      action={async () => { "use server"; const r = await deactivateCustomer(c.userId); redirect({ href: r.ok ? `/admin/users?tab=customers&notice=customer_${r.outcome}` : `/admin/users?tab=customers&error=${r.error}`, locale }); }}
+                      triggerLabel={t("um_deactivateButton")}
+                      triggerIcon={<PowerOff size={14} strokeWidth={1.75} aria-hidden />}
+                      triggerVariant="danger"
+                      title={t("confirmDeactivateCustomerTitle")}
+                      description={t("confirmDeactivateCustomerBody")}
+                      confirmLabel={t("um_deactivateButton")}
+                      cancelLabel={t("confirmCancel")}
+                      confirmVariant="danger"
+                    />
                   )}
                 </div>
               </div>

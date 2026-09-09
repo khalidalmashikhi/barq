@@ -788,5 +788,20 @@
   "permAction_cancel": "Rušit rezervace",
   "permAction_moderate": "Moderovat",
   "permHighImpact": "Vysoký dopad",
-  "staffCreateProviderError": "Tento účet je registrován jako poskytovatel a nelze jej přidat jako člena týmu."
+  "staffCreateProviderError": "Tento účet je registrován jako poskytovatel a nelze jej přidat jako člena týmu.",
+  "confirmCancel": "Zrušit",
+  "confirmDeactivateStaffTitle": "Deaktivovat tohoto člena týmu?",
+  "confirmDeactivateStaffBody": "Člen týmu okamžitě ztratí přístup k internímu pracovnímu prostoru. Později jej můžete znovu aktivovat.",
+  "confirmDeactivateAdminTitle": "Deaktivovat tohoto administrátora?",
+  "confirmDeactivateAdminBody": "Administrátor okamžitě ztratí přístup do administrace. Později jej můžete znovu aktivovat.",
+  "confirmDeactivateCustomerTitle": "Deaktivovat tohoto zákazníka?",
+  "confirmDeactivateCustomerBody": "Zákazník ztratí přístup ke svému účtu, dokud jej znovu neaktivujete. Historie rezervací zůstane zachována.",
+  "confirmSuspendCustomerTitle": "Pozastavit tohoto zákazníka?",
+  "confirmSuspendCustomerBody": "Zákazníkovi bude dočasně zabráněno v přihlášení, dokud jej znovu neaktivujete. Jeho data zůstanou zachována.",
+  "confirmSuspendProviderTitle": "Pozastavit tohoto poskytovatele?",
+  "confirmSuspendProviderBody": "Služby poskytovatele budou skryty a nebude moci přijímat nové rezervace až do opětovné aktivace.",
+  "confirmArchiveProviderTitle": "Archivovat tohoto poskytovatele?",
+  "confirmArchiveProviderBody": "Poskytovatel bude odstraněn z aktivních nabídek a jeho služby skryty. Později jej můžete znovu aktivovat.",
+  "confirmRejectProviderTitle": "Zamítnout tuto žádost poskytovatele?",
+  "confirmRejectProviderBody": "Žádost bude označena jako zamítnutá a poskytovatel bude upozorněn. Toto rozhodnutí se zaznamenává."
 }

@@ -788,5 +788,20 @@
   "permAction_cancel": "Buchungen stornieren",
   "permAction_moderate": "Moderieren",
   "permHighImpact": "Hohe Auswirkung",
-  "staffCreateProviderError": "Dieses Konto ist als Anbieter registriert und kann nicht als Teammitglied hinzugefügt werden."
+  "staffCreateProviderError": "Dieses Konto ist als Anbieter registriert und kann nicht als Teammitglied hinzugefügt werden.",
+  "confirmCancel": "Abbrechen",
+  "confirmDeactivateStaffTitle": "Dieses Teammitglied deaktivieren?",
+  "confirmDeactivateStaffBody": "Das Teammitglied verliert sofort den Zugriff auf den internen Arbeitsbereich. Sie können es später wieder aktivieren.",
+  "confirmDeactivateAdminTitle": "Diesen Administrator deaktivieren?",
+  "confirmDeactivateAdminBody": "Der Administrator verliert sofort den Zugriff auf den Adminbereich. Sie können ihn später wieder aktivieren.",
+  "confirmDeactivateCustomerTitle": "Diesen Kunden deaktivieren?",
+  "confirmDeactivateCustomerBody": "Der Kunde verliert den Zugriff auf sein Konto, bis Sie es wieder aktivieren. Sein Buchungsverlauf bleibt erhalten.",
+  "confirmSuspendCustomerTitle": "Diesen Kunden sperren?",
+  "confirmSuspendCustomerBody": "Der Kunde wird vorübergehend an der Anmeldung gehindert, bis Sie ihn wieder aktivieren. Seine Daten bleiben erhalten.",
+  "confirmSuspendProviderTitle": "Diesen Anbieter sperren?",
+  "confirmSuspendProviderBody": "Die Dienste des Anbieters werden ausgeblendet und er kann bis zur Reaktivierung keine neuen Buchungen annehmen.",
+  "confirmArchiveProviderTitle": "Diesen Anbieter archivieren?",
+  "confirmArchiveProviderBody": "Der Anbieter wird aus den aktiven Einträgen entfernt und seine Dienste ausgeblendet. Sie können ihn später wieder aktivieren.",
+  "confirmRejectProviderTitle": "Diese Anbieterbewerbung ablehnen?",
+  "confirmRejectProviderBody": "Die Bewerbung wird als abgelehnt markiert und der Anbieter benachrichtigt. Diese Entscheidung wird protokolliert."
 }

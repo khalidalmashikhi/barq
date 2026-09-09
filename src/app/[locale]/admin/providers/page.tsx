@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { Users, Plus } from "lucide-react";
+import { Users, Plus, Archive, Eye, EyeOff } from "lucide-react";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviders } from "@/lib/admin/get-providers";
 import { archiveProvider } from "@/lib/admin/archive-provider";
@@ -146,13 +147,15 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
                     redirect({ href: "/admin/providers", locale });
                   }}
                 >
-                  <SubmitButton className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-accent/20 disabled:opacity-50">
+                  <SubmitButton className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-accent/20 disabled:opacity-50">
+                    {provider.visible ? <EyeOff size={14} strokeWidth={1.75} aria-hidden /> : <Eye size={14} strokeWidth={1.75} aria-hidden />}
                     {provider.visible ? t("unpublishProviderButton") : t("publishProviderButton")}
                   </SubmitButton>
                 </form>
 
                 {provider.status !== "DEACTIVATED" && (
-                  <form
+                  // Destructive → confirmation required (§6). archiveProvider unchanged; providers.manage enforced server-side.
+                  <ConfirmActionDialog
                     action={async () => {
                       "use server";
                       const result = await archiveProvider(provider.id);
@@ -162,11 +165,15 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
                       }
                       redirect({ href: "/admin/providers", locale });
                     }}
-                  >
-                    <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
-                      {t("archiveProviderButton")}
-                    </SubmitButton>
-                  </form>
+                    triggerLabel={t("archiveProviderButton")}
+                    triggerIcon={<Archive size={14} strokeWidth={1.75} aria-hidden />}
+                    triggerVariant="danger"
+                    title={t("confirmArchiveProviderTitle")}
+                    description={t("confirmArchiveProviderBody")}
+                    confirmLabel={t("archiveProviderButton")}
+                    cancelLabel={t("confirmCancel")}
+                    confirmVariant="danger"
+                  />
                 )}
               </div>
             </div>

@@ -788,5 +788,20 @@
   "permAction_cancel": "Anuluj rezerwacje",
   "permAction_moderate": "Moderuj",
   "permHighImpact": "Duży wpływ",
-  "staffCreateProviderError": "To konto jest zarejestrowane jako dostawca i nie można go dodać jako członka zespołu."
+  "staffCreateProviderError": "To konto jest zarejestrowane jako dostawca i nie można go dodać jako członka zespołu.",
+  "confirmCancel": "Anuluj",
+  "confirmDeactivateStaffTitle": "Dezaktywować to konto zespołu?",
+  "confirmDeactivateStaffBody": "Członek zespołu natychmiast utraci dostęp do wewnętrznego panelu. Możesz go później ponownie aktywować.",
+  "confirmDeactivateAdminTitle": "Dezaktywować tego administratora?",
+  "confirmDeactivateAdminBody": "Administrator natychmiast utraci dostęp do panelu administracyjnego. Możesz go później ponownie aktywować.",
+  "confirmDeactivateCustomerTitle": "Dezaktywować tego klienta?",
+  "confirmDeactivateCustomerBody": "Klient utraci dostęp do swojego konta, dopóki go nie aktywujesz. Historia rezerwacji zostaje zachowana.",
+  "confirmSuspendCustomerTitle": "Zawiesić tego klienta?",
+  "confirmSuspendCustomerBody": "Klient zostanie tymczasowo zablokowany przy logowaniu do czasu ponownej aktywacji. Jego dane zostają zachowane.",
+  "confirmSuspendProviderTitle": "Zawiesić tego dostawcę?",
+  "confirmSuspendProviderBody": "Usługi dostawcy zostaną ukryte i nie będzie mógł przyjmować nowych rezerwacji do czasu ponownej aktywacji.",
+  "confirmArchiveProviderTitle": "Zarchiwizować tego dostawcę?",
+  "confirmArchiveProviderBody": "Dostawca zostanie usunięty z aktywnych ofert, a jego usługi ukryte. Możesz go później ponownie aktywować.",
+  "confirmRejectProviderTitle": "Odrzucić to zgłoszenie dostawcy?",
+  "confirmRejectProviderBody": "Zgłoszenie zostanie oznaczone jako odrzucone, a dostawca powiadomiony. Ta decyzja jest rejestrowana."
 }

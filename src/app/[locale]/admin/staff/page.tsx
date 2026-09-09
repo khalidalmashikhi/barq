@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect } from "@/i18n/navigation";
-import { UserCog, ShieldAlert } from "lucide-react";
+import { UserCog, ShieldAlert, PowerOff, CircleCheck } from "lucide-react";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { ForbiddenError, UnauthenticatedError, STAFF_PRESET_NAMES, PERMISSION_MODULE, PERMISSION_KEYS } from "@/lib/auth";
 import type { StaffPresetName, PermissionKey } from "@/lib/auth";
 import { getStaff } from "@/lib/admin/get-staff";
@@ -220,19 +221,24 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                     </form>
 
                     {member.status === "ACTIVE" ? (
-                      <form
-                        action={async (formData: FormData) => {
+                      // Destructive → confirmation required (§6). The bound server action is the
+                      // unchanged deactivateStaff; RBAC (requireOwner) stays authoritative server-side.
+                      <ConfirmActionDialog
+                        action={async () => {
                           "use server";
                           const l = await getLocale();
-                          const r = await deactivateStaff(String(formData.get("staffId") ?? ""));
+                          const r = await deactivateStaff(member.id);
                           redirect({ href: r.ok ? "/admin/staff?notice=1" : "/admin/staff?error=1", locale: l });
                         }}
-                      >
-                        <input type="hidden" name="staffId" value={member.id} />
-                        <SubmitButton className="rounded-full border border-danger/30 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
-                          {t("staffDeactivateButton")}
-                        </SubmitButton>
-                      </form>
+                        triggerLabel={t("staffDeactivateButton")}
+                        triggerIcon={<PowerOff size={14} strokeWidth={1.75} aria-hidden />}
+                        triggerVariant="danger"
+                        title={t("confirmDeactivateStaffTitle")}
+                        description={t("confirmDeactivateStaffBody")}
+                        confirmLabel={t("staffDeactivateButton")}
+                        cancelLabel={t("confirmCancel")}
+                        confirmVariant="danger"
+                      />
                     ) : (
                       <form
                         action={async (formData: FormData) => {
@@ -243,7 +249,8 @@ export default async function AdminStaffPage({ searchParams }: Props) {
                         }}
                       >
                         <input type="hidden" name="staffId" value={member.id} />
-                        <SubmitButton className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                        <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                          <CircleCheck size={14} strokeWidth={1.75} aria-hidden />
                           {t("staffActivateButton")}
                         </SubmitButton>
                       </form>
