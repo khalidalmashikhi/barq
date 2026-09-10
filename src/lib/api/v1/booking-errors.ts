@@ -42,6 +42,9 @@ const CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   // Not reachable from the customer create/cancel endpoints — treated as
   // unexpected internal conditions rather than normal rejections.
   NO_PROVIDER_PROFILE: "INTERNAL_ERROR",
+  // Phase 3B — Phase 1: a provider-acceptance-only outcome (suspended vertical freezes acceptance);
+  // never reachable from the customer create/cancel endpoints this map serves → unexpected internal.
+  VERTICAL_SUSPENDED: "INTERNAL_ERROR",
   BOOKING_NOT_PENDING: "INTERNAL_ERROR",
   BOOKING_NOT_STARTABLE: "INTERNAL_ERROR",
   BOOKING_NOT_COMPLETABLE: "INTERNAL_ERROR",

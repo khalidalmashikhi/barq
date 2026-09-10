@@ -39,6 +39,10 @@ const SERVICE_CODE_MAP: Record<ServiceActionErrorCode, ApiErrorCode> = {
   INVALID_CATEGORY: "INVALID_CATEGORY",
   // Gate B5 — provider not authorized for the (otherwise valid) category → 403.
   ACTIVITY_NOT_AUTHORIZED: "ACTIVITY_NOT_AUTHORIZED",
+  // Phase 3B — Phase 1: provider lacks the required ProviderVertical (regulated offering
+  // create/publish authorization). A generic 403 authorization refusal on the wire, kept
+  // distinct from the category-level ACTIVITY_NOT_AUTHORIZED.
+  VERTICAL_NOT_AUTHORIZED: "FORBIDDEN",
   // TOUR-1 — smart tour-guide template outcomes.
   TOUR_TEMPLATE_NOT_ELIGIBLE: "TOUR_TEMPLATE_NOT_ELIGIBLE",
   TOUR_TEMPLATE_INVALID: "TOUR_TEMPLATE_INVALID",
@@ -102,6 +106,10 @@ const BOOKING_ACTION_CODE_MAP: Record<BookingActionErrorCode, ApiErrorCode> = {
   // DOWNSTREAM MONEY ALIGNMENT — the booking's money snapshot won't resolve to a chargeable
   // total (corrupt/absent); accept/complete fail closed. The booking cannot be actioned as-is.
   BOOKING_PRICING_INVALID: "BOOKING_NOT_ACTIONABLE",
+  // Phase 3B — Phase 1 (Blocker 4): the provider's regulated vertical is suspended, so booking
+  // acceptance is frozen → a 403 authorization refusal on the wire (kept distinct from the 409
+  // BOOKING_NOT_ACTIONABLE state codes; it is an authorization state, not a booking-state race).
+  VERTICAL_SUSPENDED: "FORBIDDEN",
   UNKNOWN_ERROR: "INTERNAL_ERROR",
   // Not reachable from provider accept/reject/start/complete — treated as
   // unexpected internal conditions rather than normal rejections.

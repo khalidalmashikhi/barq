@@ -35,5 +35,6 @@
   "invalidSchedule": "Start- und Endzeit sind ungültig",
   "vehicleBusy": "Das ausgewählte Fahrzeug ist in diesem Zeitraum bereits einer anderen Buchung zugewiesen",
   "pricingUnitNotBookable": "Diese Preisoption ist noch nicht buchbar.",
-  "bookingPricingInvalid": "Diese Buchung kann derzeit wegen eines Preisproblems nicht verarbeitet werden. Bitte wenden Sie sich an den Support."
+  "bookingPricingInvalid": "Diese Buchung kann derzeit wegen eines Preisproblems nicht verarbeitet werden. Bitte wenden Sie sich an den Support.",
+  "verticalSuspended": "Die Berechtigung für diese Aktivität ist derzeit nicht gültig (ausgesetzt, oder die erforderliche Lizenz fehlt oder ist abgelaufen), daher kann diese Buchung nicht angenommen werden."
 }

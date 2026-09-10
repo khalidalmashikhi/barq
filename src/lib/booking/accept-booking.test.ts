@@ -102,12 +102,22 @@ const bookingFindUniqueMock = vi.fn();
 const commissionFindFirstMock = vi.fn();
 const bookingUpdateMock = vi.fn();
 const paymentCreateMock = vi.fn();
+const serviceFindUniqueMock = vi.fn();
+const providerVerticalFindUniqueMock = vi.fn();
+const requirementFindManyMock = vi.fn();
+const documentFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     booking: {
       findUnique: (...args: unknown[]) => bookingFindUniqueMock(...args),
     },
+    // Phase 3B — Phase 1 (Blocker 4 + compliance): acceptance reads the service's offeringKind, the
+    // provider's vertical status, and (for an APPROVED vertical) the requirement policy + documents.
+    service: { findUnique: (...args: unknown[]) => serviceFindUniqueMock(...args) },
+    providerVertical: { findUnique: (...args: unknown[]) => providerVerticalFindUniqueMock(...args) },
+    providerVerificationRequirement: { findMany: (...args: unknown[]) => requirementFindManyMock(...args) },
+    providerDocument: { findMany: (...args: unknown[]) => documentFindManyMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         commission: { findFirst: (...args: unknown[]) => commissionFindFirstMock(...args) },
@@ -129,6 +139,16 @@ beforeEach(() => {
   resolveVehicleAssignmentMock.mockResolvedValue({ ok: true, vehicleId: null, snapshot: null });
   // Default: the reservation succeeds when a vehicle IS assigned — keeps pre-1B vehicle tests green.
   reserveVehicleMock.mockResolvedValue({ ok: true, reservationId: "res-1" });
+  // Default: a non-regulated service (offeringKind null) → the vertical acceptance gate is a no-op,
+  // so every pre-existing acceptance test is unchanged.
+  serviceFindUniqueMock.mockResolvedValue({ offeringKind: null });
+  providerVerticalFindUniqueMock.mockResolvedValue(null);
+  // Default: a configured, satisfied RENTAL_COMPANY policy so an APPROVED regulated acceptance is
+  // compliant when a test opts into a regulated service.
+  requirementFindManyMock.mockResolvedValue([
+    { key: "RENTAL_ACTIVITY_LICENCE", appliesTo: "RENTAL_COMPANY", required: true, active: true, evidenceExpires: false },
+  ]);
+  documentFindManyMock.mockResolvedValue([{ type: "RENTAL_ACTIVITY_LICENCE", status: "APPROVED", expiresAt: null }]);
 });
 
 afterEach(() => {
@@ -142,6 +162,10 @@ afterEach(() => {
   paymentCreateMock.mockReset();
   resolveVehicleAssignmentMock.mockReset();
   reserveVehicleMock.mockReset();
+  serviceFindUniqueMock.mockReset();
+  providerVerticalFindUniqueMock.mockReset();
+  requirementFindManyMock.mockReset();
+  documentFindManyMock.mockReset();
   stripeCreateMock.mockReset();
   delete process.env.PAYMENT_PROVIDER;
   delete process.env.STRIPE_SECRET_KEY;
@@ -664,5 +688,88 @@ describe("acceptBooking — money alignment", () => {
     expect(transitionBookingMock).not.toHaveBeenCalled();
     expect(paymentCreateMock).not.toHaveBeenCalled();
     expect(bookingUpdateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("acceptBooking — Phase 3B Phase 1 (Blocker 4): suspended vertical freezes acceptance", () => {
+  function pendingBooking(over: Record<string, unknown> = {}) {
+    bookingFindUniqueMock.mockResolvedValue({
+      id: BOOKING_ID,
+      providerId: "provider-1",
+      serviceId: "svc-1",
+      status: "PENDING_PROVIDER",
+      priceSnapshotAmount: { toString: () => "15" },
+      priceSnapshotCurrency: "OMR",
+      ...over,
+    });
+    canAcceptBookingMock.mockReturnValue(true);
+  }
+
+  beforeEach(() => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    transitionBookingMock.mockResolvedValue({ bookingId: BOOKING_ID, toStatus: "CONFIRMED" });
+    commissionFindFirstMock.mockResolvedValue(null);
+    bookingUpdateMock.mockResolvedValue({});
+    paymentCreateMock.mockResolvedValue({});
+    dispatchLifecycleHookMock.mockResolvedValue(undefined);
+  });
+
+  it("BLOCKS acceptance of a rental booking when the RENTAL_COMPANY vertical is SUSPENDED → VERTICAL_SUSPENDED, before any side effect", async () => {
+    pendingBooking();
+    serviceFindUniqueMock.mockResolvedValue({ offeringKind: "VEHICLE_RENTAL" });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "SUSPENDED" });
+
+    const result = await acceptBooking(BOOKING_ID);
+
+    expect(result).toEqual({ ok: false, error: "VERTICAL_SUSPENDED" });
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+    expect(paymentCreateMock).not.toHaveBeenCalled();
+    // It read the RENTAL_COMPANY vertical (the kind's required vertical), not another.
+    expect(providerVerticalFindUniqueMock).toHaveBeenCalledWith({
+      where: { providerId_vertical: { providerId: "provider-1", vertical: "RENTAL_COMPANY" } },
+      select: { status: true },
+    });
+  });
+
+  it("BLOCKS acceptance of a tour booking when the TOURIST_GUIDE vertical is SUSPENDED", async () => {
+    pendingBooking();
+    serviceFindUniqueMock.mockResolvedValue({ offeringKind: "TOUR" });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "SUSPENDED" });
+    expect(await acceptBooking(BOOKING_ID)).toEqual({ ok: false, error: "VERTICAL_SUSPENDED" });
+    expect(transitionBookingMock).not.toHaveBeenCalled();
+  });
+
+  it("ALLOWS acceptance when the regulated vertical is APPROVED (proceeds to CONFIRMED)", async () => {
+    pendingBooking();
+    serviceFindUniqueMock.mockResolvedValue({ offeringKind: "VEHICLE_RENTAL" });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    expect(await acceptBooking(BOOKING_ID)).toEqual({ ok: true });
+    expect(transitionBookingMock).toHaveBeenCalled();
+  });
+
+  it("does NOT let legacy exemption bypass suspension — acceptance consults ONLY the vertical status (never reads the service's legacyVerticalExempt)", async () => {
+    pendingBooking();
+    // Even if this were a grandfathered/exempt listing, the gate blocks on SUSPENDED.
+    serviceFindUniqueMock.mockResolvedValue({ offeringKind: "VEHICLE_RENTAL" });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "SUSPENDED" });
+    const selectArg = () => (serviceFindUniqueMock.mock.calls[0]![0] as { select: Record<string, unknown> }).select;
+    expect(await acceptBooking(BOOKING_ID)).toEqual({ ok: false, error: "VERTICAL_SUSPENDED" });
+    // The service read projects offeringKind only — legacyVerticalExempt is never consulted here.
+    expect(selectArg()).toEqual({ offeringKind: true });
+  });
+
+  it("does NOT block a NON-regulated (null offeringKind) booking — the gate is a no-op and never reads the vertical", async () => {
+    pendingBooking();
+    serviceFindUniqueMock.mockResolvedValue({ offeringKind: null });
+    expect(await acceptBooking(BOOKING_ID)).toEqual({ ok: true });
+    expect(providerVerticalFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("does NOT block when the regulated vertical is merely PENDING_REVIEW (only SUSPENDED/REJECTED freeze acceptance — existing bookings on grandfathered listings are honored)", async () => {
+    pendingBooking();
+    serviceFindUniqueMock.mockResolvedValue({ offeringKind: "VEHICLE_RENTAL" });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "PENDING_REVIEW" });
+    expect(await acceptBooking(BOOKING_ID)).toEqual({ ok: true });
+    expect(transitionBookingMock).toHaveBeenCalled();
   });
 });

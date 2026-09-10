@@ -33,11 +33,16 @@ const auditCreateMock = vi.fn();
 const resolveAssignableCategoryMock = vi.fn();
 const categoryFindUniqueMock = vi.fn();
 const experienceCreateMock = vi.fn();
+// Phase 3B — Phase 1: assertCanCreateListing() reads the provider's vertical for a regulated
+// (RENTAL → VEHICLE_RENTAL) create. Default APPROVED via beforeEach; the RENTAL derivation
+// tests need an authorized provider, and the gate's own denials are unit-tested separately.
+const providerVerticalFindUniqueMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     // resolveTouristGuideCategoryId() (TOUR-1) reads the canonical slug here.
     category: { findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args) },
+    providerVertical: { findUnique: (...args: unknown[]) => providerVerticalFindUniqueMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { create: (...args: unknown[]) => serviceCreateMock(...args) },
@@ -77,6 +82,8 @@ function buildFormData(fields: Record<string, string>): FormData {
 beforeEach(() => {
   // A categorized create is authorized by default; specific tests override.
   isProviderAuthorizedForCategoryMock.mockResolvedValue(true);
+  // A regulated (RENTAL) create is vertical-authorized by default (APPROVED RENTAL_COMPANY).
+  providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
 });
 
 afterEach(() => {
@@ -88,6 +95,7 @@ afterEach(() => {
   isProviderAuthorizedForCategoryMock.mockReset();
   categoryFindUniqueMock.mockReset();
   experienceCreateMock.mockReset();
+  providerVerticalFindUniqueMock.mockReset();
 });
 
 // TOUR-1 — smart tour-guide guidingContent on create. The canonical tourist-guide
@@ -275,6 +283,96 @@ describe("createService", () => {
     expect(serviceCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ serviceType: "RENTAL" }) })
     );
+  });
+
+  it("Phase 3B — a RENTAL create persists offeringKind=VEHICLE_RENTAL when the RENTAL_COMPANY vertical is authorized", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "RENTAL" });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await createService(
+      buildFormData({ nameAr: "سيارة", nameEn: "Car", priceAmount: "45", categoryId: "cars-cat" })
+    );
+
+    expect(result).toEqual({ ok: true, serviceId: "service-1" });
+    // The regulated kind is derived server-side and persisted so it can never be left null to bypass publish.
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ offeringKind: "VEHICLE_RENTAL" }) })
+    );
+    expect(providerVerticalFindUniqueMock).toHaveBeenCalledWith({
+      where: { providerId_vertical: { providerId: "provider-1", vertical: "RENTAL_COMPANY" } },
+      select: { status: true },
+    });
+  });
+
+  it("Phase 3B — a RENTAL create is REFUSED with VERTICAL_NOT_AUTHORIZED when the RENTAL_COMPANY vertical was never requested (category grant alone never authorizes)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "RENTAL" });
+    // Provider is authorized for the CATEGORY (default true) but holds NO vertical → denied.
+    providerVerticalFindUniqueMock.mockResolvedValue(null);
+
+    const result = await createService(
+      buildFormData({ nameAr: "سيارة", nameEn: "Car", priceAmount: "45", categoryId: "cars-cat" })
+    );
+
+    expect(result).toEqual({ ok: false, error: "VERTICAL_NOT_AUTHORIZED" });
+    expect(serviceCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("Blocker 1 — a new service in the verified tourist-guide category is classified offeringKind=TOUR and REQUIRES the TOURIST_GUIDE vertical (no null-kind bypass)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT }); // resolveTouristGuideCategoryId → TG_CAT
+    // Provider is authorized for the CATEGORY (default true) but holds NO tourist-guide vertical.
+    providerVerticalFindUniqueMock.mockResolvedValue(null);
+
+    const result = await createService(buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: TG_CAT }));
+
+    expect(result).toEqual({ ok: false, error: "VERTICAL_NOT_AUTHORIZED" });
+    expect(serviceCreateMock).not.toHaveBeenCalled();
+    // It resolved the TOURIST_GUIDE vertical for the TOUR kind.
+    expect(providerVerticalFindUniqueMock).toHaveBeenCalledWith({
+      where: { providerId_vertical: { providerId: "provider-1", vertical: "TOURIST_GUIDE" } },
+      select: { status: true },
+    });
+  });
+
+  it("Blocker 1 — a tourist-guide-category service persists offeringKind=TOUR when the TOURIST_GUIDE vertical is authorized", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1", providerType: "INDIVIDUAL" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    const result = await createService(buildFormData({ nameAr: "جولة", nameEn: "Tour", priceAmount: "10", categoryId: TG_CAT }));
+
+    expect(result).toEqual({ ok: true, serviceId: "service-1" });
+    expect(serviceCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ offeringKind: "TOUR" }) })
+    );
+  });
+
+  it("Blocker 1 — a plain EXPERIENCE service in a NON-tourist-guide category is NOT classified TOUR (offeringKind stays null, no vertical gate)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    resolveAssignableCategoryMock.mockResolvedValue({ serviceTypeKey: "EXPERIENCE" });
+    categoryFindUniqueMock.mockResolvedValue({ id: TG_CAT }); // tourist-guide is TG_CAT…
+    providerVerticalFindUniqueMock.mockResolvedValue(null);
+    serviceCreateMock.mockResolvedValue({ id: "service-1" });
+    priceCreateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    // …but this service is in a DIFFERENT category ("generic-cat") → not a TOUR, so no gate fires.
+    const result = await createService(buildFormData({ nameAr: "نشاط", nameEn: "Activity", priceAmount: "10", categoryId: "generic-cat" }));
+
+    expect(result).toEqual({ ok: true, serviceId: "service-1" });
+    expect(providerVerticalFindUniqueMock).not.toHaveBeenCalled();
+    const data = (serviceCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    expect(data.offeringKind).toBeUndefined();
   });
 
   it("derives serviceType=TRANSPORT for a Transfers/TRANSPORT category (BR-028)", async () => {

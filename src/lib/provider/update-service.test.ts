@@ -45,6 +45,9 @@ vi.mock("@/lib/db", () => ({
     },
     // resolveTouristGuideCategoryId() (TOUR-1).
     category: { findUnique: (...args: unknown[]) => categoryFindUniqueMock(...args) },
+    // Phase 3B — Phase 1: a material change INTO a regulated (RENTAL → VEHICLE_RENTAL) category
+    // re-derives offeringKind and asserts create authorization. Default APPROVED via beforeEach.
+    providerVertical: { findUnique: (...args: unknown[]) => providerVerticalFindUniqueMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
@@ -60,6 +63,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const poolDeleteManyMock = vi.fn();
+const providerVerticalFindUniqueMock = vi.fn();
 
 vi.mock("@/lib/categories/resolve-assignable-category", () => ({
   resolveAssignableCategory: (...args: unknown[]) => resolveAssignableCategoryMock(...args),
@@ -92,6 +96,8 @@ beforeEach(() => {
   // vehicle is set or content is cleared; default to "nothing to clear" so unrelated
   // tests are unaffected.
   poolDeleteManyMock.mockResolvedValue({ count: 0 });
+  // A material change into a regulated (RENTAL) category is vertical-authorized by default.
+  providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
 });
 
 afterEach(() => {
@@ -106,6 +112,7 @@ afterEach(() => {
   experienceUpsertMock.mockReset();
   experienceUpdateManyMock.mockReset();
   poolDeleteManyMock.mockReset();
+  providerVerticalFindUniqueMock.mockReset();
 });
 
 describe("updateService", () => {

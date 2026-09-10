@@ -94,6 +94,10 @@ export type BookingActionErrorCode =
   // silently downgrade to the unit price. Generic and customer/provider-safe — no resolver
   // internals leak.
   | "BOOKING_PRICING_INVALID"
+  // Phase 3B — Phase 1 (Blocker 4): the provider's regulated vertical for this booking's service is
+  // SUSPENDED (or REJECTED), so acceptance is FROZEN — a suspended activity must not commit new
+  // resources. Existing CONFIRMED bookings are untouched; grandfathering does NOT bypass this.
+  | "VERTICAL_SUSPENDED"
   // BOOKING-IDEMPOTENCY — request-idempotency outcomes on booking CREATION.
   // IDEMPOTENCY_KEY_INVALID: a supplied idempotency key is malformed (bad length/charset) —
   // fail closed rather than silently ignore it. IDEMPOTENCY_KEY_CONFLICT: the SAME key was
@@ -133,6 +137,7 @@ const BOOKING_ACTION_ERROR_CODES: readonly BookingActionErrorCode[] = [
   "SCHEDULE_REQUIRED",
   "INVALID_SCHEDULE",
   "BOOKING_PRICING_INVALID",
+  "VERTICAL_SUSPENDED",
   "IDEMPOTENCY_KEY_INVALID",
   "IDEMPOTENCY_KEY_CONFLICT",
   "RATE_LIMITED",

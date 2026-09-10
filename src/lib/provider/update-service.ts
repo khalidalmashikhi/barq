@@ -8,6 +8,9 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
+import { resolveOfferingKindForService } from "@/lib/provider/verticals/resolve-offering-kind";
+import { assertCanCreateListing } from "@/lib/provider/verticals/require-approved-vertical";
+import type { OfferingKind } from "@prisma/client";
 import { resolveGuidingContentWrite, type GuidingContentWrite } from "@/lib/tour-template/resolve-guiding-content-write";
 import { TOUR_PACKAGE_SEMANTICS } from "@/lib/tour-template/packages";
 import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
@@ -131,6 +134,11 @@ export async function updateService(serviceId: string, formData: FormData): Prom
     // Category.serviceTypeKey) — never trusting the existing serviceType.
     const categoryChanged = submittedCategoryId !== null && submittedCategoryId !== service.categoryId;
     let derivedServiceType: string | undefined;
+    // Phase 3B — Phase 1. A category change re-derives the regulated offering kind. Changing a
+    // service INTO a regulated category requires the matching vertical (create-level: exists &
+    // not REJECTED/SUSPENDED), and ANY category change is a MATERIAL change that clears the
+    // legacy grandfathering exemption so the next publish is re-gated by the vertical.
+    let newOfferingKind: OfferingKind | null = null;
     if (categoryChanged) {
       const resolved = await resolveAssignableCategory(submittedCategoryId as string);
       if (!resolved) {
@@ -146,6 +154,18 @@ export async function updateService(serviceId: string, formData: FormData): Prom
         return { ok: false, error: "ACTIVITY_NOT_AUTHORIZED" };
       }
       derivedServiceType = resolved.serviceTypeKey;
+      // Re-derive the regulated kind from the NEW taxonomy (RENTAL → VEHICLE_RENTAL; verified
+      // tourist-guide category → TOUR). A material change INTO a regulated category re-gates on the
+      // matching vertical and clears legacyVerticalExempt (below) so grandfathering can never carry
+      // across a regulated re-classification — the next publish is freshly gated.
+      newOfferingKind = await resolveOfferingKindForService({
+        serviceType: derivedServiceType,
+        categoryId: submittedCategoryId as string,
+      });
+      if (newOfferingKind) {
+        const denied = await assertCanCreateListing(provider.id, newOfferingKind);
+        if (denied) return { ok: false, error: "VERTICAL_NOT_AUTHORIZED" };
+      }
     }
 
     // TOUR-1 — smart tour-guide guidingContent on update. Two concerns:
@@ -203,7 +223,7 @@ export async function updateService(serviceId: string, formData: FormData): Prom
             trimmedDescriptionAr || trimmedDescriptionEn
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
-          ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType } : {}),
+          ...(categoryChanged ? { categoryId: submittedCategoryId, serviceType: derivedServiceType, offeringKind: newOfferingKind, legacyVerticalExempt: false } : {}),
           ...(regionCodeChange ?? {}),
           ...serviceInfoUpdateData(serviceInfo.fields),
         },

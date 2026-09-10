@@ -33,6 +33,12 @@ export async function reviewProviderDocument(input: {
   expectedVersionToken: string;
   decision: ReviewDecision;
   reason?: string;
+  // Phase 3B Phase 1 (compliance) — the admin-confirmed expiry instant of this evidence, recorded on
+  // APPROVE (mirrors VEHICLE-LC6's admin-confirm-at-approval). Optional and additive: a document type
+  // whose requirement declares `evidenceExpires` needs a future value for its vertical to be
+  // approvable; non-expiring evidence leaves it null. Ignored on REJECT. Date-only inputs are
+  // converted to an instant by the caller (end-of-day Asia/Muscat).
+  expiresAt?: Date | null;
 }): Promise<ProviderDocumentActionResult> {
   let actor;
   try {
@@ -48,6 +54,17 @@ export async function reviewProviderDocument(input: {
     reason = typeof input.reason === "string" ? input.reason.trim() : "";
     if (reason.length === 0) return { ok: false, error: "REASON_REQUIRED" };
     if (reason.length > MAX_REASON_LENGTH) return { ok: false, error: "INVALID_INPUT" };
+  }
+
+  // Compliance expiry (APPROVE only): a supplied value must be a valid instant. It is stored as-is
+  // (the vertical-approval gate enforces that an expiring requirement's expiry is in the FUTURE), and
+  // cleared to null when absent. On REJECT the expiry is never written.
+  let expiresAt: Date | null = null;
+  if (input.decision === "APPROVE" && input.expiresAt != null) {
+    if (!(input.expiresAt instanceof Date) || Number.isNaN(input.expiresAt.getTime())) {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    expiresAt = input.expiresAt;
   }
 
   const doc = await prisma.providerDocument.findUnique({
@@ -74,6 +91,8 @@ export async function reviewProviderDocument(input: {
           reviewedAt,
           reviewedByAdminId: actor.admin?.id ?? null,
           rejectionReason: reason, // null on APPROVE (clears any prior reason)
+          // APPROVE records the confirmed expiry (null clears it); REJECT clears it (unusable evidence).
+          expiresAt: input.decision === "APPROVE" ? expiresAt : null,
         },
       });
       if (updated.count === 0) throw new StaleReview();

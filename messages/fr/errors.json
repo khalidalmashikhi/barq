@@ -35,5 +35,6 @@
   "invalidSchedule": "L'heure de début et de fin est invalide",
   "vehicleBusy": "Le véhicule sélectionné est déjà affecté à une autre réservation pendant cette période",
   "pricingUnitNotBookable": "Cette option tarifaire n'est pas encore disponible à la réservation.",
-  "bookingPricingInvalid": "Cette réservation ne peut pas être traitée pour le moment en raison d'un problème de tarification. Veuillez contacter le support."
+  "bookingPricingInvalid": "Cette réservation ne peut pas être traitée pour le moment en raison d'un problème de tarification. Veuillez contacter le support.",
+  "verticalSuspended": "L'autorisation de cette activité n'est pas valide actuellement (suspendue, ou sa licence requise est manquante ou expirée), cette réservation ne peut donc pas être acceptée."
 }

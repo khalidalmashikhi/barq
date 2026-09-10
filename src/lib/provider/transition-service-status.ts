@@ -7,6 +7,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
 import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
+import { assertCanPublishListing } from "@/lib/provider/verticals/require-approved-vertical";
 import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
 import { isSmartTourGuideEligible } from "@/lib/tour-template/eligibility";
 import { parseGuidingContent } from "@/lib/tour-template/guiding-content";
@@ -73,6 +74,20 @@ async function transition(
     }
 
     if (toStatus === "PUBLISHED") {
+      // Phase 3B — Phase 1. Regulated-offering PUBLISH gate: a service carrying a regulated
+      // offeringKind may be published only if the provider holds the matching APPROVED
+      // vertical — UNLESS it is a grandfathered pre-cutover published listing
+      // (legacyVerticalExempt). Category grants never satisfy this. Provider-only (admin
+      // governance transitions stay exempt, like B5).
+      const verticalDenied = await assertCanPublishListing({
+        providerId: service.providerId,
+        offeringKind: service.offeringKind,
+        legacyVerticalExempt: service.legacyVerticalExempt,
+      });
+      if (verticalDenied) {
+        return { ok: false, error: "VERTICAL_NOT_AUTHORIZED" };
+      }
+
       // Single source of publish gating (BR-026 category + active price),
       // returning ALL blockers in priority order so the UI can show them at once.
       const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId, providerId: service.providerId });

@@ -1,4 +1,9 @@
-import { DEFAULT_VERIFICATION_REQUIREMENTS } from "./default-requirements";
+import {
+  DEFAULT_VERIFICATION_REQUIREMENTS,
+  VERTICAL_VERIFICATION_REQUIREMENTS,
+  type DefaultVerificationRequirement,
+  type VerificationRequirementAudience,
+} from "./default-requirements";
 
 // ADR-0017 — STAGING bootstrap core for the default provider verification policy.
 //
@@ -28,10 +33,12 @@ export interface VerificationRequirementBootstrapPrisma {
         key: string;
         name: { ar: string; en: string };
         description: { ar: string; en: string };
-        appliesTo: "INDIVIDUAL" | "COMPANY" | "BOTH";
+        appliesTo: VerificationRequirementAudience;
         required: boolean;
         active: boolean;
         sortOrder: number;
+        // Phase 3B Phase 1 — optional; omitted rows default to false (non-expiring) at the DB.
+        evidenceExpires?: boolean;
       };
     }): Promise<RequirementRow>;
   };
@@ -42,18 +49,17 @@ export type RequirementAction = "created" | "exists";
 export type RequirementOutcome = { key: string; action: RequirementAction; id: string | null };
 export type VerificationRequirementBootstrapReport = { applied: boolean; requirements: RequirementOutcome[] };
 
-export async function runVerificationRequirementBootstrap(
+// Shared insert-if-absent seeding for a set of requirement definitions. NEVER overwrites an
+// admin-edited existing row (matched by key) and never deletes — idempotent by construction.
+async function seedRequirements(
   prisma: VerificationRequirementBootstrapPrisma,
-  options: { apply: boolean }
-): Promise<VerificationRequirementBootstrapReport> {
-  const { apply } = options;
+  defs: readonly DefaultVerificationRequirement[],
+  apply: boolean
+): Promise<RequirementOutcome[]> {
   const requirements: RequirementOutcome[] = [];
-
-  for (const def of DEFAULT_VERIFICATION_REQUIREMENTS) {
+  for (const def of defs) {
     const existing = await prisma.providerVerificationRequirement.findUnique({ where: { key: def.key } });
     if (existing) {
-      // Insert-if-absent: an already-present requirement (possibly admin-edited)
-      // is left EXACTLY as-is — never overwritten, never deleted.
       requirements.push({ key: def.key, action: "exists", id: existing.id });
     } else if (apply) {
       const created = await prisma.providerVerificationRequirement.create({
@@ -65,6 +71,7 @@ export async function runVerificationRequirementBootstrap(
           required: def.required,
           active: def.active,
           sortOrder: def.sortOrder,
+          evidenceExpires: def.evidenceExpires ?? false,
         },
       });
       requirements.push({ key: def.key, action: "created", id: created.id });
@@ -72,6 +79,26 @@ export async function runVerificationRequirementBootstrap(
       requirements.push({ key: def.key, action: "created", id: null });
     }
   }
+  return requirements;
+}
 
-  return { applied: apply, requirements };
+export async function runVerificationRequirementBootstrap(
+  prisma: VerificationRequirementBootstrapPrisma,
+  options: { apply: boolean }
+): Promise<VerificationRequirementBootstrapReport> {
+  const requirements = await seedRequirements(prisma, DEFAULT_VERIFICATION_REQUIREMENTS, options.apply);
+  return { applied: options.apply, requirements };
+}
+
+// Phase 3B — Phase 1. Idempotent bootstrap for the provider-VERTICAL requirement policy
+// (RENTAL_COMPANY + TOURIST_GUIDE). Same insert-if-absent semantics: never overwrites an
+// admin-edited row, never deletes, dry-run by default. Seeding these is what lifts a vertical out of
+// the fail-closed POLICY_NOT_CONFIGURED state, so this MUST run before vertical approval endpoints
+// become usable (see the deployment-order plan). It does NOT touch the INDIVIDUAL/COMPANY defaults.
+export async function runVerticalRequirementBootstrap(
+  prisma: VerificationRequirementBootstrapPrisma,
+  options: { apply: boolean }
+): Promise<VerificationRequirementBootstrapReport> {
+  const requirements = await seedRequirements(prisma, VERTICAL_VERIFICATION_REQUIREMENTS, options.apply);
+  return { applied: options.apply, requirements };
 }

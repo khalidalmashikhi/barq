@@ -21,7 +21,11 @@ import type { ProviderDocumentTypeKey } from "./registry";
 // Isomorphic (no server-only): pure data. Bilingual name/description follow the
 // { ar, en } JSON convention (ADR-0005); they are presentation only.
 
-export type VerificationRequirementAudience = "INDIVIDUAL" | "COMPANY" | "BOTH";
+// INDIVIDUAL/COMPANY/BOTH are the provider business-FORM audiences (matched against
+// Provider.providerType). TOURIST_GUIDE/RENTAL_COMPANY are the provider-VERTICAL audiences (Phase
+// 3B Phase 1), a distinct dimension resolved only by the vertical-approval gate. The values are
+// disjoint so the two resolvers never overlap — see prisma enum VerificationRequirementAudience.
+export type VerificationRequirementAudience = "INDIVIDUAL" | "COMPANY" | "BOTH" | "TOURIST_GUIDE" | "RENTAL_COMPANY";
 
 export type DefaultVerificationRequirement = {
   key: ProviderDocumentTypeKey;
@@ -31,6 +35,9 @@ export type DefaultVerificationRequirement = {
   name: { ar: string; en: string };
   description: { ar: string; en: string };
   sortOrder: number;
+  // Phase 3B Phase 1 — does this requirement's evidence carry an expiry that must stay valid?
+  // Omitted → false (non-expiring). Only the vertical requirements below opt in.
+  evidenceExpires?: boolean;
 };
 
 export const DEFAULT_VERIFICATION_REQUIREMENTS: readonly DefaultVerificationRequirement[] = [
@@ -74,5 +81,56 @@ export const DEFAULT_VERIFICATION_REQUIREMENTS: readonly DefaultVerificationRequ
       en: "A tourism activity licence, if applicable (optional).",
     },
     sortOrder: 2,
+  },
+] as const;
+
+// Phase 3B — Phase 1. The MINIMUM provider-VERTICAL verification policy. Kept SEPARATE from
+// DEFAULT_VERIFICATION_REQUIREMENTS on purpose: the vertical policy is NEVER a fail-closed code
+// fallback (an unseeded vertical fails closed → VERTICAL_POLICY_NOT_CONFIGURED, it is not silently
+// satisfied), and it must never leak into the provider-type (INDIVIDUAL/COMPANY/BOTH) resolvers.
+// These are seeded ONLY via the vertical requirement bootstrap (insert-if-absent, never overwriting
+// an admin-edited row). General individual/company requirements (identity, commercial registration)
+// remain governed by the existing provider-approval system and are deliberately NOT duplicated here.
+// Every requirement's evidence expires (licences / registrations lapse), so approval requires a
+// future ProviderDocument.expiresAt for each.
+export const VERTICAL_VERIFICATION_REQUIREMENTS: readonly DefaultVerificationRequirement[] = [
+  {
+    key: "RENTAL_ACTIVITY_LICENCE",
+    appliesTo: "RENTAL_COMPANY",
+    required: true,
+    active: true,
+    evidenceExpires: true,
+    name: { ar: "رخصة نشاط تأجير المركبات", en: "Vehicle-Rental Activity Licence" },
+    description: {
+      ar: "رخصة سارية لمزاولة نشاط تأجير المركبات.",
+      en: "A valid licence to operate a vehicle-rental activity.",
+    },
+    sortOrder: 0,
+  },
+  {
+    key: "RENTAL_BUSINESS_REGISTRATION",
+    appliesTo: "RENTAL_COMPANY",
+    required: true,
+    active: true,
+    evidenceExpires: true,
+    name: { ar: "السجل التجاري لنشاط التأجير", en: "Rental Business Registration" },
+    description: {
+      ar: "سجل تجاري ساري يثبت تسجيل نشاط تأجير المركبات.",
+      en: "A valid commercial/business registration covering the vehicle-rental activity.",
+    },
+    sortOrder: 1,
+  },
+  {
+    key: "TOURIST_GUIDE_LICENCE",
+    appliesTo: "TOURIST_GUIDE",
+    required: true,
+    active: true,
+    evidenceExpires: true,
+    name: { ar: "رخصة المرشد السياحي", en: "Tourist-Guide Licence" },
+    description: {
+      ar: "رخصة أو اعتماد ساري لمزاولة نشاط الإرشاد السياحي.",
+      en: "A valid tourist-guide licence or approved guide credential.",
+    },
+    sortOrder: 0,
   },
 ] as const;

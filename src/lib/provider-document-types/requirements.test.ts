@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ProviderType } from "@prisma/client";
-import { requiredDocumentTypesFor, resolveRequiredDocumentBlockers, resolveSubmitBlockers } from "./requirements";
+import { requiredDocumentTypesFor, resolveRequiredDocumentBlockers, resolveSubmitBlockers, resolveVerticalDocumentBlockers } from "./requirements";
 
 // Provider document REQUIREMENT rules + the pure completeness primitive that the
 // future assertProviderApprovable() gate will consume. Requirements key ONLY on
@@ -122,5 +122,56 @@ describe("resolveSubmitBlockers — Gate 1A presence-only submit readiness", () 
     const docs = [{ type: "IDENTITY_PROOF", status: "PENDING" as const }];
     expect(resolveRequiredDocumentBlockers(required, docs)).toEqual([{ type: "IDENTITY_PROOF", reason: "NOT_APPROVED" }]);
     expect(resolveSubmitBlockers(required, docs)).toEqual([]);
+  });
+});
+
+describe("resolveVerticalDocumentBlockers (Phase 3B — expiry-aware compliance)", () => {
+  const NOW = new Date("2026-09-11T00:00:00.000Z");
+  const FUTURE = new Date("2027-01-01T00:00:00.000Z");
+  const PAST = new Date("2026-01-01T00:00:00.000Z");
+  const REQ_EXPIRING = [{ key: "TOURIST_GUIDE_LICENCE", evidenceExpires: true }];
+  const REQ_NON_EXPIRING = [{ key: "TOURIST_GUIDE_LICENCE", evidenceExpires: false }];
+
+  it("empty required set → no blockers (the caller decides POLICY_NOT_CONFIGURED separately)", () => {
+    expect(resolveVerticalDocumentBlockers([], [], NOW)).toEqual([]);
+  });
+
+  it("MISSING when no document exists for the required key", () => {
+    expect(resolveVerticalDocumentBlockers(REQ_NON_EXPIRING, [], NOW)).toEqual([
+      { type: "TOURIST_GUIDE_LICENCE", reason: "MISSING" },
+    ]);
+  });
+
+  it("NOT_APPROVED for a PENDING or REJECTED document", () => {
+    expect(resolveVerticalDocumentBlockers(REQ_NON_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "PENDING" }], NOW)).toEqual([
+      { type: "TOURIST_GUIDE_LICENCE", reason: "NOT_APPROVED" },
+    ]);
+    expect(resolveVerticalDocumentBlockers(REQ_NON_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "REJECTED" }], NOW)).toEqual([
+      { type: "TOURIST_GUIDE_LICENCE", reason: "NOT_APPROVED" },
+    ]);
+  });
+
+  it("a non-expiring requirement with an APPROVED doc has NO blockers (expiry ignored)", () => {
+    expect(
+      resolveVerticalDocumentBlockers(REQ_NON_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "APPROVED", expiresAt: null }], NOW)
+    ).toEqual([]);
+  });
+
+  it("EXPIRY_MISSING when an expiring requirement's APPROVED doc has no expiry", () => {
+    expect(
+      resolveVerticalDocumentBlockers(REQ_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "APPROVED", expiresAt: null }], NOW)
+    ).toEqual([{ type: "TOURIST_GUIDE_LICENCE", reason: "EXPIRY_MISSING" }]);
+  });
+
+  it("EXPIRED when the expiry is at or before now; VALID when in the future", () => {
+    expect(
+      resolveVerticalDocumentBlockers(REQ_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "APPROVED", expiresAt: PAST }], NOW)
+    ).toEqual([{ type: "TOURIST_GUIDE_LICENCE", reason: "EXPIRED" }]);
+    expect(
+      resolveVerticalDocumentBlockers(REQ_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "APPROVED", expiresAt: NOW }], NOW)
+    ).toEqual([{ type: "TOURIST_GUIDE_LICENCE", reason: "EXPIRED" }]); // <= now is expired
+    expect(
+      resolveVerticalDocumentBlockers(REQ_EXPIRING, [{ type: "TOURIST_GUIDE_LICENCE", status: "APPROVED", expiresAt: FUTURE }], NOW)
+    ).toEqual([]);
   });
 });

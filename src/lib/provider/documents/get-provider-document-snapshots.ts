@@ -9,11 +9,13 @@ import { prisma } from "@/lib/db";
 // be authorized (Gate 3's gate runs under requireAdmin/approval context). NOT
 // wired into approveProvider() in Gate 2.
 
-export type ProviderDocumentSnapshot = { type: string; status: ProviderDocumentStatus };
+// Phase 3B Phase 1 — `expiresAt` is included for the vertical compliance gate (expiry enforcement).
+// The provider-type approval path ignores it, so its behavior is unchanged.
+export type ProviderDocumentSnapshot = { type: string; status: ProviderDocumentStatus; expiresAt?: Date | null };
 
 export async function getProviderDocumentSnapshots(providerId: string): Promise<ProviderDocumentSnapshot[]> {
   return prisma.providerDocument.findMany({
     where: { providerId },
-    select: { type: true, status: true },
+    select: { type: true, status: true, expiresAt: true },
   });
 }

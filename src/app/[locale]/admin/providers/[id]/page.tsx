@@ -24,6 +24,16 @@ import { requestProviderChanges } from "@/lib/admin/request-provider-changes";
 import { getProviderActivities } from "@/lib/provider/activities/get-provider-activities";
 import { grantProviderActivity } from "@/lib/admin/grant-provider-activity";
 import { revokeProviderActivity } from "@/lib/admin/revoke-provider-activity";
+import { getProviderVerticals, type AdminProviderVerticalItem } from "@/lib/admin/verticals/get-provider-verticals";
+import { assertVerticalApprovable } from "@/lib/admin/verticals/assert-vertical-approvable";
+import { isVerticalErrorCode, getVerticalErrorTranslationKey } from "@/lib/admin/verticals/vertical-error-presentation";
+import {
+  approveProviderVertical,
+  rejectProviderVertical,
+  requestProviderVerticalChanges,
+  suspendProviderVertical,
+  reactivateProviderVertical,
+} from "@/lib/admin/verticals/review-provider-vertical";
 import { getSelectableCategories } from "@/lib/categories/get-selectable-categories";
 import { flattenCategoryTree } from "@/lib/categories/category-tree";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
@@ -58,6 +68,40 @@ const BLOCKER_REASON_LABEL_KEY = {
   NOT_APPROVED: "documentBlockerNotApproved",
 } as const;
 
+// Phase 3B — Phase 1. Provider-vertical presentation maps (kept local to this admin surface, same
+// convention as the document maps above). Authority is never derived here — the review server
+// actions each enforce their own permission and state guard.
+const VERTICAL_STATUS_BADGE = {
+  PENDING_REVIEW: "info",
+  CHANGES_REQUESTED: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+  SUSPENDED: "danger",
+} as const;
+const VERTICAL_STATUS_LABEL_KEY = {
+  PENDING_REVIEW: "verticalStatusPendingReview",
+  CHANGES_REQUESTED: "verticalStatusChangesRequested",
+  APPROVED: "verticalStatusApproved",
+  REJECTED: "verticalStatusRejected",
+  SUSPENDED: "verticalStatusSuspended",
+} as const;
+const VERTICAL_TYPE_LABEL_KEY = {
+  TOURIST_GUIDE: "verticalTypeTouristGuide",
+  RENTAL_COMPANY: "verticalTypeRentalCompany",
+} as const;
+const VERTICAL_ORIGIN_LABEL_KEY = {
+  PROVIDER_REQUEST: "verticalOriginProviderRequest",
+  LEGACY_BACKFILL: "verticalOriginLegacyBackfill",
+} as const;
+// Vertical document-blocker reasons (Phase 3B Phase 1) — includes the expiry states the provider-type
+// document section does not have.
+const VERTICAL_BLOCKER_REASON_LABEL_KEY = {
+  MISSING: "verticalDocBlockerMissing",
+  NOT_APPROVED: "verticalDocBlockerNotApproved",
+  EXPIRY_MISSING: "verticalDocBlockerExpiryMissing",
+  EXPIRED: "verticalDocBlockerExpired",
+} as const;
+
 function formatDocumentBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
@@ -84,7 +128,7 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; docError?: string; docNotice?: string; activityError?: string }>;
+  searchParams: Promise<{ error?: string; docError?: string; docNotice?: string; activityError?: string; verticalError?: string }>;
 };
 
 const ACTIVITY_ERROR_KEYS = {
@@ -96,7 +140,7 @@ const ACTIVITY_ERROR_KEYS = {
 
 export default async function ProviderDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error, docError, docNotice, activityError } = await searchParams;
+  const { error, docError, docNotice, activityError, verticalError } = await searchParams;
   const t = await getServerTranslator("admin");
   const locale = await getLocale();
 
@@ -193,6 +237,32 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
     activityError && activityError in ACTIVITY_ERROR_KEYS
       ? t(ACTIVITY_ERROR_KEYS[activityError as keyof typeof ACTIVITY_ERROR_KEYS])
       : null;
+
+  // Phase 3B — Phase 1. Provider verticals (reviewed activity capability, SEPARATE from the
+  // taxonomy activities above). Best-effort read; the rest of the page still renders if it fails.
+  let verticals: AdminProviderVerticalItem[] = [];
+  try {
+    verticals = await getProviderVerticals(id);
+  } catch {
+    verticals = [];
+  }
+  const verticalErrorMessage =
+    verticalError && isVerticalErrorCode(verticalError) ? t(getVerticalErrorTranslationKey(verticalError)) : null;
+
+  // Phase 3B — Phase 1 (Blocker 3). For each vertical awaiting a decision (PENDING_REVIEW /
+  // CHANGES_REQUESTED), resolve its document-approval readiness so the admin sees WHICH required
+  // documents block approval (or that the policy is unreadable). Best-effort; the server gate in
+  // approveProviderVertical() remains authoritative regardless of what is shown here.
+  const verticalReadiness = new Map<string, Awaited<ReturnType<typeof assertVerticalApprovable>>>();
+  for (const v of verticals) {
+    if (v.status === "PENDING_REVIEW" || v.status === "CHANGES_REQUESTED") {
+      try {
+        verticalReadiness.set(v.id, await assertVerticalApprovable(id, v.vertical));
+      } catch {
+        // Leave unset → the section simply omits the readiness hint for this row.
+      }
+    }
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
@@ -413,12 +483,24 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
                         </a>
 
                         {doc.status !== "APPROVED" && (
-                          <form action={`/api/admin/provider-documents/${doc.id}/review`} method="post">
+                          <form action={`/api/admin/provider-documents/${doc.id}/review`} method="post" className="flex flex-col gap-1.5">
                             <input type="hidden" name="locale" value={locale} />
                             <input type="hidden" name="providerId" value={id} />
                             <input type="hidden" name="versionToken" value={doc.versionToken} />
                             <input type="hidden" name="decision" value="APPROVE" />
-                            <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                            {/* Optional compliance expiry ("valid through" Oman date). Required at the
+                                VERTICAL-approval gate for evidence whose requirement declares it expires;
+                                harmless (left blank) for non-expiring evidence. */}
+                            <label htmlFor={`doc-expiry-${doc.id}`} className="text-xs font-medium text-foreground/70">
+                              {t("documentValidThroughLabel")}
+                            </label>
+                            <input
+                              id={`doc-expiry-${doc.id}`}
+                              type="date"
+                              name="expiresAt"
+                              className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                            <SubmitButton className="inline-flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
                               <Check size={14} strokeWidth={1.75} />
                               {t("documentApproveButton")}
                             </SubmitButton>
@@ -780,6 +862,195 @@ export default async function ProviderDetailPage({ params, searchParams }: Props
               {t("addActivityButton")}
             </SubmitButton>
           </form>
+        )}
+      </Card>
+
+      {/* Phase 3B — Phase 1. Provider verticals: the reviewed, approval-gated ACTIVITY CAPABILITY
+          (tourist-guide / rental-company), SEPARATE from the taxonomy activities above and from the
+          provider's business form (INDIVIDUAL/COMPANY). Each action is a tested, state-guarded server
+          action that enforces its own permission (approve/reject/request-changes → providers.review;
+          suspend/reactivate → providers.manage) and audits itself. Buttons render only for the status
+          they are valid from. Reason is mandatory (and server-validated) for reject/changes/suspend. */}
+      <Card hoverLift={false}>
+        <h2 className="text-sm font-semibold text-foreground">{t("verticalsTitle")}</h2>
+        <p className="mt-1 text-xs text-foreground/60">{t("verticalsSubtitle")}</p>
+        {verticalErrorMessage && <Alert variant="danger" className="mt-3">{verticalErrorMessage}</Alert>}
+
+        {verticals.length === 0 ? (
+          <p className="mt-3 rounded-xl border border-dashed border-border p-4 text-sm text-foreground/60">
+            {t("verticalsNone")}
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-3">
+            {verticals.map((v) => (
+              <li key={v.id} className="flex flex-col gap-3 rounded-xl border border-border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{t(VERTICAL_TYPE_LABEL_KEY[v.vertical])}</span>
+                  <Badge variant={VERTICAL_STATUS_BADGE[v.status]}>{t(VERTICAL_STATUS_LABEL_KEY[v.status])}</Badge>
+                  <span className="text-xs text-foreground/60">{t(VERTICAL_ORIGIN_LABEL_KEY[v.origin])}</span>
+                  <span className="text-xs text-foreground/50">
+                    {t("verticalRequestedAt")} {formatDate(v.requestedAt, locale, { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
+                </div>
+                {v.reason && (
+                  <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-foreground/70">
+                    <span className="font-medium">{t("verticalReasonLabel")}:</span> {v.reason}
+                  </p>
+                )}
+
+                {/* Blocker 3 — document readiness for this vertical (which required docs block approval). */}
+                {(v.status === "PENDING_REVIEW" || v.status === "CHANGES_REQUESTED") &&
+                  (() => {
+                    const readiness = verticalReadiness.get(v.id);
+                    if (!readiness) return null;
+                    // Distinguish every compliance state the admin needs to act on.
+                    if (readiness.reason === "POLICY_UNREADABLE") {
+                      return <Alert variant="warning" className="text-xs">{t("verticalDocsPolicyUnreadable")}</Alert>;
+                    }
+                    if (readiness.reason === "POLICY_NOT_CONFIGURED") {
+                      return <Alert variant="warning" className="text-xs">{t("verticalDocsPolicyNotConfigured")}</Alert>;
+                    }
+                    if (readiness.ready) {
+                      return <p className="text-xs text-success">{t("verticalDocsReady")}</p>;
+                    }
+                    return (
+                      <div className="rounded-lg bg-danger/5 px-3 py-2 text-xs text-foreground/80">
+                        <p className="font-medium text-danger">{t("verticalDocsBlockingTitle")}</p>
+                        <ul className="mt-1 list-inside list-disc">
+                          {readiness.blockers.map((b) => (
+                            <li key={b.type}>
+                              {isValidProviderDocumentTypeKey(b.type) ? t(PROVIDER_DOCUMENT_TYPE_LABEL_KEYS[b.type]) : b.type}
+                              {" — "}
+                              {t(VERTICAL_BLOCKER_REASON_LABEL_KEY[b.reason])}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+
+                {/* Approve — from PENDING_REVIEW or CHANGES_REQUESTED. No reason. */}
+                {(v.status === "PENDING_REVIEW" || v.status === "CHANGES_REQUESTED") && (
+                  <div className="flex flex-wrap gap-2">
+                    <form
+                      action={async () => {
+                        "use server";
+                        const result = await approveProviderVertical(v.id);
+                        redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?verticalError=${result.error}`, locale });
+                      }}
+                    >
+                      <SubmitButton className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                        <Check size={14} strokeWidth={2} aria-hidden />
+                        {t("verticalApproveButton")}
+                      </SubmitButton>
+                    </form>
+                  </div>
+                )}
+
+                {/* Request changes — only from PENDING_REVIEW. Reason required. */}
+                {v.status === "PENDING_REVIEW" && (
+                  <form
+                    action={async (formData: FormData) => {
+                      "use server";
+                      const reason = formData.get("reason");
+                      const result = await requestProviderVerticalChanges(v.id, typeof reason === "string" ? reason : "");
+                      redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?verticalError=${result.error}`, locale });
+                    }}
+                    className="flex flex-col gap-2 border-t border-border pt-3"
+                  >
+                    <label htmlFor={`vch-${v.id}`} className="text-xs font-medium text-foreground/70">
+                      {t("verticalRequestChangesLabel")}
+                    </label>
+                    <textarea
+                      id={`vch-${v.id}`}
+                      name="reason"
+                      required
+                      rows={2}
+                      placeholder={t("verticalReasonPlaceholder")}
+                      className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-warning focus:outline-none focus:ring-2 focus:ring-warning/20"
+                    />
+                    <SubmitButton className="self-start rounded-full border border-warning/40 px-4 py-1.5 text-xs font-medium text-warning transition-colors hover:bg-warning/5 disabled:opacity-50">
+                      {t("verticalRequestChangesButton")}
+                    </SubmitButton>
+                  </form>
+                )}
+
+                {/* Reject — from PENDING_REVIEW or CHANGES_REQUESTED. Reason required. */}
+                {(v.status === "PENDING_REVIEW" || v.status === "CHANGES_REQUESTED") && (
+                  <form
+                    action={async (formData: FormData) => {
+                      "use server";
+                      const reason = formData.get("reason");
+                      const result = await rejectProviderVertical(v.id, typeof reason === "string" ? reason : "");
+                      redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?verticalError=${result.error}`, locale });
+                    }}
+                    className="flex flex-col gap-2 border-t border-border pt-3"
+                  >
+                    <label htmlFor={`vrj-${v.id}`} className="text-xs font-medium text-foreground/70">
+                      {t("verticalRejectLabel")}
+                    </label>
+                    <textarea
+                      id={`vrj-${v.id}`}
+                      name="reason"
+                      required
+                      rows={2}
+                      placeholder={t("verticalReasonPlaceholder")}
+                      className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+                    />
+                    <SubmitButton className="inline-flex items-center gap-1.5 self-start rounded-full border border-danger/30 px-4 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+                      <X size={14} strokeWidth={2} aria-hidden />
+                      {t("verticalRejectButton")}
+                    </SubmitButton>
+                  </form>
+                )}
+
+                {/* Suspend — only from APPROVED. Reason required. Hides this vertical's listings. */}
+                {v.status === "APPROVED" && (
+                  <form
+                    action={async (formData: FormData) => {
+                      "use server";
+                      const reason = formData.get("reason");
+                      const result = await suspendProviderVertical(v.id, typeof reason === "string" ? reason : "");
+                      redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?verticalError=${result.error}`, locale });
+                    }}
+                    className="flex flex-col gap-2 border-t border-border pt-3"
+                  >
+                    <label htmlFor={`vsp-${v.id}`} className="text-xs font-medium text-foreground/70">
+                      {t("verticalSuspendLabel")}
+                    </label>
+                    <textarea
+                      id={`vsp-${v.id}`}
+                      name="reason"
+                      required
+                      rows={2}
+                      placeholder={t("verticalReasonPlaceholder")}
+                      className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+                    />
+                    <SubmitButton className="self-start rounded-full border border-danger/30 px-4 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50">
+                      {t("verticalSuspendButton")}
+                    </SubmitButton>
+                  </form>
+                )}
+
+                {/* Reactivate — only from SUSPENDED. No reason. Does NOT auto-republish listings. */}
+                {v.status === "SUSPENDED" && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      const result = await reactivateProviderVertical(v.id);
+                      redirect({ href: result.ok ? `/admin/providers/${id}` : `/admin/providers/${id}?verticalError=${result.error}`, locale });
+                    }}
+                    className="border-t border-border pt-3"
+                  >
+                    <SubmitButton className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                      {t("verticalReactivateButton")}
+                    </SubmitButton>
+                    <p className="mt-1.5 text-xs text-foreground/50">{t("verticalReactivateNote")}</p>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 

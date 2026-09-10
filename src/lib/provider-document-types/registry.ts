@@ -27,6 +27,12 @@ export const PROVIDER_DOCUMENT_TYPE_KEYS = [
   "IDENTITY_PROOF",
   "COMMERCIAL_REGISTRATION",
   "TOURISM_LICENCE",
+  // Phase 3B Phase 1 — provider-VERTICAL evidence types (distinct from the business-form evidence
+  // above). Required only via the vertical requirement policy (never a provider-type default), and
+  // their evidence expires (see the seeded requirements' evidenceExpires).
+  "RENTAL_ACTIVITY_LICENCE",
+  "RENTAL_BUSINESS_REGISTRATION",
+  "TOURIST_GUIDE_LICENCE",
 ] as const;
 
 export type ProviderDocumentTypeKey = (typeof PROVIDER_DOCUMENT_TYPE_KEYS)[number];
@@ -40,6 +46,9 @@ export const PROVIDER_DOCUMENT_TYPE_LABEL_KEYS = {
   IDENTITY_PROOF: "documentTypeIdentityProof",
   COMMERCIAL_REGISTRATION: "documentTypeCommercialRegistration",
   TOURISM_LICENCE: "documentTypeTourismLicence",
+  RENTAL_ACTIVITY_LICENCE: "documentTypeRentalActivityLicence",
+  RENTAL_BUSINESS_REGISTRATION: "documentTypeRentalBusinessRegistration",
+  TOURIST_GUIDE_LICENCE: "documentTypeTouristGuideLicence",
 } as const satisfies Record<ProviderDocumentTypeKey, string>;
 
 // Runtime guard: is `value` one of the governed document-type keys? Used by

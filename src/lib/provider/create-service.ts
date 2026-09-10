@@ -7,6 +7,8 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { resolveAssignableCategory } from "@/lib/categories/resolve-assignable-category";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
+import { resolveOfferingKindForService } from "@/lib/provider/verticals/resolve-offering-kind";
+import { assertCanCreateListing } from "@/lib/provider/verticals/require-approved-vertical";
 import { resolveGuidingContentWrite, type GuidingContentWrite } from "@/lib/tour-template/resolve-guiding-content-write";
 import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
 import { DEFAULT_SERVICE_TYPE_KEY } from "@/lib/service-types";
@@ -132,6 +134,18 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
     serviceType = resolved.serviceTypeKey;
   }
 
+  // Phase 3B — Phase 1. The regulated OFFERING kind is derived server-side from the governed
+  // taxonomy (never client-supplied): RENTAL serviceType → VEHICLE_RENTAL; the verified
+  // tourist-guide category → TOUR. A regulated draft may be created only by a provider that holds
+  // the matching ProviderVertical and is not REJECTED/SUSPENDED. Category grants alone never
+  // authorize a regulated listing. Persisting offeringKind here (below) means a new regulated
+  // service (rental OR guided tour) can never be left null to bypass the publish gate.
+  const offeringKind = await resolveOfferingKindForService({ serviceType, categoryId });
+  if (offeringKind) {
+    const denied = await assertCanCreateListing(provider.id, offeringKind);
+    if (denied) return { ok: false, error: "VERTICAL_NOT_AUTHORIZED" };
+  }
+
   // TOUR-1 — smart tour-guide guidingContent. Ordering is intentional: category
   // validity + B5 authorization above run FIRST; only then is a supplied
   // guidingContent payload checked for eligibility (INDIVIDUAL + tourist-guide
@@ -165,6 +179,7 @@ export async function createService(formData: FormData): Promise<CreateServiceRe
               ? { ar: trimmedDescriptionAr, en: trimmedDescriptionEn }
               : undefined,
           ...(categoryId ? { categoryId } : {}),
+          ...(offeringKind ? { offeringKind } : {}),
           ...(regionCode ? { regionCode } : {}),
           ...serviceInfoCreateData(serviceInfo.fields),
         },

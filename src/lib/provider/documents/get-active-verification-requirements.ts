@@ -27,6 +27,8 @@ export type VerificationRequirementRecord = {
   required: boolean;
   active: boolean;
   sortOrder: number;
+  // Phase 3B Phase 1 — whether this requirement's evidence expires (compliance gate). Additive.
+  evidenceExpires: boolean;
 };
 
 export async function getActiveVerificationRequirements(): Promise<VerificationRequirementRecord[] | null> {
@@ -41,6 +43,7 @@ export async function getActiveVerificationRequirements(): Promise<VerificationR
         required: true,
         active: true,
         sortOrder: true,
+        evidenceExpires: true,
       },
     });
   } catch {

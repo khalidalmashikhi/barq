@@ -140,6 +140,47 @@ enum ProviderType {
   COMPANY
 }
 
+/// Phase 3B Phase 1 — a provider's REGULATED ACTIVITY capability, reviewed and approved
+/// INDEPENDENTLY of the provider account and of Provider.providerType (which stays the
+/// business/legal FORM: INDIVIDUAL|COMPANY). A provider may hold more than one vertical
+/// only if each is approved on its own. Category grants (ProviderCategory) remain taxonomy
+/// only and NEVER confer this authority. Extensible: a new regulated activity is one added
+/// value plus its verification-requirement rows and an authorization-matrix entry.
+enum ProviderVerticalType {
+  TOURIST_GUIDE
+  RENTAL_COMPANY
+}
+
+/// The review lifecycle of a single ProviderVertical. Mirrors the ProviderStatus /
+/// AssetVerificationStatus review shape. A vertical is authoritative for create/publish only
+/// while APPROVED; CHANGES_REQUESTED and REJECTED both allow the provider to correct and
+/// resubmit (-> PENDING_REVIEW). SUSPENDED is an approved vertical temporarily halted by an
+/// admin (its listings hidden, new listings/bookings blocked) — never an auto-cancellation.
+enum ProviderVerticalStatus {
+  PENDING_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+/// How a ProviderVertical row came to exist. PROVIDER_REQUEST = the provider explicitly
+/// requested it. LEGACY_BACKFILL = inferred (as a CANDIDATE only) from pre-cutover data by
+/// the additive backfill; it is NEVER auto-approved and always starts PENDING_REVIEW.
+enum ProviderVerticalOrigin {
+  PROVIDER_REQUEST
+  LEGACY_BACKFILL
+}
+
+/// The kind of a Service offering, gating which vertical may create/publish it. NULLABLE by
+/// design: every legacy Service stays NULL (unclassified) — legacy EXPERIENCE is NOT assumed
+/// to be a guided TOUR. A new Service in a regulated category must carry a valid kind; the
+/// null state can never be used to bypass vertical authorization (see Service.legacyVerticalExempt).
+enum OfferingKind {
+  TOUR
+  VEHICLE_RENTAL
+}
+
 /// Per-document review lifecycle for provider verification documents (Provider
 /// Verification & Documents). A genuinely fixed 3-state lifecycle (like
 /// ProviderStatus/ServiceStatus), so a Prisma enum is correct here — unlike the
@@ -161,6 +202,14 @@ enum VerificationRequirementAudience {
   INDIVIDUAL
   COMPANY
   BOTH
+  /// Phase 3B Phase 1 — provider-VERTICAL audiences (distinct dimension from the
+  /// INDIVIDUAL/COMPANY/BOTH business-form audiences above). A requirement with one of these
+  /// audiences is a document gate for that regulated vertical's APPROVAL, resolved ONLY by the
+  /// vertical-approval gate (assertVerticalApprovable) — never by the main provider-approval
+  /// checklist, which matches only providerType|BOTH. Values are disjoint from the form audiences,
+  /// so the two resolvers never cross-contaminate.
+  TOURIST_GUIDE
+  RENTAL_COMPANY
 }
 
 // Media Foundation (Gap C) — discriminators for the reusable MediaAsset
@@ -458,13 +507,13 @@ enum AIAgentStatus {
 /// Base identity record. See implementation note 7 above regarding the
 /// unresolved role-exclusivity question.
 model User {
-  id                  String     @id @default(uuid(7)) @db.Uuid
+  id                  String       @id @default(uuid(7)) @db.Uuid
   /// Social Login (Gate 1) — now NULLABLE. A Google/Apple-first BARQ user may
   /// exist with no phone yet (verified phone is required later, at booking /
   /// become-provider, not at social signup). Remains `@unique`: PostgreSQL
   /// treats NULLs as distinct, so multiple phone-less users are allowed while
   /// every non-null phone stays unique. Was `String @unique` (phone-only era).
-  phoneNumber         String?    @unique
+  phoneNumber         String?      @unique
   /// Optional display name — the one personal, self-editable identity field
   /// (Finish-Line: Customer Profile). Deliberately kept on the identity `User`
   /// (not duplicated onto Customer/Provider) so every role reuses one name.
@@ -476,22 +525,22 @@ model User {
   /// Added by Engineering Sprint (Phone OTP Schema Support) — required by
   /// Better Auth's phone-number plugin. No email, image, or emailVerified field
   /// was added, per explicit instruction.
-  phoneNumberVerified Boolean    @default(false)
-  status              UserStatus @default(CREATED)
+  phoneNumberVerified Boolean      @default(false)
+  status              UserStatus   @default(CREATED)
   /// EXCLUSIVE ACCOUNT TYPES (Gate Z-2) — the DECLARED self-service intent set during
   /// exclusive registration (choose-usage). NULLABLE, NO default: NULL means legacy /
   /// admin-or-staff-only / not-yet-declared, and is classified by the Z-1 effective
   /// resolver. Additive, never backfilled. The runtime authority remains
   /// resolveEffectiveAccountType(); this is only the durable registration intent.
   accountType         AccountType?
-  createdAt           DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime   @updatedAt @db.Timestamptz(6)
+  createdAt           DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime     @updatedAt @db.Timestamptz(6)
 
-  customer      Customer?
-  providerLink  Provider?
-  staff         Staff?
-  admin         Admin?
-  notifications Notification[]
+  customer               Customer?
+  providerLink           Provider?
+  staff                  Staff?
+  admin                  Admin?
+  notifications          Notification[]
   /// BOOKING NOTIFICATION DELIVERY — this user's transactional booking-email outbox rows (as the
   /// recipient). Back-relation only; no column on User.
   bookingEmailDeliveries BookingEmailDelivery[]
@@ -523,11 +572,11 @@ model Customer {
   createdAt          DateTime @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @db.Timestamptz(6)
 
-  bookings       Booking[]
-  reviews        Review[]
-  wallet         Wallet?
-  contracts      Contract[]
-  supportTickets SupportTicket[]
+  bookings               Booking[]
+  reviews                Review[]
+  wallet                 Wallet?
+  contracts              Contract[]
+  supportTickets         SupportTicket[]
   /// BOOKING-IDEMPOTENCY — this customer's booking-creation idempotency claims (see
   /// BookingIdempotencyKey). Back-relation only; ownership is scoped by its customerId.
   bookingIdempotencyKeys BookingIdempotencyKey[]
@@ -584,21 +633,21 @@ model Provider {
   /// but as a plain boolean, not a rich state machine, since no named
   /// business rule requires more — same reasoning already applied to
   /// FeatureFlag/HomepageSection in Phase 1).
-  slug         String?  @unique
-  visible      Boolean  @default(true)
+  slug                String?        @unique
+  visible             Boolean        @default(true)
   /// Business-correspondence contact only — never surfaced to a
   /// customer/tourist. Direct phone/WhatsApp/email exposure to tourists
   /// is a permanent policy rule (BR-002 / 10-COMMUNICATION-POLICY.md),
   /// not an oversight to "fix" once a public provider page exists.
-  contactEmail String?
+  contactEmail        String?
   /// "Basic location" per this phase's own scope — free text (e.g. a
   /// city/region name), not geo-coordinates or Maps integration, which
   /// docs/project-memory/05-PROVIDER-EXPERIENCE.md explicitly marks as
   /// later-phase (target) scope, not foundation scope.
-  city         String?
+  city                String?
   /// Reference only — a URL string. No Attachment/upload model, no file
   /// storage: media uploads are explicitly out of this phase's scope.
-  logoUrl      String?
+  logoUrl             String?
   createdAt           DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime       @updatedAt @db.Timestamptz(6)
 
@@ -609,11 +658,12 @@ model Provider {
   commissions    Commission[]
   wallet         Wallet?
   contracts      Contract[]
-  bookings       Booking[]       @relation("BookingProvider")
-  reviews        Review[]        @relation("ReviewProvider")
+  bookings       Booking[]          @relation("BookingProvider")
+  reviews        Review[]           @relation("ReviewProvider")
   supportTickets SupportTicket[]
   categoryLinks  ProviderCategory[]
   mediaAssets    MediaAsset[]
+  verticals      ProviderVertical[]
   documents      ProviderDocument[]
 
   @@index([status])
@@ -630,29 +680,37 @@ model Provider {
 /// future upload path validates type/size/MIME and writes to a PRIVATE bucket.
 /// No public-url column exists, by design.
 model ProviderDocument {
-  id         String @id @default(uuid(7)) @db.Uuid
-  providerId String @db.Uuid
-  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  providerId        String                 @db.Uuid
+  provider          Provider               @relation(fields: [providerId], references: [id], onDelete: Cascade)
   /// Stable registry key (src/lib/provider-document-types) — a plain String,
   /// NOT a Prisma enum and NOT a DB CHECK, so adding a document type never needs
   /// a migration (same convention as Category.serviceTypeKey / FeatureFlag.key).
   /// Validated by isValidProviderDocumentTypeKey() at the single domain write
   /// path (the upload mutation, a later gate).
-  type             String
+  type              String
   /// PRIVATE storage object key ONLY — never a public/permanent/signed URL.
-  objectKey        String                 @unique
-  originalFilename String
-  mimeType         String
-  sizeBytes        Int
-  status           ProviderDocumentStatus @default(PENDING)
+  objectKey         String                 @unique
+  originalFilename  String
+  mimeType          String
+  sizeBytes         Int
+  status            ProviderDocumentStatus @default(PENDING)
   /// Admin's reason when status is REJECTED — the provider replaces the document
   /// and it returns to PENDING for re-review (a later gate).
   rejectionReason   String?
-  reviewedAt        DateTime? @db.Timestamptz(6)
-  reviewedByAdminId String?   @db.Uuid
-  reviewedByAdmin   Admin?    @relation("ProviderDocumentReviewedBy", fields: [reviewedByAdminId], references: [id])
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
+  reviewedAt        DateTime?              @db.Timestamptz(6)
+  reviewedByAdminId String?                @db.Uuid
+  reviewedByAdmin   Admin?                 @relation("ProviderDocumentReviewedBy", fields: [reviewedByAdminId], references: [id])
+  /// Phase 3B Phase 1 (compliance) — the authoritative expiry instant of this evidence, confirmed by
+  /// the admin at approval (mirrors AssetDocument.expiresAt, VEHICLE-LC6). NULLABLE / additive /
+  /// legacy-safe: non-expiring evidence and every pre-existing row stay null. It is enforced ONLY for
+  /// document types whose active ProviderVerificationRequirement declares `evidenceExpires` — the
+  /// vertical-approval gate and the runtime compliance guard treat a null/past value on such a
+  /// requirement as a blocker. Stored as a UTC instant (Timestamptz); date-only inputs are converted
+  /// to end-of-day Asia/Muscat before persisting.
+  expiresAt         DateTime?              @db.Timestamptz(6)
+  createdAt         DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime               @updatedAt @db.Timestamptz(6)
 
   /// One CURRENT document per (provider, type) — replace is an upsert. This
   /// composite unique also serves every `WHERE providerId = ?` lookup via its
@@ -686,24 +744,30 @@ model ProviderDocument {
 /// nothing". Purely additive: existing `provider_documents` rows are untouched and
 /// remain valid (their `type` String keeps referencing a requirement `key`).
 model ProviderVerificationRequirement {
-  id          String   @id @default(uuid(7)) @db.Uuid
+  id              String                          @id @default(uuid(7)) @db.Uuid
   /// Stable code that `ProviderDocument.type` references — immutable after
   /// creation (same reasoning as FeatureFlag.key), e.g. "IDENTITY_PROOF".
-  key         String   @unique
+  key             String                          @unique
   /// Bilingual provider-facing label — { "ar": "...", "en": "..." } (ADR-0005).
-  name        Json
+  name            Json
   /// Bilingual instructions/description — { "ar": "...", "en": "..." }. Nullable;
   /// presentation only, never behavior.
-  description Json?
-  appliesTo   VerificationRequirementAudience
+  description     Json?
+  appliesTo       VerificationRequirementAudience
   /// Required (an approval blocker per BR-029) vs optional. A NEW requirement
   /// defaults to OPTIONAL — an admin must explicitly make one required, so simply
   /// creating a requirement can never retroactively block existing providers.
-  required    Boolean  @default(false)
-  active      Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  required        Boolean                         @default(false)
+  /// Phase 3B Phase 1 (compliance) — does this requirement's evidence CARRY an expiry that must stay
+  /// valid? When true, an APPROVED document for this key must additionally have a future
+  /// ProviderDocument.expiresAt; a null or past value is an approval/compliance blocker. Default
+  /// false (additive, legacy-safe): existing requirements are treated as non-expiring unless an admin
+  /// opts them in. Used only by the vertical-approval gate + runtime compliance guard.
+  evidenceExpires Boolean                         @default(false)
+  active          Boolean                         @default(true)
+  sortOrder       Int                             @default(0)
+  createdAt       DateTime                        @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                        @updatedAt @db.Timestamptz(6)
 
   @@index([active])
   @@map("provider_verification_requirements")
@@ -746,11 +810,11 @@ model Guide {
 /// Inheritance (shared primary key) — PRISMA_SCHEMA.md §4's resolution of
 /// DATABASE_DESIGN.md §20 Open Decision #7.
 model Asset {
-  id         String      @id @default(uuid(7)) @db.Uuid
-  providerId String      @db.Uuid
-  provider   Provider    @relation(fields: [providerId], references: [id])
-  assetType  AssetType
-  status     AssetStatus @default(REGISTERED)
+  id                            String                  @id @default(uuid(7)) @db.Uuid
+  providerId                    String                  @db.Uuid
+  provider                      Provider                @relation(fields: [providerId], references: [id])
+  assetType                     AssetType
+  status                        AssetStatus             @default(REGISTERED)
   /// VEHICLE-LC1 — the VERIFICATION/REVIEW axis (independent of operational
   /// `status`). Defaults DRAFT so every legacy/new asset is fail-closed
   /// (non-selectable) until a future gate submits + an admin approves. The
@@ -763,8 +827,8 @@ model Asset {
   verificationReviewedByAdminId String?                 @db.Uuid
   verificationReviewedByAdmin   Admin?                  @relation("AssetVerificationReviewedBy", fields: [verificationReviewedByAdminId], references: [id])
   verificationReason            String?
-  createdAt  DateTime    @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime    @updatedAt @db.Timestamptz(6)
+  createdAt                     DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt                     DateTime                @updatedAt @db.Timestamptz(6)
 
   vehicle   Vehicle?
   documents AssetDocument[]
@@ -785,9 +849,9 @@ model Asset {
 /// AFTER authorizing the caller (owning provider or admin), reusing the existing
 /// storage/signed-URL primitives. No upload/review runtime exists in LC1.
 model AssetDocument {
-  id      String @id @default(uuid(7)) @db.Uuid
-  assetId String @db.Uuid
-  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  id                String              @id @default(uuid(7)) @db.Uuid
+  assetId           String              @db.Uuid
+  asset             Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
   /// Stable registry key (src/lib/vehicles/documents/asset-document-types) — a
   /// plain String, NOT a Prisma enum and NOT a DB CHECK, so adding a document type
   /// never needs a migration (same convention as ProviderDocument.type).
@@ -880,7 +944,7 @@ model Vehicle {
   createdAt          DateTime @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @db.Timestamptz(6)
 
-  bookings Booking[]
+  bookings            Booking[]
   /// TOUR-VEHICLE-1 — the tour services this vehicle is CONFIGURED as available for
   /// (relational pool). Deletion of a pooled vehicle is RESTRICTED at the FK, so a
   /// configured tour never silently loses its vehicle.
@@ -888,7 +952,7 @@ model Vehicle {
   /// BOOKING-CONFLICT-1A — physical-occupancy reservations committing this vehicle to
   /// bookings for a time window. Deletion is RESTRICTED at the FK (a vehicle with a
   /// committed reservation is never silently removed).
-  reservations VehicleReservation[]
+  reservations        VehicleReservation[]
 
   @@map("vehicles")
 }
@@ -911,20 +975,20 @@ enum CategoryVisibilityStatus {
 }
 
 model Category {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id                 String                   @id @default(uuid(7)) @db.Uuid
   /// Bilingual — { "ar": "...", "en": "..." } — see implementation note 2 above.
-  name      Json
-  slug      String   @unique
+  name               Json
+  slug               String                   @unique
   /// Self-referential tree — ADR-0015 (Taxonomy v2), P1. A "sub-category" is
   /// a depth-1 child (parentId set), not a separate table. Max depth is 2
   /// (hard cap 3), enforced by the MAX_CATEGORY_DEPTH code constant, NOT a
   /// schema/DB constraint (BR-027). No materialized `path` in P1: at depth 2
   /// ancestry is just parentId — a UUID `path` is added only if/when depth
   /// grows and subtree filtering is needed (ADR-0015).
-  parentId  String?    @db.Uuid
-  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children  Category[] @relation("CategoryTree")
-  depth     Int        @default(0)
+  parentId           String?                  @db.Uuid
+  parent             Category?                @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children           Category[]               @relation("CategoryTree")
+  depth              Int                      @default(0)
   /// The vertical this category belongs to — ADR-0015. A plain string
   /// validated against the code registry (src/lib/service-types) AND a DB
   /// CHECK constraint (see the P1 migration), deliberately NOT a Prisma enum
@@ -933,15 +997,15 @@ model Category {
   /// AuditLog.action. Governed keys: EXPERIENCE, TRANSPORT, ACCOMMODATION,
   /// DINING, EVENT, RENTAL. Category is browse/SEO only (BR-024) — it never
   /// carries booking/pricing/commission behavior; that lives on ServiceType.
-  serviceTypeKey String
-  visibilityStatus CategoryVisibilityStatus @default(HIDDEN)
+  serviceTypeKey     String
+  visibilityStatus   CategoryVisibilityStatus @default(HIDDEN)
   /// Only meaningful when visibilityStatus is SCHEDULED — the moment this
   /// category should automatically become PUBLIC. Nullable because every
   /// other status ignores it.
-  scheduledVisibleAt DateTime? @db.Timestamptz(6)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  scheduledVisibleAt DateTime?                @db.Timestamptz(6)
+  sortOrder          Int                      @default(0)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
 
   /// RETAINED SHADOW — ADR-0015 expand/contract. The P1 expand migration
   /// copied every sub_categories row into THIS table as a depth-1 child; the
@@ -965,10 +1029,10 @@ model Category {
 /// yet) — when added in P4, "exactly one primary per provider" will be
 /// enforced by a Postgres partial unique index, not application logic.
 model ProviderCategory {
-  providerId String   @db.Uuid
-  categoryId String   @db.Uuid
-  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id])
+  providerId       String                 @db.Uuid
+  categoryId       String                 @db.Uuid
+  provider         Provider               @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category         Category               @relation(fields: [categoryId], references: [id])
   /// Provenance of this activity link (Gate B). DELIBERATELY NO @default:
   /// provenance is meaningful and must be set EXPLICITLY by every runtime write
   /// (onboarding → SELF, admin grant → ADMIN). The migration stages this column
@@ -981,14 +1045,14 @@ model ProviderCategory {
   /// Prisma schema). "At least one primary" for a new provider is a DOMAIN
   /// invariant enforced by onboarding / DRAFT primary-selection, NOT by this
   /// index. The primary row is source=SELF.
-  isPrimary        Boolean  @default(false)
+  isPrimary        Boolean                @default(false)
   /// Set ONLY for source=ADMIN grants — the authenticated admin who granted it.
   /// Never accepted from client input; null for SELF and LEGACY.
-  grantedByAdminId String?  @db.Uuid
-  grantedByAdmin   Admin?   @relation("ProviderCategoryGrantedBy", fields: [grantedByAdminId], references: [id])
+  grantedByAdminId String?                @db.Uuid
+  grantedByAdmin   Admin?                 @relation("ProviderCategoryGrantedBy", fields: [grantedByAdminId], references: [id])
   /// Set ONLY for source=ADMIN grants; null for SELF and LEGACY.
-  grantedAt        DateTime? @db.Timestamptz(6)
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  grantedAt        DateTime?              @db.Timestamptz(6)
+  createdAt        DateTime               @default(now()) @db.Timestamptz(6)
 
   @@id([providerId, categoryId])
   @@index([categoryId])
@@ -996,23 +1060,55 @@ model ProviderCategory {
   @@map("provider_categories")
 }
 
+/// Phase 3B Phase 1 — a provider's REGULATED ACTIVITY capability and its review lifecycle.
+/// One row per (provider, vertical); a provider holds each vertical at most once. This is the
+/// SOLE legal/operational authority for creating & publishing that vertical's listings —
+/// enforced server-side, never by the client category selector. Review history lives in
+/// AuditLog (entityType "ProviderVertical"); the last decision reason is kept here for
+/// display. Additive & backward-compatible: the backfill inserts LEGACY_BACKFILL candidates
+/// as PENDING_REVIEW only, NEVER APPROVED.
+model ProviderVertical {
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  providerId        String                 @db.Uuid
+  provider          Provider               @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  vertical          ProviderVerticalType
+  status            ProviderVerticalStatus @default(PENDING_REVIEW)
+  origin            ProviderVerticalOrigin
+  /// Last decision reason (rejection / changes-requested / suspension) for provider-facing
+  /// display; the full history is in AuditLog. Never PII.
+  reason            String?
+  requestedAt       DateTime               @default(now()) @db.Timestamptz(6)
+  reviewedAt        DateTime?              @db.Timestamptz(6)
+  reviewedByAdminId String?                @db.Uuid
+  reviewedByAdmin   Admin?                 @relation("ProviderVerticalReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+  suspendedAt       DateTime?              @db.Timestamptz(6)
+  createdAt         DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime               @updatedAt @db.Timestamptz(6)
+
+  @@unique([providerId, vertical])
+  @@index([status])
+  @@index([vertical, status])
+  @@index([reviewedByAdminId])
+  @@map("provider_verticals")
+}
+
 model SubCategory {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  categoryId String   @db.Uuid
-  category   Category @relation(fields: [categoryId], references: [id])
+  id                 String                   @id @default(uuid(7)) @db.Uuid
+  categoryId         String                   @db.Uuid
+  category           Category                 @relation(fields: [categoryId], references: [id])
   /// Bilingual — { "ar": "...", "en": "..." }.
-  name       Json
-  slug       String   @unique
+  name               Json
+  slug               String                   @unique
   /// Independent of the parent Category's own status — resolves
   /// 07-CATEGORIES.md's open inheritance question: a SubCategory holds its
   /// own visibility, but effective visibility is always the stricter of the
   /// two (see isSubCategoryEffectivelyVisible() in category-visibility-policy.ts),
   /// so a SubCategory can never outrank its parent.
-  visibilityStatus CategoryVisibilityStatus @default(HIDDEN)
-  scheduledVisibleAt DateTime? @db.Timestamptz(6)
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+  visibilityStatus   CategoryVisibilityStatus @default(HIDDEN)
+  scheduledVisibleAt DateTime?                @db.Timestamptz(6)
+  sortOrder          Int                      @default(0)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
 
   @@index([categoryId])
   @@index([visibilityStatus])
@@ -1020,22 +1116,35 @@ model SubCategory {
 }
 
 model Service {
-  id          String        @id @default(uuid(7)) @db.Uuid
-  providerId  String        @db.Uuid
-  provider    Provider      @relation(fields: [providerId], references: [id])
-  serviceType String // discriminator for Experience specialization, mirrors AssetType's pattern
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  providerId           String        @db.Uuid
+  provider             Provider      @relation(fields: [providerId], references: [id])
+  serviceType          String // discriminator for Experience specialization, mirrors AssetType's pattern
   /// Bilingual, required per DATABASE_DESIGN.md §5.
-  name        Json
-  description Json?
-  status      ServiceStatus @default(DRAFT)
+  name                 Json
+  description          Json?
+  status               ServiceStatus @default(DRAFT)
+  /// Phase 3B Phase 1 — the regulated OFFERING kind, gating which ProviderVertical may
+  /// create/publish this Service. NULLABLE and NULL for every legacy row (no TOUR backfill).
+  /// A new Service in a regulated category must set a valid kind; enforcement forbids using
+  /// the null state to bypass vertical authorization.
+  offeringKind         OfferingKind?
+  /// Phase 3B Phase 1 — the BOUNDED legacy-compatibility flag. TRUE only for services that
+  /// existed AND were already published BEFORE the vertical cutover (set once by the additive
+  /// backfill, auditable). Grandfathers those live listings so enforcement is create/publish-
+  /// FORWARD only. New services default FALSE, so a provider can never leave offeringKind null
+  /// to dodge vertical checks. Materially changing a grandfathered service's regulated
+  /// category/kind, or republishing after such a change, clears the exemption and re-imposes
+  /// the vertical gate. Removable (set FALSE) once all affected providers complete review.
+  legacyVerticalExempt Boolean       @default(false)
   /// Marketplace taxonomy link — ADR-0015 (BR-026). Single nullable FK to the
   /// most-specific Category node (a leaf or a top-level node). Nullable
   /// indefinitely at the schema level; publish-time "exactly one category"
   /// enforcement is an application rule added in P4, never a NOT NULL DB
   /// constraint. onDelete: Restrict — deleting a Category with assigned
   /// Services must fail loudly, never null out or cascade real Services.
-  categoryId  String?       @db.Uuid
-  category    Category?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId           String?       @db.Uuid
+  category             Category?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Discovery region — the broad Oman governorate where this service operates
   /// (Core Service enrichment, Gate 2). Named `regionCode` because the stored
   /// value is a stable governorate CODE (e.g. DHOFAR, MUSCAT), NOT free-text and
@@ -1044,7 +1153,7 @@ model Service {
   /// registry + its sync test land in Gate 3). Nullable and additive: existing
   /// services stay valid (regionCode = NULL) and fully public until a provider
   /// sets it; nothing reads it yet (Gate 3/4 wire it).
-  regionCode  String?
+  regionCode           String?
   /// Service Information Model (Booking Decision Data) — all additive, nullable, and
   /// service-type-NEUTRAL: they apply across tours, transport, vehicles, guides, transfers,
   /// marine trips, etc., and every one is optional so legacy services stay valid and fully
@@ -1074,14 +1183,14 @@ model Service {
   /// seats by unit price; maxBookingSeats caps that quantity — no contradiction with pricing.
   minBookingSeats      Int?
   maxBookingSeats      Int?
-  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+  createdAt            DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime      @updatedAt @db.Timestamptz(6)
 
-  experience   Experience?
-  availability Availability[]
-  prices       Price[]
-  bookings     Booking[]
-  mediaAssets  MediaAsset[]
+  experience          Experience?
+  availability        Availability[]
+  prices              Price[]
+  bookings            Booking[]
+  mediaAssets         MediaAsset[]
   /// TOUR-VEHICLE-1 — the relational pool of eligible provider vehicles configured
   /// for this (tour) service. Cascades on service deletion (pool config is
   /// meaningless without its service).
@@ -1091,6 +1200,7 @@ model Service {
   @@index([status])
   @@index([categoryId])
   @@index([regionCode])
+  @@index([offeringKind])
   @@map("services")
 }
 
@@ -1172,19 +1282,19 @@ model TourServiceVehicle {
 // =============================================================================
 
 model Booking {
-  id         String        @id @default(uuid(7)) @db.Uuid
-  customerId String        @db.Uuid
-  customer   Customer      @relation(fields: [customerId], references: [id])
-  serviceId  String        @db.Uuid
-  service    Service       @relation(fields: [serviceId], references: [id])
+  id                      String        @id @default(uuid(7)) @db.Uuid
+  customerId              String        @db.Uuid
+  customer                Customer      @relation(fields: [customerId], references: [id])
+  serviceId               String        @db.Uuid
+  service                 Service       @relation(fields: [serviceId], references: [id])
   /// Denormalized for query convenience — see implementation note 8 above.
-  providerId String        @db.Uuid
-  provider   Provider      @relation("BookingProvider", fields: [providerId], references: [id])
-  driverId   String?       @db.Uuid
-  driver     Driver?       @relation(fields: [driverId], references: [id])
-  guideId    String?       @db.Uuid
-  guide      Guide?        @relation(fields: [guideId], references: [id])
-  vehicleId  String?       @db.Uuid
+  providerId              String        @db.Uuid
+  provider                Provider      @relation("BookingProvider", fields: [providerId], references: [id])
+  driverId                String?       @db.Uuid
+  driver                  Driver?       @relation(fields: [driverId], references: [id])
+  guideId                 String?       @db.Uuid
+  guide                   Guide?        @relation(fields: [guideId], references: [id])
+  vehicleId               String?       @db.Uuid
   /// FIXED: this relation incorrectly referenced Vehicle's non-existent
   /// "id" field since the schema was originally authored — Vehicle's
   /// actual primary key is assetId (shared-PK Class Table Inheritance
@@ -1196,7 +1306,7 @@ model Booking {
   /// report — not found by any of the "clean typecheck"/model-count
   /// checks relied on in earlier sprints, which structurally cannot
   /// catch this class of error.
-  vehicle    Vehicle?      @relation(fields: [vehicleId], references: [assetId])
+  vehicle                 Vehicle?      @relation(fields: [vehicleId], references: [assetId])
   /// BOOKING-VEHICLE-SNAPSHOT — a historical, CUSTOMER-SAFE snapshot of the assigned
   /// vehicle's facts, captured atomically at provider acceptance alongside vehicleId (never
   /// by create-booking). Immutable presentation history: later edits to the live Vehicle
@@ -1206,7 +1316,7 @@ model Booking {
   /// (make/model/modelYear/color/passengerCapacity/vehicleType/isFourByFour) — NEVER
   /// registrationNumber, documents, objectKey, verificationStatus, or the raw trusted/
   /// claimed 4x4 flags. Nullable + no backfill: legacy and no-vehicle bookings stay null.
-  vehicleSnapshot Json?
+  vehicleSnapshot         Json?
   /// BOOKING-INTERVAL-1 — the ONE authoritative operational time window during which this
   /// booking's operational resources (the assigned Vehicle now; guide/driver later) are
   /// committed. Absolute instants (timestamptz), half-open [start, end). Populated at
@@ -1217,8 +1327,8 @@ model Booking {
   /// booking cannot reach CONFIRMED without a valid interval (start < end) — enforced in
   /// acceptBooking, NOT by the DB. This is the interval BOOKING-CONFLICT-1 will reserve on;
   /// this gate only establishes it (no overlap/reservation logic here).
-  operationalStartAt DateTime? @db.Timestamptz(6)
-  operationalEndAt   DateTime? @db.Timestamptz(6)
+  operationalStartAt      DateTime?     @db.Timestamptz(6)
+  operationalEndAt        DateTime?     @db.Timestamptz(6)
   /// BOOKING FULFILLMENT LOGISTICS — booking-SPECIFIC meeting/pickup instructions authored by
   /// the provider AFTER acceptance (WHERE to go / WHEN / HOW to meet), e.g. "Pickup at the
   /// Crowne Plaza main entrance at 08:15, white Land Cruiser." DISTINCT from
@@ -1230,7 +1340,7 @@ model Booking {
   /// every existing booking and every not-yet-annotated booking is null. Written ONLY by
   /// setBookingFulfillmentInstructions — acceptBooking never touches it (kept frozen).
   fulfillmentInstructions Json?
-  status     BookingStatus @default(CREATED)
+  status                  BookingStatus @default(CREATED)
 
   /// Group booking support (approved architecture, Entries 066-067):
   /// how many seats/spots this single Booking reserves. Defaults to 1
@@ -1804,11 +1914,11 @@ model Availability {
 // =============================================================================
 
 model Price {
-  id        String      @id @default(uuid(7)) @db.Uuid
-  serviceId String      @db.Uuid
-  service   Service     @relation(fields: [serviceId], references: [id])
-  amount    Decimal     @db.Decimal(12, 2)
-  currency  String
+  id          String      @id @default(uuid(7)) @db.Uuid
+  serviceId   String      @db.Uuid
+  service     Service     @relation(fields: [serviceId], references: [id])
+  amount      Decimal     @db.Decimal(12, 2)
+  currency    String
   /// Commercial/display basis of `amount` (Core Service enrichment, Gate 2) — a
   /// stable CODE such as PER_PERSON or PER_DAY. DISPLAY METADATA ONLY in this
   /// milestone: it does NOT calculate booking totals, multiply by seats/days,
@@ -1822,8 +1932,8 @@ model Price {
   /// allow-list. Nullable/additive: existing prices keep flat-amount semantics
   /// (pricingUnit = NULL). Not indexed (not a customer filter).
   pricingUnit String?
-  status    PriceStatus @default(ACTIVE)
-  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  status      PriceStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
 
   @@index([serviceId])
   @@index([status])
@@ -1896,11 +2006,11 @@ model WalletTransaction {
 // =============================================================================
 
 model Payment {
-  id        String  @id @default(uuid(7)) @db.Uuid
-  bookingId String  @unique @db.Uuid
-  booking   Booking @relation(fields: [bookingId], references: [id])
-  amount    Decimal @db.Decimal(12, 2)
-  currency  String
+  id                String        @id @default(uuid(7)) @db.Uuid
+  bookingId         String        @unique @db.Uuid
+  booking           Booking       @relation(fields: [bookingId], references: [id])
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String
   /// Phase 2.24 (Provider Reference Persistence). An opaque external
   /// identifier from whichever PaymentGatewayProvider actually produced
   /// this Payment (e.g. a Stripe PaymentIntent id) — set by initiate(),
@@ -2008,7 +2118,7 @@ model Notification {
   /// route is resolved server/UI-side from (eventType, entityType, entityId)
   /// through an allowlist — a raw URL is NEVER stored here.
   entityType String?
-  entityId   String?  @db.Uuid
+  entityId   String? @db.Uuid
 
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
@@ -2140,24 +2250,24 @@ model SupportTicket {
 // =============================================================================
 
 model Staff {
-  id        String      @id @default(uuid(7)) @db.Uuid
-  userId    String      @unique @db.Uuid
-  user      User        @relation(fields: [userId], references: [id])
+  id               String      @id @default(uuid(7)) @db.Uuid
+  userId           String      @unique @db.Uuid
+  user             User        @relation(fields: [userId], references: [id])
   /// Multi-value — one Staff member may hold more than one role, per
   /// IDENTITY_AND_ACCESS.md §3. LEGACY: retained for compatibility/history only —
   /// it is NO LONGER the authorization authority (Gate Z-3). Authority is `permissions`.
-  roles     StaffRole[]
+  roles            StaffRole[]
   /// STAFF RBAC (Gate Z-3) — the AUTHORITATIVE granular permission keys for this staff
   /// member (see src/lib/auth/permissions.ts). Default [] = ZERO operational access
   /// (a new staff member can do nothing until the OWNER grants a preset/permissions).
-  permissions String[]  @default([])
-  status    StaffStatus @default(ACTIVE)
+  permissions      String[]    @default([])
+  status           StaffStatus @default(ACTIVE)
   /// The Admin (OWNER) who created/invited this staff record — audit trail. Nullable:
   /// legacy staff predate this, and the FK is SET NULL if that Admin row is ever removed.
-  invitedByAdminId String? @db.Uuid
-  invitedByAdmin   Admin?  @relation("StaffInvitedBy", fields: [invitedByAdminId], references: [id], onDelete: SetNull)
-  createdAt DateTime    @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime    @updatedAt @db.Timestamptz(6)
+  invitedByAdminId String?     @db.Uuid
+  invitedByAdmin   Admin?      @relation("StaffInvitedBy", fields: [invitedByAdminId], references: [id], onDelete: SetNull)
+  createdAt        DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(6)
 
   @@index([invitedByAdminId])
   @@map("staff")
@@ -2176,14 +2286,15 @@ model Admin {
   createdAt DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
-  invitedStaff Staff[] @relation("StaffInvitedBy")
-  approvedProviders Provider[] @relation("ProviderApprovedBy")
-  rejectedProviders Provider[] @relation("ProviderRejectedBy")
-  reviewedDocuments ProviderDocument[] @relation("ProviderDocumentReviewedBy")
+  invitedStaff              Staff[]            @relation("StaffInvitedBy")
+  approvedProviders         Provider[]         @relation("ProviderApprovedBy")
+  rejectedProviders         Provider[]         @relation("ProviderRejectedBy")
+  reviewedDocuments         ProviderDocument[] @relation("ProviderDocumentReviewedBy")
   grantedProviderCategories ProviderCategory[] @relation("ProviderCategoryGrantedBy")
   /// VEHICLE-LC1 — back-relations for asset verification review (no runtime yet).
-  verifiedAssets         Asset[]         @relation("AssetVerificationReviewedBy")
-  reviewedAssetDocuments AssetDocument[] @relation("AssetDocumentReviewedBy")
+  verifiedAssets            Asset[]            @relation("AssetVerificationReviewedBy")
+  reviewedAssetDocuments    AssetDocument[]    @relation("AssetDocumentReviewedBy")
+  reviewedProviderVerticals ProviderVertical[] @relation("ProviderVerticalReviewedBy")
 
   @@map("admins")
 }
@@ -2525,28 +2636,28 @@ model AuthUser {
 // write while the real change succeeds would defeat its own purpose.
 // See src/lib/audit/record-audit-event.ts.
 model AuditLog {
-  id        String           @id @default(uuid(7)) @db.Uuid
+  id            String           @id @default(uuid(7)) @db.Uuid
   /// Reuses BookingActorType rather than duplicating an identical enum —
   /// CUSTOMER/PROVIDER/SYSTEM/ADMIN are already generic actor-kind
   /// values despite that enum's booking-era name.
-  actorType BookingActorType
+  actorType     BookingActorType
   /// Customer.id / Provider.id / User.id (Admin) depending on actorType.
   /// Null when actorType is SYSTEM.
-  actorId   String?          @db.Uuid
+  actorId       String?          @db.Uuid
   /// Dot-namespaced, stable, e.g. "provider.approved",
   /// "service.published", "availability.slot_created" — a plain string,
   /// not an enum, so a new action type never needs its own migration
   /// (same reasoning as BookingContract.templateKey).
-  action    String
+  action        String
   /// e.g. "Provider", "Service", "Availability" — plain string for the
   /// same extensibility reason as `action`.
-  entityType String
-  entityId   String           @db.Uuid
+  entityType    String
+  entityId      String           @db.Uuid
   /// Snapshot of the changed fields before/after, when applicable —
   /// never a full-row dump, only what the writer explicitly captured.
   previousValue Json?
   newValue      Json?
-  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
 
   @@index([entityType, entityId, createdAt])
   @@index([actorType, actorId])

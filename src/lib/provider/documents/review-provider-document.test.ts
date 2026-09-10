@@ -66,6 +66,34 @@ describe("reviewProviderDocument", () => {
     expect(upd.where).toEqual({ id: "doc-1", objectKey: KEY, status: "PENDING" });
     expect(upd.data).toMatchObject({ status: "APPROVED", reviewedByAdminId: "admin-1", rejectionReason: null });
     expect(auditCreateMock.mock.calls[0]![0]).toMatchObject({ data: { action: "provider.document_approved", actorType: "ADMIN" } });
+    // No expiry supplied → expiresAt cleared to null.
+    expect(upd.data.expiresAt).toBeNull();
+  });
+
+  it("Phase 3B — records the admin-confirmed expiry on APPROVE", async () => {
+    const expiresAt = new Date("2027-06-01T00:00:00.000Z");
+    const result = await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "APPROVE", expiresAt });
+    expect(result).toEqual({ ok: true });
+    const upd = updateManyMock.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(upd.data).toMatchObject({ status: "APPROVED", expiresAt });
+  });
+
+  it("Phase 3B — rejects a malformed expiry on APPROVE with INVALID_INPUT", async () => {
+    const result = await reviewProviderDocument({
+      documentId: "doc-1",
+      expectedVersionToken: token,
+      decision: "APPROVE",
+      expiresAt: new Date("not-a-date"),
+    });
+    expect(result).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(updateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("Phase 3B — clears expiresAt on REJECT (unusable evidence)", async () => {
+    const result = await reviewProviderDocument({ documentId: "doc-1", expectedVersionToken: token, decision: "REJECT", reason: "blurry" });
+    expect(result).toEqual({ ok: true });
+    const upd = updateManyMock.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(upd.data.expiresAt).toBeNull();
   });
 
   it("rejects a PENDING document with a trimmed reason, stored + audited", async () => {

@@ -74,6 +74,25 @@ export function resolveRequiredKeysFromPolicy(
     .map((row) => row.key);
 }
 
+/**
+ * Phase 3B Phase 1 — the REQUIRED verification document-type keys for a provider VERTICAL audience
+ * (TOURIST_GUIDE / RENTAL_COMPANY). Pure; no I/O. Unlike resolveRequiredKeysFromPolicy (business
+ * form), there are NO code-default requirements for a vertical, so this CANNOT fall back:
+ *   - `null` (policy read failure) → returns `null`, and the caller (assertVerticalApprovable) FAILS
+ *     CLOSED by refusing approval — never "require nothing" on a DB error.
+ *   - `[]` or a policy with no active+required rows for this audience → `[]` (no doc gate configured
+ *     for this vertical yet → nothing to block on the document dimension).
+ * Matches the EXACT audience only (never "BOTH", which is a business-form convenience), so vertical
+ * requirements and provider-type requirements never cross-contaminate.
+ */
+export function resolveRequiredKeysForAudience(
+  policyRows: readonly VerificationRequirementPolicyRow[] | null,
+  audience: VerificationRequirementAudience
+): string[] | null {
+  if (policyRows === null) return null;
+  return policyRows.filter((row) => row.active && row.required && row.appliesTo === audience).map((row) => row.key);
+}
+
 // ---------------------------------------------------------------------------
 // Full provider verification CHECKLIST resolution (for the provider-facing
 // /verification page and dashboard readiness card). Same fail-closed contract as

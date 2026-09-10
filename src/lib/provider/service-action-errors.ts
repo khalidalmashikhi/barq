@@ -46,6 +46,10 @@ export type ServiceActionErrorCode =
   // published without at least one CURRENTLY ELIGIBLE pooled vehicle (publish-time
   // fulfillment completeness). Surfaced like the other publish blockers.
   | "TOUR_VEHICLE_POOL_REQUIRED"
+  // Phase 3B — Phase 1: the service belongs to a regulated offering (e.g. VEHICLE_RENTAL) and
+  // the provider does not hold the required, non-suspended/rejected (create) or APPROVED
+  // (publish) ProviderVertical. Category grants alone never authorize a regulated listing.
+  | "VERTICAL_NOT_AUTHORIZED"
   | "INVALID_STATUS_TRANSITION"
   | "UNKNOWN_ERROR";
 
@@ -63,6 +67,7 @@ const SERVICE_ACTION_ERROR_CODES: readonly ServiceActionErrorCode[] = [
   "TOUR_TEMPLATE_INVALID",
   "TOUR_TEMPLATE_REQUIRED",
   "TOUR_VEHICLE_POOL_REQUIRED",
+  "VERTICAL_NOT_AUTHORIZED",
   "INVALID_STATUS_TRANSITION",
   "UNKNOWN_ERROR",
 ];
@@ -88,6 +93,7 @@ const SERVICE_ERROR_TRANSLATION_KEYS = {
   TOUR_TEMPLATE_INVALID: "serviceErrorTourInvalid",
   TOUR_TEMPLATE_REQUIRED: "serviceErrorTourRequired",
   TOUR_VEHICLE_POOL_REQUIRED: "serviceErrorTourVehiclePoolRequired",
+  VERTICAL_NOT_AUTHORIZED: "serviceErrorVerticalNotAuthorized",
   INVALID_STATUS_TRANSITION: "serviceErrorInvalidTransition",
   UNKNOWN_ERROR: "serviceErrorUnknown",
 } as const satisfies Record<ServiceActionErrorCode, string>;

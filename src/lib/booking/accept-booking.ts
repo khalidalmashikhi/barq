@@ -20,6 +20,7 @@ import {
 } from "@/lib/booking/vehicle-assignment-on-accept";
 import { validateOperationalInterval, type OperationalInterval } from "@/lib/booking/operational-interval";
 import { reserveVehicleForBooking } from "@/lib/booking/vehicle-reservation";
+import { assertVerticalAllowsBookingAcceptance } from "@/lib/provider/verticals/require-approved-vertical";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -168,6 +169,24 @@ export async function acceptBooking(
 
     if (!canAcceptBooking(booking.status)) {
       return { ok: false, error: "BOOKING_NOT_PENDING" };
+    }
+
+    // Phase 3B — Phase 1 (Blocker 4). FREEZE acceptance while the booking's regulated vertical is
+    // SUSPENDED (or REJECTED): a suspended activity must not commit new resources. Checked BEFORE any
+    // financial side effect (gateway intent, commission, Payment) and BEFORE vehicle reservation, so
+    // a frozen acceptance leaves the booking exactly PENDING_PROVIDER. Consults the vertical status
+    // directly (never legacyVerticalExempt), so grandfathering cannot bypass suspension. Non-regulated
+    // bookings and non-suspended verticals are unaffected — existing CONFIRMED bookings are untouched.
+    const svc = await prisma.service.findUnique({
+      where: { id: booking.serviceId },
+      select: { offeringKind: true },
+    });
+    const verticalFrozen = await assertVerticalAllowsBookingAcceptance({
+      providerId: provider.id,
+      offeringKind: svc?.offeringKind ?? null,
+    });
+    if (verticalFrozen) {
+      return { ok: false, error: "VERTICAL_SUSPENDED" };
     }
 
     // DOWNSTREAM MONEY ALIGNMENT — resolve the ONE authoritative amount to charge/record BEFORE

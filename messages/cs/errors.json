@@ -35,5 +35,6 @@
   "invalidSchedule": "Čas začátku a konce je neplatný",
   "vehicleBusy": "Vybrané vozidlo je v tuto dobu již přiřazeno k jiné rezervaci",
   "pricingUnitNotBookable": "Tato cenová možnost zatím není k dispozici pro rezervaci.",
-  "bookingPricingInvalid": "Tuto rezervaci nyní nelze zpracovat kvůli problému s cenou. Kontaktujte prosím podporu."
+  "bookingPricingInvalid": "Tuto rezervaci nyní nelze zpracovat kvůli problému s cenou. Kontaktujte prosím podporu.",
+  "verticalSuspended": "Oprávnění pro tuto aktivitu momentálně není platné (pozastaveno, nebo požadovaná licence chybí či vypršela), takže tuto rezervaci nelze přijmout."
 }

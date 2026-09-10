@@ -42,8 +42,9 @@ export function requiredDocumentTypesFor(provider: ProviderRequirementContext): 
   return [...REQUIRED_BY_PROVIDER_TYPE[provider.providerType]];
 }
 
-/** Minimal snapshot of one persisted document, for the pure completeness check. */
-export type ProviderDocumentSnapshot = { type: string; status: ProviderDocumentStatus };
+/** Minimal snapshot of one persisted document, for the pure completeness check. `expiresAt` is
+ * optional and used only by the vertical compliance resolver (provider-type checks ignore it). */
+export type ProviderDocumentSnapshot = { type: string; status: ProviderDocumentStatus; expiresAt?: Date | null };
 
 export type RequiredDocumentBlocker = {
   // A plain `string`, not `ProviderDocumentTypeKey`: under ADR-0017 the required
@@ -74,6 +75,55 @@ export function resolveRequiredDocumentBlockers(
       blockers.push({ type, reason: "MISSING" });
     } else if (doc.status !== "APPROVED") {
       blockers.push({ type, reason: "NOT_APPROVED" });
+    }
+  }
+  return blockers;
+}
+
+// Phase 3B — Phase 1 (compliance). Vertical document blocker, richer than the provider-type one:
+// it also carries EXPIRED / EXPIRY_MISSING for requirements whose evidence expires. Kept separate
+// from RequiredDocumentBlocker so the provider-type approval path (which never checks expiry) is
+// unaffected.
+export type VerticalDocumentBlockerReason = "MISSING" | "NOT_APPROVED" | "EXPIRY_MISSING" | "EXPIRED";
+export type VerticalDocumentBlocker = { type: string; reason: VerticalDocumentBlockerReason };
+
+// The minimal requirement shape the vertical gate needs (active + required already filtered by the
+// caller to the vertical audience; `evidenceExpires` decides whether expiry is enforced for the key).
+export type VerticalRequirementRow = { key: string; evidenceExpires: boolean };
+
+/**
+ * Pure completeness+compliance primitive for the vertical-approval gate. Given the vertical's
+ * REQUIRED requirement rows, a snapshot of the provider's documents (with expiry), and the current
+ * instant, returns the ORDERED blockers (empty = every required document exists, is APPROVED, and —
+ * when its requirement's evidence expires — has a future expiry). No I/O.
+ *   • no document for the key        → MISSING
+ *   • document not APPROVED           → NOT_APPROVED (PENDING or REJECTED)
+ *   • evidenceExpires + no expiresAt  → EXPIRY_MISSING
+ *   • evidenceExpires + expiresAt<=now→ EXPIRED
+ */
+export function resolveVerticalDocumentBlockers(
+  requirements: readonly VerticalRequirementRow[],
+  documents: readonly ProviderDocumentSnapshot[],
+  now: Date
+): VerticalDocumentBlocker[] {
+  const blockers: VerticalDocumentBlocker[] = [];
+  for (const req of requirements) {
+    const doc = documents.find((d) => d.type === req.key);
+    if (!doc) {
+      blockers.push({ type: req.key, reason: "MISSING" });
+      continue;
+    }
+    if (doc.status !== "APPROVED") {
+      blockers.push({ type: req.key, reason: "NOT_APPROVED" });
+      continue;
+    }
+    if (req.evidenceExpires) {
+      const expiresAt = doc.expiresAt ?? null;
+      if (expiresAt === null) {
+        blockers.push({ type: req.key, reason: "EXPIRY_MISSING" });
+      } else if (expiresAt.getTime() <= now.getTime()) {
+        blockers.push({ type: req.key, reason: "EXPIRED" });
+      }
     }
   }
   return blockers;

@@ -10,11 +10,15 @@ import {
 // that is the SOLE guard on ProviderDocument.type (no DB CHECK exists).
 
 describe("provider-document-types registry", () => {
-  it("exposes exactly the frozen Gate-1 keys, all unique", () => {
+  it("exposes the Gate-1 keys plus the Phase 3B vertical evidence keys, all unique", () => {
     expect([...PROVIDER_DOCUMENT_TYPE_KEYS]).toEqual([
       "IDENTITY_PROOF",
       "COMMERCIAL_REGISTRATION",
       "TOURISM_LICENCE",
+      // Phase 3B Phase 1 — provider-vertical evidence types.
+      "RENTAL_ACTIVITY_LICENCE",
+      "RENTAL_BUSINESS_REGISTRATION",
+      "TOURIST_GUIDE_LICENCE",
     ]);
     expect(new Set(PROVIDER_DOCUMENT_TYPE_KEYS).size).toBe(PROVIDER_DOCUMENT_TYPE_KEYS.length);
   });

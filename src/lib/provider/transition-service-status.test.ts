@@ -24,6 +24,9 @@ const auditCreateMock = vi.fn();
 const categoryFindUniqueMock = vi.fn();
 const experienceFindUniqueMock = vi.fn();
 const poolFindManyMock = vi.fn();
+const providerVerticalFindUniqueMock = vi.fn();
+const requirementFindManyMock = vi.fn();
+const documentFindManyMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -38,6 +41,11 @@ vi.mock("@/lib/db", () => ({
     experience: { findUnique: (...args: unknown[]) => experienceFindUniqueMock(...args) },
     // TOUR-VEHICLE-2P — publish readiness reads the tour's configured vehicle pool.
     tourServiceVehicle: { findMany: (...args: unknown[]) => poolFindManyMock(...args) },
+    // Phase 3B — Phase 1: the regulated-publish gate reads the provider's vertical, and (for an
+    // APPROVED vertical) the compliance readiness reads the requirement policy + documents.
+    providerVertical: { findUnique: (...args: unknown[]) => providerVerticalFindUniqueMock(...args) },
+    providerVerificationRequirement: { findMany: (...args: unknown[]) => requirementFindManyMock(...args) },
+    providerDocument: { findMany: (...args: unknown[]) => documentFindManyMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
         service: { update: (...args: unknown[]) => updateMock(...args) },
@@ -59,6 +67,12 @@ const SERVICE_ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 
 beforeEach(() => {
   isProviderAuthorizedForCategoryMock.mockResolvedValue(true);
+  // Default: a configured, satisfied RENTAL_COMPANY policy so an APPROVED regulated publish is
+  // compliant (the compliance gate is exercised in its own unit tests).
+  requirementFindManyMock.mockResolvedValue([
+    { key: "RENTAL_ACTIVITY_LICENCE", appliesTo: "RENTAL_COMPANY", required: true, active: true, evidenceExpires: false },
+  ]);
+  documentFindManyMock.mockResolvedValue([{ type: "RENTAL_ACTIVITY_LICENCE", status: "APPROVED", expiresAt: null }]);
 });
 
 afterEach(() => {
@@ -71,6 +85,9 @@ afterEach(() => {
   categoryFindUniqueMock.mockReset();
   experienceFindUniqueMock.mockReset();
   poolFindManyMock.mockReset();
+  providerVerticalFindUniqueMock.mockReset();
+  requirementFindManyMock.mockReset();
+  documentFindManyMock.mockReset();
 });
 
 describe("publishService", () => {
@@ -96,6 +113,80 @@ describe("publishService", () => {
         newValue: { status: "PUBLISHED" },
       }),
     });
+  });
+
+  it("Phase 3B — REFUSES publish of a regulated (VEHICLE_RENTAL) service with VERTICAL_NOT_AUTHORIZED when the vertical is not APPROVED, before any other blocker check", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({
+      id: SERVICE_ID,
+      providerId: "provider-1",
+      status: "DRAFT",
+      categoryId: "cat-1",
+      offeringKind: "VEHICLE_RENTAL",
+      legacyVerticalExempt: false,
+    });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "PENDING_REVIEW" });
+
+    const result = await publishService(SERVICE_ID);
+
+    expect(result).toEqual({ ok: false, error: "VERTICAL_NOT_AUTHORIZED" });
+    // The vertical gate runs FIRST — the price/category blockers are never reached.
+    expect(findFirstMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Phase 3B — publishes a regulated service when the matching vertical is APPROVED", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({
+      id: SERVICE_ID,
+      providerId: "provider-1",
+      status: "DRAFT",
+      categoryId: "cat-1",
+      offeringKind: "VEHICLE_RENTAL",
+      legacyVerticalExempt: false,
+    });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    findFirstMock.mockResolvedValue({ id: "price-1" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: SERVICE_ID }, data: { status: "PUBLISHED" } });
+  });
+
+  it("Phase 3B — GRANDFATHERING: a legacyVerticalExempt regulated service publishes without an APPROVED vertical (pending)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({
+      id: SERVICE_ID,
+      providerId: "provider-1",
+      status: "PAUSED",
+      categoryId: "cat-1",
+      offeringKind: "VEHICLE_RENTAL",
+      legacyVerticalExempt: true,
+    });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "PENDING_REVIEW" });
+    findFirstMock.mockResolvedValue({ id: "price-1" });
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: SERVICE_ID }, data: { status: "PUBLISHED" } });
+  });
+
+  it("Phase 3B — GRANDFATHERING DOES NOT OVERRIDE SUSPENSION: an exempt service cannot be republished while its vertical is SUSPENDED", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue({
+      id: SERVICE_ID,
+      providerId: "provider-1",
+      status: "PAUSED",
+      categoryId: "cat-1",
+      offeringKind: "VEHICLE_RENTAL",
+      legacyVerticalExempt: true,
+    });
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "SUSPENDED" });
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "VERTICAL_NOT_AUTHORIZED" });
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("returns NO_ACTIVE_PRICE (only) when the service is categorized but has no ACTIVE price", async () => {
