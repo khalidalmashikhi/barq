@@ -63,7 +63,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
         onClick={() => setOpen(true)}
         aria-label={t("openMenuAriaLabel")}
         aria-expanded={open}
-        className="rounded-lg p-2 text-foreground/70 transition-colors hover:bg-accent/20 hover:text-foreground"
+        className="rounded-lg p-2 text-foreground/70 transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/20 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
       >
         <Menu size={22} strokeWidth={1.75} aria-hidden />
       </button>
@@ -77,7 +77,7 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t("closeMenuAriaLabel")}
-              className="rounded-lg p-2 text-foreground/70 hover:bg-accent hover:text-foreground"
+              className="rounded-lg p-2 text-foreground/70 transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-foreground/5 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <X size={20} strokeWidth={1.75} aria-hidden />
             </button>
@@ -104,11 +104,18 @@ export function AppMobileNav({ navItems, roleLabel }: AppMobileNavProps) {
                 </>
               );
               const itemClassName = clsx(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-base font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                // `touch-manipulation` + a transparent tap-highlight keep touch feedback from
+                // the browser's own overlay; keyboard focus stays visible via focus-visible.
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-base font-medium transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 isActive
-                  ? "bg-accent/25 text-primary"
+                  ? "bg-accent/25 text-primary" // ONLY the current route is peach-selected
                   : isInteractive
-                    ? "text-foreground/80 hover:bg-accent"
+                    // iOS Safari retains :hover after a touch/drag, so an unrestricted
+                    // hover:bg-accent (strong brand orange) made a NON-selected row look
+                    // selected. Gate hover to real hover-capable pointers (desktop mouse) and
+                    // make it a subtle NEUTRAL tint — never the brand fill — so touch never
+                    // colours a row on iPhone.
+                    ? "text-foreground/80 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-foreground/5"
                     : "cursor-not-allowed text-foreground/35"
               );
 
