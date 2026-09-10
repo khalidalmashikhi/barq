@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "Pokyny (anglicky)",
   "fulfillmentProviderSaveButton": "Uložit pokyny",
   "fulfillmentProviderSavingLabel": "Ukládání…",
-  "fulfillmentProviderEmpty": "Zatím nebyly přidány žádné pokyny ke schůzce."
+  "fulfillmentProviderEmpty": "Zatím nebyly přidány žádné pokyny ke schůzce.",
+  "selectDateLabel": "Vyberte datum",
+  "chooseDatePromptLabel": "Vyberte dostupné datum a zobrazte časy.",
+  "availableTimesLabel": "Dostupné časy",
+  "prevMonthLabel": "Předchozí měsíc",
+  "nextMonthLabel": "Další měsíc",
+  "todayLabel": "Dnes"
 }

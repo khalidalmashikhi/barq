@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "Hinweise (Englisch)",
   "fulfillmentProviderSaveButton": "Hinweise speichern",
   "fulfillmentProviderSavingLabel": "Wird gespeichert…",
-  "fulfillmentProviderEmpty": "Noch keine Treffhinweise hinzugefügt."
+  "fulfillmentProviderEmpty": "Noch keine Treffhinweise hinzugefügt.",
+  "selectDateLabel": "Datum auswählen",
+  "chooseDatePromptLabel": "Wählen Sie ein verfügbares Datum, um die Uhrzeiten zu sehen.",
+  "availableTimesLabel": "Verfügbare Zeiten",
+  "prevMonthLabel": "Voriger Monat",
+  "nextMonthLabel": "Nächster Monat",
+  "todayLabel": "Heute"
 }

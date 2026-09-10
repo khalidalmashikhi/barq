@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "Instructions (anglais)",
   "fulfillmentProviderSaveButton": "Enregistrer les instructions",
   "fulfillmentProviderSavingLabel": "Enregistrement…",
-  "fulfillmentProviderEmpty": "Aucune instruction de rendez-vous ajoutée pour le moment."
+  "fulfillmentProviderEmpty": "Aucune instruction de rendez-vous ajoutée pour le moment.",
+  "selectDateLabel": "Choisir une date",
+  "chooseDatePromptLabel": "Choisissez une date disponible pour voir les horaires.",
+  "availableTimesLabel": "Horaires disponibles",
+  "prevMonthLabel": "Mois précédent",
+  "nextMonthLabel": "Mois suivant",
+  "todayLabel": "Aujourd’hui"
 }

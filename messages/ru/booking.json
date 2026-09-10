@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "Инструкции (английский)",
   "fulfillmentProviderSaveButton": "Сохранить инструкции",
   "fulfillmentProviderSavingLabel": "Сохранение…",
-  "fulfillmentProviderEmpty": "Инструкции по встрече пока не добавлены."
+  "fulfillmentProviderEmpty": "Инструкции по встрече пока не добавлены.",
+  "selectDateLabel": "Выберите дату",
+  "chooseDatePromptLabel": "Выберите доступную дату, чтобы увидеть время.",
+  "availableTimesLabel": "Доступное время",
+  "prevMonthLabel": "Предыдущий месяц",
+  "nextMonthLabel": "Следующий месяц",
+  "todayLabel": "Сегодня"
 }

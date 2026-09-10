@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "Instrukcje (angielski)",
   "fulfillmentProviderSaveButton": "Zapisz instrukcje",
   "fulfillmentProviderSavingLabel": "Zapisywanie…",
-  "fulfillmentProviderEmpty": "Nie dodano jeszcze instrukcji dotyczących spotkania."
+  "fulfillmentProviderEmpty": "Nie dodano jeszcze instrukcji dotyczących spotkania.",
+  "selectDateLabel": "Wybierz datę",
+  "chooseDatePromptLabel": "Wybierz dostępną datę, aby zobaczyć godziny.",
+  "availableTimesLabel": "Dostępne godziny",
+  "prevMonthLabel": "Poprzedni miesiąc",
+  "nextMonthLabel": "Następny miesiąc",
+  "todayLabel": "Dzisiaj"
 }

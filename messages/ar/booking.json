@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "التعليمات (بالإنجليزية)",
   "fulfillmentProviderSaveButton": "حفظ التعليمات",
   "fulfillmentProviderSavingLabel": "جارٍ الحفظ…",
-  "fulfillmentProviderEmpty": "لم تتم إضافة تعليمات اللقاء بعد."
+  "fulfillmentProviderEmpty": "لم تتم إضافة تعليمات اللقاء بعد.",
+  "selectDateLabel": "اختر تاريخًا",
+  "chooseDatePromptLabel": "اختر تاريخًا متاحًا لعرض الأوقات.",
+  "availableTimesLabel": "الأوقات المتاحة",
+  "prevMonthLabel": "الشهر السابق",
+  "nextMonthLabel": "الشهر التالي",
+  "todayLabel": "اليوم"
 }

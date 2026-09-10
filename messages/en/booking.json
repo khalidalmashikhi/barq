@@ -105,5 +105,11 @@
   "fulfillmentProviderEnLabel": "Instructions (English)",
   "fulfillmentProviderSaveButton": "Save instructions",
   "fulfillmentProviderSavingLabel": "Saving…",
-  "fulfillmentProviderEmpty": "No meeting instructions added yet."
+  "fulfillmentProviderEmpty": "No meeting instructions added yet.",
+  "selectDateLabel": "Select a date",
+  "chooseDatePromptLabel": "Choose an available date to see the times.",
+  "availableTimesLabel": "Available times",
+  "prevMonthLabel": "Previous month",
+  "nextMonthLabel": "Next month",
+  "todayLabel": "Today"
 }

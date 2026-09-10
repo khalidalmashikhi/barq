@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { redirect, Link } from "@/i18n/navigation";
-import { Calendar, CalendarX, PackageX, Users, ArrowRight } from "lucide-react";
+import { CalendarX, PackageX, Users, ArrowRight } from "lucide-react";
 import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { resolveBarqUser } from "@/lib/auth/barq-user";
 import { requireCompleteCustomer } from "@/lib/auth/require-complete-customer";
@@ -24,6 +24,8 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { BookingStepsIndicator } from "@/components/bookings/booking-steps-indicator";
 import { BookingEstimate } from "@/components/bookings/booking-estimate";
+import { SlotDatePicker } from "@/components/bookings/slot-date-picker";
+import { omanDateKey } from "@/lib/date/oman-time";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }>; };
 
@@ -131,21 +133,27 @@ export default async function BookServicePage({ params, searchParams }: Props) {
           {/* BOOKING-IDEMPOTENCY — the per-render key; the same value on a double-submit. */}
           <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           {requiresSlot && (
-            <fieldset className="flex flex-col gap-2">
-              <legend className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-                <Calendar size={16} strokeWidth={1.75} />
-                {t("selectSlotLabel")}
-              </legend>
-              {slots.map((slot) => (
-                <label key={slot.id} className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent/20">
-                  <span className="flex items-center gap-3">
-                    <input type="radio" name="availabilityId" value={slot.id} required className="accent-primary" />
-                    {formatDate(new Date(slot.startTime), locale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <span className="text-xs text-foreground/70">{slot.remainingSeats} {t("remainingSeatsLabel")}</span>
-                </label>
-              ))}
-            </fieldset>
+            // Phase 3A — premium single-date calendar over the REAL slots (Oman-local day keys
+            // computed here; the chosen slot still submits via the same `availabilityId`).
+            <SlotDatePicker
+              slots={slots.map((slot) => ({
+                id: slot.id,
+                dayKey: omanDateKey(new Date(slot.startTime)),
+                timeLabel: `${formatDate(new Date(slot.startTime), locale, { hour: "2-digit", minute: "2-digit" })} – ${formatDate(new Date(slot.endTime), locale, { hour: "2-digit", minute: "2-digit" })}`,
+                remainingSeats: slot.remainingSeats,
+              }))}
+              todayKey={omanDateKey(new Date())}
+              locale={locale}
+              labels={{
+                legend: t("selectDateLabel"),
+                chooseDatePrompt: t("chooseDatePromptLabel"),
+                timesHeading: t("availableTimesLabel"),
+                remainingSeats: t("remainingSeatsLabel"),
+                prevMonth: t("prevMonthLabel"),
+                nextMonth: t("nextMonthLabel"),
+                todaySuffix: t("todayLabel"),
+              }}
+            />
           )}
           {requiresSlot && (
             <div className="flex flex-col gap-2">

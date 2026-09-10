@@ -149,7 +149,7 @@ describe("BookServicePage — slot requirement", () => {
     expect(tree).toContain("confirmBookingButton");
     expect(tree).toContain("selectPriceLabel");
     // No slot selector, and no seats field — seats has no capacity meaning without a slot.
-    expect(tree).not.toContain("selectSlotLabel");
+    expect(tree).not.toContain("selectDateLabel");
     expect(tree).not.toContain("seatsLabel");
     expect(tree).not.toContain("noSlotsAvailableLabel");
   });
@@ -161,7 +161,7 @@ describe("BookServicePage — slot requirement", () => {
 
     const tree = await render();
 
-    expect(tree).toContain("selectSlotLabel");
+    expect(tree).toContain("selectDateLabel");
     expect(tree).toContain("seatsLabel");
     expect(tree).toContain("confirmBookingButton");
     expect(tree).toContain(SLOT_ID);
@@ -185,7 +185,7 @@ describe("BookServicePage — slot requirement", () => {
     // And crucially: no confirm action at all, so nothing can be submitted slotlessly.
     expect(tree).not.toContain("confirmBookingButton");
     expect(tree).not.toContain("selectPriceLabel");
-    expect(tree).not.toContain("selectSlotLabel");
+    expect(tree).not.toContain("selectDateLabel");
   });
 
   it("distinguishes an empty slot list by the authority, not by the list", async () => {
