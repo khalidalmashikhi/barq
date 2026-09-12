@@ -111,5 +111,6 @@
   "availableTimesLabel": "Доступное время",
   "prevMonthLabel": "Предыдущий месяц",
   "nextMonthLabel": "Следующий месяц",
-  "todayLabel": "Сегодня"
+  "todayLabel": "Сегодня",
+  "passengersLabel": "Количество пассажиров"
 }

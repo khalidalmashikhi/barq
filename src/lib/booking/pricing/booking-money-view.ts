@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { resolveBookingMoney, type BookingMoneyInput } from "./resolve-booking-money";
+import { formatMoney } from "@/lib/i18n/format-money";
 
 // BOOKING TOTAL PRESENTATION — the ONE shared, PURE presentation view of a booking's money.
 //
@@ -111,6 +112,16 @@ export function resolveBookingMoneyView(input: BookingMoneyInput): BookingMoneyV
  */
 export function formatBookingTotal(view: BookingMoneyView): string | null {
   return view.available ? `${view.total} ${view.currency}` : null;
+}
+
+/**
+ * Phase 3C — Slice A. The same compact total, but rendered through the locale-aware money formatter
+ * (Arabic "ر.ع." vs English "OMR") for CUSTOMER-facing surfaces. Presentation only — it reads the
+ * already-resolved authoritative total/currency and never re-derives money. `formatBookingTotal`
+ * (the plain code+amount form) stays for provider/admin/email/test callers that are not localized here.
+ */
+export function formatBookingTotalLocalized(view: BookingMoneyView, locale: string): string | null {
+  return view.available ? formatMoney(view.total, view.currency, locale) : null;
 }
 
 /// One row of a detail-page money breakdown. Kept as data (not JSX) so the shared component AND

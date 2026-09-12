@@ -111,5 +111,6 @@
   "availableTimesLabel": "Orari disponibili",
   "prevMonthLabel": "Mese precedente",
   "nextMonthLabel": "Mese successivo",
-  "todayLabel": "Oggi"
+  "todayLabel": "Oggi",
+  "passengersLabel": "Numero di passeggeri"
 }

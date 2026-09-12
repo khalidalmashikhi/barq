@@ -111,5 +111,6 @@
   "availableTimesLabel": "الأوقات المتاحة",
   "prevMonthLabel": "الشهر السابق",
   "nextMonthLabel": "الشهر التالي",
-  "todayLabel": "اليوم"
+  "todayLabel": "اليوم",
+  "passengersLabel": "عدد الركاب"
 }

@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Globe, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { Logo } from "@/components/ui/logo";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { NotificationBell } from "./notification-bell";
 import { AppMobileNav } from "./app-mobile-nav";
@@ -72,8 +73,8 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
   ]);
 
   return (
-    <div className="flex items-center justify-between border-b border-border bg-card px-4 py-4 sm:px-8">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between gap-2 overflow-x-clip border-b border-border bg-card px-4 py-4 sm:px-8">
+      <div className="flex min-w-0 items-center gap-2">
         {navItems && roleLabel && <AppMobileNav navItems={navItems} roleLabel={roleLabel} />}
         {/* The wordmark returns to the current role's own home (the first nav item's
             destination — /dashboard for a customer, /provider or /admin otherwise), so
@@ -95,19 +96,13 @@ export async function AppTopBar({ centerContent, notificationsHref, unreadCount,
           (where the sidebar regime and the horizontal room exist). On mobile, logout
           lives in the hamburger drawer (AppMobileNav) — every function is preserved,
           nothing is removed. */}
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex min-w-0 items-center gap-1 sm:gap-2">
         <span className="hidden text-xs text-foreground/60 lg:inline">{today}</span>
 
-        <button
-          type="button"
-          disabled
-          aria-disabled
-          title={t("comingSoonLabel")}
-          className="hidden cursor-not-allowed rounded-full p-2 text-foreground/35 md:inline-flex"
-          aria-label={t("languageAriaLabel")}
-        >
-          <Globe size={18} strokeWidth={1.75} />
-        </button>
+        {/* Phase 3C Slice A — the real, always-visible language switcher replaces the former
+            disabled "coming soon" Globe placeholder, on the provider, admin, and authenticated
+            customer headers alike. */}
+        <LanguageSwitcher />
         <button
           type="button"
           disabled

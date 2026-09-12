@@ -29,6 +29,9 @@ vi.mock("next-intl/server", () => ({ setRequestLocale: vi.fn() }));
 vi.mock("framer-motion", () => ({ MotionConfig: (props: { children?: unknown }) => props.children }));
 vi.mock("@/components/ui/skip-link", () => ({ SkipLink: () => null }));
 vi.mock("@/components/ui/offline-banner", () => ({ OfflineBanner: () => null }));
+// Phase 3C Slice A — the shared customer bottom nav is a client island (pulls the i18n navigation
+// chain); this layout test only asserts the lang/dir/provider contract, so stub it out.
+vi.mock("@/components/layout/customer-bottom-nav", () => ({ CustomerBottomNav: () => null }));
 vi.mock("@/lib/seo/safe-json-ld", () => ({ toSafeJsonLdString: () => "{}" }));
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: vi.fn() }));
 

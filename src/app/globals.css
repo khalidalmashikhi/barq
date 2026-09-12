@@ -145,3 +145,14 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Phase 3C — Slice A. Reserve space for the fixed mobile customer bottom navigation so page
+   content (last calendar row, price summary, validation errors, confirm button, cancellation
+   controls) is never hidden behind it. The bottom nav is `lg:hidden`, so the padding applies
+   only below the lg breakpoint; the class is toggled on <body> by CustomerBottomNav only while
+   the bar is actually shown (never on provider/admin/auth surfaces). Honors the iPhone safe area. */
+@media (max-width: 1023px) {
+  body.has-customer-bottom-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+}

@@ -111,5 +111,6 @@
   "availableTimesLabel": "Verfügbare Zeiten",
   "prevMonthLabel": "Voriger Monat",
   "nextMonthLabel": "Nächster Monat",
-  "todayLabel": "Heute"
+  "todayLabel": "Heute",
+  "passengersLabel": "Anzahl der Fahrgäste"
 }

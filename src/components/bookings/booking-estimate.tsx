@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale } from "next-intl";
 import { resolveBookingEstimate, type BookingEstimatePriceFacts } from "@/lib/booking/pricing/booking-estimate-view";
+import { formatMoney } from "@/lib/i18n/format-money";
 
 // CUSTOMER PRE-SUBMIT BOOKING TOTAL — a small client island that shows the EXPECTED booking total
 // for the current selection, updating live as the price or quantity changes. It is a progressive
@@ -56,6 +58,7 @@ export function BookingEstimate({ prices, labels }: Props) {
 
   const selectedPrice = prices.find((p) => p.id === selectedPriceId) ?? null;
   const view = resolveBookingEstimate(selectedPrice, quantityRaw);
+  const locale = useLocale();
 
   return (
     <div ref={rootRef} aria-live="polite" className="flex flex-col gap-1 rounded-xl border border-border bg-background/60 px-4 py-3">
@@ -70,15 +73,15 @@ export function BookingEstimate({ prices, labels }: Props) {
         // A real per-person multiplication — rendered as separate semantic pieces (never one
         // interpolated string) so the figures stay readable in RTL, and wrapping on narrow screens.
         <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
-          <span className="text-foreground/60">{view.unitAmount} {view.currency}</span>
+          <span className="text-foreground/60">{formatMoney(view.unitAmount, view.currency, locale)}</span>
           <span aria-hidden className="text-foreground/60">×</span>
           <span className="text-foreground/60">{view.quantity}</span>
           <span aria-hidden className="text-foreground/60">=</span>
-          <span className="text-lg font-semibold text-primary">{view.totalAmount} {view.currency}</span>
+          <span className="text-lg font-semibold text-primary">{formatMoney(view.totalAmount, view.currency, locale)}</span>
         </div>
       ) : (
         <div className="flex flex-col gap-0.5">
-          <span className="text-lg font-semibold text-primary">{view.totalAmount} {view.currency}</span>
+          <span className="text-lg font-semibold text-primary">{formatMoney(view.totalAmount, view.currency, locale)}</span>
           {view.basisLabel && <span className="text-xs text-foreground/60">{view.basisLabel}</span>}
         </div>
       )}

@@ -1,4 +1,6 @@
+import { getLocale } from "next-intl/server";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
+import { formatMoney } from "@/lib/i18n/format-money";
 import { pricingUnitLabelKey } from "@/lib/pricing-units/labels";
 import { bookingMoneyRows, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
 
@@ -22,6 +24,7 @@ import { bookingMoneyRows, type BookingMoneyView } from "@/lib/booking/pricing/b
 export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView }) {
   const t = await getServerTranslator("booking");
   const tCommon = await getServerTranslator("common");
+  const locale = await getLocale();
   const rows = bookingMoneyRows(money);
 
   if (!rows) {
@@ -44,9 +47,7 @@ export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView
                 {t("unitPriceLabel")}
                 {basisKey && <span className="text-foreground/60"> · {tCommon(basisKey)}</span>}
               </span>
-              <span className="font-medium text-foreground">
-                {row.amount} {row.currency}
-              </span>
+              <span className="font-medium text-foreground">{formatMoney(row.amount, row.currency, locale)}</span>
             </div>
           );
         }
@@ -66,9 +67,7 @@ export async function BookingMoneyBreakdown({ money }: { money: BookingMoneyView
               {label}
               {basisKey && <span className="text-foreground/60"> · {tCommon(basisKey)}</span>}
             </span>
-            <span className="font-semibold text-primary">
-              {row.amount} {row.currency}
-            </span>
+            <span className="font-semibold text-primary">{formatMoney(row.amount, row.currency, locale)}</span>
           </div>
         );
       })}

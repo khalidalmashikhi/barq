@@ -4,7 +4,7 @@ import { Link as LocaleLink, redirect } from "@/i18n/navigation";
 import { CalendarX } from "lucide-react";
 import { getSession, isActiveAdminSession } from "@/lib/auth";
 import { getMyBookings } from "@/lib/booking/get-my-bookings";
-import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
+import { formatBookingTotalLocalized } from "@/lib/booking/pricing/booking-money-view";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -143,8 +143,8 @@ export default async function BookingsPage({
                   <div className="flex items-center gap-3">
                     {/* BOOKING TOTAL PRESENTATION — primary money fact is the booking TOTAL
                         (§13), not the unit price. Omitted when the money is unavailable. */}
-                    {formatBookingTotal(booking.bookingMoney) && (
-                      <span className="text-sm font-semibold text-primary">{formatBookingTotal(booking.bookingMoney)}</span>
+                    {formatBookingTotalLocalized(booking.bookingMoney, locale) && (
+                      <span className="text-sm font-semibold text-primary">{formatBookingTotalLocalized(booking.bookingMoney, locale)}</span>
                     )}
                     <span className={`rounded-full px-3 py-1 text-xs font-medium ${getBookingStatusStyle(booking.status)}`}>
                       {getBookingStatusLabel(booking.status, t)}

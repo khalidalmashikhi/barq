@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildBottomNavTabs } from "./bottom-nav-tabs";
+import { buildBottomNavTabs, isCustomerBottomNavSurface } from "./bottom-nav-tabs";
 
 // Marketplace Foundation (Phase 1) — mobile bottom-nav tab logic. Presentation
 // only; these assert the hrefs and active-state resolution, not authorization
@@ -42,5 +42,63 @@ describe("buildBottomNavTabs", () => {
     expect(active("/dashboard")).toEqual(["account"]);
     expect(active("/dashboard/settings")).toEqual(["account"]);
     expect(active("/about")).toEqual([]); // no false-positive Home match on other pages
+  });
+});
+
+describe("isCustomerBottomNavSurface (Phase 3C Slice A — explicit allowlist route gating)", () => {
+  it("SHOWS on the customer marketplace + account surfaces", () => {
+    for (const p of [
+      "/",
+      "/services",
+      "/services/019f4e4e-8116-7052-b15e-b79b5ccb1af9",
+      "/services/019f4e4e-8116-7052-b15e-b79b5ccb1af9/book",
+      "/providers",
+      "/providers/muscat-trails",
+      "/bookings",
+      "/bookings/abc",
+      "/bookings/abc/confirmation",
+      "/notifications",
+      "/dashboard",
+      "/dashboard/settings",
+      "/payments",
+      "/payments/xyz",
+      "/reviews",
+    ]) {
+      expect(isCustomerBottomNavSurface(p)).toBe(true);
+    }
+  });
+
+  it("HIDES on provider/admin/auth/onboarding and other non-customer surfaces", () => {
+    for (const p of [
+      "/provider",
+      "/provider/services",
+      "/admin",
+      "/admin/providers/x",
+      "/login",
+      "/onboarding",
+      "/provider-application",
+      "/verify",
+      "/about",
+      "/contact",
+      "/help",
+      "/privacy",
+      "/terms",
+      "/cookies",
+      "/booking-policy",
+    ]) {
+      expect(isCustomerBottomNavSurface(p)).toBe(false);
+    }
+  });
+
+  it("HIDES on unknown / 404 / error routes (allowlist can never leak onto them)", () => {
+    for (const p of ["/nonexistent", "/xyz", "/services-extra", "/dashboardx", "/book", "/500", "/not-found"]) {
+      expect(isCustomerBottomNavSurface(p)).toBe(false);
+    }
+  });
+
+  it("does not match a prefix as a substring of an unrelated segment", () => {
+    // "/services-extra" must NOT match the "/services" prefix (boundary-correct).
+    expect(isCustomerBottomNavSurface("/servicesabc")).toBe(false);
+    expect(isCustomerBottomNavSurface("/bookingsx")).toBe(false);
   });
 });

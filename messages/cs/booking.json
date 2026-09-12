@@ -111,5 +111,6 @@
   "availableTimesLabel": "Dostupné časy",
   "prevMonthLabel": "Předchozí měsíc",
   "nextMonthLabel": "Další měsíc",
-  "todayLabel": "Dnes"
+  "todayLabel": "Dnes",
+  "passengersLabel": "Počet cestujících"
 }

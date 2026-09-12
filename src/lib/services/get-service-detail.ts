@@ -89,6 +89,10 @@ function headlineFrom(prices: ServiceDetailRow["prices"]): { price: string | nul
   const headline = resolveHeadlinePrice(
     prices.map((p) => ({ id: p.id, amount: p.amount as Prisma.Decimal, currency: p.currency, pricingUnit: p.pricingUnit ?? null, createdAt: p.createdAt }))
   );
+  // NOTE (Phase 3C Slice A): this `price` string stays "<amount> <currency>" (unlocalized). It is a
+  // SHARED contract — the /api/v1 services DTO parses it back via parseMoneyString (dtos.ts), so
+  // localizing it here would break the API. Customer-facing localization happens at the web render
+  // sites (service-detail-view price options, booking money views), never in this shared string.
   return {
     price: headline ? `${headline.amount} ${headline.currency}` : null,
     priceIsFrom: headline?.isFrom ?? false,

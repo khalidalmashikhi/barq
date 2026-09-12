@@ -70,6 +70,11 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
   // path with no locale segment. This is what keeps the label in sync.
   const activeLocale = resolveActiveLocale(pathname, localeFromContext);
 
+  // Phase 3C Slice A — the compact trigger shows the ALTERNATIVE primary language directly (Arabic
+  // interface → "English", any other → "العربية") so a customer immediately sees they can switch,
+  // per the always-visible-switcher requirement. The dropdown still offers all supported locales.
+  const alternativeLocale = activeLocale === "ar" ? "en" : "ar";
+
   useEffect(() => {
     setLocationSuffix(window.location.search + window.location.hash);
   }, [pathname]);
@@ -94,16 +99,18 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
         aria-label={t("languageAriaLabel")}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/15 hover:text-foreground"
+        // 44px min touch target; hover gated to real hover-capable fine pointers + a transparent
+        // tap highlight so the brand-orange hover never sticks on iOS touch.
+        className="flex min-h-[44px] items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-foreground/70 transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/15 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
       >
         <Globe size={16} strokeWidth={1.75} aria-hidden />
-        <span>{LOCALE_LABELS[activeLocale]}</span>
+        <span>{LOCALE_LABELS[alternativeLocale]}</span>
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute start-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-2xl border border-border bg-card py-1.5 shadow-premium-lg sm:start-auto sm:end-0"
+          className="absolute end-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-2xl border border-border bg-card py-1.5 shadow-premium-lg"
         >
           {locales.map((code) => (
             <Link
@@ -114,7 +121,7 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
                 setOpen(false);
                 onSelect?.();
               }}
-              className={`flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-accent/15 ${
+              className={`flex items-center justify-between px-4 py-2 text-sm transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/15 ${
                 code === activeLocale ? "font-medium text-primary" : "text-foreground/70"
               }`}
             >

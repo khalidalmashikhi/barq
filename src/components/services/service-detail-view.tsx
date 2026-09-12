@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
+import { formatMoney } from "@/lib/i18n/format-money";
 import { Calendar, Clock, MapPin, BadgeCheck, Share2, Users, Check, X, ClipboardList } from "lucide-react";
 import type { ServiceDetail, RelatedService, ServiceRatingAggregate, ActivePriceOption } from "@/lib/services/get-service-detail";
 import { describeDuration } from "@/lib/services/duration";
@@ -347,7 +348,7 @@ export async function ServiceDetailView({
                       {/* Bookable units always resolve a label; the guard keeps a raw code from ever
                           leaking if a label is somehow absent (amount-only row instead). */}
                       {option.pricingUnitLabel && <span className="text-foreground/60">{option.pricingUnitLabel}</span>}
-                      <span className="font-medium text-foreground ms-auto">{`${option.amount} ${option.currency}`}</span>
+                      <span className="font-medium text-foreground ms-auto">{formatMoney(option.amount, option.currency, locale)}</span>
                     </li>
                   ))}
                 </ul>

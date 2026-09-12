@@ -150,7 +150,7 @@ describe("BookServicePage — slot requirement", () => {
     expect(tree).toContain("selectPriceLabel");
     // No slot selector, and no seats field — seats has no capacity meaning without a slot.
     expect(tree).not.toContain("selectDateLabel");
-    expect(tree).not.toContain("seatsLabel");
+    expect(tree).not.toContain("passengersLabel");
     expect(tree).not.toContain("noSlotsAvailableLabel");
   });
 
@@ -162,7 +162,7 @@ describe("BookServicePage — slot requirement", () => {
     const tree = await render();
 
     expect(tree).toContain("selectDateLabel");
-    expect(tree).toContain("seatsLabel");
+    expect(tree).toContain("passengersLabel");
     expect(tree).toContain("confirmBookingButton");
     expect(tree).toContain(SLOT_ID);
     expect(tree).not.toContain("noSlotsAvailableLabel");
@@ -253,7 +253,7 @@ describe("BookServicePage — pricing unit on each option", () => {
 
     const tree = await render();
 
-    expect(tree).toContain("priceWithUnit(price=25.00 OMR,unit=per person)");
+    expect(tree).toContain("priceWithUnit(price=OMR 25.00,unit=per person)");
   });
 
   /** THE CASE THE WHOLE GATE EXISTS FOR — each option states its own basis. */
@@ -265,8 +265,8 @@ describe("BookServicePage — pricing unit on each option", () => {
 
     const tree = await render();
 
-    expect(tree).toContain("priceWithUnit(price=25.00 OMR,unit=per person)");
-    expect(tree).toContain("priceWithUnit(price=40.50 OMR,unit=per day)");
+    expect(tree).toContain("priceWithUnit(price=OMR 25.00,unit=per person)");
+    expect(tree).toContain("priceWithUnit(price=OMR 40.50,unit=per day)");
   });
 
   it("still offers exactly one selectable radio per price, keyed by the exact price id", async () => {
@@ -293,7 +293,7 @@ describe("BookServicePage — pricing unit on each option", () => {
 
     const tree = await render();
 
-    expect(tree).toContain("25.00 OMR");
+    expect(tree).toContain("OMR 25.00");
     expect(tree).not.toContain("priceWithUnit");
   });
 
@@ -302,7 +302,7 @@ describe("BookServicePage — pricing unit on each option", () => {
 
     const tree = await render();
 
-    expect(tree).toContain("25.00 OMR");
+    expect(tree).toContain("OMR 25.00");
     expect(tree).not.toContain("PER_NIGHT");
     expect(tree).not.toContain("priceWithUnit");
   });
@@ -336,7 +336,7 @@ describe("BookServicePage — pricing unit on each option", () => {
     const tree = await render();
 
     expect(tree).not.toContain("per person");
-    expect(tree).toContain("25.00 OMR");
+    expect(tree).toContain("OMR 25.00");
   });
 });
 

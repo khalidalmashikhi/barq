@@ -9,6 +9,7 @@ import { getLocaleDirection, type Locale } from "@/i18n/locales";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { SkipLink } from "@/components/ui/skip-link";
 import { OfflineBanner } from "@/components/ui/offline-banner";
+import { CustomerBottomNav } from "@/components/layout/customer-bottom-nav";
 import { toSafeJsonLdString } from "@/lib/seo/safe-json-ld";
 import { plexArabic, plexLatin } from "../fonts";
 import "../globals.css";
@@ -81,6 +82,9 @@ export default async function LocaleLayout({ children, params }: Props) {
           <SkipLink />
           <OfflineBanner />
           <MotionConfig reducedMotion="user">{children}</MotionConfig>
+          {/* Phase 3C Slice A — the single shared customer bottom navigation. It self-gates by route
+              (hidden on provider/admin/auth surfaces) and mounts exactly once for the whole app. */}
+          <CustomerBottomNav />
         </NextIntlClientProvider>
       </body>
     </html>

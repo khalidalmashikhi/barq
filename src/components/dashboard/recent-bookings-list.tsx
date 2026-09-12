@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { clsx } from "@/components/ui/clsx";
 import { Link } from "@/i18n/navigation";
 import type { DashboardRecentBookingItem } from "@/lib/dashboard/get-dashboard-data";
-import { formatBookingTotal } from "@/lib/booking/pricing/booking-money-view";
+import { formatBookingTotalLocalized } from "@/lib/booking/pricing/booking-money-view";
 import { getBookingStatusLabel, getBookingStatusStyle } from "@/lib/booking/booking-status";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
@@ -49,7 +49,7 @@ export async function RecentBookingsList({ bookings }: RecentBookingsListProps) 
           {bookings.map((booking) => {
             // BOOKING TOTAL PRESENTATION — the effective booking TOTAL (via resolveBookingMoney),
             // not the unit price. Omitted (never shown as the unit) when the money is unavailable.
-            const bookingTotal = formatBookingTotal(booking.bookingMoney);
+            const bookingTotal = formatBookingTotalLocalized(booking.bookingMoney, locale);
             return (
             <li key={booking.id}>
               <Link

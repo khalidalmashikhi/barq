@@ -6,6 +6,7 @@ import { getSession, resolveEffectiveAccountTypeForSession, landingRedirectForEf
 import { isGoogleConfigured } from "@/lib/auth/social-config";
 import { isEmailOtpConfigured } from "@/lib/email-otp/get-email-provider";
 import { LoginForm } from "@/components/auth/login-form";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { Logo } from "@/components/ui/logo";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
@@ -123,6 +124,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
       {/* RIGHT: premium glass auth card */}
       <div className="relative flex flex-col items-center justify-center overflow-hidden bg-background px-6 py-16">
+        {/* Phase 3C Slice A — always-visible language switcher on the first-visit/auth screen, so a
+            visitor can change language immediately without entering the app. */}
+        <div className="absolute end-3 top-3 z-20">
+          <LanguageSwitcher />
+        </div>
         <div
           aria-hidden
           className="pointer-events-none absolute -end-24 -top-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl"

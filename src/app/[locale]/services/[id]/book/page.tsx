@@ -17,6 +17,7 @@ import { getBookingErrorTranslationKey } from "@/lib/booking/booking-error-messa
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
 import { formatDate } from "@/lib/i18n/format-date";
+import { formatMoney } from "@/lib/i18n/format-money";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -157,9 +158,12 @@ export default async function BookServicePage({ params, searchParams }: Props) {
           )}
           {requiresSlot && (
             <div className="flex flex-col gap-2">
+              {/* Phase 3C Slice A — this input collects PASSENGERS (guests), so it uses the
+                  passenger label, not "seats". Presentation only — the field name, value, and
+                  server-side handling are unchanged. */}
               <label htmlFor="seats" className="flex items-center gap-2 text-sm font-medium text-foreground/80">
                 <Users size={16} strokeWidth={1.75} />
-                {t("seatsLabel")}
+                {t("passengersLabel")}
               </label>
               <input id="seats" type="number" name="seats" min={1} defaultValue={1} required className="w-24 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
             </div>
@@ -177,10 +181,10 @@ export default async function BookServicePage({ params, searchParams }: Props) {
                     not-yet-governed unit) shows the amount alone, never the raw code. */}
                 {price.pricingUnitLabel
                   ? tCommon("priceWithUnit", {
-                      price: `${price.amount} ${price.currency}`,
+                      price: formatMoney(price.amount, price.currency, locale),
                       unit: price.pricingUnitLabel,
                     })
-                  : `${price.amount} ${price.currency}`}
+                  : formatMoney(price.amount, price.currency, locale)}
               </label>
             ))}
           </fieldset>

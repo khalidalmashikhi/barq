@@ -8,7 +8,6 @@ import { X, Menu } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { navLinks } from "./nav-links";
-import { LanguageSwitcher } from "./language-switcher";
 
 // Mobile navigation — Phase F.1 (UI/UX Redesign Foundation). Now
 // actually wired in (see navbar.tsx's own comment) with real i18n and
@@ -63,10 +62,8 @@ export function MobileNav({ isAuthenticated }: MobileNavProps) {
         ))}
       </nav>
 
-      <div className="flex px-6 pb-6">
-        <LanguageSwitcher onSelect={() => setOpen(false)} />
-      </div>
-
+      {/* Phase 3C Slice A — the language switcher now lives ALWAYS-VISIBLE in the header (never
+          inside this drawer), so it is not duplicated here. */}
       <div className="px-6">
         <Link href={isAuthenticated ? "/dashboard" : "/login"} onClick={() => setOpen(false)}>
           <Button variant="primary" className="w-full">
