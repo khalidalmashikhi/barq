@@ -17,7 +17,12 @@ export type VehicleWithAsset = {
   modelYear: number | null;
   color: string | null;
   vehicleType: string | null;
-  passengerCapacity: number | null;
+  // Persistence-layer name (Slice B): the Prisma field is bookablePassengerCapacity
+  // (@map("passengerCapacity")). The PUBLIC DTO below re-exposes it as `passengerCapacity`
+  // so no external contract changes.
+  bookablePassengerCapacity: number | null;
+  /** Slice B — official registered total seats (informational); null when unstated/legacy. */
+  registeredSeats: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
   claimedFourByFour: boolean | null;
@@ -52,7 +57,8 @@ export function toPublicVehicle(row: VehicleWithAsset): PublicVehicleDTO {
     modelYear: row.modelYear,
     color: row.color,
     vehicleType: row.vehicleType,
-    passengerCapacity: row.passengerCapacity,
+    // External DTO name stays `passengerCapacity`; source is the renamed Prisma field.
+    passengerCapacity: row.bookablePassengerCapacity,
     publicDescription: row.publicDescription,
     // Derived from the trusted flag ONLY — never the provider claim, never inferred.
     isFourByFour: isVehicleFourByFourCapable(row),
@@ -66,6 +72,12 @@ export function toPublicVehicle(row: VehicleWithAsset): PublicVehicleDTO {
 export type ProviderVehicleDTO = PublicVehicleDTO & {
   registrationNumber: string | null;
   status: AssetStatus;
+  /**
+   * Slice B — the owner-visible official registered total seats (informational; null when
+   * unstated/legacy). PRIVATE to the owning provider (and admin) — deliberately NOT on
+   * PublicVehicleDTO: a customer only ever sees the bookable `passengerCapacity`.
+   */
+  registeredSeats: number | null;
   /** TOUR-VEHICLE-CAP — the provider's own ADVISORY 4x4 declaration (distinct from the trusted isFourByFour). */
   claimedFourByFour: boolean | null;
   createdAt: Date;
@@ -77,6 +89,7 @@ export function toProviderVehicle(row: VehicleWithAsset): ProviderVehicleDTO {
     ...toPublicVehicle(row),
     registrationNumber: row.registrationNumber,
     status: row.asset.status,
+    registeredSeats: row.registeredSeats,
     claimedFourByFour: row.claimedFourByFour,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

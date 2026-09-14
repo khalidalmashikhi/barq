@@ -77,16 +77,32 @@ export const vehicleInputSchema = z
     modelYear: nullableInt(MIN_VEHICLE_YEAR, MAX_VEHICLE_YEAR),
     color: nullableText(50),
     vehicleType: z.enum(TOUR_VEHICLE_CODES),
-    // GUEST/CUSTOMER passenger capacity (excludes driver + operating guide) — TOUR-
-    // VEHICLE-CAP locked semantic. NOT total physical seats.
+    // BOOKABLE customer passenger capacity (excludes driver + operating guide) — TOUR-
+    // VEHICLE-CAP + Slice B locked semantic. NOT total physical seats. The wire/form key
+    // stays `passengerCapacity` (external contract); the persistence field is
+    // bookablePassengerCapacity. Required and bounded by the shared platform ceiling.
     passengerCapacity: z.number().int().min(1).max(MAX_VEHICLE_PASSENGER_CAPACITY),
+    // Slice B — official registered total seats (informational). Nullable/optional: when
+    // absent it stays null (never invented, never backfilled). When supplied it must be a
+    // positive integer within the same platform ceiling. The cross-field rule below then
+    // requires bookable capacity <= registered seats (you cannot let more customers book
+    // than the vehicle is registered to seat).
+    registeredSeats: nullableInt(1, MAX_VEHICLE_PASSENGER_CAPACITY),
     publicDescription: nullableText(500),
     registrationNumber,
     // TOUR-VEHICLE-CAP — the PROVIDER's advisory 4x4 declaration only. The trusted
     // capability (Vehicle.fourByFourVerified) is admin-only and is NEVER accepted here.
     claimedFourByFour: z.boolean().nullable().default(null),
   })
-  .strict();
+  .strict()
+  // Cross-field: bookable customer capacity may not exceed the KNOWN registered seat count.
+  // When registeredSeats is null (unknown) the bookable value stands on its own — a provider
+  // without the registration figure can still record operational capacity. Server-authoritative;
+  // never silently clamped — an impossible pair is rejected as INVALID_INPUT.
+  .refine((v) => v.registeredSeats === null || v.passengerCapacity <= v.registeredSeats, {
+    message: "bookable passenger capacity cannot exceed registered seats",
+    path: ["passengerCapacity"],
+  });
 
 export type VehicleInput = z.infer<typeof vehicleInputSchema>;
 

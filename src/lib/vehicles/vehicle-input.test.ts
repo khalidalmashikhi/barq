@@ -52,6 +52,36 @@ describe("vehicleInputSchema — text normalization + bounds", () => {
     expect(parse({ passengerCapacity: 6 }).ok).toBe(true);
   });
 
+  // Phase 3C Slice B — registered seats (informational) + the cross-field safety rule.
+  it("registered seats is optional and defaults to null (legacy vehicles never backfilled)", () => {
+    const r = parseVehicleInput({ ...base }); // no registeredSeats supplied
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.registeredSeats).toBeNull();
+    // explicit empty string / null also normalize to null
+    const r2 = parse({ registeredSeats: "" });
+    expect(r2.ok && r2.value.registeredSeats === null).toBe(true);
+    const r3 = parse({ registeredSeats: null });
+    expect(r3.ok && r3.value.registeredSeats === null).toBe(true);
+  });
+
+  it("bounds registered seats (positive integer, sane max) when supplied", () => {
+    expect(parse({ registeredSeats: 0, passengerCapacity: 1 }).ok).toBe(false);
+    expect(parse({ registeredSeats: -2, passengerCapacity: 1 }).ok).toBe(false);
+    expect(parse({ registeredSeats: 101 }).ok).toBe(false);
+    expect(parse({ registeredSeats: 6.5, passengerCapacity: 1 }).ok).toBe(false);
+    expect(parse({ registeredSeats: 15, passengerCapacity: 6 }).ok).toBe(true);
+  });
+
+  it("bookable passenger capacity may not exceed KNOWN registered seats (rejected, never clamped)", () => {
+    // 13 bookable > 12 registered → impossible → rejected.
+    expect(parse({ passengerCapacity: 13, registeredSeats: 12 }).ok).toBe(false);
+    // equal is allowed; below is allowed.
+    expect(parse({ passengerCapacity: 12, registeredSeats: 12 }).ok).toBe(true);
+    expect(parse({ passengerCapacity: 13, registeredSeats: 15 }).ok).toBe(true);
+    // registered unknown (null) → bookable stands on its own (still valid).
+    expect(parse({ passengerCapacity: 13, registeredSeats: null }).ok).toBe(true);
+  });
+
   it("bounds model year and allows null", () => {
     expect(parse({ modelYear: 1949 }).ok).toBe(false);
     expect(parse({ modelYear: 2101 }).ok).toBe(false);

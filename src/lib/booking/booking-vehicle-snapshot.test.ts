@@ -7,7 +7,7 @@ const SOURCE = {
   model: "Prado",
   modelYear: 2024,
   color: "White",
-  passengerCapacity: 6,
+  bookablePassengerCapacity: 6,
   vehicleType: "SUV",
   fourByFourVerified: null as boolean | null,
   // private / non-allowlisted (present on a real row) — must not survive:
@@ -51,8 +51,8 @@ describe("buildBookingVehicleSnapshot — BOOKING-VEHICLE-SNAPSHOT", () => {
   });
 
   it("preserves passengerCapacity exactly (guest semantics), including null", () => {
-    expect(buildBookingVehicleSnapshot({ ...SOURCE, passengerCapacity: 4 }).passengerCapacity).toBe(4);
-    expect(buildBookingVehicleSnapshot({ ...SOURCE, passengerCapacity: null }).passengerCapacity).toBeNull();
+    expect(buildBookingVehicleSnapshot({ ...SOURCE, bookablePassengerCapacity: 4 }).passengerCapacity).toBe(4);
+    expect(buildBookingVehicleSnapshot({ ...SOURCE, bookablePassengerCapacity: null }).passengerCapacity).toBeNull();
   });
 
   it("is a detached copy — mutating the source afterwards never changes an already-built snapshot (immutability)", () => {
@@ -62,7 +62,7 @@ describe("buildBookingVehicleSnapshot — BOOKING-VEHICLE-SNAPSHOT", () => {
     src.make = "Nissan";
     src.model = "Patrol";
     src.fourByFourVerified = false;
-    src.passengerCapacity = 3;
+    src.bookablePassengerCapacity = 3;
     expect(snap).toEqual({
       make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
       passengerCapacity: 6, vehicleType: "SUV", isFourByFour: true,

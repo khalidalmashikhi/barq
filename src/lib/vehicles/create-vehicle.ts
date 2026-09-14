@@ -27,7 +27,9 @@ function auditPayload(value: VehicleInput): Prisma.InputJsonObject {
     modelYear: value.modelYear,
     color: value.color,
     vehicleType: value.vehicleType,
+    // Audit key preserved as `passengerCapacity` (stable history); it is the bookable value.
     passengerCapacity: value.passengerCapacity,
+    registeredSeats: value.registeredSeats,
     publicDescription: value.publicDescription,
     hasRegistration: value.registrationNumber !== null,
     claimedFourByFour: value.claimedFourByFour,
@@ -70,7 +72,8 @@ export async function createVehicle(rawInput: unknown): Promise<CreateVehicleRes
           modelYear: value.modelYear,
           color: value.color,
           vehicleType: value.vehicleType,
-          passengerCapacity: value.passengerCapacity,
+          bookablePassengerCapacity: value.passengerCapacity,
+          registeredSeats: value.registeredSeats,
           publicDescription: value.publicDescription,
           registrationNumber: value.registrationNumber,
           // Provider claim only; the trusted fourByFourVerified stays null until admin review.

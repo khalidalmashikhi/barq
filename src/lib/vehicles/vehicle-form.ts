@@ -34,6 +34,7 @@ export function formDataToVehicleInput(formData: FormData) {
     color: asText(formData.get("color")),
     vehicleType: asText(formData.get("vehicleType")),
     passengerCapacity: asNumeric(formData.get("passengerCapacity")),
+    registeredSeats: asNumeric(formData.get("registeredSeats")),
     publicDescription: asText(formData.get("publicDescription")),
     registrationNumber: asText(formData.get("registrationNumber")),
     claimedFourByFour: asChecked(formData.get("claimedFourByFour")),

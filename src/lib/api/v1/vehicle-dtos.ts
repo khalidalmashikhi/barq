@@ -18,7 +18,10 @@ export type ProviderVehicleApiDTO = {
   modelYear: number | null;
   color: string | null;
   vehicleType: string | null;
+  /** BOOKABLE customer passenger capacity — wire name unchanged (iOS-stable). */
   passengerCapacity: number | null;
+  /** Slice B — official registered total seats (informational); null when unstated. Additive. */
+  registeredSeats: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
   status: AssetStatus;
@@ -35,6 +38,7 @@ export function toProviderVehicleApiDTO(v: ProviderVehicleDTO): ProviderVehicleA
     color: v.color,
     vehicleType: v.vehicleType,
     passengerCapacity: v.passengerCapacity,
+    registeredSeats: v.registeredSeats,
     publicDescription: v.publicDescription,
     registrationNumber: v.registrationNumber,
     status: v.status,

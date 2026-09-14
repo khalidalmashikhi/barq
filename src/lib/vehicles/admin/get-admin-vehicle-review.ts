@@ -65,7 +65,10 @@ export type AdminVehicleReview = {
     modelYear: number | null;
     color: string | null;
     vehicleType: string | null;
-    passengerCapacity: number | null;
+    /** Slice B — the two DISTINCT capacity values the admin reviews: max customers who may book… */
+    bookablePassengerCapacity: number | null;
+    /** …and the official registered total seats (informational; null when unstated/legacy). */
+    registeredSeats: number | null;
     registrationNumber: string | null; // admin-authorized private field
     publicDescription: string | null;
     /** TOUR-VEHICLE-CAP — provider's advisory 4x4 declaration + the admin-confirmed trusted value. */
@@ -98,7 +101,8 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
           modelYear: true,
           color: true,
           vehicleType: true,
-          passengerCapacity: true,
+          bookablePassengerCapacity: true,
+          registeredSeats: true,
           registrationNumber: true,
           publicDescription: true,
           claimedFourByFour: true,

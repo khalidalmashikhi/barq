@@ -108,3 +108,25 @@ describe("calculateBookingTotal — unit amount validation", () => {
     expect(ok({ pricingUnit: "PER_PERSON", currency: "OMR" }).currency).toBe("OMR");
   });
 });
+
+// Phase 3C Slice B — passenger count is capacity/safety data, NEVER a billing multiplier for a
+// vehicle-based price. A FIXED unit (PER_VEHICLE / PER_BOOKING / PER_TRIP) is billed exactly once
+// regardless of how many passengers (bookingQuantity) the booking carries.
+describe("calculateBookingTotal — passengers never multiply a vehicle-based price (Slice B)", () => {
+  it("PER_VEHICLE bills once no matter the passenger count (1 vs 13 → same total)", () => {
+    const one = ok({ pricingUnit: "PER_VEHICLE", unitAmount: "40.00", bookingQuantity: 1 });
+    const many = ok({ pricingUnit: "PER_VEHICLE", unitAmount: "40.00", bookingQuantity: 13 });
+    expect(one.billableQuantity).toBe(1);
+    expect(many.billableQuantity).toBe(1); // 13 passengers do NOT multiply the vehicle price
+    expect(one.total.toFixed(2)).toBe("40.00");
+    expect(many.total.toFixed(2)).toBe("40.00");
+  });
+
+  it("PER_BOOKING and PER_TRIP are likewise passenger-independent", () => {
+    for (const unit of ["PER_BOOKING", "PER_TRIP"] as const) {
+      const v = ok({ pricingUnit: unit, unitAmount: "75.00", bookingQuantity: 9 });
+      expect(v.billableQuantity).toBe(1);
+      expect(v.total.toFixed(2)).toBe("75.00");
+    }
+  });
+});

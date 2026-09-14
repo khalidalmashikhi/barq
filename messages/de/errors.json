@@ -29,7 +29,7 @@
   "vehicleRequired": "Wählen Sie ein Fahrzeug, um diese Buchung anzunehmen",
   "vehicleNotInServicePool": "Dieses Fahrzeug gehört nicht zum Fahrzeugpool dieser Tour",
   "vehicleNotEligible": "Dieses Fahrzeug ist derzeit nicht für diese Tour geeignet",
-  "vehicleCapacityInsufficient": "Dieses Fahrzeug kann die Anzahl der Gäste dieser Buchung nicht befördern",
+  "vehicleCapacityInsufficient": "Dieses Fahrzeug kann die Fahrgastzahl dieser Buchung nicht befördern. Wählen Sie ein Fahrzeug mit höherer Kapazität.",
   "bookingStateConflict": "Diese Buchung wurde gerade aktualisiert. Bitte versuchen Sie es erneut",
   "scheduleRequired": "Legen Sie eine Start- und Endzeit fest, bevor Sie diese Buchung annehmen",
   "invalidSchedule": "Start- und Endzeit sind ungültig",

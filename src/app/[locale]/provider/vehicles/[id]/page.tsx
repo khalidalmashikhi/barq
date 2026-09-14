@@ -73,7 +73,8 @@ export default async function VehicleDetailPage({
     { label: t("vehicleModelYearLabel"), value: vehicle.modelYear ? String(vehicle.modelYear) : null },
     { label: t("vehicleColorLabel"), value: vehicle.color },
     { label: t("vehicleTypeLabel"), value: typeLabel },
-    { label: t("vehiclePassengerCapacityLabel"), value: vehicle.passengerCapacity ? String(vehicle.passengerCapacity) : null },
+    { label: t("vehicleRegisteredSeatsLabel"), value: vehicle.registeredSeats ? String(vehicle.registeredSeats) : null },
+    { label: t("vehicleBookablePassengersLabel"), value: vehicle.passengerCapacity ? String(vehicle.passengerCapacity) : null },
     {
       // TOUR-VEHICLE-CAP — show the TRUSTED 4x4 status; if the provider declared it but
       // BARQ has not confirmed it, show the pending state (never presents a claim as trusted).

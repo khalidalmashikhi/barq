@@ -6,6 +6,10 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { parseVehicleInput, type VehicleInput } from "./vehicle-input";
+import {
+  capacityChangeRequiresReverification,
+  CAPACITY_REVERIFICATION_TRIGGER_STATUSES,
+} from "./capacity-reverification";
 import type { VehicleActionErrorCode } from "./vehicle-errors";
 
 // VEHICLE-1 — update a provider-owned Vehicle. A provider may mutate ONLY its own
@@ -17,13 +21,17 @@ import type { VehicleActionErrorCode } from "./vehicle-errors";
 
 export type UpdateVehicleResult = { ok: true } | { ok: false; error: VehicleActionErrorCode };
 
+// Normalized audit facts: `bookablePassengerCapacity` is the persistence-layer name (the
+// stored audit KEY stays `passengerCapacity` for stable history). Both callers — the prior
+// Prisma vehicle row and the incoming validated input — are mapped to this shape.
 function auditPayload(value: {
   make: string | null;
   model: string | null;
   modelYear: number | null;
   color: string | null;
   vehicleType: string | null;
-  passengerCapacity: number | null;
+  bookablePassengerCapacity: number | null;
+  registeredSeats: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
   claimedFourByFour: boolean | null;
@@ -34,7 +42,9 @@ function auditPayload(value: {
     modelYear: value.modelYear,
     color: value.color,
     vehicleType: value.vehicleType,
-    passengerCapacity: value.passengerCapacity,
+    // Stable audit key (bookable value); registeredSeats recorded alongside.
+    passengerCapacity: value.bookablePassengerCapacity,
+    registeredSeats: value.registeredSeats,
     publicDescription: value.publicDescription,
     hasRegistration: value.registrationNumber !== null,
     claimedFourByFour: value.claimedFourByFour,
@@ -83,7 +93,8 @@ export async function updateVehicle(assetId: string, rawInput: unknown): Promise
           modelYear: value.modelYear,
           color: value.color,
           vehicleType: value.vehicleType,
-          passengerCapacity: value.passengerCapacity,
+          bookablePassengerCapacity: value.passengerCapacity,
+          registeredSeats: value.registeredSeats,
           publicDescription: value.publicDescription,
           registrationNumber: value.registrationNumber,
           // Provider claim only. fourByFourVerified is deliberately ABSENT here — the
@@ -100,10 +111,48 @@ export async function updateVehicle(assetId: string, rawInput: unknown): Promise
           entityType: "Vehicle",
           entityId: assetId,
           previousValue: auditPayload(before),
-          newValue: auditPayload(value),
+          newValue: auditPayload({ ...value, bookablePassengerCapacity: value.passengerCapacity }),
         },
         tx,
       );
+
+      // Slice B — a change to a safety-sensitive capacity field on a trusted/under-review
+      // vehicle re-opens verification: reset APPROVED/SUBMITTED → DRAFT so the unverified
+      // new capacity can never masquerade as admin-verified. Guarded on the trigger statuses
+      // (a concurrent admin decision → 0 rows, no-op). NEVER touches Asset.status; never
+      // auto-approves. Only the two capacity fields trigger this — other edits do not.
+      if (
+        capacityChangeRequiresReverification({
+          status: asset.verificationStatus,
+          before: { bookablePassengerCapacity: before.bookablePassengerCapacity, registeredSeats: before.registeredSeats },
+          after: { bookablePassengerCapacity: value.passengerCapacity, registeredSeats: value.registeredSeats },
+        })
+      ) {
+        const reset = await tx.asset.updateMany({
+          where: { id: assetId, verificationStatus: { in: [...CAPACITY_REVERIFICATION_TRIGGER_STATUSES] } },
+          data: {
+            verificationStatus: "DRAFT",
+            verificationSubmittedAt: null,
+            verificationReviewedAt: null,
+            verificationReviewedByAdminId: null,
+            verificationReason: null,
+          },
+        });
+        if (reset.count > 0) {
+          await recordAuditEvent(
+            {
+              actorType: "PROVIDER",
+              actorId: provider.id,
+              action: "vehicle.verification_reset_on_capacity_change",
+              entityType: "Vehicle",
+              entityId: assetId,
+              previousValue: { verificationStatus: asset.verificationStatus },
+              newValue: { verificationStatus: "DRAFT" },
+            },
+            tx,
+          );
+        }
+      }
 
       return "OK" as const;
     });

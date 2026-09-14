@@ -35,7 +35,7 @@ function vehicleRow(over: { asset?: Record<string, unknown>; vehicle?: Record<st
   return {
     vehicle: {
       assetId: VEHICLE, make: "Toyota", model: "Prado", modelYear: 2024, color: "White", vehicleType: "SUV",
-      passengerCapacity: 6, publicDescription: null, registrationNumber: "OM 12345",
+      bookablePassengerCapacity: 6, registeredSeats: null, publicDescription: null, registrationNumber: "OM 12345",
       claimedFourByFour: true, fourByFourVerified: null,
       createdAt: PAST, updatedAt: PAST,
       asset: {

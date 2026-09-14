@@ -95,7 +95,7 @@
   "shareErrorLabel": "تعذرت مشاركة هذا الرابط",
   "assignedVehicleTitle": "المركبة المخصصة للحجز",
   "assignedVehicleUntitled": "مركبة",
-  "assignedVehicleGuestsSuffix": "ضيوف",
+  "assignedVehicleGuestsSuffix": "حتى {count} راكبًا",
   "assignedVehicle4x4Badge": "دفع رباعي",
   "fulfillmentTitle": "تعليمات اللقاء والاستلام",
   "fulfillmentServiceTitle": "تعليمات الخدمة",

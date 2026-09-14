@@ -899,50 +899,68 @@ model AssetDocument {
 /// contract (src/lib/vehicles/vehicle-input.ts) REQUIRES make/model/vehicleType/
 /// passengerCapacity for every NEW write, so a real vehicle is never partial.
 model Vehicle {
-  assetId            String   @id @db.Uuid
-  asset              Asset    @relation(fields: [assetId], references: [id])
+  assetId                   String   @id @db.Uuid
+  asset                     Asset    @relation(fields: [assetId], references: [id])
   /// PRIVATE + OPTIONAL. Never in a public/customer DTO. Nullable so a vehicle can
   /// exist without a plate; `@unique` still prevents duplicate NON-NULL values —
   /// a Postgres unique index permits multiple NULLs, giving exactly the desired
   /// "nullable + non-null uniqueness" without a partial index.
-  registrationNumber String?  @unique
+  registrationNumber        String?  @unique
   /// Customer-safe make/model (required by the domain contract, DB-nullable for
   /// migration safety — see model note above).
-  make               String?
-  model              String?
+  make                      String?
+  model                     String?
   /// Optional model year; sane range enforced by the domain contract.
-  modelYear          Int?
+  modelYear                 Int?
   /// Optional colour descriptor (smallest sensible: a vehicle is identifiable by
   /// make/model/type without it).
-  color              String?
+  color                     String?
   /// Canonical vehicle-type CODE (SEDAN/SUV/FOUR_BY_FOUR/VAN/MINIBUS/OTHER),
   /// validated against the app-owned registry (src/lib/tour-template/vehicle-types).
   /// String + code-registry convention (like serviceTypeKey/pricingUnit),
   /// deliberately NOT a Prisma enum so the vocabulary extends without an ALTER TYPE.
-  vehicleType        String?
-  /// GUEST/CUSTOMER passenger capacity — TOUR-VEHICLE-CAP locks the semantic: the
-  /// number of CUSTOMER passengers the vehicle may carry, EXCLUDING the driver and
-  /// the provider/guide when they occupy a seat as operator (NOT total physical /
-  /// manufacturer seats). A 7-seat 4x4 driven by the provider is 6 guests. Positive,
-  /// sanely bounded. Legacy rows predate this semantic — review before TOUR use.
-  passengerCapacity  Int?
+  vehicleType               String?
+  /// BOOKABLE customer passenger capacity — TOUR-VEHICLE-CAP + Phase 3C Slice B lock
+  /// the semantic: the maximum number of CUSTOMER passengers who may BOOK this vehicle,
+  /// EXCLUDING the driver and the provider/guide when they occupy a seat as operator
+  /// (NOT total physical / manufacturer seats). A 7-seat 4x4 driven by the provider is
+  /// 6 bookable passengers. Positive, sanely bounded, provider-entered (never derived by
+  /// subtracting operator seats). Reviewed through the existing vehicle verification
+  /// lifecycle; a change to it re-opens verification (see update-vehicle.ts). Legacy rows
+  /// predate this semantic — review before TOUR use.
+  ///
+  /// Slice B RENAMED the Prisma/client field passengerCapacity → bookablePassengerCapacity
+  /// while PRESERVING the physical column via @map("passengerCapacity") — the existing
+  /// column and all its data are untouched (additive migration adds only registeredSeats).
+  /// External contracts (API v1 wire, stored Booking.vehicleSnapshot JSON, audit payloads)
+  /// deliberately keep the name `passengerCapacity`; only the persistence-layer identifier
+  /// changed, so no client/history is reinterpreted.
+  bookablePassengerCapacity Int?     @map("passengerCapacity")
+  /// Phase 3C Slice B — the OFFICIAL/registered total seating information (e.g. from the
+  /// vehicle registration document), INFORMATIONAL. Distinct from bookablePassengerCapacity:
+  /// registeredSeats is the whole-vehicle seat count; bookablePassengerCapacity is how many
+  /// customers may book. Normally bookablePassengerCapacity <= registeredSeats. Additive,
+  /// nullable, and NEVER backfilled — remains null for legacy/unstated vehicles until a
+  /// provider enters it and it is reviewed. Positive when set. Provider-declared safety data,
+  /// never a billing quantity and never used to derive bookable capacity automatically.
+  registeredSeats           Int?
   /// TOUR-VEHICLE-CAP — the PROVIDER-declared 4x4 capability (advisory only). Never
   /// authoritative for GUIDE_WITH_4X4 eligibility; an admin must confirm it into
   /// `fourByFourVerified`. Null = not declared.
-  claimedFourByFour  Boolean?
+  claimedFourByFour         Boolean?
   /// TOUR-VEHICLE-CAP — the TRUSTED, admin-confirmed 4x4 capability. The ONLY
   /// authoritative source for GUIDE_WITH_4X4 eligibility (isVehicleFourByFourCapable).
   /// NEVER inferred from make/model/vehicleType (SUV != 4x4; a FOUR_BY_FOUR type code
   /// is still provider-declared) and never provider-writable. Null / false → NOT
   /// capable (fail-closed). Written only by the admin capability review.
-  fourByFourVerified Boolean?
+  fourByFourVerified        Boolean?
   /// Optional short customer-facing blurb (bounded, safe plain text).
-  publicDescription  String?
+  publicDescription         String?
   /// Legacy free-form JSON from the original init schema — retained for FK/history
   /// compatibility, never a public field, superseded by the structured columns.
-  descriptiveDetails Json?
-  createdAt          DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+  descriptiveDetails        Json?
+  createdAt                 DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
 
   bookings            Booking[]
   /// TOUR-VEHICLE-1 — the tour services this vehicle is CONFIGURED as available for

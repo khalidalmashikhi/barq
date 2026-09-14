@@ -29,7 +29,10 @@ export type BookingVehicleSnapshotSource = {
   model: string | null;
   modelYear: number | null;
   color: string | null;
-  passengerCapacity: number | null;
+  // Slice B — the source is the live vehicle row, whose Prisma field is now
+  // bookablePassengerCapacity. The STORED snapshot key below stays `passengerCapacity`
+  // (historical bookings must never be reinterpreted — locked business rule).
+  bookablePassengerCapacity: number | null;
   vehicleType: string | null;
   /** Raw trusted admin flag — consumed here ONLY to derive isFourByFour; never stored raw. */
   fourByFourVerified: boolean | null;
@@ -46,7 +49,8 @@ export function buildBookingVehicleSnapshot(source: BookingVehicleSnapshotSource
     model: source.model,
     modelYear: source.modelYear,
     color: source.color,
-    passengerCapacity: source.passengerCapacity,
+    // Stored snapshot key preserved; value read from the renamed live source field.
+    passengerCapacity: source.bookablePassengerCapacity,
     vehicleType: source.vehicleType,
     // Trusted-only derivation — the raw flag is consumed, never stored.
     isFourByFour: isVehicleFourByFourCapable({ fourByFourVerified: source.fourByFourVerified }),

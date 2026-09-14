@@ -48,7 +48,7 @@ function poolRow(assetId: string, over: { asset?: Record<string, unknown>; vehic
   return {
     vehicle: {
       assetId, make: "Toyota", model: "Prado", modelYear: 2024, color: "White", vehicleType: "SUV",
-      passengerCapacity: 6, publicDescription: null, registrationNumber: "OM 99999",
+      bookablePassengerCapacity: 6, registeredSeats: null, publicDescription: null, registrationNumber: "OM 99999",
       claimedFourByFour: true, fourByFourVerified: null, createdAt: PAST, updatedAt: PAST,
       asset: {
         status: "ACTIVE", providerId: PROVIDER, verificationStatus: "APPROVED",

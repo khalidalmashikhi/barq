@@ -1,0 +1,16 @@
+-- Phase 3C Slice B — Vehicle Capacity Foundation.
+--
+-- ADDITIVE / DATA-PRESERVING ONLY. Adds exactly ONE new nullable column, `registeredSeats`,
+-- to the existing `vehicles` table. NO drop, NO rename, NO recreate, NO data UPDATE/DELETE,
+-- NO SET NOT NULL on existing rows, NO backfill, NO index change.
+--
+-- The Prisma/client field `passengerCapacity` was renamed to `bookablePassengerCapacity`, but
+-- the PHYSICAL column is preserved unchanged via @map("passengerCapacity"). There is therefore
+-- deliberately NO DDL touching that column — every existing vehicle's capacity value is left
+-- exactly as-is.
+--
+-- `registeredSeats` is the official/registered total seat count (informational), distinct from
+-- the bookable customer capacity. It remains NULL for every existing/legacy vehicle until a
+-- provider enters it and it is reviewed through the existing vehicle verification lifecycle —
+-- never invented, never backfilled.
+ALTER TABLE "vehicles" ADD COLUMN "registeredSeats" INTEGER;

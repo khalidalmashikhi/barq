@@ -73,7 +73,7 @@ describe("createVehicle — ownership + server-authoritative fields", () => {
     expect(result).toEqual({ ok: true, vehicleId: "asset-1" });
     expect(assetCreateMock).toHaveBeenCalledWith({ data: { providerId: "prov-1", assetType: "VEHICLE", status: "REGISTERED" } });
     expect(vehicleCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({ assetId: "asset-1", make: "Toyota", vehicleType: "FOUR_BY_FOUR", passengerCapacity: 6 }),
+      data: expect.objectContaining({ assetId: "asset-1", make: "Toyota", vehicleType: "FOUR_BY_FOUR", bookablePassengerCapacity: 6 }),
     });
     expect(auditCreateMock).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "vehicle.created", entityType: "Vehicle", entityId: "asset-1" }) });
   });

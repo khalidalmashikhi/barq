@@ -127,7 +127,8 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
     { label: tv("vehicleModelYearLabel"), value: review.vehicle?.modelYear ? String(review.vehicle.modelYear) : null },
     { label: tv("vehicleColorLabel"), value: review.vehicle?.color ?? null },
     { label: tv("vehicleTypeLabel"), value: review.vehicle?.vehicleType ?? null },
-    { label: tv("vehiclePassengerCapacityLabel"), value: review.vehicle?.passengerCapacity ? String(review.vehicle.passengerCapacity) : null },
+    { label: tv("vehicleRegisteredSeatsLabel"), value: review.vehicle?.registeredSeats ? String(review.vehicle.registeredSeats) : null },
+    { label: tv("vehicleBookablePassengersLabel"), value: review.vehicle?.bookablePassengerCapacity ? String(review.vehicle.bookablePassengerCapacity) : null },
     { label: tv("vehicleRegistrationLabel"), value: review.vehicle?.registrationNumber ?? null },
     { label: tv("vehiclePublicDescriptionLabel"), value: review.vehicle?.publicDescription ?? null },
   ];

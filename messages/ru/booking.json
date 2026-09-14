@@ -95,7 +95,7 @@
   "shareErrorLabel": "Не удалось поделиться этой ссылкой",
   "assignedVehicleTitle": "Назначенный автомобиль",
   "assignedVehicleUntitled": "Автомобиль",
-  "assignedVehicleGuestsSuffix": "гостей",
+  "assignedVehicleGuestsSuffix": "до {count} пассажиров",
   "assignedVehicle4x4Badge": "4x4",
   "fulfillmentTitle": "Инструкции по встрече и посадке",
   "fulfillmentServiceTitle": "Инструкции по услуге",

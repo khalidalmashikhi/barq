@@ -95,7 +95,7 @@
   "shareErrorLabel": "Tento odkaz se nepodařilo sdílet",
   "assignedVehicleTitle": "Přidělené vozidlo",
   "assignedVehicleUntitled": "Vozidlo",
-  "assignedVehicleGuestsSuffix": "hostů",
+  "assignedVehicleGuestsSuffix": "až {count} cestujících",
   "assignedVehicle4x4Badge": "4x4",
   "fulfillmentTitle": "Pokyny ke schůzce a vyzvednutí",
   "fulfillmentServiceTitle": "Pokyny ke službě",

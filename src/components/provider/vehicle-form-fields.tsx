@@ -19,6 +19,7 @@ export type VehicleFieldDefaults = {
   color?: string | null;
   vehicleType?: string | null;
   passengerCapacity?: number | null;
+  registeredSeats?: number | null;
   registrationNumber?: string | null;
   publicDescription?: string | null;
   claimedFourByFour?: boolean | null;
@@ -81,10 +82,16 @@ export async function VehicleFormFields({ defaults }: { defaults?: VehicleFieldD
             </select>
           </label>
           <label className="flex flex-col gap-1.5">
-            {labelSpan(t("vehiclePassengerCapacityLabel"), t("vehiclePassengerCapacityHint"))}
+            {labelSpan(t("vehicleRegisteredSeatsLabel"), t("vehicleRegisteredSeatsHint"))}
+            <input type="number" name="registeredSeats" min={1} max={100} step={1} defaultValue={defaults?.registeredSeats ?? ""} className={INPUT_CLASS} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            {labelSpan(t("vehicleBookablePassengersLabel"))}
             <input type="number" name="passengerCapacity" required min={1} max={100} step={1} defaultValue={defaults?.passengerCapacity ?? ""} className={INPUT_CLASS} />
           </label>
         </div>
+        {/* Slice B — the bookable-passengers helper: capacity is a customer/safety maximum, NOT a billing multiplier. */}
+        <p className="text-[0.7rem] text-foreground/60">{t("vehicleBookablePassengersHint")}</p>
         {/* TOUR-VEHICLE-CAP — provider's advisory 4x4 declaration (subject to BARQ verification). */}
         <label className="flex items-start gap-2">
           <input type="checkbox" name="claimedFourByFour" value="true" defaultChecked={defaults?.claimedFourByFour === true} className="mt-1" />

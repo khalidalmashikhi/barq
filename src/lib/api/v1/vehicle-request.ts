@@ -13,6 +13,8 @@ export function pickVehicleInput(body: Record<string, unknown>) {
     color: body.color,
     vehicleType: body.vehicleType,
     passengerCapacity: body.passengerCapacity,
+    // Slice B — additive optional field; absent bodies keep working (domain maps undefined → null).
+    registeredSeats: body.registeredSeats,
     publicDescription: body.publicDescription,
     registrationNumber: body.registrationNumber,
     // TOUR-VEHICLE-CAP — provider's advisory 4x4 claim only. The trusted

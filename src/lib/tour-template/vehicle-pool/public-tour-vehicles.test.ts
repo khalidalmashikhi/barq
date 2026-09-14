@@ -38,7 +38,7 @@ function poolRow(over: Record<string, unknown> = {}) {
   return {
     vehicle: {
       assetId: "veh-1", make: "Toyota", model: "Prado", modelYear: 2024, color: "White", vehicleType: "SUV",
-      passengerCapacity: 6, publicDescription: null, registrationNumber: "OM 12345", claimedFourByFour: true, fourByFourVerified: null,
+      bookablePassengerCapacity: 6, registeredSeats: null, publicDescription: null, registrationNumber: "OM 12345", claimedFourByFour: true, fourByFourVerified: null,
       createdAt: new Date("2026-01-01T00:00:00Z"), updatedAt: new Date("2026-01-02T00:00:00Z"),
       asset: {
         status: "ACTIVE", providerId: "prov-1", verificationStatus: "APPROVED",
@@ -129,7 +129,7 @@ describe("getPublicTourVehicleSummary — TOUR-VEHICLE-3 customer-safe read", ()
   });
 
   it("insufficient guest capacity vs maxGuests excludes the vehicle", async () => {
-    setup("GUIDE_WITH_TRANSPORT", [withVehicle({ passengerCapacity: 3 })], { maxGuests: 6 });
+    setup("GUIDE_WITH_TRANSPORT", [withVehicle({ bookablePassengerCapacity: 3 })], { maxGuests: 6 });
     expect((await getPublicTourVehicleSummary("svc"))?.vehicles).toEqual([]);
   });
 

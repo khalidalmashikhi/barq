@@ -57,7 +57,8 @@ function poolRow(over: Record<string, unknown> = {}) {
       modelYear: 2024,
       color: "White",
       vehicleType: "SUV",
-      passengerCapacity: 6,
+      bookablePassengerCapacity: 6,
+      registeredSeats: null,
       publicDescription: null,
       registrationNumber: "OM 1",
       claimedFourByFour: null,
@@ -154,7 +155,7 @@ describe("getTourVehiclePublishBlocker — TOUR-VEHICLE-2P publish readiness", (
   });
 
   it("7. GUIDE_WITH_TRANSPORT + insufficient guest capacity vs maxGuests => blocked", async () => {
-    setup("GUIDE_WITH_TRANSPORT", [withVehicle({ passengerCapacity: 4 })], { maxGuests: 6 });
+    setup("GUIDE_WITH_TRANSPORT", [withVehicle({ bookablePassengerCapacity: 4 })], { maxGuests: 6 });
     expect(await getTourVehiclePublishBlocker(SERVICE)).toBe("TOUR_VEHICLE_POOL_REQUIRED");
   });
 

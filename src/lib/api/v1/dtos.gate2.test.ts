@@ -380,7 +380,7 @@ describe("toBookingDetailDTO", () => {
     it("does not persist the localized label in the stored snapshot", () => {
       const snapshot = buildBookingVehicleSnapshot({
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
-        passengerCapacity: 6, vehicleType: "SEDAN", fourByFourVerified: null,
+        bookablePassengerCapacity: 6, vehicleType: "SEDAN", fourByFourVerified: null,
       });
 
       expect(Object.keys(snapshot).sort()).toEqual([
@@ -394,7 +394,7 @@ describe("toBookingDetailDTO", () => {
     it("does not mutate the snapshot it was given", () => {
       const snapshot = buildBookingVehicleSnapshot({
         make: "Toyota", model: "Prado", modelYear: 2024, color: "White",
-        passengerCapacity: 6, vehicleType: "SEDAN", fourByFourVerified: null,
+        bookablePassengerCapacity: 6, vehicleType: "SEDAN", fourByFourVerified: null,
       });
       const before = JSON.stringify(snapshot);
 

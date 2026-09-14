@@ -27,6 +27,12 @@ export type AssignedVehicleCardView = {
 export type AssignedVehicleCardLabels = {
   title: string;
   untitled: string;
+  /**
+   * Capacity label. Two accepted forms so one component serves both audiences (Slice B):
+   *  - a template containing `{count}` (customer surface → e.g. "up to {count} passengers")
+   *    is interpolated with the bookable passenger count;
+   *  - a bare suffix (provider surface → e.g. "guests") is appended after the number.
+   */
   guestsSuffix: string;
   fourByFour: string;
   /** Provider-only. When present AND a registrationNumber is given, the plate row renders. */
@@ -48,7 +54,11 @@ export async function AssignedVehicleCard({
     vehicle.modelYear ? String(vehicle.modelYear) : null,
     vehicle.vehicleType ? (typeLabels.get(vehicle.vehicleType) ?? vehicle.vehicleType) : null,
     vehicle.color,
-    vehicle.passengerCapacity != null ? `${vehicle.passengerCapacity} ${labels.guestsSuffix}` : null,
+    vehicle.passengerCapacity != null
+      ? labels.guestsSuffix.includes("{count}")
+        ? labels.guestsSuffix.replace("{count}", String(vehicle.passengerCapacity))
+        : `${vehicle.passengerCapacity} ${labels.guestsSuffix}`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");

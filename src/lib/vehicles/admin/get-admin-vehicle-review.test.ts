@@ -26,7 +26,7 @@ const assetRow = (over: Record<string, unknown> = {}) => ({
   verificationReviewedAt: null,
   verificationReason: null,
   provider: { businessName: { en: "Desert Tours", ar: "" } },
-  vehicle: { make: "Toyota", model: "Land Cruiser", modelYear: 2025, color: "White", vehicleType: "FOUR_BY_FOUR", passengerCapacity: 6, registrationNumber: "OM 1", publicDescription: null },
+  vehicle: { make: "Toyota", model: "Land Cruiser", modelYear: 2025, color: "White", vehicleType: "FOUR_BY_FOUR", bookablePassengerCapacity: 6, registeredSeats: 15, registrationNumber: "OM 1", publicDescription: null },
   documents: [
     { id: "doc-reg", type: "VEHICLE_REGISTRATION", status: "PENDING", rejectionReason: null, expiresAt: null, originalFilename: "reg.pdf", mimeType: "application/pdf", sizeBytes: 100, createdAt: new Date(), reviewedAt: null, objectKey: "asset-documents/asset-1/reg/x.pdf" },
   ],
@@ -49,6 +49,9 @@ describe("getAdminVehicleReview", () => {
     const review = await getAdminVehicleReview("asset-1");
     expect(review!.operationalStatus).toBe("REGISTERED");
     expect(review!.verificationStatus).toBe("SUBMITTED");
+    // Slice B — the admin review surfaces BOTH capacity values distinctly for review.
+    expect(review!.vehicle!.bookablePassengerCapacity).toBe(6);
+    expect(review!.vehicle!.registeredSeats).toBe(15);
     const reg = review!.items.find((i) => i.type === "VEHICLE_REGISTRATION")!;
     expect(reg.document!.versionToken).toBe("VTOKEN");
     // Insurance is required but not uploaded → present as a null-document row.

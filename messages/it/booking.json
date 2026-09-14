@@ -95,7 +95,7 @@
   "shareErrorLabel": "Impossibile condividere questo link",
   "assignedVehicleTitle": "Veicolo assegnato",
   "assignedVehicleUntitled": "Veicolo",
-  "assignedVehicleGuestsSuffix": "ospiti",
+  "assignedVehicleGuestsSuffix": "fino a {count} passeggeri",
   "assignedVehicle4x4Badge": "4x4",
   "fulfillmentTitle": "Istruzioni per l'incontro e il ritiro",
   "fulfillmentServiceTitle": "Istruzioni del servizio",
