@@ -48,6 +48,9 @@ vi.mock("@/lib/db", () => ({
     providerDocument: { findMany: (...args: unknown[]) => documentFindManyMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
+        // C2b-R2 — a VEHICLE_RENTAL publish re-reads the ACTIVE price on the tx client (Path A) before
+        // the status update; reuse the same price mock so a Path-A rental publish sees its active price.
+        price: { findFirst: (...args: unknown[]) => findFirstMock(...args) },
         service: { update: (...args: unknown[]) => updateMock(...args) },
         auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
       }),
@@ -59,6 +62,13 @@ vi.mock("@/lib/db", () => ({
 const isProviderAuthorizedForCategoryMock = vi.fn();
 vi.mock("./activities/assert-provider-authorized-for-category", () => ({
   isProviderAuthorizedForCategory: (...args: unknown[]) => isProviderAuthorizedForCategoryMock(...args),
+}));
+
+// C2b-R2 — the daily-rental Service publication bridge (Path B) is its own tested authority; mocked
+// so these tests drive the publish flow's price-source decision deterministically.
+const rentalDailyMock = vi.fn();
+vi.mock("@/lib/offerings/rental/rental-service-publishability", () => ({
+  evaluateRentalServicePublishable: (...args: unknown[]) => rentalDailyMock(...args),
 }));
 
 const { publishService, unpublishService, archiveService } = await import("./transition-service-status");
@@ -76,6 +86,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  rentalDailyMock.mockReset();
   requireProviderMock.mockReset();
   findUniqueMock.mockReset();
   findFirstMock.mockReset();
@@ -425,5 +436,56 @@ describe("archiveService", () => {
 
     expect(result).toEqual({ ok: false, error: "SERVICE_NOT_FOUND" });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+// C2b-R2 — a VEHICLE_RENTAL service may publish via a valid PUBLISHED daily RentalOffering (Path B)
+// with NO ACTIVE legacy Price; the daily readiness is re-checked authoritatively inside the tx.
+describe("publishService — C2b-R2 daily-rental price bridge", () => {
+  const rentalService = (over: Record<string, unknown> = {}) => ({
+    id: SERVICE_ID,
+    providerId: "provider-1",
+    status: "DRAFT",
+    categoryId: "cat-1",
+    offeringKind: "VEHICLE_RENTAL",
+    legacyVerticalExempt: false,
+    ...over,
+  });
+
+  it("publishes a VEHICLE_RENTAL service with NO ACTIVE Price when a valid PUBLISHED daily offering exists (Path B)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue(rentalService());
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    findFirstMock.mockResolvedValue(null); // no legacy ACTIVE Price (Path A absent)
+    rentalDailyMock.mockResolvedValue(true); // Path B satisfied (pre-tx AND in-tx)
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: SERVICE_ID }, data: { status: "PUBLISHED" } });
+  });
+
+  it("refuses (NO_ACTIVE_PRICE) a VEHICLE_RENTAL service with neither an ACTIVE Price nor a publishable daily offering — no status change", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue(rentalService());
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    findFirstMock.mockResolvedValue(null);
+    rentalDailyMock.mockResolvedValue(false); // Path B fails
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("in-transaction re-check is authoritative: a race where the daily path lapses between the pre-check and the tx rolls back to NO_ACTIVE_PRICE (no update, no audit)", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue(rentalService());
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    findFirstMock.mockResolvedValue(null); // no active price, both pre-tx and in-tx
+    rentalDailyMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false); // pre-tx ok, in-tx lapsed
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
   });
 });

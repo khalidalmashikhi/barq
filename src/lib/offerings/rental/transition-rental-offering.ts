@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
-import { omanDateKey } from "@/lib/date/oman-time";
 import { resolveApprovedProvider, assertProviderStillApproved, loadOwnedRentalOffering, assertRentalPublishReady, type LoadedRentalOffering } from "./rental-offering-authorization";
+import { hasPublishableOpenDay } from "./rental-service-publishability";
 import { isRentalOfferingArchived } from "./rental-offering-lifecycle";
 import { toRentalOfferingDTO, type RentalOfferingDTO } from "./rental-offering-dto";
 import type { RentalOfferingResult } from "./rental-offering-errors";
@@ -38,11 +38,6 @@ function dtoFromLoaded(loaded: LoadedRentalOffering, status: RentalOfferingStatu
   );
 }
 
-/** Start of today's Oman calendar day as the UTC-midnight instant matching a @db.Date value. */
-function todayOmanDateBoundary(now: Date): Date {
-  return new Date(`${omanDateKey(now)}T00:00:00.000Z`);
-}
-
 // DRAFT → PUBLISHED | SUSPENDED → PUBLISHED. Full readiness re-checked inside the tx.
 export async function publishRentalOffering(offeringId: string, now: Date = new Date()): Promise<RentalOfferingResult<RentalOfferingDTO>> {
   const auth = await resolveApprovedProvider();
@@ -67,11 +62,8 @@ export async function publishRentalOffering(offeringId: string, now: Date = new 
       if (ready !== null) return { ok: false as const, error: ready };
 
       // >= 1 explicit OPEN, non-past day (an OPEN day always resolves a price: override ?? positive base).
-      const publishableDay = await tx.rentalOfferingDay.findFirst({
-        where: { rentalOfferingId: offeringId, state: "OPEN", serviceDate: { gte: todayOmanDateBoundary(now) } },
-        select: { id: true },
-      });
-      if (!publishableDay) return { ok: false as const, error: "NO_PUBLISHABLE_DAY" as const };
+      // Shared with the C2b-R2 Service-publication bridge so the OPEN-day/date-boundary rule is single-sourced.
+      if (!(await hasPublishableOpenDay(tx, offeringId, now))) return { ok: false as const, error: "NO_PUBLISHABLE_DAY" as const };
 
       const updated = await tx.rentalOffering.updateMany({
         where: { id: offeringId, status: { in: ["DRAFT", "SUSPENDED"] } },

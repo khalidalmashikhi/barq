@@ -14,14 +14,23 @@ vi.mock("@/lib/tour-template/vehicle-pool/publish-readiness", () => ({
   getTourVehiclePublishBlocker: (...args: unknown[]) => tourVehicleBlockerMock(...args),
 }));
 
+// C2b-R2 — the daily-rental Service publication bridge (Path B) is its own tested authority; mocked
+// here so this suite pins how assertServicePublishable chooses Path A vs Path B for the price rule.
+const rentalDailyMock = vi.fn();
+vi.mock("@/lib/offerings/rental/rental-service-publishability", () => ({
+  evaluateRentalServicePublishable: (...args: unknown[]) => rentalDailyMock(...args),
+}));
+
 const { assertServicePublishable } = await import("./assert-service-publishable");
 
 const ID = "019f4e4e-8116-7052-b15e-b79b5ccb1af9";
 const svc = (categoryId: string | null) => ({ id: ID, categoryId, providerId: "prov-1" });
+const rentalSvc = (categoryId: string | null) => ({ id: ID, categoryId, providerId: "prov-1", offeringKind: "VEHICLE_RENTAL" as const });
 
 afterEach(() => {
   priceFindFirstMock.mockReset();
   tourVehicleBlockerMock.mockReset();
+  rentalDailyMock.mockReset();
 });
 
 describe("assertServicePublishable", () => {
@@ -64,5 +73,36 @@ describe("assertServicePublishable", () => {
       "NO_ACTIVE_PRICE",
       "TOUR_VEHICLE_POOL_REQUIRED",
     ]);
+  });
+});
+
+describe("assertServicePublishable — C2b-R2 daily-rental price bridge (Path A / Path B)", () => {
+  it("VEHICLE_RENTAL with no ACTIVE Price but a valid PUBLISHED daily offering → NO price blocker (Path B)", async () => {
+    priceFindFirstMock.mockResolvedValue(null); // Path A absent
+    tourVehicleBlockerMock.mockResolvedValue(null);
+    rentalDailyMock.mockResolvedValue(true); // Path B satisfied
+    expect(await assertServicePublishable(rentalSvc("cat-1"))).toEqual([]);
+    expect(rentalDailyMock).toHaveBeenCalledWith(expect.anything(), { serviceId: ID, now: expect.any(Date) });
+  });
+
+  it("VEHICLE_RENTAL with neither ACTIVE Price nor a publishable daily offering → NO_ACTIVE_PRICE (fail-closed)", async () => {
+    priceFindFirstMock.mockResolvedValue(null);
+    tourVehicleBlockerMock.mockResolvedValue(null);
+    rentalDailyMock.mockResolvedValue(false);
+    expect(await assertServicePublishable(rentalSvc("cat-1"))).toEqual(["NO_ACTIVE_PRICE"]);
+  });
+
+  it("VEHICLE_RENTAL WITH an ACTIVE legacy Price publishes via Path A — the daily bridge is never consulted", async () => {
+    priceFindFirstMock.mockResolvedValue({ id: "price-1" });
+    tourVehicleBlockerMock.mockResolvedValue(null);
+    expect(await assertServicePublishable(rentalSvc("cat-1"))).toEqual([]);
+    expect(rentalDailyMock).not.toHaveBeenCalled();
+  });
+
+  it("a NON-rental service with no ACTIVE Price still fails NO_ACTIVE_PRICE — the bridge is never consulted", async () => {
+    priceFindFirstMock.mockResolvedValue(null);
+    tourVehicleBlockerMock.mockResolvedValue(null);
+    expect(await assertServicePublishable(svc("cat-1"))).toEqual(["NO_ACTIVE_PRICE"]); // no offeringKind
+    expect(rentalDailyMock).not.toHaveBeenCalled();
   });
 });

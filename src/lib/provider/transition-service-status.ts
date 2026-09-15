@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { canPublishService, canUnpublishService, canArchiveService } from "@/lib/services/service-status-policy";
-import { assertServicePublishable, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
+import { assertServicePublishable, ServicePublishBlockedError, type ServicePublishBlocker } from "@/lib/services/assert-service-publishable";
+import { evaluateRentalServicePublishable } from "@/lib/offerings/rental/rental-service-publishability";
 import { isProviderAuthorizedForCategory } from "./activities/assert-provider-authorized-for-category";
 import { assertCanPublishListing } from "@/lib/provider/verticals/require-approved-vertical";
 import { resolveTouristGuideCategoryId } from "@/lib/tour-template/resolve-tourist-guide-category";
@@ -90,7 +91,7 @@ async function transition(
 
       // Single source of publish gating (BR-026 category + active price),
       // returning ALL blockers in priority order so the UI can show them at once.
-      const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId, providerId: service.providerId });
+      const blockers = await assertServicePublishable({ id: service.id, categoryId: service.categoryId, providerId: service.providerId, offeringKind: service.offeringKind });
       const [primaryBlocker] = blockers;
       if (primaryBlocker) {
         return { ok: false, error: primaryBlocker, blockers };
@@ -133,6 +134,17 @@ async function transition(
     }
 
     await prisma.$transaction(async (tx) => {
+      // C2b-R2 — AUTHORITATIVE, in-transaction re-check of the daily-rental commercial-price path.
+      // For a VEHICLE_RENTAL publish with no ACTIVE legacy Price on the tx (Path A absent), Path B
+      // (a valid PUBLISHED daily RentalOffering) must hold on THIS transaction client, or the whole
+      // publication rolls back → NO_ACTIVE_PRICE. Non-rental publishes and Path-A rentals skip this.
+      if (toStatus === "PUBLISHED" && service.offeringKind === "VEHICLE_RENTAL") {
+        const activePriceTx = await tx.price.findFirst({ where: { serviceId, status: "ACTIVE" }, select: { id: true } });
+        if (!activePriceTx && !(await evaluateRentalServicePublishable(tx, { serviceId }))) {
+          throw new ServicePublishBlockedError(["NO_ACTIVE_PRICE"]);
+        }
+      }
+
       await tx.service.update({ where: { id: serviceId }, data: { status: toStatus } });
 
       await recordAuditEvent(
@@ -151,6 +163,9 @@ async function transition(
 
     return { ok: true };
   } catch (error) {
+    if (error instanceof ServicePublishBlockedError) {
+      return { ok: false, error: error.blockers[0]!, blockers: error.blockers };
+    }
     logger.error("transitionServiceStatus.unexpected_error", {
       serviceId,
       message: error instanceof Error ? error.message : String(error),

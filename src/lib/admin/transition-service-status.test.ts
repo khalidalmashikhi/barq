@@ -49,10 +49,18 @@ vi.mock("@/lib/db", () => ({
     tourServiceVehicle: { findMany: (...args: unknown[]) => poolFindManyMock(...args) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
       callback({
+        // C2b-R2 — a VEHICLE_RENTAL publish re-reads the ACTIVE price on the tx client before update.
+        price: { findFirst: (...args: unknown[]) => findFirstMock(...args) },
         service: { update: (...args: unknown[]) => updateMock(...args) },
         auditLog: { create: (...args: unknown[]) => auditCreateMock(...args) },
       }),
   },
+}));
+
+// C2b-R2 — the daily-rental Service publication bridge (Path B) is its own tested authority; mocked.
+const rentalDailyMock = vi.fn();
+vi.mock("@/lib/offerings/rental/rental-service-publishability", () => ({
+  evaluateRentalServicePublishable: (...args: unknown[]) => rentalDailyMock(...args),
 }));
 
 const { publishService, unpublishService, archiveService } = await import("./transition-service-status");
@@ -64,6 +72,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  rentalDailyMock.mockReset();
   requireAdminMock.mockReset();
   findUniqueMock.mockReset();
   findFirstMock.mockReset();
@@ -196,5 +205,34 @@ describe("archiveService (admin)", () => {
 
     expect(result).toEqual({ ok: false, error: "INVALID_STATUS_TRANSITION" });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+// C2b-R2 — governance publish is NOT exempt from the daily-rental bridge: a VEHICLE_RENTAL service
+// may publish via a valid PUBLISHED daily RentalOffering with no ACTIVE legacy Price.
+describe("publishService (admin) — C2b-R2 daily-rental price bridge", () => {
+  const rentalService = { id: SERVICE_ID, status: "DRAFT", categoryId: "cat-1", offeringKind: "VEHICLE_RENTAL", providerId: "provider-1" };
+
+  it("publishes a VEHICLE_RENTAL service with NO ACTIVE Price via a valid PUBLISHED daily offering (Path B)", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue(rentalService);
+    findFirstMock.mockResolvedValue(null); // no ACTIVE Price
+    rentalDailyMock.mockResolvedValue(true);
+    updateMock.mockResolvedValue({});
+    auditCreateMock.mockResolvedValue({});
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: true });
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: SERVICE_ID }, data: { status: "PUBLISHED" } });
+  });
+
+  it("refuses (NO_ACTIVE_PRICE) when neither an ACTIVE Price nor a publishable daily offering exists — no status change", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue(rentalService);
+    findFirstMock.mockResolvedValue(null);
+    rentalDailyMock.mockResolvedValue(false);
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
   });
 });
