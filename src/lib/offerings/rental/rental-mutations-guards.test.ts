@@ -10,6 +10,7 @@ vi.mock("./rental-offering-authorization", async (importOriginal) => {
   return {
     ...actual,
     resolveApprovedProvider: vi.fn(),
+    assertProviderStillApproved: vi.fn(),
     loadOwnedServiceAndVehicleForCreate: vi.fn(),
     loadOwnedRentalOffering: vi.fn(),
     assertRentalDraftAuthorized: vi.fn(),

@@ -6,6 +6,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { parseOfferingAmount, normalizeOfferingCurrency, checkCapacityOverride } from "./rental-offering-validation";
 import {
   resolveApprovedProvider,
+  assertProviderStillApproved,
   loadOwnedServiceAndVehicleForCreate,
   assertRentalDraftAuthorized,
   isUniqueViolation,
@@ -46,10 +47,14 @@ export async function createRentalOffering(input: CreateRentalOfferingInput): Pr
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Re-read the provider's mutable approval status inside the write transaction (TOCTOU-safe).
+      const providerGate = await assertProviderStillApproved(tx, providerId);
+      if (providerGate !== null) return { ok: false as const, error: providerGate };
+
       const owned = await loadOwnedServiceAndVehicleForCreate(tx, providerId, input.serviceId, input.vehicleId);
       if (!owned.ok) return owned;
 
-      const draftGate = await assertRentalDraftAuthorized(providerId);
+      const draftGate = await assertRentalDraftAuthorized(tx, providerId);
       if (draftGate !== null) return { ok: false as const, error: draftGate };
 
       // Capacity override must fit the vehicle's verified bookable capacity when supplied.

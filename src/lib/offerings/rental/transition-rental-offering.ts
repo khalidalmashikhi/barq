@@ -5,7 +5,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { omanDateKey } from "@/lib/date/oman-time";
-import { resolveApprovedProvider, loadOwnedRentalOffering, assertRentalPublishReady, type LoadedRentalOffering } from "./rental-offering-authorization";
+import { resolveApprovedProvider, assertProviderStillApproved, loadOwnedRentalOffering, assertRentalPublishReady, type LoadedRentalOffering } from "./rental-offering-authorization";
 import { isRentalOfferingArchived } from "./rental-offering-lifecycle";
 import { toRentalOfferingDTO, type RentalOfferingDTO } from "./rental-offering-dto";
 import type { RentalOfferingResult } from "./rental-offering-errors";
@@ -52,6 +52,10 @@ export async function publishRentalOffering(offeringId: string, now: Date = new 
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Re-read the provider's mutable approval status inside the write transaction (TOCTOU-safe).
+      const providerGate = await assertProviderStillApproved(tx, providerId);
+      if (providerGate !== null) return { ok: false as const, error: providerGate };
+
       const offering = await loadOwnedRentalOffering(tx, providerId, offeringId);
       if (!offering) return { ok: false as const, error: "OFFERING_NOT_FOUND" as const };
       if (isRentalOfferingArchived(offering.status)) return { ok: false as const, error: "OFFERING_ARCHIVED" as const };
@@ -119,6 +123,10 @@ async function transitionSimple(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Re-read the provider's mutable approval status inside the write transaction (TOCTOU-safe).
+      const providerGate = await assertProviderStillApproved(tx, providerId);
+      if (providerGate !== null) return { ok: false as const, error: providerGate };
+
       const offering = await loadOwnedRentalOffering(tx, providerId, offeringId);
       if (!offering) return { ok: false as const, error: "OFFERING_NOT_FOUND" as const };
       // ARCHIVED is terminal: re-archiving is an idempotent no-op; anything else on it is immutable.

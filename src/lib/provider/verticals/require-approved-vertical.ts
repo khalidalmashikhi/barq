@@ -16,11 +16,22 @@ import { assertVerticalApprovable, type VerticalApprovableClient } from "@/lib/a
 // (ProviderCategory) never confer it. Callers integrate the returned VerticalErrorCode into
 // their own result shape (server actions) or map it to a canonical FORBIDDEN (API routes).
 
+// Minimal client surface for the provider-vertical status lookup — satisfied by BOTH the global
+// prisma and a Prisma transaction client, so draft-listing authorization can be re-read inside a
+// caller's write transaction (TOCTOU-safe) instead of on a separate global-client snapshot. Same
+// structural-client convention as VerticalApprovableClient above.
+export interface ProviderVerticalStatusClient {
+  providerVertical: {
+    findUnique(args: unknown): Promise<{ status: ProviderVerticalStatus } | null>;
+  };
+}
+
 export async function getProviderVerticalStatus(
   providerId: string,
-  vertical: ReturnType<typeof requiredVerticalForOfferingKind>
+  vertical: ReturnType<typeof requiredVerticalForOfferingKind>,
+  db: ProviderVerticalStatusClient = prisma
 ): Promise<ProviderVerticalStatus | null> {
-  const row = await prisma.providerVertical.findUnique({
+  const row = await db.providerVertical.findUnique({
     where: { providerId_vertical: { providerId, vertical } },
     select: { status: true },
   });
@@ -32,11 +43,19 @@ export async function getProviderVerticalStatus(
  * requested vertical that is not REJECTED/SUSPENDED (PENDING_REVIEW / CHANGES_REQUESTED /
  * APPROVED all permit drafting — the provider prepares while approval is pending). Publishing
  * is gated separately (below). Returns null when allowed.
+ *
+ * `db` defaults to the global prisma (all existing Phase 3B callers are unaffected); a caller
+ * that is inside a write transaction passes its transaction client so the vertical status is
+ * re-read authoritatively within that transaction.
  */
-export async function assertCanCreateListing(providerId: string, kind: OfferingKind | null | undefined): Promise<VerticalErrorCode | null> {
+export async function assertCanCreateListing(
+  providerId: string,
+  kind: OfferingKind | null | undefined,
+  db: ProviderVerticalStatusClient = prisma
+): Promise<VerticalErrorCode | null> {
   if (!isRegulatedOfferingKind(kind)) return null; // unregulated (e.g. legacy EXPERIENCE) — no gate
   const vertical = requiredVerticalForOfferingKind(kind);
-  const status = await getProviderVerticalStatus(providerId, vertical);
+  const status = await getProviderVerticalStatus(providerId, vertical, db);
   if (status === null) return "VERTICAL_NOT_REQUESTED";
   if (status === "REJECTED" || status === "SUSPENDED") return "VERTICAL_REJECTED_OR_SUSPENDED";
   if (!canCreateDraftWithVerticalStatus(status)) return "VERTICAL_REJECTED_OR_SUSPENDED";

@@ -141,12 +141,29 @@ export async function loadOwnedServiceAndVehicleForCreate(
 }
 
 /**
+ * In-transaction re-read of the provider's MUTABLE overall approval status. requireApprovedProvider
+ * (via resolveApprovedProvider) established identity + approval BEFORE the transaction — only to
+ * derive the session provider id. This re-reads Provider.status on the SAME db (tx) client, so a
+ * provider that became SUSPENDED / REJECTED / DEACTIVATED (or was removed) between the entry guard
+ * and the write cannot race an unauthorized mutation past. A missing row → NO_PROVIDER_PROFILE; any
+ * non-APPROVED status → PROVIDER_NOT_APPROVED (matching requireApprovedProvider's own collapse).
+ */
+export async function assertProviderStillApproved(db: DbClient, providerId: string): Promise<RentalOfferingErrorCode | null> {
+  const provider = await db.provider.findUnique({ where: { id: providerId }, select: { status: true } });
+  if (!provider) return "NO_PROVIDER_PROFILE";
+  if (provider.status !== "APPROVED") return "PROVIDER_NOT_APPROVED";
+  return null;
+}
+
+/**
  * DRAFT preparation gate: the RENTAL_COMPANY vertical must be requested and draft-eligible (PENDING /
  * CHANGES_REQUESTED / APPROVED); REJECTED / SUSPENDED / absent fail closed. Maps the vertical code to
  * this domain's vocabulary. A guide-only provider (no RENTAL_COMPANY vertical) → VERTICAL_NOT_AUTHORIZED.
+ * Runs the vertical-status lookup on the supplied db (tx) client so it is re-read within the write
+ * transaction rather than on a separate global-client snapshot.
  */
-export async function assertRentalDraftAuthorized(providerId: string): Promise<RentalOfferingErrorCode | null> {
-  const code = await assertCanCreateListing(providerId, RENTAL_OFFERING_KIND);
+export async function assertRentalDraftAuthorized(db: DbClient, providerId: string): Promise<RentalOfferingErrorCode | null> {
+  const code = await assertCanCreateListing(providerId, RENTAL_OFFERING_KIND, db);
   return code === null ? null : "VERTICAL_NOT_AUTHORIZED";
 }
 
@@ -200,7 +217,7 @@ export async function assertRentalEditAuthorized(
   if (offering.status === "PUBLISHED") {
     return assertRentalPublishReady(db, providerId, offering.vehicle, now);
   }
-  return assertRentalDraftAuthorized(providerId);
+  return assertRentalDraftAuthorized(db, providerId);
 }
 
 /** Map a Prisma P2002 (the C1 partial-unique index) to the stable OFFERING_ALREADY_ACTIVE code. */

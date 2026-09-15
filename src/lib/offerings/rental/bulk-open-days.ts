@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { parseOmanDateKey, isOmanPastDateKey, dbDateFromOmanDateKey, omanDateKeyFromDbDate } from "@/lib/date/oman-time";
 import { isWithinMaxCalendarWindow, MAX_CALENDAR_WINDOW_DAYS } from "@/lib/offerings/calendar/offering-calendar-types";
-import { resolveApprovedProvider, loadOwnedRentalOffering, assertRentalEditAuthorized } from "./rental-offering-authorization";
+import { resolveApprovedProvider, assertProviderStillApproved, loadOwnedRentalOffering, assertRentalEditAuthorized } from "./rental-offering-authorization";
 import { isRentalOfferingArchived } from "./rental-offering-lifecycle";
 import type { RentalBulkOpenSummary } from "./rental-offering-dto";
 import type { RentalOfferingResult } from "./rental-offering-errors";
@@ -64,6 +64,10 @@ export async function bulkOpenRentalDays(input: BulkOpenRentalDaysInput): Promis
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Re-read the provider's mutable approval status inside the write transaction (TOCTOU-safe).
+      const providerGate = await assertProviderStillApproved(tx, providerId);
+      if (providerGate !== null) return { ok: false as const, error: providerGate };
+
       const offering = await loadOwnedRentalOffering(tx, providerId, input.offeringId);
       if (!offering) return { ok: false as const, error: "OFFERING_NOT_FOUND" as const };
       if (isRentalOfferingArchived(offering.status)) return { ok: false as const, error: "OFFERING_ARCHIVED" as const };

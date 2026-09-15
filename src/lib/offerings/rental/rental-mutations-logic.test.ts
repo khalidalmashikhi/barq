@@ -7,6 +7,7 @@ vi.mock("./rental-offering-authorization", async (importOriginal) => {
   return {
     ...actual,
     resolveApprovedProvider: vi.fn(),
+    assertProviderStillApproved: vi.fn(),
     loadOwnedServiceAndVehicleForCreate: vi.fn(),
     loadOwnedRentalOffering: vi.fn(),
     assertRentalDraftAuthorized: vi.fn(),
@@ -23,6 +24,7 @@ import { prisma } from "@/lib/db";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import {
   resolveApprovedProvider,
+  assertProviderStillApproved,
   loadOwnedServiceAndVehicleForCreate,
   loadOwnedRentalOffering,
   assertRentalDraftAuthorized,
@@ -113,13 +115,14 @@ function loaded(over: Partial<LoadedRentalOffering> = {}): LoadedRentalOffering 
 }
 
 /** Wire prisma.$transaction to run the callback with the given fake tx. */
-function useTx(tx: unknown) {
+function bindTx(tx: unknown) {
   (prisma.$transaction as unknown as Mock).mockImplementation(async (cb: (t: unknown) => unknown) => cb(tx));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   (resolveApprovedProvider as Mock).mockResolvedValue({ ok: true, providerId: PROVIDER });
+  (assertProviderStillApproved as Mock).mockResolvedValue(null); // provider still APPROVED in-tx
   (assertRentalDraftAuthorized as Mock).mockResolvedValue(null);
   (assertRentalPublishReady as Mock).mockResolvedValue(null);
   (assertRentalEditAuthorized as Mock).mockResolvedValue(null);
@@ -129,7 +132,7 @@ beforeEach(() => {
 describe("createRentalOffering", () => {
   it("propagates a resource-load failure (e.g. WRONG_SERVICE_KIND)", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedServiceAndVehicleForCreate as Mock).mockResolvedValue({ ok: false, error: "WRONG_SERVICE_KIND" });
     expect(await createRentalOffering({ serviceId: SERVICE, vehicleId: VEHICLE, baseDailyAmount: "40.00", currency: "OMR" })).toEqual({ ok: false, error: "WRONG_SERVICE_KIND" });
   });
@@ -147,7 +150,7 @@ describe("createRentalOffering", () => {
       updatedAt: new Date("2030-01-01T00:00:00.000Z"),
     };
     const { tx, fns } = makeTx({ offeringCreate: created });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedServiceAndVehicleForCreate as Mock).mockResolvedValue({ ok: true, value: { serviceOfferingKind: "VEHICLE_RENTAL", vehicle: loaded().vehicle } });
     const res = await createRentalOffering({ serviceId: SERVICE, vehicleId: VEHICLE, baseDailyAmount: "40.00", currency: "omr", offeringCapacityOverride: 4 });
     expect(res.ok).toBe(true);
@@ -160,7 +163,7 @@ describe("createRentalOffering", () => {
 
   it("maps a P2002 unique violation to OFFERING_ALREADY_ACTIVE", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedServiceAndVehicleForCreate as Mock).mockResolvedValue({ ok: true, value: { serviceOfferingKind: "VEHICLE_RENTAL", vehicle: loaded().vehicle } });
     tx.rentalOffering.create = vi.fn().mockRejectedValue(Object.assign(new Error("dup"), { code: "P2002" }));
     expect(await createRentalOffering({ serviceId: SERVICE, vehicleId: VEHICLE, baseDailyAmount: "40.00", currency: "OMR" })).toEqual({ ok: false, error: "OFFERING_ALREADY_ACTIVE" });
@@ -168,7 +171,7 @@ describe("createRentalOffering", () => {
 
   it("rejects an override above the vehicle's verified capacity (checkCapacityOverride)", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedServiceAndVehicleForCreate as Mock).mockResolvedValue({ ok: true, value: { serviceOfferingKind: "VEHICLE_RENTAL", vehicle: loaded().vehicle } });
     expect(await createRentalOffering({ serviceId: SERVICE, vehicleId: VEHICLE, baseDailyAmount: "40.00", currency: "OMR", offeringCapacityOverride: 8 })).toEqual({ ok: false, error: "INVALID_CAPACITY_OVERRIDE" });
   });
@@ -178,35 +181,35 @@ describe("createRentalOffering", () => {
 describe("updateRentalOffering", () => {
   it("refuses to touch an ARCHIVED offering", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "ARCHIVED" }));
     expect(await updateRentalOffering({ offeringId: OFFERING, baseDailyAmount: "50.00" })).toEqual({ ok: false, error: "OFFERING_ARCHIVED" });
   });
 
   it("blocks a currency change unless DRAFT (CURRENCY_LOCKED)", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "PUBLISHED" }));
     expect(await updateRentalOffering({ offeringId: OFFERING, currency: "USD" })).toEqual({ ok: false, error: "CURRENCY_LOCKED" });
   });
 
   it("blocks a DRAFT currency change while any day carries a price override (CURRENCY_OVERRIDES_PRESENT)", async () => {
     const { tx } = makeTx({ dayFindFirst: { id: "day-x" } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
     expect(await updateRentalOffering({ offeringId: OFFERING, currency: "USD" })).toEqual({ ok: false, error: "CURRENCY_OVERRIDES_PRESENT" });
   });
 
   it("returns OFFERING_STATE_CONFLICT when the guarded updateMany matches nothing", async () => {
     const { tx } = makeTx({ offeringUpdateMany: { count: 0 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
     expect(await updateRentalOffering({ offeringId: OFFERING, baseDailyAmount: "50.00" })).toEqual({ ok: false, error: "OFFERING_STATE_CONFLICT" });
   });
 
   it("applies an amount change and audits previous→new", async () => {
     const { tx, fns } = makeTx({ offeringUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT", baseDailyAmount: new Prisma.Decimal("40.00") }));
     const res = await updateRentalOffering({ offeringId: OFFERING, baseDailyAmount: "55.50" });
     expect(res.ok && res.value.baseDailyAmount).toBe("55.50");
@@ -220,7 +223,7 @@ describe("updateRentalOffering", () => {
 describe("publishRentalOffering", () => {
   it("is an idempotent no-op when already PUBLISHED (no updateMany)", async () => {
     const { tx, fns } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "PUBLISHED" }));
     const res = await publishRentalOffering(OFFERING, NOW);
     expect(res.ok && res.value.status).toBe("PUBLISHED");
@@ -229,7 +232,7 @@ describe("publishRentalOffering", () => {
 
   it("propagates a readiness blocker", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
     (assertRentalPublishReady as Mock).mockResolvedValue("VEHICLE_NOT_SELECTABLE");
     expect(await publishRentalOffering(OFFERING, NOW)).toEqual({ ok: false, error: "VEHICLE_NOT_SELECTABLE" });
@@ -237,14 +240,14 @@ describe("publishRentalOffering", () => {
 
   it("requires at least one OPEN non-past day (NO_PUBLISHABLE_DAY)", async () => {
     const { tx } = makeTx({ dayFindFirst: null }); // no publishable day
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
     expect(await publishRentalOffering(OFFERING, NOW)).toEqual({ ok: false, error: "NO_PUBLISHABLE_DAY" });
   });
 
   it("publishes DRAFT→PUBLISHED with an OPEN day and audits", async () => {
     const { tx, fns } = makeTx({ dayFindFirst: { id: "day-1" }, offeringUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
     const res = await publishRentalOffering(OFFERING, NOW);
     expect(res.ok && res.value.status).toBe("PUBLISHED");
@@ -257,7 +260,7 @@ describe("publishRentalOffering", () => {
 describe("suspend / archive transitions", () => {
   it("suspends PUBLISHED→SUSPENDED", async () => {
     const { tx } = makeTx({ offeringUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "PUBLISHED" }));
     const res = await suspendRentalOffering(OFFERING);
     expect(res.ok && res.value.status).toBe("SUSPENDED");
@@ -265,14 +268,14 @@ describe("suspend / archive transitions", () => {
 
   it("rejects an illegal suspend from DRAFT (guarded updateMany matches nothing → STATE_CONFLICT)", async () => {
     const { tx } = makeTx({ offeringUpdateMany: { count: 0 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
     expect(await suspendRentalOffering(OFFERING)).toEqual({ ok: false, error: "OFFERING_STATE_CONFLICT" });
   });
 
   it("archives SUSPENDED→ARCHIVED", async () => {
     const { tx } = makeTx({ offeringUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "SUSPENDED" }));
     const res = await archiveRentalOffering(OFFERING);
     expect(res.ok && res.value.status).toBe("ARCHIVED");
@@ -280,7 +283,7 @@ describe("suspend / archive transitions", () => {
 
   it("re-archiving an ARCHIVED offering is an idempotent no-op; suspending it is refused", async () => {
     const { tx, fns } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "ARCHIVED" }));
     expect((await archiveRentalOffering(OFFERING)).ok).toBe(true);
     expect(fns.offeringUpdateMany).not.toHaveBeenCalled();
@@ -292,21 +295,21 @@ describe("suspend / archive transitions", () => {
 describe("bulkOpenRentalDays", () => {
   it("returns OFFERING_NOT_FOUND when the offering does not load", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(null);
     expect(await bulkOpenRentalDays({ offeringId: OFFERING, dates: [D1] })).toEqual({ ok: false, error: "OFFERING_NOT_FOUND" });
   });
 
   it("refuses on an ARCHIVED offering", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "ARCHIVED" }));
     expect(await bulkOpenRentalDays({ offeringId: OFFERING, dates: [D1] })).toEqual({ ok: false, error: "OFFERING_ARCHIVED" });
   });
 
   it("rejects a window wider than the maximum inclusive days (DATE_WINDOW_TOO_LARGE)", async () => {
     const { tx } = makeTx();
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     // 2030-07-01 .. 2030-09-30 is > 62 inclusive days.
     expect(await bulkOpenRentalDays({ offeringId: OFFERING, dates: ["2030-07-01", "2030-09-30"] })).toEqual({ ok: false, error: "DATE_WINDOW_TOO_LARGE" });
@@ -319,7 +322,7 @@ describe("bulkOpenRentalDays", () => {
       { serviceDate: dbDate(D2), state: "BLOCKED" },
     ];
     const { tx, fns } = makeTx({ dayFindMany: existing, dayCreateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await bulkOpenRentalDays({ offeringId: OFFERING, dates: [D1, D2, D3] });
     expect(res.ok && res.value).toEqual({ created: 1, opened: 0, alreadyOpen: 1, blockedKept: 1 });
@@ -332,7 +335,7 @@ describe("bulkOpenRentalDays", () => {
   it("reopens BLOCKED days only when reopenBlocked=true", async () => {
     const existing = [{ serviceDate: dbDate(D2), state: "BLOCKED" }];
     const { tx, fns } = makeTx({ dayFindMany: existing, dayUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await bulkOpenRentalDays({ offeringId: OFFERING, dates: [D2], reopenBlocked: true });
     expect(res.ok && res.value).toEqual({ created: 0, opened: 1, alreadyOpen: 0, blockedKept: 0 });
@@ -344,7 +347,7 @@ describe("bulkOpenRentalDays", () => {
 describe("blockRentalDay", () => {
   it("creates a MISSING day directly as BLOCKED (null override, no start-times) and audits created-blocked", async () => {
     const { tx, fns } = makeTx({ dayFindUnique: null, dayCreateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
     expect(res.ok && res.value).toEqual({ offeringId: OFFERING, date: D1, state: "BLOCKED", outcome: "created" });
@@ -360,7 +363,7 @@ describe("blockRentalDay", () => {
 
   it("is an idempotent no-op when the day is already BLOCKED (no write, no audit)", async () => {
     const { tx, fns } = makeTx({ dayFindUnique: { id: "day-1", state: "BLOCKED" } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
     expect(res).toEqual({ ok: true, value: { offeringId: OFFERING, date: D1, state: "BLOCKED", outcome: "unchanged" } });
@@ -371,7 +374,7 @@ describe("blockRentalDay", () => {
 
   it("flips an existing OPEN day to BLOCKED, preserving override + start-times, and audits changed", async () => {
     const { tx, fns } = makeTx({ dayFindUnique: { id: "day-1", state: "OPEN" }, dayUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
     expect(res.ok && res.value).toEqual({ offeringId: OFFERING, date: D1, state: "BLOCKED", outcome: "changed" });
@@ -386,7 +389,7 @@ describe("blockRentalDay", () => {
 
   it("converges when a concurrent writer created the missing day first (createMany count 0 → re-read BLOCKED, no raw error)", async () => {
     const { tx, fns } = makeTx({ dayCreateMany: { count: 0 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     // 1st findUnique (load) = missing; 2nd findUnique (re-read after conflict) = the raced BLOCKED row.
     fns.dayFindUnique.mockReset();
@@ -399,7 +402,7 @@ describe("blockRentalDay", () => {
 
   it("converges when the concurrently-created day is OPEN (count 0 → re-read OPEN → guarded flip to BLOCKED)", async () => {
     const { tx, fns } = makeTx({ dayCreateMany: { count: 0 }, dayUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     fns.dayFindUnique.mockReset();
     fns.dayFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "day-raced", state: "OPEN" });
@@ -424,7 +427,7 @@ describe("blockRentalDay", () => {
 describe("setDailyOverride", () => {
   it("returns OFFERING_DAY_NOT_FOUND when the day does not exist (never auto-opens)", async () => {
     const { tx, fns } = makeTx({ dayFindUnique: null });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     expect(await setDailyOverride({ offeringId: OFFERING, date: D1, dailyAmountOverride: "35.00" })).toEqual({ ok: false, error: "OFFERING_DAY_NOT_FOUND" });
     expect(fns.dayUpdateMany).not.toHaveBeenCalled();
@@ -432,7 +435,7 @@ describe("setDailyOverride", () => {
 
   it("sets a positive override and audits set", async () => {
     const { tx } = makeTx({ dayFindUnique: { id: "day-1", dailyAmountOverride: null }, dayUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await setDailyOverride({ offeringId: OFFERING, date: D1, dailyAmountOverride: "35.5" });
     expect(res.ok && res.value.dailyAmountOverride).toBe("35.50");
@@ -441,7 +444,7 @@ describe("setDailyOverride", () => {
 
   it("clears an existing override (null) and audits clear", async () => {
     const { tx } = makeTx({ dayFindUnique: { id: "day-1", dailyAmountOverride: new Prisma.Decimal("35.00") }, dayUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await setDailyOverride({ offeringId: OFFERING, date: D1, dailyAmountOverride: null });
     expect(res.ok && res.value.dailyAmountOverride).toBeNull();
@@ -453,7 +456,7 @@ describe("setDailyOverride", () => {
 describe("manageStartTimes", () => {
   it("returns OFFERING_DAY_NOT_FOUND when the day does not exist", async () => {
     const { tx } = makeTx({ dayFindUnique: null });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     expect(await manageStartTimes({ offeringId: OFFERING, date: D1, startTimeMinutes: [540] })).toEqual({ ok: false, error: "OFFERING_DAY_NOT_FOUND" });
   });
@@ -466,7 +469,7 @@ describe("manageStartTimes", () => {
       { startTimeMinutes: 660, state: "CLOSED" },
     ];
     const { tx, fns } = makeTx({ dayFindUnique: { id: "day-1" }, startFindMany: existing, startCreateMany: { count: 1 }, startUpdateMany: { count: 1 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await manageStartTimes({ offeringId: OFFERING, date: D1, startTimeMinutes: [540, 660, 720] });
     // opened = created(720) + reopened(660) = 2; closed = 600 = 1; unchanged = 540 = 1.
@@ -482,10 +485,86 @@ describe("manageStartTimes", () => {
       { startTimeMinutes: 600, state: "OPEN" },
     ];
     const { tx, fns } = makeTx({ dayFindUnique: { id: "day-1" }, startFindMany: existing, startUpdateMany: { count: 2 } });
-    useTx(tx);
+    bindTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await manageStartTimes({ offeringId: OFFERING, date: D1, startTimeMinutes: [] });
     expect(res.ok && res.value).toEqual({ opened: 0, closed: 2, unchanged: 0 });
     expect(fns.startCreateMany).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// A provider that became non-approved between the pre-transaction entry guard and the in-transaction
+// re-read is blocked from EVERY mutation family, and neither the write nor the audit event runs.
+describe("in-transaction provider-status gate blocks all nine mutation families", () => {
+  beforeEach(() => {
+    // The tx re-read reports the provider is no longer APPROVED.
+    (assertProviderStillApproved as Mock).mockResolvedValue("PROVIDER_NOT_APPROVED");
+  });
+
+  function assertNoWriteNoAudit(fns: ReturnType<typeof makeTx>["fns"]) {
+    expect(fns.offeringCreate).not.toHaveBeenCalled();
+    expect(fns.offeringUpdateMany).not.toHaveBeenCalled();
+    expect(fns.dayCreateMany).not.toHaveBeenCalled();
+    expect(fns.dayUpdateMany).not.toHaveBeenCalled();
+    expect(fns.startCreateMany).not.toHaveBeenCalled();
+    expect(fns.startUpdateMany).not.toHaveBeenCalled();
+    expect(recordAuditEvent as Mock).not.toHaveBeenCalled();
+  }
+
+  it("blocks create", async () => {
+    const { tx, fns } = makeTx();
+    bindTx(tx);
+    (loadOwnedServiceAndVehicleForCreate as Mock).mockResolvedValue({ ok: true, value: { serviceOfferingKind: "VEHICLE_RENTAL", vehicle: loaded().vehicle } });
+    expect(await createRentalOffering({ serviceId: SERVICE, vehicleId: VEHICLE, baseDailyAmount: "40.00", currency: "OMR" })).toEqual({ ok: false, error: "PROVIDER_NOT_APPROVED" });
+    assertNoWriteNoAudit(fns);
+  });
+
+  it("blocks commercial update", async () => {
+    const { tx, fns } = makeTx();
+    bindTx(tx);
+    (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status: "DRAFT" }));
+    expect(await updateRentalOffering({ offeringId: OFFERING, baseDailyAmount: "50.00" })).toEqual({ ok: false, error: "PROVIDER_NOT_APPROVED" });
+    assertNoWriteNoAudit(fns);
+  });
+
+  it("blocks publish, suspend and archive (lifecycle transitions)", async () => {
+    for (const [status, call] of [
+      ["DRAFT", () => publishRentalOffering(OFFERING, NOW)],
+      ["PUBLISHED", () => suspendRentalOffering(OFFERING)],
+      ["PUBLISHED", () => archiveRentalOffering(OFFERING)],
+    ] as const) {
+      const { tx, fns } = makeTx();
+      bindTx(tx);
+      (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded({ status }));
+      expect(await call()).toEqual({ ok: false, error: "PROVIDER_NOT_APPROVED" });
+      assertNoWriteNoAudit(fns);
+    }
+  });
+
+  it("blocks bulk-open, block-day, set-override and manage-start-times (day mutations)", async () => {
+    const calls = [
+      () => bulkOpenRentalDays({ offeringId: OFFERING, dates: [D1] }),
+      () => blockRentalDay({ offeringId: OFFERING, date: D1 }),
+      () => setDailyOverride({ offeringId: OFFERING, date: D1, dailyAmountOverride: "35.00" }),
+      () => manageStartTimes({ offeringId: OFFERING, date: D1, startTimeMinutes: [540] }),
+    ];
+    for (const call of calls) {
+      const { tx, fns } = makeTx();
+      bindTx(tx);
+      (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
+      expect(await call()).toEqual({ ok: false, error: "PROVIDER_NOT_APPROVED" });
+      assertNoWriteNoAudit(fns);
+    }
+  });
+
+  it("the provider-status re-read runs BEFORE the resource load (fail-closed on the actor first)", async () => {
+    const { tx } = makeTx();
+    bindTx(tx);
+    (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
+    await updateRentalOffering({ offeringId: OFFERING, baseDailyAmount: "50.00" });
+    expect(assertProviderStillApproved as Mock).toHaveBeenCalledTimes(1);
+    // resource loading is short-circuited once the actor fails authorization.
+    expect(loadOwnedRentalOffering as Mock).not.toHaveBeenCalled();
   });
 });

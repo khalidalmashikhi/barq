@@ -4,7 +4,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { parseOmanDateKey, dbDateFromOmanDateKey } from "@/lib/date/oman-time";
-import { resolveApprovedProvider, loadOwnedRentalOffering, assertRentalEditAuthorized } from "./rental-offering-authorization";
+import { resolveApprovedProvider, assertProviderStillApproved, loadOwnedRentalOffering, assertRentalEditAuthorized } from "./rental-offering-authorization";
 import { isRentalOfferingArchived } from "./rental-offering-lifecycle";
 import type { RentalStartTimesSummary } from "./rental-offering-dto";
 import type { RentalOfferingResult } from "./rental-offering-errors";
@@ -54,6 +54,10 @@ export async function manageStartTimes(input: ManageStartTimesInput): Promise<Re
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Re-read the provider's mutable approval status inside the write transaction (TOCTOU-safe).
+      const providerGate = await assertProviderStillApproved(tx, providerId);
+      if (providerGate !== null) return { ok: false as const, error: providerGate };
+
       const offering = await loadOwnedRentalOffering(tx, providerId, input.offeringId);
       if (!offering) return { ok: false as const, error: "OFFERING_NOT_FOUND" as const };
       if (isRentalOfferingArchived(offering.status)) return { ok: false as const, error: "OFFERING_ARCHIVED" as const };

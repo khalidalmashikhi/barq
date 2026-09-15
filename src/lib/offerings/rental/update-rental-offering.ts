@@ -7,6 +7,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { parseOfferingAmount, normalizeOfferingCurrency, checkCapacityOverride } from "./rental-offering-validation";
 import {
   resolveApprovedProvider,
+  assertProviderStillApproved,
   loadOwnedRentalOffering,
   assertRentalDraftAuthorized,
   assertRentalPublishReady,
@@ -56,6 +57,10 @@ export async function updateRentalOffering(input: UpdateRentalOfferingInput): Pr
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Re-read the provider's mutable approval status inside the write transaction (TOCTOU-safe).
+      const providerGate = await assertProviderStillApproved(tx, providerId);
+      if (providerGate !== null) return { ok: false as const, error: providerGate };
+
       const offering = await loadOwnedRentalOffering(tx, providerId, input.offeringId);
       if (!offering) return { ok: false as const, error: "OFFERING_NOT_FOUND" as const };
       if (isRentalOfferingArchived(offering.status)) return { ok: false as const, error: "OFFERING_ARCHIVED" as const };
@@ -67,7 +72,7 @@ export async function updateRentalOffering(input: UpdateRentalOfferingInput): Pr
         const ready = await assertRentalPublishReady(tx, providerId, offering.vehicle);
         if (ready !== null) return { ok: false as const, error: ready };
       } else {
-        const draftGate = await assertRentalDraftAuthorized(providerId);
+        const draftGate = await assertRentalDraftAuthorized(tx, providerId);
         if (draftGate !== null) return { ok: false as const, error: draftGate };
       }
 
