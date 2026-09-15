@@ -228,6 +228,18 @@ export function omanDateKeyFromDbDate(date: Date): string {
 }
 
 /**
+ * The inverse of {@link omanDateKeyFromDbDate}: build the UTC-MIDNIGHT `Date` that a Prisma
+ * `@db.Date` column stores for an Oman calendar date key ("YYYY-MM-DD"). Zone-free — the
+ * offset is deliberately NOT applied, so the stored YYYY-MM-DD equals the key exactly.
+ * Returns null for an invalid/malformed key (never throws on caller input).
+ */
+export function dbDateFromOmanDateKey(dateKey: string): Date | null {
+  const key = parseOmanDateKey(dateKey);
+  if (key === null) return null;
+  return new Date(`${key}T00:00:00.000Z`);
+}
+
+/**
  * The half-open UTC interval [startOfOmanDay, startOfNextOmanDay) for an Oman date
  * key — the window a vehicle-conflict overlap check runs against. `start` is the
  * this-day Oman midnight and `end` is the exclusive next-Oman-midnight (reusing the

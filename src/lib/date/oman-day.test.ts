@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseOmanDateKey,
   omanDateKeyFromDbDate,
+  dbDateFromOmanDateKey,
   omanDayWindow,
   startMinutesToHHmm,
   omanPickupInstant,
@@ -41,6 +42,23 @@ describe("omanDateKeyFromDbDate (no-shift @db.Date round-trip)", () => {
   });
   it("throws on an invalid Date", () => {
     expect(() => omanDateKeyFromDbDate(new Date("nope"))).toThrow();
+  });
+});
+
+describe("dbDateFromOmanDateKey (inverse of omanDateKeyFromDbDate)", () => {
+  it("builds the UTC-midnight @db.Date value for a date key without applying the Oman offset", () => {
+    expect(dbDateFromOmanDateKey("2026-08-20")!.toISOString()).toBe("2026-08-20T00:00:00.000Z");
+    expect(dbDateFromOmanDateKey("2024-02-29")!.toISOString()).toBe("2024-02-29T00:00:00.000Z");
+  });
+  it("round-trips with omanDateKeyFromDbDate", () => {
+    for (const key of ["2026-01-01", "2026-08-20", "2026-12-31"]) {
+      expect(omanDateKeyFromDbDate(dbDateFromOmanDateKey(key)!)).toBe(key);
+    }
+  });
+  it("null (never throws) on an invalid/malformed key", () => {
+    expect(dbDateFromOmanDateKey("2026-02-30")).toBeNull();
+    expect(dbDateFromOmanDateKey("2026-8-20")).toBeNull();
+    expect(dbDateFromOmanDateKey("nope")).toBeNull();
   });
 });
 
