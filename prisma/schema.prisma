@@ -181,6 +181,44 @@ enum OfferingKind {
   VEHICLE_RENTAL
 }
 
+/// Phase 3C Slice C1 — publication lifecycle for a vehicle-only RENTAL offering
+/// (RENTAL_COMPANY vertical). Archival: ARCHIVED rows are retained history and are EXEMPT
+/// from the one-active-offering partial unique index. Defaults DRAFT (fail-closed: an
+/// offering is not live until explicitly published by future C2b server code).
+enum RentalOfferingStatus {
+  DRAFT
+  PUBLISHED
+  SUSPENDED
+  ARCHIVED
+}
+
+/// Phase 3C Slice C1 — publication lifecycle for a GUIDED TOUR WITH VEHICLE offering
+/// (TOURIST_GUIDE vertical). A SEPARATE enum from RentalOfferingStatus so the two regulated
+/// verticals never share an authorization-bearing type. Same archival/partial-index semantics.
+enum GuidedTourVehicleOfferingStatus {
+  DRAFT
+  PUBLISHED
+  SUSPENDED
+  ARCHIVED
+}
+
+/// Phase 3C Slice C1 — explicit per-day availability state for an offering day. SHARED
+/// low-level enum (carries NO ownership/authorization identity, so sharing it across the two
+/// verticals is safe). FAIL-CLOSED: a date is bookable ONLY when an explicit OPEN row exists;
+/// the ABSENCE of a day row is never "available". BLOCKED is an explicit provider close.
+enum OfferingDayState {
+  OPEN
+  BLOCKED
+}
+
+/// Phase 3C Slice C1 — state of an operational start-time within an offering day. SHARED
+/// low-level enum. A start-time row is deliberately created, so OPEN is a safe default for an
+/// explicitly-added row; CLOSED hides it without deletion (history-safe).
+enum StartTimeState {
+  OPEN
+  CLOSED
+}
+
 /// Per-document review lifecycle for provider verification documents (Provider
 /// Verification & Documents). A genuinely fixed 3-state lifecycle (like
 /// ProviderStatus/ServiceStatus), so a Prisma enum is correct here — unlike the
@@ -962,15 +1000,20 @@ model Vehicle {
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
 
-  bookings            Booking[]
+  bookings                   Booking[]
   /// TOUR-VEHICLE-1 — the tour services this vehicle is CONFIGURED as available for
   /// (relational pool). Deletion of a pooled vehicle is RESTRICTED at the FK, so a
   /// configured tour never silently loses its vehicle.
-  tourServiceVehicles TourServiceVehicle[]
+  tourServiceVehicles        TourServiceVehicle[]
   /// BOOKING-CONFLICT-1A — physical-occupancy reservations committing this vehicle to
   /// bookings for a time window. Deletion is RESTRICTED at the FK (a vehicle with a
   /// committed reservation is never silently removed).
-  reservations        VehicleReservation[]
+  reservations               VehicleReservation[]
+  /// Phase 3C Slice C1 — virtual back-relations to the daily-offering foundations (RESTRICT
+  /// at the FK). Back-relation fields ONLY: they add NO column to `vehicles` and produce NO
+  /// DDL (the FK lives on the offering tables).
+  rentalOfferings            RentalOffering[]
+  guidedTourVehicleOfferings GuidedTourVehicleOffering[]
 
   @@map("vehicles")
 }
@@ -1204,15 +1247,20 @@ model Service {
   createdAt            DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt            DateTime      @updatedAt @db.Timestamptz(6)
 
-  experience          Experience?
-  availability        Availability[]
-  prices              Price[]
-  bookings            Booking[]
-  mediaAssets         MediaAsset[]
+  experience                 Experience?
+  availability               Availability[]
+  prices                     Price[]
+  bookings                   Booking[]
+  mediaAssets                MediaAsset[]
   /// TOUR-VEHICLE-1 — the relational pool of eligible provider vehicles configured
   /// for this (tour) service. Cascades on service deletion (pool config is
   /// meaningless without its service).
-  tourServiceVehicles TourServiceVehicle[]
+  tourServiceVehicles        TourServiceVehicle[]
+  /// Phase 3C Slice C1 — virtual back-relations to the daily-offering foundations (RESTRICT
+  /// at the FK). Back-relation fields ONLY: they add NO column to `services` and produce NO
+  /// DDL (the FK lives on the offering tables).
+  rentalOfferings            RentalOffering[]
+  guidedTourVehicleOfferings GuidedTourVehicleOffering[]
 
   @@index([providerId])
   @@index([status])
@@ -1293,6 +1341,165 @@ model TourServiceVehicle {
   @@id([serviceId, vehicleId])
   @@index([vehicleId])
   @@map("tour_service_vehicles")
+}
+
+// =============================================================================
+// PHASE 3C SLICE C1 — VEHICLE-BASED DAILY OFFERINGS (inert schema foundations)
+// =============================================================================
+// Per selected vehicle, per selected Oman calendar DAY pricing + explicit provider-opened
+// availability, for the two regulated verticals, in FULLY SEPARATE tables so legal separation
+// is STRUCTURAL: a RENTAL_COMPANY writes only the rental_* tables and a TOURIST_GUIDE only the
+// guided_tour_* tables — neither has a code path into the other. SCHEMA FOUNDATIONS ONLY
+// (Slice C1): no calculators, no calendar read models, no provider CRUD, no booking/reservation,
+// no UI — all deferred (C2 / C2b / C3 / D / E). Pricing here is DELIBERATELY separate from legacy
+// Service `Price` rows and the PER_DAY pricing-unit (both untouched); a future daily calculator
+// (C2) uses a distinct PER_VEHICLE_DAY basis. Currency lives on the offering; day overrides never
+// carry a currency. Deferred and NOT in C1: the VehicleReservation.bookingId @unique relaxation is
+// a CONSTRAINT change (not additive) for Slice E, and GuideReservation/guide-overlap is C3/E.
+
+/// RENTAL_COMPANY vehicle-only rental offering: ONE specific vehicle, a base daily rate, and
+/// explicitly provider-opened days. Publish/compliance authorization (approved RENTAL_COMPANY
+/// vertical, PUBLISHED, vehicle APPROVED) is future C2b server code — NOT enforced by this
+/// schema. `offeringCapacityOverride` is an OPTIONAL stricter cap; the cross-table rule
+/// (override <= Vehicle.bookablePassengerCapacity) is a C2b server check — a row-local CHECK
+/// cannot span tables, and no trigger is added. One NON-ARCHIVED offering per (serviceId,
+/// vehicleId) is enforced by a raw-SQL PARTIAL UNIQUE INDEX (Prisma 5.22 cannot express it in the
+/// DSL — see the migration).
+model RentalOffering {
+  id                       String               @id @default(uuid(7)) @db.Uuid
+  serviceId                String               @db.Uuid
+  /// RESTRICT: an offering (and its day/rate history) must never disappear via a Service delete.
+  /// Services are archival, never row-deleted, so this never fires in practice.
+  service                  Service              @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  vehicleId                String               @db.Uuid
+  /// RESTRICT — mirrors every other Vehicle reference: a vehicle with offering history is never
+  /// silently removed. Vehicle's PK is assetId (shared-PK CTI with Asset).
+  vehicle                  Vehicle              @relation(fields: [vehicleId], references: [assetId], onDelete: Restrict)
+  /// Base daily rate for the vehicle. > 0 (CHECK in migration). The offering currency below is
+  /// authoritative for this and every day override.
+  baseDailyAmount          Decimal              @db.Decimal(12, 2)
+  /// Offering-level currency — free String, same contract as Price.currency (no format CHECK).
+  /// Day overrides inherit it; mixed currencies within one offering are impossible.
+  currency                 String
+  /// Optional STRICTER bookable-capacity cap (> 0, CHECK in migration). Effective capacity is the
+  /// stricter of this and the vehicle's verified bookablePassengerCapacity (Slice B). Passengers
+  /// are capacity-only, never a price multiplier. Cross-table upper bound enforced in C2b writes.
+  offeringCapacityOverride Int?
+  status                   RentalOfferingStatus @default(DRAFT)
+  createdAt                DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime             @updatedAt @db.Timestamptz(6)
+
+  days RentalOfferingDay[]
+
+  @@index([serviceId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("rental_offerings")
+}
+
+/// One explicit provider-controlled Oman calendar DAY for a RentalOffering. FAIL-CLOSED
+/// availability: a date is bookable ONLY when an OPEN row exists here (absence != available);
+/// BLOCKED is an explicit close. `serviceDate` is a zone-free PostgreSQL DATE (@db.Date) stored
+/// and read at UTC-midnight so the YYYY-MM-DD never shifts; the operational instant window is
+/// derived separately via oman-time helpers. `dailyAmountOverride` (nullable, > 0) WINS over the
+/// offering base for this day and carries NO currency (uses the offering currency).
+model RentalOfferingDay {
+  id                  String           @id @default(uuid(7)) @db.Uuid
+  rentalOfferingId    String           @db.Uuid
+  /// RESTRICT — retain day/rate history: an offering with days can never be deleted out from
+  /// under its history (offerings are archived, not deleted).
+  rentalOffering      RentalOffering   @relation(fields: [rentalOfferingId], references: [id], onDelete: Restrict)
+  serviceDate         DateTime         @db.Date
+  state               OfferingDayState @default(BLOCKED)
+  dailyAmountOverride Decimal?         @db.Decimal(12, 2)
+  createdAt           DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @db.Timestamptz(6)
+
+  startTimes RentalStartTime[]
+
+  @@unique([rentalOfferingId, serviceDate])
+  @@index([rentalOfferingId])
+  @@map("rental_offering_days")
+}
+
+/// An operational start/pickup time within a RentalOfferingDay. Oman-LOCAL minutes-from-midnight
+/// (0-1439, CHECK in migration), zone-free — the absolute instant is derived at read time.
+/// Operational ONLY: the chosen start time never changes the daily billing unit.
+model RentalStartTime {
+  id                  String            @id @default(uuid(7)) @db.Uuid
+  rentalOfferingDayId String            @db.Uuid
+  /// RESTRICT — a day with start-times is never deleted out from under them (history-safe).
+  rentalOfferingDay   RentalOfferingDay @relation(fields: [rentalOfferingDayId], references: [id], onDelete: Restrict)
+  startTimeMinutes    Int
+  state               StartTimeState    @default(OPEN)
+  createdAt           DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(6)
+
+  @@unique([rentalOfferingDayId, startTimeMinutes])
+  @@index([rentalOfferingDayId])
+  @@map("rental_start_times")
+}
+
+/// TOURIST_GUIDE guided-tour-with-vehicle offering: the customer-facing unit is one vehicle-
+/// guided-tour PACKAGE per selected day (guide + vehicle together), never per passenger. A
+/// SEPARATE table from RentalOffering so a guide can never sell vehicle-only rental through it.
+/// Guide IDENTITY/assignment is booking-level today (Booking.guideId) and guide-overlap
+/// reservation is future C3/E — deliberately NO guideId here (verified: the current schema does
+/// not pin a specific Guide at offering time). Same fields/semantics as RentalOffering.
+model GuidedTourVehicleOffering {
+  id                       String                          @id @default(uuid(7)) @db.Uuid
+  serviceId                String                          @db.Uuid
+  service                  Service                         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  vehicleId                String                          @db.Uuid
+  vehicle                  Vehicle                         @relation(fields: [vehicleId], references: [assetId], onDelete: Restrict)
+  baseDailyAmount          Decimal                         @db.Decimal(12, 2)
+  currency                 String
+  offeringCapacityOverride Int?
+  status                   GuidedTourVehicleOfferingStatus @default(DRAFT)
+  createdAt                DateTime                        @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime                        @updatedAt @db.Timestamptz(6)
+
+  days GuidedTourVehicleOfferingDay[]
+
+  @@index([serviceId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("guided_tour_vehicle_offerings")
+}
+
+/// One explicit provider-controlled Oman calendar DAY for a GuidedTourVehicleOffering. Identical
+/// fail-closed semantics to RentalOfferingDay, in a separate table.
+model GuidedTourVehicleOfferingDay {
+  id                          String                    @id @default(uuid(7)) @db.Uuid
+  guidedTourVehicleOfferingId String                    @db.Uuid
+  guidedTourVehicleOffering   GuidedTourVehicleOffering @relation(fields: [guidedTourVehicleOfferingId], references: [id], onDelete: Restrict)
+  serviceDate                 DateTime                  @db.Date
+  state                       OfferingDayState          @default(BLOCKED)
+  dailyAmountOverride         Decimal?                  @db.Decimal(12, 2)
+  createdAt                   DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt                   DateTime                  @updatedAt @db.Timestamptz(6)
+
+  startTimes GuidedTourVehicleStartTime[]
+
+  @@unique([guidedTourVehicleOfferingId, serviceDate])
+  @@index([guidedTourVehicleOfferingId])
+  @@map("guided_tour_vehicle_offering_days")
+}
+
+/// An operational start/pickup time within a GuidedTourVehicleOfferingDay. Identical semantics
+/// to RentalStartTime, in a separate table.
+model GuidedTourVehicleStartTime {
+  id                             String                       @id @default(uuid(7)) @db.Uuid
+  guidedTourVehicleOfferingDayId String                       @db.Uuid
+  guidedTourVehicleOfferingDay   GuidedTourVehicleOfferingDay @relation(fields: [guidedTourVehicleOfferingDayId], references: [id], onDelete: Restrict)
+  startTimeMinutes               Int
+  state                          StartTimeState               @default(OPEN)
+  createdAt                      DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt                      DateTime                     @updatedAt @db.Timestamptz(6)
+
+  @@unique([guidedTourVehicleOfferingDayId, startTimeMinutes])
+  @@index([guidedTourVehicleOfferingDayId])
+  @@map("guided_tour_vehicle_start_times")
 }
 
 // =============================================================================
