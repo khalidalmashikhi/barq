@@ -342,31 +342,81 @@ describe("bulkOpenRentalDays", () => {
 
 // ---------------------------------------------------------------------------------------------
 describe("blockRentalDay", () => {
-  it("returns OFFERING_DAY_NOT_FOUND when the day row does not exist (never creates one)", async () => {
-    const { tx, fns } = makeTx({ dayFindUnique: null });
+  it("creates a MISSING day directly as BLOCKED (null override, no start-times) and audits created-blocked", async () => {
+    const { tx, fns } = makeTx({ dayFindUnique: null, dayCreateMany: { count: 1 } });
     useTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
-    expect(await blockRentalDay({ offeringId: OFFERING, date: D1 })).toEqual({ ok: false, error: "OFFERING_DAY_NOT_FOUND" });
-    expect(fns.dayUpdateMany).not.toHaveBeenCalled();
+    const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
+    expect(res.ok && res.value).toEqual({ offeringId: OFFERING, date: D1, state: "BLOCKED", outcome: "created" });
+    // Created via ON CONFLICT DO NOTHING (skipDuplicates), state BLOCKED, override null, no OPEN, no delete.
+    expect(fns.dayCreateMany).toHaveBeenCalledTimes(1);
+    const createArg = fns.dayCreateMany.mock.calls[0]![0] as { data: Array<Record<string, unknown>>; skipDuplicates?: boolean };
+    expect(createArg.skipDuplicates).toBe(true);
+    expect(createArg.data[0]).toMatchObject({ rentalOfferingId: OFFERING, state: "BLOCKED", dailyAmountOverride: null });
+    expect(fns.dayUpdateMany).not.toHaveBeenCalled(); // never opens / never flips a non-existent row
+    expect(fns.startCreateMany).not.toHaveBeenCalled(); // no start-time records on a new BLOCKED day
+    expect((recordAuditEvent as Mock).mock.calls[0]![0]).toMatchObject({ action: "rental_offering.day_created_blocked", newValue: { state: "BLOCKED", dailyAmountOverride: null } });
   });
 
-  it("is an idempotent no-op when the day is already BLOCKED", async () => {
+  it("is an idempotent no-op when the day is already BLOCKED (no write, no audit)", async () => {
     const { tx, fns } = makeTx({ dayFindUnique: { id: "day-1", state: "BLOCKED" } });
     useTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
-    expect(res).toEqual({ ok: true, value: { offeringId: OFFERING, date: D1, state: "BLOCKED" } });
+    expect(res).toEqual({ ok: true, value: { offeringId: OFFERING, date: D1, state: "BLOCKED", outcome: "unchanged" } });
     expect(fns.dayUpdateMany).not.toHaveBeenCalled();
+    expect(fns.dayCreateMany).not.toHaveBeenCalled();
+    expect(recordAuditEvent as Mock).not.toHaveBeenCalled();
   });
 
-  it("blocks an OPEN day and audits (start-times/override untouched)", async () => {
+  it("flips an existing OPEN day to BLOCKED, preserving override + start-times, and audits changed", async () => {
     const { tx, fns } = makeTx({ dayFindUnique: { id: "day-1", state: "OPEN" }, dayUpdateMany: { count: 1 } });
     useTx(tx);
     (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
     const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
-    expect(res.ok && res.value.state).toBe("BLOCKED");
-    expect(fns.dayUpdateMany).toHaveBeenCalledTimes(1);
-    expect((recordAuditEvent as Mock).mock.calls[0]![0]).toMatchObject({ action: "rental_offering.day_blocked" });
+    expect(res.ok && res.value).toEqual({ offeringId: OFFERING, date: D1, state: "BLOCKED", outcome: "changed" });
+    // The guarded update sets ONLY state — override + start-times are never touched or deleted.
+    const updArg = fns.dayUpdateMany.mock.calls[0]![0] as { where: Record<string, unknown>; data: Record<string, unknown> };
+    expect(updArg.where).toMatchObject({ id: "day-1", state: "OPEN" });
+    expect(updArg.data).toEqual({ state: "BLOCKED" });
+    expect(fns.startUpdateMany).not.toHaveBeenCalled();
+    expect(fns.dayCreateMany).not.toHaveBeenCalled();
+    expect((recordAuditEvent as Mock).mock.calls[0]![0]).toMatchObject({ action: "rental_offering.day_blocked", previousValue: { state: "OPEN" } });
+  });
+
+  it("converges when a concurrent writer created the missing day first (createMany count 0 → re-read BLOCKED, no raw error)", async () => {
+    const { tx, fns } = makeTx({ dayCreateMany: { count: 0 } });
+    useTx(tx);
+    (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
+    // 1st findUnique (load) = missing; 2nd findUnique (re-read after conflict) = the raced BLOCKED row.
+    fns.dayFindUnique.mockReset();
+    fns.dayFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "day-raced", state: "BLOCKED" });
+    const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
+    expect(res.ok && res.value.outcome).toBe("unchanged");
+    expect(fns.dayUpdateMany).not.toHaveBeenCalled(); // raced row already BLOCKED; nothing to overwrite
+    expect(recordAuditEvent as Mock).not.toHaveBeenCalled();
+  });
+
+  it("converges when the concurrently-created day is OPEN (count 0 → re-read OPEN → guarded flip to BLOCKED)", async () => {
+    const { tx, fns } = makeTx({ dayCreateMany: { count: 0 }, dayUpdateMany: { count: 1 } });
+    useTx(tx);
+    (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
+    fns.dayFindUnique.mockReset();
+    fns.dayFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "day-raced", state: "OPEN" });
+    const res = await blockRentalDay({ offeringId: OFFERING, date: D1 });
+    expect(res.ok && res.value.outcome).toBe("changed");
+    const updArg = fns.dayUpdateMany.mock.calls[0]![0] as { where: Record<string, unknown>; data: Record<string, unknown> };
+    expect(updArg.where).toMatchObject({ id: "day-raced", state: "OPEN" }); // guarded, override untouched
+    expect(updArg.data).toEqual({ state: "BLOCKED" });
+  });
+
+  it("a failing audit write aborts the whole mutation (the transaction rolls back → UNKNOWN_ERROR)", async () => {
+    const { tx } = makeTx({ dayFindUnique: null, dayCreateMany: { count: 1 } });
+    // A real $transaction rolls back the create when the callback throws; here the throw must surface.
+    (prisma.$transaction as unknown as Mock).mockImplementation(async (cb: (t: unknown) => unknown) => cb(tx));
+    (loadOwnedRentalOffering as Mock).mockResolvedValue(loaded());
+    (recordAuditEvent as Mock).mockRejectedValueOnce(new Error("audit insert failed"));
+    expect(await blockRentalDay({ offeringId: OFFERING, date: D1 })).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
   });
 });
 

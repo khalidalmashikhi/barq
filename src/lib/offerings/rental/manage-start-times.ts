@@ -16,9 +16,11 @@ import type { RentalOfferingResult } from "./rental-offering-errors";
 // flipped to CLOSED (their rows are retained for history). An empty desired set is valid and closes
 // every open time. Start times are operational only — they never change the daily billing unit.
 //
-// MAX_START_TIMES_PER_DAY = 48: an operational pickup schedule realistically offers at most one slot
-// per 30 minutes across a 24h day (24h × 2). The cap bounds row growth per day and keeps the summary
-// audit event bounded; anything larger indicates malformed input, not a real schedule.
+// MAX_START_TIMES_PER_DAY = 48: a bounded safety limit of at most 48 CONFIGURED start-time entries
+// per offering day. This is purely a count ceiling — it does NOT impose any spacing between the
+// chosen minutes (a provider may set any 48 arbitrary values in 0–1439). The cap bounds per-day row
+// growth and keeps the summary audit event bounded; more than 48 indicates malformed input, not a
+// real operational schedule. (Any fixed-increment scheduling would be a separately approved change.)
 export const MAX_START_TIMES_PER_DAY = 48;
 const MIN_START_MINUTE = 0;
 const MAX_START_MINUTE = 1439;
