@@ -180,13 +180,35 @@ export async function assertRentalPublishReady(
   vehicle: LoadedRentalVehicle,
   now: Date = new Date(),
 ): Promise<RentalOfferingErrorCode | null> {
+  const verticalBlocker = await assertRentalVerticalCompliant(db, providerId);
+  if (verticalBlocker !== null) return verticalBlocker;
+  return assertRentalVehicleReady(vehicle, now);
+}
+
+/**
+ * The PROVIDER-GLOBAL half of publish readiness: the RENTAL_COMPANY vertical must be APPROVED AND
+ * currently COMPLIANT (policy configured + required docs present/approved/unexpired), re-read on the
+ * supplied db (tx) client — vertical status, policy, and evidence all through that client (no global
+ * Prisma). Split out so the C2b-R2 Service bridge can evaluate it ONCE (a provider-global fact)
+ * rather than per candidate offering. Returns VERTICAL_NOT_COMPLIANT / VERTICAL_NOT_AUTHORIZED or null.
+ */
+export async function assertRentalVerticalCompliant(db: DbClient, providerId: string): Promise<RentalOfferingErrorCode | null> {
   const compliance = await evaluateVerticalCompliance(providerId, RENTAL_VERTICAL, db);
   if (!compliance.compliant) {
     return compliance.reason === "VERTICAL_DOCUMENTS_INCOMPLETE" || compliance.reason === "VERTICAL_POLICY_NOT_CONFIGURED"
       ? "VERTICAL_NOT_COMPLIANT"
       : "VERTICAL_NOT_AUTHORIZED";
   }
+  return null;
+}
 
+/**
+ * The CANDIDATE-LOCAL half of publish readiness: this specific Vehicle must be SELECTABLE (ACTIVE +
+ * APPROVED + required docs valid) and carry a verified positive bookable capacity. Pure over the
+ * already-loaded vehicle snapshot (no DB, no N+1). The C2b-R2 bridge runs this PER candidate so an
+ * unselectable vehicle disqualifies only its own offering, never the whole evaluation.
+ */
+export function assertRentalVehicleReady(vehicle: LoadedRentalVehicle, now: Date = new Date()): RentalOfferingErrorCode | null {
   const blockers = getVehicleSelectabilityBlockers({
     status: vehicle.asset.status,
     verificationStatus: vehicle.asset.verificationStatus,
@@ -195,7 +217,6 @@ export async function assertRentalPublishReady(
     now,
   });
   if (blockers.length > 0) return "VEHICLE_NOT_SELECTABLE";
-
   if (vehicle.bookablePassengerCapacity === null || vehicle.bookablePassengerCapacity <= 0) {
     return "VERIFIED_CAPACITY_MISSING";
   }

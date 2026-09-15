@@ -26,6 +26,15 @@ export interface ProviderVerticalStatusClient {
   };
 }
 
+/**
+ * The full client surface `evaluateVerticalCompliance` needs so that a supplied transaction client
+ * covers BOTH the vertical STATUS read (ProviderVerticalStatusClient) AND the policy/document
+ * readiness read (VerticalApprovableClient) — i.e. every mutable compliance fact is read through the
+ * same client, with NO global-Prisma query inside an in-transaction compliance re-check. Both the
+ * global prisma and a Prisma transaction client satisfy it structurally.
+ */
+export type VerticalComplianceClient = ProviderVerticalStatusClient & VerticalApprovableClient;
+
 export async function getProviderVerticalStatus(
   providerId: string,
   vertical: ReturnType<typeof requiredVerticalForOfferingKind>,
@@ -137,9 +146,11 @@ export type VerticalComplianceResult =
 export async function evaluateVerticalCompliance(
   providerId: string,
   vertical: ProviderVerticalType,
-  db?: VerticalApprovableClient
+  db?: VerticalComplianceClient
 ): Promise<VerticalComplianceResult> {
-  const status = await getProviderVerticalStatus(providerId, vertical);
+  // Read the mutable vertical STATUS through the SAME supplied client (was global prisma) so an
+  // in-transaction compliance re-check is fully authoritative; `undefined` falls back to global prisma.
+  const status = await getProviderVerticalStatus(providerId, vertical, db);
   if (status === "SUSPENDED" || status === "REJECTED") return { compliant: false, status, reason: "VERTICAL_REJECTED_OR_SUSPENDED" };
   if (status === null) return { compliant: false, status, reason: "VERTICAL_NOT_REQUESTED" };
   if (status !== "APPROVED") return { compliant: false, status, reason: "VERTICAL_NOT_APPROVED" };
