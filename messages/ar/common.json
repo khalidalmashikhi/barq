@@ -43,7 +43,8 @@
     "PER_DAY": "لليوم",
     "PER_HOUR": "للساعة",
     "PER_TRIP": "للرحلة",
-    "PER_VEHICLE": "للمركبة"
+    "PER_VEHICLE": "للمركبة",
+    "PER_VEHICLE_DAY": "لكل مركبة في اليوم"
   },
   "priceWithUnit": "{price} / {unit}"
 }

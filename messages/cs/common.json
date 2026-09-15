@@ -43,7 +43,8 @@
     "PER_DAY": "za den",
     "PER_HOUR": "za hodinu",
     "PER_TRIP": "za výlet",
-    "PER_VEHICLE": "za vozidlo"
+    "PER_VEHICLE": "za vozidlo",
+    "PER_VEHICLE_DAY": "Za vozidlo a den"
   },
   "priceWithUnit": "{price} / {unit}"
 }

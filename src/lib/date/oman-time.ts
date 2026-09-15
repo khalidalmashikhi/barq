@@ -174,3 +174,105 @@ export function omanValidThroughDateToExpiryInstant(ymd: string): Date | null {
 export function omanValidThroughDateOfInstant(expiresAtExclusive: Date): string {
   return omanDateKey(new Date(expiresAtExclusive.getTime() - 1));
 }
+
+// =============================================================================
+// Phase 3C Slice C2a — canonical Oman CALENDAR-DAY utilities for vehicle daily
+// offerings. Pure and runtime-timezone-independent, composing the authorities
+// above (never re-deriving timezone logic or constructing dates with local
+// `new Date(y, m, d)`). No I/O.
+// =============================================================================
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Validate + normalize an Oman calendar date key. Accepts EXACTLY "YYYY-MM-DD",
+ * rejects a rolled-over/impossible date (e.g. 2026-02-30, 2026-13-01), and returns
+ * the trimmed normalized key or null. Runtime-timezone-independent (uses Date.UTC
+ * only to detect rollover, never a local constructor).
+ */
+export function parseOmanDateKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  const m = DATE_ONLY_RE.exec(s);
+  if (!m) return null;
+  const Y = Number(m[1]);
+  const Mo = Number(m[2]);
+  const D = Number(m[3]);
+  if (Mo < 1 || Mo > 12 || D < 1 || D > 31) return null;
+  const probe = new Date(Date.UTC(Y, Mo - 1, D));
+  if (probe.getUTCFullYear() !== Y || probe.getUTCMonth() !== Mo - 1 || probe.getUTCDate() !== D) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+/**
+ * The Oman calendar date key ("YYYY-MM-DD") of a Prisma `@db.Date` value. A `date`
+ * column is ZONE-FREE and Prisma returns it as a JS Date at UTC-MIDNIGHT; this reads
+ * the calendar date via UTC getters and NEVER applies the Oman offset (doing so would
+ * conceptually shift a zone-free date). Throws on a non-Date, an invalid Date, or a
+ * value that is not at UTC-midnight (which would mean an instant was passed where a
+ * calendar date was expected — a contract violation worth surfacing loudly).
+ */
+export function omanDateKeyFromDbDate(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    throw new TypeError("omanDateKeyFromDbDate: expected a valid Date");
+  }
+  if (
+    date.getUTCHours() !== 0 ||
+    date.getUTCMinutes() !== 0 ||
+    date.getUTCSeconds() !== 0 ||
+    date.getUTCMilliseconds() !== 0
+  ) {
+    throw new RangeError("omanDateKeyFromDbDate: expected a UTC-midnight @db.Date value");
+  }
+  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+}
+
+/**
+ * The half-open UTC interval [startOfOmanDay, startOfNextOmanDay) for an Oman date
+ * key — the window a vehicle-conflict overlap check runs against. `start` is the
+ * this-day Oman midnight and `end` is the exclusive next-Oman-midnight (reusing the
+ * existing authorities), so today it is a 24h span WITHOUT any hard-coded offset.
+ * Returns null for an invalid date key.
+ */
+export function omanDayWindow(dateKey: string): { start: Date; end: Date } | null {
+  const key = parseOmanDateKey(dateKey);
+  if (key === null) return null;
+  const start = omanLocalToUtc(`${key}T00:00`);
+  const end = omanValidThroughDateToExpiryInstant(key);
+  if (start === null || end === null) return null;
+  return { start, end };
+}
+
+/**
+ * Format Oman-local minutes-from-midnight (a RentalStartTime/GuidedTourVehicleStartTime
+ * `startTimeMinutes`) as a zero-padded "HH:mm". Accepts only integers 0–1439; any other
+ * value fails explicitly with null.
+ */
+export function startMinutesToHHmm(minutes: number): string | null {
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 1439) return null;
+  return `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
+}
+
+/**
+ * The absolute UTC pickup instant for an Oman calendar date + operational
+ * minutes-from-midnight. Validates both inputs, then combines them as an Oman
+ * wall-clock and converts via the existing omanLocalToUtc authority (never the
+ * server-local zone). Returns null if either input is invalid.
+ */
+export function omanPickupInstant(dateKey: string, startTimeMinutes: number): Date | null {
+  const key = parseOmanDateKey(dateKey);
+  const hhmm = startMinutesToHHmm(startTimeMinutes);
+  if (key === null || hhmm === null) return null;
+  return omanLocalToUtc(`${key}T${hhmm}`);
+}
+
+/**
+ * Whether an Oman date key is in the PAST relative to the current Oman calendar day
+ * (today is NOT past). Compares Oman-local calendar dates, never server-local date
+ * boundaries; `now` is injectable for tests. Throws on an invalid date key.
+ */
+export function isOmanPastDateKey(dateKey: string, now: Date = new Date()): boolean {
+  const key = parseOmanDateKey(dateKey);
+  if (key === null) throw new RangeError(`isOmanPastDateKey: invalid Oman date key "${dateKey}"`);
+  return key < omanDateKey(now);
+}

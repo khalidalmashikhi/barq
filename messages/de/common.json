@@ -43,7 +43,8 @@
     "PER_DAY": "pro Tag",
     "PER_HOUR": "pro Stunde",
     "PER_TRIP": "pro Fahrt",
-    "PER_VEHICLE": "pro Fahrzeug"
+    "PER_VEHICLE": "pro Fahrzeug",
+    "PER_VEHICLE_DAY": "Pro Fahrzeug pro Tag"
   },
   "priceWithUnit": "{price} / {unit}"
 }

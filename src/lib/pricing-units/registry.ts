@@ -28,6 +28,15 @@ export const PRICING_UNIT_CODES = [
   // multiplies it (FIXED billability, see ./billability). A registry addition only — no
   // schema migration (pricingUnit has no DB CHECK/enum, by design).
   "PER_VEHICLE",
+  // Phase 3C Slice C2a — the INTERNAL basis for per-vehicle-per-Oman-calendar-day pricing
+  // (vehicle daily offerings). It is a VALID registry code (so isValidPricingUnit accepts it,
+  // and a future immutable daily-booking snapshot's pricingUnitSnapshot passes resolveBookingMoney)
+  // but it is DELIBERATELY NOT bookable through the LEGACY Price engine: it is classified
+  // DURATION_BASED_UNSUPPORTED in ./billability, so it is excluded from BOOKABLE_PRICING_UNIT_CODES,
+  // rejected by every legacy Price-write path and by calculateBookingTotal/create-booking, and all
+  // PER_DAY rejection layers stay intact. It is priced ONLY by the new isolated daily calculator
+  // (src/lib/offerings/pricing/calculate-vehicle-daily-total.ts) — never a legacy Price row.
+  "PER_VEHICLE_DAY",
 ] as const;
 
 export type PricingUnit = (typeof PRICING_UNIT_CODES)[number];

@@ -18,6 +18,10 @@ describe("classifyBillability", () => {
     expect(classifyBillability("PER_HOUR")).toBe("DURATION_BASED_UNSUPPORTED");
   });
 
+  it("Slice C2a — PER_VEHICLE_DAY classifies DURATION_BASED_UNSUPPORTED for the LEGACY Price path (not bookable there)", () => {
+    expect(classifyBillability("PER_VEHICLE_DAY")).toBe("DURATION_BASED_UNSUPPORTED");
+  });
+
   it("FAILS CLOSED for unknown / ungoverned / null codes — never defaults to FIXED", () => {
     expect(classifyBillability("PER_NIGHT")).toBeNull();
     expect(classifyBillability("FLAT")).toBeNull();
@@ -41,8 +45,8 @@ describe("isBookablePricingUnit", () => {
     }
   });
 
-  it("FAILS CLOSED for duration units, unknown codes, empty, and null (never a new active price)", () => {
-    for (const code of ["PER_DAY", "PER_HOUR", "PER_NIGHT", "FLAT", "", "nonsense"]) {
+  it("FAILS CLOSED for duration units, PER_VEHICLE_DAY, unknown codes, empty, and null (never a new active Price)", () => {
+    for (const code of ["PER_DAY", "PER_HOUR", "PER_VEHICLE_DAY", "PER_NIGHT", "FLAT", "", "nonsense"]) {
       expect(isBookablePricingUnit(code)).toBe(false);
     }
     expect(isBookablePricingUnit(null)).toBe(false);
@@ -55,8 +59,9 @@ describe("BOOKABLE_PRICING_UNIT_CODES", () => {
     expect([...BOOKABLE_PRICING_UNIT_CODES]).toEqual(["PER_PERSON", "PER_BOOKING", "PER_TRIP", "PER_VEHICLE"]);
   });
 
-  it("excludes the reserved duration units", () => {
+  it("excludes the reserved duration units AND the internal PER_VEHICLE_DAY basis", () => {
     expect(BOOKABLE_PRICING_UNIT_CODES).not.toContain("PER_DAY");
     expect(BOOKABLE_PRICING_UNIT_CODES).not.toContain("PER_HOUR");
+    expect(BOOKABLE_PRICING_UNIT_CODES).not.toContain("PER_VEHICLE_DAY");
   });
 });

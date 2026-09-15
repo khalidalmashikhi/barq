@@ -43,7 +43,8 @@
     "PER_DAY": "za dzień",
     "PER_HOUR": "za godzinę",
     "PER_TRIP": "za wycieczkę",
-    "PER_VEHICLE": "za pojazd"
+    "PER_VEHICLE": "za pojazd",
+    "PER_VEHICLE_DAY": "Za pojazd na dobę"
   },
   "priceWithUnit": "{price} / {unit}"
 }

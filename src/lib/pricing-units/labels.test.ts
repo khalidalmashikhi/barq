@@ -22,6 +22,7 @@ describe("pricingUnitLabelKey", () => {
   it("returns the label key for a governed unit", () => {
     expect(pricingUnitLabelKey("PER_PERSON")).toBe("pricingUnit.PER_PERSON");
     expect(pricingUnitLabelKey("PER_DAY")).toBe("pricingUnit.PER_DAY");
+    expect(pricingUnitLabelKey("PER_VEHICLE_DAY")).toBe("pricingUnit.PER_VEHICLE_DAY");
   });
 
   it("returns null for null/undefined/empty (absent → price shown without a unit)", () => {

@@ -21,6 +21,12 @@ const BILLABILITY: Record<PricingUnit, Billability> = {
   PER_VEHICLE: "FIXED",
   PER_DAY: "DURATION_BASED_UNSUPPORTED",
   PER_HOUR: "DURATION_BASED_UNSUPPORTED",
+  // Phase 3C Slice C2a — this classification describes ONLY the LEGACY Price path: as
+  // DURATION_BASED_UNSUPPORTED, PER_VEHICLE_DAY is excluded from BOOKABLE_PRICING_UNIT_CODES and
+  // is rejected by every legacy Price-write validator, by calculateBookingTotal, and by
+  // create-booking — exactly like PER_DAY/PER_HOUR. It does NOT describe whether the NEW isolated
+  // vehicle-daily calculator supports the unit (it does — that calculator never consults this map).
+  PER_VEHICLE_DAY: "DURATION_BASED_UNSUPPORTED",
 };
 
 /**

@@ -43,7 +43,8 @@
     "PER_DAY": "за день",
     "PER_HOUR": "за час",
     "PER_TRIP": "за поездку",
-    "PER_VEHICLE": "за автомобиль"
+    "PER_VEHICLE": "за автомобиль",
+    "PER_VEHICLE_DAY": "За автомобиль в сутки"
   },
   "priceWithUnit": "{price} / {unit}"
 }

@@ -8,8 +8,20 @@ import { PRICING_UNIT_CODES, isValidPricingUnit, parsePricingUnit } from "./regi
 // none of this affects totals or booking behaviour.
 
 describe("PRICING_UNIT_CODES", () => {
-  it("is exactly the 6 governed pricing units (PER_VEHICLE added by Pricing Foundation)", () => {
-    expect([...PRICING_UNIT_CODES]).toEqual(["PER_PERSON", "PER_BOOKING", "PER_DAY", "PER_HOUR", "PER_TRIP", "PER_VEHICLE"]);
+  it("is exactly the 7 governed pricing units (PER_VEHICLE_DAY added, internal-only, by Slice C2a)", () => {
+    expect([...PRICING_UNIT_CODES]).toEqual([
+      "PER_PERSON",
+      "PER_BOOKING",
+      "PER_DAY",
+      "PER_HOUR",
+      "PER_TRIP",
+      "PER_VEHICLE",
+      "PER_VEHICLE_DAY",
+    ]);
+  });
+
+  it("PER_VEHICLE_DAY is a VALID registry code (recognized by isValidPricingUnit)", () => {
+    expect(isValidPricingUnit("PER_VEHICLE_DAY")).toBe(true);
   });
 
   it("has no duplicate codes", () => {
