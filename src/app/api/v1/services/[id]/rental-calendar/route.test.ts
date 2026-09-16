@@ -24,7 +24,7 @@ const CAL = {
   window: { from: "2030-07-01", to: "2030-07-02", timeZone: "Asia/Muscat" },
   offerings: [],
   lowestAvailableDailyRate: null,
-  availabilityBasis: "CONFIGURED",
+  availabilityBasis: "CONFIGURED_AND_RESERVATION_CHECKED",
 };
 
 describe("GET /api/v1/services/{id}/rental-calendar", () => {

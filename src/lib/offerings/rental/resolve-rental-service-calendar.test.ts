@@ -55,10 +55,12 @@ const day = (offeringId: string, key: string, state: "OPEN" | "BLOCKED", overrid
 });
 
 type CandidateRow = { id: string };
+type ConflictRow = { vehicleId: string; dateKey: string };
 type DbOver = {
   service?: unknown; // undefined → default public rental service; null → not public
   candidates?: CandidateRow[];
   dayRows?: DayRow[];
+  conflicts?: ConflictRow[]; // C3/E1 active daily-rental conflicts (vehicle assetId + Oman day)
   throwOn?: "service" | "offerings" | "days";
 };
 // The fake db implements REAL deterministic keyset pagination (order by id, id > cursor, take) + the
@@ -85,12 +87,20 @@ function makeDb(over: DbOver = {}) {
     const { gte, lte } = args.where.serviceDate;
     return (over.dayRows ?? []).filter((r) => ids.has(r.rentalOfferingId) && r.serviceDate >= gte && r.serviceDate <= lte);
   });
+  const reservationFindMany = vi.fn(async (args: { where: { vehicleId: { in: string[] }; serviceDate: { gte: Date; lte: Date } } }) => {
+    const ids = new Set(args.where.vehicleId.in);
+    const { gte, lte } = args.where.serviceDate;
+    return (over.conflicts ?? [])
+      .map((c) => ({ vehicleId: c.vehicleId, serviceDate: dbDateFromOmanDateKey(c.dateKey)! }))
+      .filter((r) => ids.has(r.vehicleId) && r.serviceDate >= gte && r.serviceDate <= lte);
+  });
   const db = {
     service: { findFirst: serviceFindFirst },
     rentalOffering: { findMany: offeringFindMany, findFirst: offeringFindFirst },
     rentalOfferingDay: { findMany: dayFindMany },
+    rentalVehicleDayReservation: { findMany: reservationFindMany },
   };
-  return { db, serviceFindFirst, offeringFindMany, offeringFindFirst, dayFindMany };
+  return { db, serviceFindFirst, offeringFindMany, offeringFindFirst, dayFindMany, reservationFindMany };
 }
 
 const run = (over: DbOver, params: { from?: string; to?: string } = {}) => {
@@ -275,20 +285,61 @@ describe("query bounds, security, reservation boundary, read failure", () => {
     expect((arg.where as { serviceDate: { gte: Date; lte: Date } }).serviceDate.lte).toEqual(dbDateFromOmanDateKey("2030-07-03"));
     expect(arg.select).not.toHaveProperty("startTimes");
   });
-  it("availabilityBasis is CONFIGURED and no VEHICLE_CONFLICT reason is emitted (no reservation authority yet)", async () => {
+  it("availabilityBasis is CONFIGURED_AND_RESERVATION_CHECKED (C3/E1 conflict reader integrated)", async () => {
     const r = await run({ candidates: [offering("o1")], dayRows: [day("o1", "2030-07-01", "OPEN")] }, win).result;
-    expect(r.ok && r.calendar.availabilityBasis).toBe("CONFIGURED");
-    const reasons = r.ok ? r.calendar.offerings.flatMap((o) => o.days.map((d) => d.unavailableReason)) : [];
-    expect(reasons).not.toContain("VEHICLE_CONFLICT");
+    expect(r.ok && r.calendar.availabilityBasis).toBe("CONFIGURED_AND_RESERVATION_CHECKED");
   });
   it("a DB read failure maps to READ_FAILED (safe)", async () => {
     expect(await run({ candidates: [offering("o1")], throwOn: "days" }, win).result).toEqual({ ok: false, reason: "READ_FAILED" });
     expect(await run({ throwOn: "service" }, win).result).toEqual({ ok: false, reason: "READ_FAILED" });
   });
-  it("performs no writes: the fake db exposes only findFirst/findMany (any write would throw)", async () => {
+  it("performs no writes: the fake db exposes only findFirst/findMany reads (any write would throw)", async () => {
     // makeDb has no create/update/delete delegates; a successful resolve proves read-only operation.
     const r = await run({ candidates: [offering("o1")], dayRows: [day("o1", "2030-07-01", "OPEN")] }, win).result;
     expect(r.ok).toBe(true);
+  });
+});
+
+// C3/E1 — the read-only daily-rental conflict reader is integrated into the calendar: an OPEN day
+// with an active HELD/CONFIRMED reservation on that physical vehicle/day becomes VEHICLE_CONFLICT.
+describe("C3/E1 reservation-conflict integration", () => {
+  const win = { from: "2030-07-01", to: "2030-07-02" };
+  it("an OPEN configured day with an active conflict is unavailable (VEHICLE_CONFLICT), no price, dayState stays OPEN", async () => {
+    const r = await run(
+      { candidates: [offering("o1")], dayRows: [day("o1", "2030-07-01", "OPEN"), day("o1", "2030-07-02", "OPEN")], conflicts: [{ vehicleId: "good-o1", dateKey: "2030-07-01" }] },
+      win,
+    ).result;
+    const days = r.ok ? r.calendar.offerings[0]!.days : [];
+    expect(days[0]).toMatchObject({ dateKey: "2030-07-01", dayState: "OPEN", available: false, unavailableReason: "VEHICLE_CONFLICT", dailyPrice: null, priceSource: null });
+    expect(days[1]).toMatchObject({ dateKey: "2030-07-02", available: true, dailyPrice: { amount: "40.00", currency: "OMR" } });
+  });
+  it("configured state and reservation state are separate: a BLOCKED day stays BLOCKED (not VEHICLE_CONFLICT) even if also reserved", async () => {
+    const r = await run(
+      { candidates: [offering("o1")], dayRows: [day("o1", "2030-07-01", "BLOCKED")], conflicts: [{ vehicleId: "good-o1", dateKey: "2030-07-01" }] },
+      { from: "2030-07-01", to: "2030-07-01" },
+    ).result;
+    expect(r.ok && r.calendar.offerings[0]!.days[0]).toMatchObject({ dayState: "BLOCKED", available: false, unavailableReason: "BLOCKED" });
+  });
+  it("a conflicted day is excluded from the service-wide lowest available rate", async () => {
+    const r = await run(
+      { candidates: [offering("o1")], dayRows: [day("o1", "2030-07-01", "OPEN", "10.00"), day("o1", "2030-07-02", "OPEN", "50.00")], conflicts: [{ vehicleId: "good-o1", dateKey: "2030-07-01" }] },
+      win,
+    ).result;
+    expect(r.ok && r.calendar.lowestAvailableDailyRate).toEqual({ amount: "50.00", currency: "OMR" }); // the cheaper (conflicted) day is not counted
+  });
+  it("runs ONE batched conflict read per page (no N+1), scoped to the page's vehicle ids + window", async () => {
+    const { m, result } = run({ candidates: [offering("o1"), offering("o2")], dayRows: [day("o1", "2030-07-01", "OPEN"), day("o2", "2030-07-01", "OPEN")] }, win);
+    await result;
+    expect(m.reservationFindMany).toHaveBeenCalledTimes(1);
+    const arg = m.reservationFindMany.mock.calls[0]![0] as { where: { vehicleId: { in: string[] }; serviceDate: { gte: Date; lte: Date } } };
+    expect(arg.where.vehicleId.in.sort()).toEqual(["good-o1", "good-o2"]);
+    expect(arg.where.serviceDate.gte).toEqual(dbDateFromOmanDateKey("2030-07-01"));
+    expect(arg.where.serviceDate.lte).toEqual(dbDateFromOmanDateKey("2030-07-02"));
+  });
+  it("does NOT run a conflict read for a page with zero locally-ready candidates", async () => {
+    const { m, result } = run({ candidates: [offering("o1", { vehicle: vehicle("bad-1") })] }, win);
+    await result;
+    expect(m.reservationFindMany).not.toHaveBeenCalled();
   });
 });
 

@@ -22,6 +22,7 @@ import {
   type LoadedRentalVehicle,
 } from "./rental-offering-authorization";
 import { parseOfferingAmount, normalizeOfferingCurrency, checkCapacityOverride } from "./rental-offering-validation";
+import { getDailyRentalVehicleConflicts, rentalConflictKey } from "./reservation/daily-rental-conflicts";
 
 // Phase 3C Slice C2c — the PURE, server-side PUBLIC rental-calendar resolver: given a publicly
 // visible VEHICLE_RENTAL Service and a strict Oman date window, resolve each eligible published
@@ -31,12 +32,15 @@ import { parseOfferingAmount, normalizeOfferingCurrency, checkCapacityOverride }
 // validators — it duplicates NO legal-vertical or vehicle-readiness logic and reads NO legacy Price
 // row for pricing. Guided offering tables/logic are never touched.
 //
-// AVAILABILITY MEANING AT C2c: "available" here is CONFIGURED availability only (an explicit OPEN,
-// non-past day with an authoritative price on a currently-eligible published offering). It is NOT a
-// reservation guarantee: there is no daily-rental reservation-conflict authority yet (the existing
-// VehicleReservation path is the legacy interval-booking write path, not a public daily reader), so
-// this resolver never emits VEHICLE_CONFLICT and never claims final bookability. C3/E must revalidate
-// vehicle-reservation conflicts atomically before any booking — see `availabilityBasis: "CONFIGURED"`.
+// AVAILABILITY MEANING AT C2c (post-C3/E1): "available" here is a CONFIGURED, non-past OPEN day with an
+// authoritative price on a currently-eligible published offering AND with NO active daily-rental
+// reservation conflict on that physical vehicle/day. The C3/E1 conflict reader
+// (getDailyRentalVehicleConflicts) is consulted per page (batched, no N+1): an OPEN configured day
+// whose vehicle is actively HELD/CONFIRMED for that Oman day becomes unavailable with reason
+// VEHICLE_CONFLICT. This is NOT "guaranteed" availability — the final acquireDailyRentalHold still
+// revalidates atomically, and a conflict may arise between this read and acquisition — hence
+// `availabilityBasis: "CONFIGURED_AND_RESERVATION_CHECKED"`. Configured day state (OPEN/BLOCKED/NONE)
+// stays SEPARATE from reservation conflict state. Read-only + no-store; no customer/hold/booking data.
 
 // Deterministic keyset page size for scanning PUBLISHED candidate offerings (ordered by unique id).
 export const RENTAL_CALENDAR_PAGE_SIZE = 50;
@@ -98,8 +102,13 @@ export type RentalServiceCalendar = {
    * complete Service-wide minimum, never computed from a silently-truncated candidate set.
    */
   lowestAvailableDailyRate: RentalCalendarMoney | null;
-  /** CONFIGURED availability only — final vehicle-reservation revalidation is a C3/E dependency. */
-  availabilityBasis: "CONFIGURED";
+  /**
+   * CONFIGURED_AND_RESERVATION_CHECKED — each OPEN day is both configured-available AND checked
+   * against the C3/E1 daily-rental conflict reader (an active HELD/CONFIRMED reservation on that
+   * vehicle/day makes it unavailable with reason VEHICLE_CONFLICT). NOT a guarantee: final hold
+   * acquisition still revalidates atomically, and a conflict may arise between this read and the hold.
+   */
+  availabilityBasis: "CONFIGURED_AND_RESERVATION_CHECKED";
 };
 
 export type ResolveRentalServiceCalendarResult =
@@ -163,9 +172,11 @@ function buildOffering(
   entry: EligibleEntry,
   dateKeys: string[],
   dayByKey: Map<string, { state: "OPEN" | "BLOCKED"; override: Prisma.Decimal | null }>,
+  conflicts: Set<string>,
   now: Date,
 ): RentalCalendarOffering {
   const currency = entry.currency;
+  const vehicleId = entry.row.vehicle.assetId;
   const days: RentalCalendarDay[] = dateKeys.map((dateKey) => {
     // Past Oman dates are never selectable, regardless of configured state.
     const past = isOmanPastDateKey(dateKey, now);
@@ -175,6 +186,13 @@ function buildOffering(
     if (past) return { dateKey, dayState, available: false, unavailableReason: "PAST", dailyPrice: null, priceSource: null };
     if (!row) return { dateKey, dayState: "NONE", available: false, unavailableReason: "NO_OPEN_DAY", dailyPrice: null, priceSource: null };
     if (row.state === "BLOCKED") return { dateKey, dayState: "BLOCKED", available: false, unavailableReason: "BLOCKED", dailyPrice: null, priceSource: null };
+
+    // OPEN but RESERVED: an active HELD/CONFIRMED daily-rental reservation on this physical vehicle/day
+    // (C3/E1) makes the configured-open day unavailable. Reservation state is kept SEPARATE from the
+    // configured dayState (which stays OPEN); no customer/hold/booking metadata is ever exposed.
+    if (conflicts.has(rentalConflictKey(vehicleId, dateKey))) {
+      return { dateKey, dayState: "OPEN", available: false, unavailableReason: "VEHICLE_CONFLICT", dailyPrice: null, priceSource: null };
+    }
 
     // OPEN: override wins when present; a MALFORMED override fails CLOSED for this day (never a
     // silent fallback to base). Absent override ⇒ the offering base.
@@ -230,7 +248,7 @@ function buildCalendar(serviceId: string, window: { from: string; to: string }, 
     window: { from: window.from, to: window.to, timeZone: OMAN_TIME_ZONE },
     offerings,
     lowestAvailableDailyRate: lowest,
-    availabilityBasis: "CONFIGURED",
+    availabilityBasis: "CONFIGURED_AND_RESERVATION_CHECKED",
   };
 }
 
@@ -293,7 +311,7 @@ export async function resolveRentalServiceCalendar(
       window: { from: window.from, to: window.to, timeZone: OMAN_TIME_ZONE },
       offerings: [],
       lowestAvailableDailyRate: null,
-      availabilityBasis: "CONFIGURED",
+      availabilityBasis: "CONFIGURED_AND_RESERVATION_CHECKED",
     };
 
     // Provider-GLOBAL RENTAL_COMPANY vertical compliance, evaluated ONCE on this db client. Failure ⇒
@@ -344,8 +362,12 @@ export async function resolveRentalServiceCalendar(
         const dayByKey = new Map<string, { state: "OPEN" | "BLOCKED"; override: Prisma.Decimal | null }>();
         for (const r of dayRows) dayByKey.set(`${r.rentalOfferingId}|${omanDateKeyFromDbDate(r.serviceDate)}`, { state: r.state, override: r.dailyAmountOverride });
 
+        // ONE batched daily-rental conflict read for THIS page's ready vehicles (C3/E1; no N+1). An
+        // active HELD/CONFIRMED reservation on a vehicle/day marks that OPEN day VEHICLE_CONFLICT.
+        const conflicts = await getDailyRentalVehicleConflicts(ready.map((e) => e.row.vehicle.assetId), window, db, now);
+
         for (const e of ready) {
-          offerings.push(buildOffering(e, dateKeys, dayByKey, now));
+          offerings.push(buildOffering(e, dateKeys, dayByKey, conflicts, now));
           // One eligible past the response bound is the overflow WITNESS: fail closed rather than
           // silently omit it (and never present a truncated set as a complete calendar).
           if (offerings.length > MAX_RENTAL_CALENDAR_OFFERINGS) {
