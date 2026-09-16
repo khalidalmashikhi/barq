@@ -42,8 +42,9 @@ function graph(verticalStatus: string, opts: { auditThrows?: boolean } = {}) {
     providerVertical: { findUnique: vi.fn().mockResolvedValue({ status: verticalStatus }) },
     providerVerificationRequirement: { findMany: vi.fn().mockResolvedValue([{ key: KEY, appliesTo: "RENTAL_COMPANY", required: true, active: true, evidenceExpires: false }]) },
     providerDocument: { findMany: vi.fn().mockResolvedValue([{ type: KEY, status: "APPROVED", expiresAt: null }]) },
-    rentalOffering: { findMany: vi.fn().mockResolvedValue([PUBLISHED_OFFERING]) },
-    rentalOfferingDay: { findFirst: vi.fn().mockResolvedValue({ id: "day-1" }) }, // an OPEN non-past day
+    rentalOffering: { findMany: vi.fn().mockResolvedValue([PUBLISHED_OFFERING]), findFirst: vi.fn().mockResolvedValue(null) },
+    // Batched day-existence query: the offering owns a qualifying OPEN non-past day.
+    rentalOfferingDay: { findMany: vi.fn().mockResolvedValue([{ rentalOfferingId: "off-1" }]) },
     category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1" }) },
     experience: { findUnique: vi.fn().mockResolvedValue(null) },
     tourServiceVehicle: { findMany: vi.fn().mockResolvedValue([]) },

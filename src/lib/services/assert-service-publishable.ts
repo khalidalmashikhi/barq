@@ -65,11 +65,14 @@ export async function assertServicePublishable(
     where: { serviceId: service.id, status: "ACTIVE" },
   });
   if (!activePrice) {
-    const rentalDailyOk =
+    // Path B (rental only). A CANDIDATE_LIMIT_EXCEEDED overflow maps to the SAME public NO_ACTIVE_PRICE
+    // as "no candidate qualified" — the distinct internal reason is logged inside the evaluator; the
+    // public blocker never leaks candidate/overflow details.
+    const rentalDaily =
       service.offeringKind === "VEHICLE_RENTAL"
         ? await evaluateRentalServicePublishable(prisma, { serviceId: service.id, now })
-        : false;
-    if (!rentalDailyOk) {
+        : ({ publishable: false, reason: "NO_CANDIDATE" } as const);
+    if (!rentalDaily.publishable) {
       blockers.push("NO_ACTIVE_PRICE");
     }
   }

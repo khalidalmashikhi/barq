@@ -80,7 +80,7 @@ describe("assertServicePublishable — C2b-R2 daily-rental price bridge (Path A 
   it("VEHICLE_RENTAL with no ACTIVE Price but a valid PUBLISHED daily offering → NO price blocker (Path B)", async () => {
     priceFindFirstMock.mockResolvedValue(null); // Path A absent
     tourVehicleBlockerMock.mockResolvedValue(null);
-    rentalDailyMock.mockResolvedValue(true); // Path B satisfied
+    rentalDailyMock.mockResolvedValue({ publishable: true }); // Path B satisfied
     expect(await assertServicePublishable(rentalSvc("cat-1"))).toEqual([]);
     expect(rentalDailyMock).toHaveBeenCalledWith(expect.anything(), { serviceId: ID, now: expect.any(Date) });
   });
@@ -88,7 +88,7 @@ describe("assertServicePublishable — C2b-R2 daily-rental price bridge (Path A 
   it("VEHICLE_RENTAL with neither ACTIVE Price nor a publishable daily offering → NO_ACTIVE_PRICE (fail-closed)", async () => {
     priceFindFirstMock.mockResolvedValue(null);
     tourVehicleBlockerMock.mockResolvedValue(null);
-    rentalDailyMock.mockResolvedValue(false);
+    rentalDailyMock.mockResolvedValue({ publishable: false, reason: "NO_CANDIDATE" });
     expect(await assertServicePublishable(rentalSvc("cat-1"))).toEqual(["NO_ACTIVE_PRICE"]);
   });
 

@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { omanDateKey } from "@/lib/date/oman-time";
+import { logger } from "@/lib/logger";
 import {
   assertProviderStillApproved,
   assertRentalVerticalCompliant,
@@ -11,12 +12,26 @@ import {
 } from "./rental-offering-authorization";
 import { parseOfferingAmount, normalizeOfferingCurrency, checkCapacityOverride } from "./rental-offering-validation";
 
-// A defensive upper bound on the number of PUBLISHED candidate offerings evaluated for one Service.
-// One non-ARCHIVED offering exists per (serviceId, vehicleId), so this equals the count of a
-// provider's vehicles offered on this service — naturally small; 100 is far beyond any real fleet and
-// guarantees the candidate loop (and its per-candidate OPEN-day existence query) cannot grow without
-// bound. Exceeding it fails closed (a valid offering past the cap is simply not seen → NO_ACTIVE_PRICE).
-export const RENTAL_SERVICE_PUBLISH_CANDIDATE_LIMIT = 100;
+// Deterministic keyset page size for scanning PUBLISHED candidate offerings (ordered by unique id).
+export const RENTAL_SERVICE_PUBLISH_PAGE_SIZE = 50;
+
+// A deliberately HIGH but explicit safety ceiling — protection against pathological data, NOT a
+// normal fleet limit. One non-ARCHIVED offering exists per (serviceId, vehicleId), so a real Service
+// has far fewer candidates than this. If the scan reaches the ceiling while MORE candidates still
+// exist, the evaluator does NOT quietly conclude "no candidate qualified" (which would silently drop
+// a valid offering past the ceiling); it returns the distinct CANDIDATE_LIMIT_EXCEEDED reason so the
+// Service-publication boundary fails closed AND logs it, rather than mis-mapping to a plain NO_ACTIVE_PRICE.
+export const MAX_RENTAL_SERVICE_PUBLISH_CANDIDATES = 1000;
+
+/**
+ * The result of the C2b-R2 daily-rental publishability scan. `publishable: true` ⇒ ≥ 1 fully-valid
+ * PUBLISHED offering qualifies (Path B satisfied). `NO_CANDIDATE` ⇒ the FULL candidate set was scanned
+ * and none qualified. `CANDIDATE_LIMIT_EXCEEDED` ⇒ the safety ceiling was hit while more candidates
+ * remained (pathological data) — the caller must fail closed WITHOUT concluding the set was fully checked.
+ */
+export type RentalServicePublishableResult =
+  | { publishable: true }
+  | { publishable: false; reason: "NO_CANDIDATE" | "CANDIDATE_LIMIT_EXCEEDED" };
 
 // Phase 3C Slice C2b-R2 — the SHARED, TRANSACTION-CAPABLE rental-offering readiness authority used by
 // BOTH C2b-R offering publication and C2b-R2 daily-rental Service publication, so the two can never
@@ -68,62 +83,98 @@ type CandidateOfferingRow = {
  *     present — the SAME assertRentalPublishReady C2b-R publish uses.
  *   • Base daily amount valid+positive; currency present/valid; capacity override null or a positive
  *     integer ≤ verified capacity (fail-closed re-validation of the stored values).
- *   • >= 1 explicit OPEN non-past day resolving a positive rate (hasPublishableOpenDay).
+ *   • >= 1 explicit OPEN non-past day resolving a positive rate (batched per page, see below).
  * A vehicle-reservation conflict is deliberately NOT consulted — availability varies by date and is
  * resolved later (C3); Service-publish eligibility must not imply the vehicle is free on any date.
+ *
+ * Scanning strategy: after the provider/service-GLOBAL gates (fail the whole evaluation once), the
+ * PUBLISHED candidate offerings are walked with DETERMINISTIC KEYSET pagination (order by unique
+ * `id`, `id > cursor`, page size {@link RENTAL_SERVICE_PUBLISH_PAGE_SIZE}) so a valid candidate's
+ * position never changes the result. Candidate-LOCAL readiness (vehicle + money/currency/capacity) is
+ * filtered IN MEMORY per page; the OPEN-non-past-day requirement is then a SINGLE batched existence
+ * query for the whole page (distinct offering ids that have a qualifying day) — no per-candidate day
+ * query (no N+1) and NO start-time / unbounded day-history load. The scan stops at the first qualifying
+ * candidate. It never scans beyond {@link MAX_RENTAL_SERVICE_PUBLISH_CANDIDATES}; if it hits that
+ * ceiling while more candidates remain, it returns CANDIDATE_LIMIT_EXCEEDED (fail-closed, logged)
+ * rather than a false "no candidate qualified".
  */
 export async function evaluateRentalServicePublishable(
   db: DbClient,
   params: { serviceId: string; now?: Date },
-): Promise<boolean> {
+): Promise<RentalServicePublishableResult> {
   const now = params.now ?? new Date();
+  const NO_CANDIDATE = { publishable: false, reason: "NO_CANDIDATE" } as const;
 
-  // Re-read the Service kind + owner on the supplied client (never trust a caller-passed kind).
+  // ---- PROVIDER/SERVICE-GLOBAL gates: any failure fails the ENTIRE evaluation immediately ----
   const service = await db.service.findUnique({
     where: { id: params.serviceId },
     select: { providerId: true, offeringKind: true },
   });
-  if (!service || service.offeringKind !== RENTAL_OFFERING_KIND) return false;
+  if (!service || service.offeringKind !== RENTAL_OFFERING_KIND) return NO_CANDIDATE;
+  if ((await assertProviderStillApproved(db, service.providerId)) !== null) return NO_CANDIDATE;
+  // Vertical APPROVED + compliant (status + policy + evidence, all on the supplied client) — a
+  // provider-global fact evaluated ONCE, before any candidate paging (no N+1 on compliance).
+  if ((await assertRentalVerticalCompliant(db, service.providerId)) !== null) return NO_CANDIDATE;
 
-  // Provider overall approval, re-read on the same client.
-  if ((await assertProviderStillApproved(db, service.providerId)) !== null) return false;
+  const baseWhere = {
+    serviceId: params.serviceId,
+    status: "PUBLISHED" as const,
+    vehicle: { asset: { providerId: service.providerId, assetType: "VEHICLE" as const } },
+  };
+  const boundary = omanTodayDbDateBoundary(now);
 
-  // Vertical APPROVED + compliant (status + policy + evidence, all on the supplied client). A
-  // provider-global fact — evaluated ONCE here, not per candidate, so a non-compliant vertical fails
-  // the whole evaluation and never re-queries per offering (no N+1 on compliance).
-  if ((await assertRentalVerticalCompliant(db, service.providerId)) !== null) return false;
+  // ---- Bounded keyset scan of PUBLISHED candidates (deterministic by unique id) ----
+  let cursor: string | null = null;
+  let inspected = 0;
+  while (inspected < MAX_RENTAL_SERVICE_PUBLISH_CANDIDATES) {
+    const take = Math.min(RENTAL_SERVICE_PUBLISH_PAGE_SIZE, MAX_RENTAL_SERVICE_PUBLISH_CANDIDATES - inspected);
+    const page = (await db.rentalOffering.findMany({
+      where: cursor === null ? baseWhere : { ...baseWhere, id: { gt: cursor } },
+      select: {
+        id: true,
+        baseDailyAmount: true,
+        currency: true,
+        offeringCapacityOverride: true,
+        vehicle: { select: RENTAL_VEHICLE_SELECT },
+      },
+      orderBy: { id: "asc" },
+      take,
+    })) as unknown as CandidateOfferingRow[];
+    if (page.length === 0) return NO_CANDIDATE; // the full set is exhausted
 
-  // Candidate PUBLISHED offerings for THIS service whose Vehicle the SAME provider owns (a foreign
-  // vehicle/offering/service simply does not match — non-enumerating). Ordered deterministically so
-  // the outcome never depends on DB return order, and capped so the candidate loop cannot grow
-  // unbounded. NO start-time rows are loaded; each candidate's day check is a single existence query.
-  const offerings = (await db.rentalOffering.findMany({
-    where: {
-      serviceId: params.serviceId,
-      status: "PUBLISHED",
-      vehicle: { asset: { providerId: service.providerId, assetType: "VEHICLE" } },
-    },
-    select: {
-      id: true,
-      baseDailyAmount: true,
-      currency: true,
-      offeringCapacityOverride: true,
-      vehicle: { select: RENTAL_VEHICLE_SELECT },
-    },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    take: RENTAL_SERVICE_PUBLISH_CANDIDATE_LIMIT,
-  })) as unknown as CandidateOfferingRow[];
+    // Candidate-LOCAL readiness, filtered in memory (no query): vehicle selectable + verified
+    // capacity + valid money/currency/capacity-override. A failure disqualifies only that offering.
+    const ready = page.filter(
+      (o) =>
+        assertRentalVehicleReady(o.vehicle, now) === null &&
+        parseOfferingAmount(o.baseDailyAmount) !== null &&
+        normalizeOfferingCurrency(o.currency) !== null &&
+        checkCapacityOverride(o.vehicle.bookablePassengerCapacity, o.offeringCapacityOverride).ok,
+    );
+    // ONE batched OPEN-non-past-day existence query for the whole page (distinct offering ids that
+    // have >= 1 qualifying day). No per-candidate query, no start-times, no unbounded day history.
+    if (ready.length > 0) {
+      const withDay = (await db.rentalOfferingDay.findMany({
+        where: { rentalOfferingId: { in: ready.map((o) => o.id) }, state: "OPEN", serviceDate: { gte: boundary } },
+        select: { rentalOfferingId: true },
+        distinct: ["rentalOfferingId"],
+      })) as unknown as { rentalOfferingId: string }[];
+      if (withDay.length > 0) return { publishable: true }; // >= 1 candidate satisfies every Path B condition
+    }
 
-  for (const offering of offerings) {
-    // Candidate-local: this Vehicle selectable + verified capacity (disqualifies only this offering).
-    if (assertRentalVehicleReady(offering.vehicle, now) !== null) continue;
-    // Authoritative money/currency/capacity-override re-validation (fail-closed, candidate-local).
-    if (parseOfferingAmount(offering.baseDailyAmount) === null) continue;
-    if (normalizeOfferingCurrency(offering.currency) === null) continue;
-    if (!checkCapacityOverride(offering.vehicle.bookablePassengerCapacity, offering.offeringCapacityOverride).ok) continue;
-    // >= 1 OPEN non-past day resolving a positive daily rate (single existence query per candidate).
-    if (!(await hasPublishableOpenDay(db, offering.id, now))) continue;
-    return true; // this offering satisfies every Path B condition
+    inspected += page.length;
+    cursor = page[page.length - 1]!.id;
+    if (page.length < take) return NO_CANDIDATE; // partial page ⇒ the full set is exhausted
   }
-  return false;
+
+  // Reached the safety ceiling. If NO more candidates exist beyond it, the set was fully scanned →
+  // NO_CANDIDATE. If more remain, do NOT claim "none qualified" — surface the distinct overflow reason.
+  const more = await db.rentalOffering.findFirst({
+    where: { ...baseWhere, id: { gt: cursor! } },
+    select: { id: true },
+    orderBy: { id: "asc" },
+  });
+  if (!more) return NO_CANDIDATE;
+  logger.warn("rental_service_publishable.candidate_limit_exceeded", { serviceId: params.serviceId, inspected });
+  return { publishable: false, reason: "CANDIDATE_LIMIT_EXCEEDED" };
 }

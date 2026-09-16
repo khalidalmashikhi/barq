@@ -457,7 +457,7 @@ describe("publishService — C2b-R2 daily-rental price bridge", () => {
     findUniqueMock.mockResolvedValue(rentalService());
     providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
     findFirstMock.mockResolvedValue(null); // no legacy ACTIVE Price (Path A absent)
-    rentalDailyMock.mockResolvedValue(true); // Path B satisfied (pre-tx AND in-tx)
+    rentalDailyMock.mockResolvedValue({ publishable: true }); // Path B satisfied (pre-tx AND in-tx)
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
 
@@ -470,7 +470,7 @@ describe("publishService — C2b-R2 daily-rental price bridge", () => {
     findUniqueMock.mockResolvedValue(rentalService());
     providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
     findFirstMock.mockResolvedValue(null);
-    rentalDailyMock.mockResolvedValue(false); // Path B fails
+    rentalDailyMock.mockResolvedValue({ publishable: false, reason: "NO_CANDIDATE" }); // Path B fails
 
     expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
     expect(updateMock).not.toHaveBeenCalled();
@@ -482,7 +482,19 @@ describe("publishService — C2b-R2 daily-rental price bridge", () => {
     findUniqueMock.mockResolvedValue(rentalService());
     providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
     findFirstMock.mockResolvedValue(null); // no active price, both pre-tx and in-tx
-    rentalDailyMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false); // pre-tx ok, in-tx lapsed
+    rentalDailyMock.mockResolvedValueOnce({ publishable: true }).mockResolvedValueOnce({ publishable: false, reason: "NO_CANDIDATE" }); // pre-tx ok, in-tx lapsed
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("candidate-overflow (CANDIDATE_LIMIT_EXCEEDED) fails closed to NO_ACTIVE_PRICE — no status update, no audit", async () => {
+    requireProviderMock.mockResolvedValue({ provider: { id: "provider-1" } });
+    findUniqueMock.mockResolvedValue(rentalService());
+    providerVerticalFindUniqueMock.mockResolvedValue({ status: "APPROVED" });
+    findFirstMock.mockResolvedValue(null);
+    rentalDailyMock.mockResolvedValue({ publishable: false, reason: "CANDIDATE_LIMIT_EXCEEDED" });
 
     expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
     expect(updateMock).not.toHaveBeenCalled();

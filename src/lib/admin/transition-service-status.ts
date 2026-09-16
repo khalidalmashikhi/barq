@@ -89,7 +89,9 @@ async function transition(
       // transaction client or the publication rolls back → NO_ACTIVE_PRICE.
       if (toStatus === "PUBLISHED" && service.offeringKind === "VEHICLE_RENTAL") {
         const activePriceTx = await tx.price.findFirst({ where: { serviceId, status: "ACTIVE" }, select: { id: true } });
-        if (!activePriceTx && !(await evaluateRentalServicePublishable(tx, { serviceId }))) {
+        if (!activePriceTx && !(await evaluateRentalServicePublishable(tx, { serviceId })).publishable) {
+          // "No candidate" and CANDIDATE_LIMIT_EXCEEDED both fail closed to NO_ACTIVE_PRICE (overflow
+          // is logged inside the evaluator); no records leak.
           throw new ServicePublishBlockedError(["NO_ACTIVE_PRICE"]);
         }
       }

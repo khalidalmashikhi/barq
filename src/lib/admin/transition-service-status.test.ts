@@ -217,7 +217,7 @@ describe("publishService (admin) — C2b-R2 daily-rental price bridge", () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue(rentalService);
     findFirstMock.mockResolvedValue(null); // no ACTIVE Price
-    rentalDailyMock.mockResolvedValue(true);
+    rentalDailyMock.mockResolvedValue({ publishable: true });
     updateMock.mockResolvedValue({});
     auditCreateMock.mockResolvedValue({});
 
@@ -229,7 +229,18 @@ describe("publishService (admin) — C2b-R2 daily-rental price bridge", () => {
     requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
     findUniqueMock.mockResolvedValue(rentalService);
     findFirstMock.mockResolvedValue(null);
-    rentalDailyMock.mockResolvedValue(false);
+    rentalDailyMock.mockResolvedValue({ publishable: false, reason: "NO_CANDIDATE" });
+
+    expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("candidate-overflow (CANDIDATE_LIMIT_EXCEEDED) fails closed to NO_ACTIVE_PRICE — no status update, no audit", async () => {
+    requireAdminMock.mockResolvedValue({ admin: { id: "admin-1" } });
+    findUniqueMock.mockResolvedValue(rentalService);
+    findFirstMock.mockResolvedValue(null);
+    rentalDailyMock.mockResolvedValue({ publishable: false, reason: "CANDIDATE_LIMIT_EXCEEDED" });
 
     expect(await publishService(SERVICE_ID)).toEqual({ ok: false, error: "NO_ACTIVE_PRICE", blockers: ["NO_ACTIVE_PRICE"] });
     expect(updateMock).not.toHaveBeenCalled();

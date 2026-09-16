@@ -140,7 +140,9 @@ async function transition(
       // publication rolls back → NO_ACTIVE_PRICE. Non-rental publishes and Path-A rentals skip this.
       if (toStatus === "PUBLISHED" && service.offeringKind === "VEHICLE_RENTAL") {
         const activePriceTx = await tx.price.findFirst({ where: { serviceId, status: "ACTIVE" }, select: { id: true } });
-        if (!activePriceTx && !(await evaluateRentalServicePublishable(tx, { serviceId }))) {
+        if (!activePriceTx && !(await evaluateRentalServicePublishable(tx, { serviceId })).publishable) {
+          // Both "no candidate qualified" and the CANDIDATE_LIMIT_EXCEEDED overflow fail closed to the
+          // established NO_ACTIVE_PRICE (overflow is logged inside the evaluator); no records leak.
           throw new ServicePublishBlockedError(["NO_ACTIVE_PRICE"]);
         }
       }
