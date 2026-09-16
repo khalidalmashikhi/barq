@@ -28,6 +28,13 @@ export const MAX_RENTAL_HOLD_DATES = 62;
 /** The two authoritative price sources for a day's rate (override wins over the offering base). */
 export type RentalPriceSource = "BASE" | "OVERRIDE";
 
+/**
+ * The pricing-unit CODE a daily-rental Booking snapshots (a valid registry unit that is
+ * non-bookable via the LEGACY Price path — C2a). A rental Booking is TOTALIZED: its authoritative
+ * total is the per-date SUM, so billableQuantitySnapshot is 1 (never a unit×passengers multiplier).
+ */
+export const RENTAL_PRICING_UNIT = "PER_VEHICLE_DAY" as const;
+
 /** One selected day's authoritative price snapshot (safe DTO). */
 export type RentalHoldDay = {
   dateKey: string;

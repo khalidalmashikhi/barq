@@ -37,3 +37,12 @@ export function getReviewCreateRateLimit(): RateLimitConfig {
     windowMs: readPositiveInt("RATE_LIMIT_REVIEW_CREATE_WINDOW_SECONDS", 3600) * 1000,
   };
 }
+
+// Phase 3C Slice C3/E2 — daily-rental customer hold mutations (acquire / release / confirm), keyed
+// per authenticated customer. Generous abuse guard, not a UX quota; env-tunable.
+export function getRentalHoldRateLimit(): RateLimitConfig {
+  return {
+    limit: readPositiveInt("RATE_LIMIT_RENTAL_HOLD_MAX", 40),
+    windowMs: readPositiveInt("RATE_LIMIT_RENTAL_HOLD_WINDOW_SECONDS", 3600) * 1000,
+  };
+}

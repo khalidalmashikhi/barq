@@ -57,7 +57,12 @@ vi.mock("@/lib/db", () => ({
       findUnique: (...args: unknown[]) => bookingFindUniqueMock(...args),
     },
     $transaction: async (callback: (tx: unknown) => unknown) =>
-      callback({ $executeRaw: (...args: unknown[]) => executeRawMock(...args) }),
+      callback({
+        $executeRaw: (...args: unknown[]) => executeRawMock(...args),
+        // Phase 3C Slice C3/E2 — rental cancellation-sync primitive runs in-tx; no-op for non-rental.
+        rentalVehicleDayHoldGroup: { findMany: async () => [] },
+        rentalVehicleDayReservation: { updateMany: async () => ({ count: 0 }) },
+      }),
   },
 }));
 

@@ -56,6 +56,10 @@ vi.mock("@/lib/db", () => ({
       callback({
         $executeRaw: (...args: unknown[]) => executeRawMock(...args),
         booking: { update: (...args: unknown[]) => bookingUpdateMock(...args) },
+        // Phase 3C Slice C3/E2 — the rental cancellation-sync primitive runs in-tx; a non-rental
+        // booking has zero hold groups, so it no-ops (this fake returns none).
+        rentalVehicleDayHoldGroup: { findMany: async () => [] },
+        rentalVehicleDayReservation: { updateMany: async () => ({ count: 0 }) },
       }),
   },
 }));

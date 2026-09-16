@@ -1555,6 +1555,20 @@ model Booking {
   /// registrationNumber, documents, objectKey, verificationStatus, or the raw trusted/
   /// claimed 4x4 flags. Nullable + no backfill: legacy and no-vehicle bookings stay null.
   vehicleSnapshot         Json?
+  /// Phase 3C Slice C3/E2 — the immutable RENTAL snapshot + rental discriminator. NON-NULL only for
+  /// a daily-rental Booking created by confirming a C3/E1 hold; NULL for every legacy/slot/tour
+  /// booking (additive, no backfill). Its presence marks this Booking as a rental (so acceptance
+  /// skips the legacy vehicle-reservation path and cancellation releases the daily reservations).
+  /// Structured, customer-safe, and frozen at confirmation — a later offering/vehicle/compliance
+  /// change never rewrites it. Shape: { rentalOfferingId, vehicleId, vehicle:{make,model,modelYear,
+  /// color,vehicleType,bookablePassengerCapacity}, passengerCount, dateKeys:[…sorted Oman days],
+  /// perDate:[{dateKey,amount,currency,source}], chargeableDays, total, currency, holdGroupId,
+  /// quoteFingerprint, pricingUnit:"PER_VEHICLE_DAY", timeZone:"Asia/Muscat" }. Passenger count lives
+  /// HERE (capacity-only), NEVER in Booking.seats or billableQuantitySnapshot — it never multiplies
+  /// price. registrationNumber / registeredSeats are NEVER included. The authoritative money is the
+  /// TOTALIZED snapshot columns below (bookingTotalSnapshot = the per-date sum); this is the domain
+  /// detail behind that total. The hold-group→Booking link lives on RentalVehicleDayHoldGroup.bookingId.
+  rentalSnapshot          Json?
   /// BOOKING-INTERVAL-1 — the ONE authoritative operational time window during which this
   /// booking's operational resources (the assigned Vehicle now; guide/driver later) are
   /// committed. Absolute instants (timestamptz), half-open [start, end). Populated at

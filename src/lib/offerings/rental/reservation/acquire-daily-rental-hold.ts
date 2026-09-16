@@ -2,27 +2,14 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { logger } from "@/lib/logger";
-import {
-  parseOmanDateKey,
-  isOmanPastDateKey,
-  dbDateFromOmanDateKey,
-  omanDateKeyFromDbDate,
-} from "@/lib/date/oman-time";
-import { calculateVehicleDailyTotal } from "@/lib/offerings/pricing/calculate-vehicle-daily-total";
-import { parseOfferingAmount, checkCapacityOverride } from "../rental-offering-validation";
-import {
-  assertRentalVerticalCompliant,
-  assertRentalVehicleReady,
-  isUniqueViolation,
-  RENTAL_VEHICLE_SELECT,
-  type LoadedRentalVehicle,
-} from "../rental-offering-authorization";
+import { parseOmanDateKey, isOmanPastDateKey, dbDateFromOmanDateKey, omanDateKeyFromDbDate } from "@/lib/date/oman-time";
+import { isUniqueViolation } from "../rental-offering-authorization";
 import { expireStaleHoldsForVehicleDates } from "./expire-stale-daily-rental-holds";
+import { resolveRentalDayQuote } from "./resolve-rental-day-quote";
 import {
   RENTAL_HOLD_TTL_MINUTES,
   MAX_RENTAL_HOLD_DATES,
   computeRentalHoldRequestFingerprint,
-  computeRentalHoldQuoteFingerprint,
   type AcquireDailyRentalHoldResult,
   type DailyRentalHold,
   type ExpectedQuote,
@@ -48,17 +35,6 @@ import {
 
 /** How many times to retry the whole acquisition when the group-unique winner rolled back (rare). */
 const MAX_ACQUIRE_ATTEMPTS = 3;
-
-/** Row shape loaded for a candidate offering (public-gated, owned vehicle). */
-type LoadedOffering = {
-  id: string;
-  serviceId: string;
-  currency: string;
-  baseDailyAmount: Prisma.Decimal;
-  offeringCapacityOverride: number | null;
-  providerId: string;
-  vehicle: LoadedRentalVehicle;
-};
 
 export type AcquireDailyRentalHoldParams = {
   /** Server-DERIVED authenticated owner (requireCustomer → customer.id). NEVER client-supplied. */
@@ -150,95 +126,6 @@ function normalizeSelection(dateKeys: string[], now: Date): { ok: true; keys: st
   return { ok: true, keys: [...seen].sort() };
 }
 
-/** The authoritative in-transaction quote + eligibility resolution (no writes). */
-type ResolvedAcquisition =
-  | { ok: true; offering: LoadedOffering; vehicleId: string; quote: RentalHoldQuote; resolved: { dateKey: string; amount: Prisma.Decimal; priceSource: RentalPriceSource }[] }
-  | { ok: false; reason: "NOT_BOOKABLE" | "CAPACITY_EXCEEDED" | "DAY_NOT_AVAILABLE" };
-
-async function resolveAcquisition(
-  tx: Prisma.TransactionClient,
-  params: AcquireDailyRentalHoldParams,
-  sortedKeys: string[],
-  dbDates: Date[],
-  now: Date,
-): Promise<ResolvedAcquisition> {
-  const offeringRow = await tx.rentalOffering.findFirst({
-    where: {
-      id: params.offeringId,
-      status: "PUBLISHED",
-      service: { status: "PUBLISHED", offeringKind: "VEHICLE_RENTAL", provider: { status: "APPROVED", visible: true } },
-      vehicle: { asset: { assetType: "VEHICLE" } },
-    },
-    select: {
-      id: true,
-      serviceId: true,
-      currency: true,
-      baseDailyAmount: true,
-      offeringCapacityOverride: true,
-      service: { select: { providerId: true } },
-      vehicle: { select: RENTAL_VEHICLE_SELECT },
-    },
-  });
-  if (!offeringRow) return { ok: false, reason: "NOT_BOOKABLE" };
-  const offering: LoadedOffering = {
-    id: offeringRow.id,
-    serviceId: offeringRow.serviceId,
-    currency: offeringRow.currency,
-    baseDailyAmount: offeringRow.baseDailyAmount,
-    offeringCapacityOverride: offeringRow.offeringCapacityOverride,
-    providerId: offeringRow.service.providerId,
-    vehicle: offeringRow.vehicle as unknown as LoadedRentalVehicle,
-  };
-  const vehicleId = offering.vehicle.assetId;
-
-  if ((await assertRentalVerticalCompliant(tx, offering.providerId)) !== null) return { ok: false, reason: "NOT_BOOKABLE" };
-  if (assertRentalVehicleReady(offering.vehicle, now) !== null) return { ok: false, reason: "NOT_BOOKABLE" };
-
-  const cap = checkCapacityOverride(offering.vehicle.bookablePassengerCapacity, offering.offeringCapacityOverride);
-  if (!cap.ok || cap.effectiveCapacity === null) return { ok: false, reason: "NOT_BOOKABLE" };
-  if (params.passengerCount > cap.effectiveCapacity) return { ok: false, reason: "CAPACITY_EXCEEDED" };
-
-  const base = parseOfferingAmount(offering.baseDailyAmount);
-  if (base === null) return { ok: false, reason: "NOT_BOOKABLE" };
-
-  const dayRows = (await tx.rentalOfferingDay.findMany({
-    where: { rentalOfferingId: offering.id, serviceDate: { in: dbDates } },
-    select: { serviceDate: true, state: true, dailyAmountOverride: true },
-  })) as unknown as { serviceDate: Date; state: "OPEN" | "BLOCKED"; dailyAmountOverride: Prisma.Decimal | null }[];
-  const byKey = new Map<string, { state: "OPEN" | "BLOCKED"; override: Prisma.Decimal | null }>();
-  for (const r of dayRows) byKey.set(omanDateKeyFromDbDate(r.serviceDate), { state: r.state, override: r.dailyAmountOverride });
-
-  const resolved: { dateKey: string; amount: Prisma.Decimal; priceSource: RentalPriceSource }[] = [];
-  for (const dateKey of sortedKeys) {
-    const row = byKey.get(dateKey);
-    if (!row || row.state !== "OPEN") return { ok: false, reason: "DAY_NOT_AVAILABLE" };
-    if (row.override !== null) {
-      const override = parseOfferingAmount(row.override);
-      if (override === null) return { ok: false, reason: "DAY_NOT_AVAILABLE" }; // malformed → fail closed
-      resolved.push({ dateKey, amount: override, priceSource: "OVERRIDE" });
-    } else {
-      resolved.push({ dateKey, amount: base, priceSource: "BASE" });
-    }
-  }
-
-  const calc = calculateVehicleDailyTotal(resolved.map((r) => ({ dateKey: r.dateKey, money: { amount: r.amount, currency: offering.currency } })));
-  if (!calc.ok) return { ok: false, reason: "DAY_NOT_AVAILABLE" };
-  const days: RentalHoldDay[] = resolved.map((r) => ({ dateKey: r.dateKey, amount: r.amount.toFixed(2), currency: offering.currency, priceSource: r.priceSource }));
-  const quote: RentalHoldQuote = {
-    offeringId: offering.id,
-    vehicleId,
-    serviceId: offering.serviceId,
-    currency: calc.value.currency,
-    dateKeys: calc.value.dateKeys,
-    days,
-    chargeableDays: calc.value.chargeableDays,
-    total: calc.value.total,
-    lowestDailyRate: calc.value.lowestDailyRate,
-    quoteFingerprint: computeRentalHoldQuoteFingerprint({ offeringId: offering.id, currency: calc.value.currency, total: calc.value.total, days }),
-  };
-  return { ok: true, offering, vehicleId, quote, resolved };
-}
-
 export async function acquireDailyRentalHold(
   prisma: PrismaClient,
   params: AcquireDailyRentalHoldParams,
@@ -274,7 +161,7 @@ export async function acquireDailyRentalHold(
         if (!customer) return { ok: false as const, reason: "NOT_BOOKABLE" as const };
 
         // Re-read + resolve offering/vertical/vehicle/capacity/days/prices (no writes on failure).
-        const r = await resolveAcquisition(tx, params, sortedKeys, dbDates, now);
+        const r = await resolveRentalDayQuote(tx, { offeringId: params.offeringId, passengerCount: params.passengerCount, sortedDateKeys: sortedKeys, now });
         if (!r.ok) return { ok: false as const, reason: r.reason };
         const { offering, vehicleId, quote, resolved } = r;
 

@@ -7,6 +7,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
 import { releaseVehicleReservationForBooking } from "@/lib/booking/vehicle-reservation";
+import { cancelConfirmedDailyRentalReservations } from "@/lib/offerings/rental/reservation/cancel-confirmed-daily-rental-reservations";
 import { logger } from "@/lib/logger";
 import type { BookingAdminActionErrorCode } from "./booking-admin-errors";
 
@@ -101,6 +102,10 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
       // (src/lib/booking/cancel-booking.ts). Idempotent (0 rows for a booking with no active
       // reservation); never deletes; never clears vehicleId / snapshot / operational interval.
       await releaseVehicleReservationForBooking(tx, booking.id, new Date());
+
+      // Phase 3C Slice C3/E2 — release the rental Booking's daily vehicle/day inventory in the SAME
+      // transaction (CONFIRMED daily-rental children → CANCELLED). Idempotent for non-rental bookings.
+      await cancelConfirmedDailyRentalReservations(tx, booking.id, new Date());
 
       return ctx;
     });

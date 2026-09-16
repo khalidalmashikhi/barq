@@ -43,7 +43,12 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     booking: { findUnique: (...a: unknown[]) => bookingFindUniqueMock(...a) },
     $transaction: async (callback: (tx: unknown) => unknown) =>
-      callback({ $executeRaw: (...a: unknown[]) => executeRawMock(...a) }),
+      callback({
+        $executeRaw: (...a: unknown[]) => executeRawMock(...a),
+        // Phase 3C Slice C3/E2 — rental cancellation-sync primitive runs in-tx; no-op for non-rental.
+        rentalVehicleDayHoldGroup: { findMany: async () => [] },
+        rentalVehicleDayReservation: { updateMany: async () => ({ count: 0 }) },
+      }),
   },
 }));
 

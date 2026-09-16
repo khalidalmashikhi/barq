@@ -114,6 +114,13 @@ export type ApiErrorCode =
   // replays the original booking as a normal 201, never a 409.
   | "IDEMPOTENCY_KEY_INVALID"
   | "IDEMPOTENCY_KEY_CONFLICT"
+  // Phase 3C Slice C3/E2 — daily-rental hold/confirm outcomes. PRICE_CHANGED (409) carries the fresh
+  // authoritative quote in `details` so the client can re-accept; HOLD_EXPIRED (409) means the
+  // temporary hold lapsed (re-acquire); HOLD_NOT_CONFIRMABLE (409) means the hold is not a live HELD
+  // group (already confirmed / released / cancelled). A missing/foreign hold is a plain NOT_FOUND.
+  | "PRICE_CHANGED"
+  | "HOLD_EXPIRED"
+  | "HOLD_NOT_CONFIRMABLE"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -171,6 +178,11 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   // 409, not 400: the key itself is well-formed; it CONFLICTS with a different booking the same
   // customer already created under it. Same "current state conflicts" reasoning as ALREADY_REVIEWED.
   IDEMPOTENCY_KEY_CONFLICT: 409,
+  // The request is well-formed but the current state conflicts: the price moved (re-accept), or the
+  // hold is expired / no longer a live HELD group. Same "current state conflicts" 409 reasoning.
+  PRICE_CHANGED: 409,
+  HOLD_EXPIRED: 409,
+  HOLD_NOT_CONFIRMABLE: 409,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -325,6 +337,18 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   IDEMPOTENCY_KEY_CONFLICT: {
     en: "This request conflicts with an earlier booking. Please start a new booking.",
     ar: "يتعارض هذا الطلب مع حجز سابق. الرجاء بدء حجز جديد.",
+  },
+  PRICE_CHANGED: {
+    en: "The price has changed since you started. Please review the updated price and confirm again.",
+    ar: "تغيّر السعر منذ أن بدأت. الرجاء مراجعة السعر المحدث والتأكيد مرة أخرى.",
+  },
+  HOLD_EXPIRED: {
+    en: "Your hold has expired. Please start again to reserve these dates.",
+    ar: "انتهت صلاحية حجزك المؤقت. الرجاء البدء من جديد لحجز هذه التواريخ.",
+  },
+  HOLD_NOT_CONFIRMABLE: {
+    en: "This hold can no longer be confirmed.",
+    ar: "لا يمكن تأكيد هذا الحجز المؤقت بعد الآن.",
   },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",

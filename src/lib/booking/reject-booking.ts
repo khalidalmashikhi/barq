@@ -6,6 +6,7 @@ import { requireProvider, UnauthenticatedError, ForbiddenError } from "@/lib/aut
 import { isValidUuid } from "@/lib/uuid";
 import { canRejectBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+import { cancelConfirmedDailyRentalReservations } from "@/lib/offerings/rental/reservation/cancel-confirmed-daily-rental-reservations";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -74,6 +75,11 @@ export async function rejectBooking(bookingId: string, reason?: string): Promise
           WHERE id = ${booking.availabilityId}::uuid
         `;
       }
+
+      // Phase 3C Slice C3/E2 — a rejected rental Booking's daily inventory is committed as CONFIRMED
+      // at Booking creation (unlike legacy PENDING_PROVIDER bookings, which hold no reservation), so
+      // rejection must release it in the SAME transaction. Idempotent no-op for non-rental bookings.
+      await cancelConfirmedDailyRentalReservations(tx, booking.id, new Date());
 
       return ctx;
     });

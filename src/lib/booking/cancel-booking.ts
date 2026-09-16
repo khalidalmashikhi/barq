@@ -7,6 +7,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { canCancelBooking } from "@/lib/booking/cancellation-policy";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
 import { releaseVehicleReservationForBooking } from "@/lib/booking/vehicle-reservation";
+import { cancelConfirmedDailyRentalReservations } from "@/lib/offerings/rental/reservation/cancel-confirmed-daily-rental-reservations";
 import { logger } from "@/lib/logger";
 import type { BookingActionErrorCode } from "./booking-action-errors";
 
@@ -120,6 +121,13 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
       // pre-1A confirmed booking) releases 0 rows. Never deletes; never clears vehicleId /
       // vehicleSnapshot / operationalStartAt/endAt — assignment history is retained.
       await releaseVehicleReservationForBooking(tx, booking.id, new Date());
+
+      // Phase 3C Slice C3/E2 — for a rental Booking, release its DAILY vehicle/day inventory in the
+      // SAME transaction: transition every CONFIRMED daily-rental child reservation linked to this
+      // booking → CANCELLED (non-blocking). Idempotent no-op for a non-rental booking (0 groups).
+      // Distinct table/authority from the legacy VehicleReservation release above; never touches HELD
+      // rows, another booking, or guided/legacy reservations.
+      await cancelConfirmedDailyRentalReservations(tx, booking.id, new Date());
 
       return ctx;
     });
