@@ -40,6 +40,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         return apiError("INVALID_INPUT", { locale });
       case "NOT_PUBLIC":
         return apiError("NOT_FOUND", { locale });
+      // Pathological-data overflow (inspected-candidate ceiling or eligible-offering bound exceeded)
+      // and read failures all map to the SAME safe, generic 500 — never revealing fleet/provider
+      // state or which limit was hit, and never a partial/misleading calendar.
+      case "CANDIDATE_LIMIT_EXCEEDED":
+      case "ELIGIBLE_OFFERING_LIMIT_EXCEEDED":
       case "READ_FAILED":
       default:
         return apiError("INTERNAL_ERROR", { locale });

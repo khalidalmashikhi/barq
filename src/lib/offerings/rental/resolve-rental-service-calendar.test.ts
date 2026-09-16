@@ -16,7 +16,12 @@ vi.mock("./rental-offering-authorization", async (importOriginal) => {
 
 import { Prisma } from "@prisma/client";
 import { dbDateFromOmanDateKey } from "@/lib/date/oman-time";
-import { resolveRentalServiceCalendar, MAX_RENTAL_CALENDAR_OFFERINGS } from "./resolve-rental-service-calendar";
+import {
+  resolveRentalServiceCalendar,
+  MAX_RENTAL_CALENDAR_OFFERINGS,
+  MAX_RENTAL_CALENDAR_CANDIDATES,
+  RENTAL_CALENDAR_PAGE_SIZE,
+} from "./resolve-rental-service-calendar";
 import { assertRentalVerticalCompliant, assertRentalVehicleReady } from "./rental-offering-authorization";
 
 const SERVICE = "svc-1";
@@ -49,20 +54,30 @@ const day = (offeringId: string, key: string, state: "OPEN" | "BLOCKED", overrid
   dailyAmountOverride: override === null ? null : new Prisma.Decimal(override),
 });
 
+type CandidateRow = { id: string };
 type DbOver = {
   service?: unknown; // undefined → default public rental service; null → not public
-  candidates?: unknown[];
+  candidates?: CandidateRow[];
   dayRows?: DayRow[];
   throwOn?: "service" | "offerings" | "days";
 };
+// The fake db implements REAL deterministic keyset pagination (order by id, id > cursor, take) + the
+// overflow-probe findFirst, so pagination/overflow behavior is exercised for real.
 function makeDb(over: DbOver = {}) {
+  const sorted = [...(over.candidates ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const serviceFindFirst = vi.fn(async () => {
     if (over.throwOn === "service") throw new Error("db down");
     return over.service === undefined ? { providerId: PROVIDER, offeringKind: "VEHICLE_RENTAL" } : over.service;
   });
-  const offeringFindMany = vi.fn(async () => {
+  const offeringFindMany = vi.fn(async (args: { where: { id?: { gt?: string } }; take: number }) => {
     if (over.throwOn === "offerings") throw new Error("db down");
-    return over.candidates ?? [];
+    const gt = args.where.id?.gt;
+    const rows = gt === undefined ? sorted : sorted.filter((c) => c.id > gt);
+    return rows.slice(0, args.take);
+  });
+  const offeringFindFirst = vi.fn(async (args: { where: { id: { gt: string } } }) => {
+    const r = sorted.find((c) => c.id > args.where.id.gt);
+    return r ? { id: r.id } : null;
   });
   const dayFindMany = vi.fn(async (args: { where: { rentalOfferingId: { in: string[] }; serviceDate: { gte: Date; lte: Date } } }) => {
     if (over.throwOn === "days") throw new Error("db down");
@@ -72,10 +87,10 @@ function makeDb(over: DbOver = {}) {
   });
   const db = {
     service: { findFirst: serviceFindFirst },
-    rentalOffering: { findMany: offeringFindMany },
+    rentalOffering: { findMany: offeringFindMany, findFirst: offeringFindFirst },
     rentalOfferingDay: { findMany: dayFindMany },
   };
-  return { db, serviceFindFirst, offeringFindMany, dayFindMany };
+  return { db, serviceFindFirst, offeringFindMany, offeringFindFirst, dayFindMany };
 }
 
 const run = (over: DbOver, params: { from?: string; to?: string } = {}) => {
@@ -158,7 +173,7 @@ describe("eligibility + isolation (empty calendar, cause never revealed)", () =>
     expect((m.offeringFindMany.mock.calls[0]! as unknown[])[0]).toMatchObject({
       where: { serviceId: SERVICE, status: "PUBLISHED", vehicle: { asset: { providerId: PROVIDER, assetType: "VEHICLE" } } },
       orderBy: { id: "asc" },
-      take: MAX_RENTAL_CALENDAR_OFFERINGS,
+      take: RENTAL_CALENDAR_PAGE_SIZE,
     });
   });
   it("a non-selectable vehicle disqualifies only its own offering; a valid later one still appears", async () => {
@@ -274,5 +289,84 @@ describe("query bounds, security, reservation boundary, read failure", () => {
     // makeDb has no create/update/delete delegates; a successful resolve proves read-only operation.
     const r = await run({ candidates: [offering("o1")], dayRows: [day("o1", "2030-07-01", "OPEN")] }, win).result;
     expect(r.ok).toBe(true);
+  });
+});
+
+// C2c CORRECTION — deterministic keyset pagination + the two explicit bounds (inspected-candidate
+// ceiling + eligible-offering response bound), replacing the earlier silent take:100 truncation.
+describe("keyset pagination + candidate/eligible overflow bounds", () => {
+  const pad = (n: number) => `off-${String(n).padStart(5, "0")}`;
+  const cand = (n: number, valid: boolean) => (valid ? offering(pad(n), { vehicle: vehicle(`good-${pad(n)}`) }) : offering(pad(n), { vehicle: vehicle(`bad-${pad(n)}`) }));
+  const win = { from: "2030-07-01", to: "2030-07-01" };
+  const openDay = (offeringId: string) => day(offeringId, "2030-07-01", "OPEN");
+
+  it("100 locally-invalid candidates + a valid candidate 101 → the valid offering is returned (no silent truncation)", async () => {
+    const candidates = [...Array(100)].map((_, i) => cand(i + 1, false));
+    candidates.push(cand(101, true));
+    const r = await run({ candidates, dayRows: [openDay(pad(101))] }, win).result;
+    expect(r.ok && r.calendar.offerings.map((o) => o.offeringId)).toEqual([pad(101)]);
+    expect(r.ok && r.calendar.offerings[0]!.days[0]!.available).toBe(true);
+  });
+
+  it("valid candidate on page 2 (first full page all invalid)", async () => {
+    const candidates = [...Array(RENTAL_CALENDAR_PAGE_SIZE)].map((_, i) => cand(i + 1, false));
+    candidates.push(cand(RENTAL_CALENDAR_PAGE_SIZE + 3, true));
+    const r = await run({ candidates, dayRows: [openDay(pad(RENTAL_CALENDAR_PAGE_SIZE + 3))] }, win).result;
+    expect(r.ok && r.calendar.offerings.map((o) => o.offeringId)).toEqual([pad(RENTAL_CALENDAR_PAGE_SIZE + 3)]);
+  });
+
+  it("cursor advances by the last unique id; no duplicate/skip; DB order cannot change the result; partial last page → no overflow probe", async () => {
+    const candidates = [...Array(120)].map((_, i) => cand(i + 1, false)); // 3 pages: 50,50,20 → all invalid → empty
+    // Provide the input SHUFFLED to prove ordering is enforced by the query, not the input order.
+    const shuffled = [...candidates].reverse();
+    const { m, result } = run({ candidates: shuffled }, win);
+    const r = await result;
+    expect(r.ok && r.calendar.offerings).toEqual([]);
+    const gts = m.offeringFindMany.mock.calls.map((c) => (c[0] as { where: { id?: { gt?: string } } }).where.id?.gt);
+    expect(gts).toEqual([undefined, pad(50), pad(100)]); // page cursors = previous page's last id, strictly advancing
+    expect(m.offeringFindFirst).not.toHaveBeenCalled(); // partial final page (20 < 50) ⇒ exhausted, no probe
+  });
+
+  it("EXACTLY the inspected-candidate ceiling with no more rows → normal empty calendar (probe returns none)", async () => {
+    const candidates = [...Array(MAX_RENTAL_CALENDAR_CANDIDATES)].map((_, i) => cand(i + 1, false));
+    const { m, result } = run({ candidates }, win);
+    expect(await result).toMatchObject({ ok: true });
+    expect(m.offeringFindFirst).toHaveBeenCalledTimes(1); // probed for a row beyond the ceiling → none
+  });
+
+  it("candidate 1001 (one beyond the ceiling) → CANDIDATE_LIMIT_EXCEEDED (never a partial/misleading calendar)", async () => {
+    const candidates = [...Array(MAX_RENTAL_CALENDAR_CANDIDATES + 1)].map((_, i) => cand(i + 1, false));
+    const r = await run({ candidates }, win).result;
+    expect(r).toEqual({ ok: false, reason: "CANDIDATE_LIMIT_EXCEEDED" });
+  });
+
+  it("EXACTLY the eligible-response limit with no further eligible offering → succeeds with that many offerings", async () => {
+    const candidates = [...Array(MAX_RENTAL_CALENDAR_OFFERINGS)].map((_, i) => cand(i + 1, true));
+    const r = await run({ candidates }, win).result;
+    expect(r.ok && r.calendar.offerings).toHaveLength(MAX_RENTAL_CALENDAR_OFFERINGS);
+  });
+
+  it("one eligible offering beyond the response limit → ELIGIBLE_OFFERING_LIMIT_EXCEEDED (101st never silently discarded)", async () => {
+    const candidates = [...Array(MAX_RENTAL_CALENDAR_OFFERINGS + 1)].map((_, i) => cand(i + 1, true));
+    const r = await run({ candidates }, win).result;
+    expect(r).toEqual({ ok: false, reason: "ELIGIBLE_OFFERING_LIMIT_EXCEEDED" });
+  });
+
+  it("SERVICE-WIDE lowest price reflects a lower rate found on a later page (not just page 1)", async () => {
+    const candidates = [...Array(RENTAL_CALENDAR_PAGE_SIZE)].map((_, i) => cand(i + 1, true)); // page 1: all base 40
+    candidates.push(cand(RENTAL_CALENDAR_PAGE_SIZE + 1, true)); // page 2
+    const dayRows = candidates.map((c) => openDay(c.id));
+    dayRows.push(day(pad(RENTAL_CALENDAR_PAGE_SIZE + 1), "2030-07-01", "OPEN", "12.00")); // cheaper override on page 2
+    const r = await run({ candidates, dayRows }, win).result;
+    expect(r.ok && r.calendar.lowestAvailableDailyRate).toEqual({ amount: "12.00", currency: "OMR" });
+  });
+
+  it("runs at most one batched day query per page, and NONE for a page with zero locally-ready candidates", async () => {
+    // page 1: 50 invalid (no day query). page 2: one valid (one day query).
+    const candidates = [...Array(RENTAL_CALENDAR_PAGE_SIZE)].map((_, i) => cand(i + 1, false));
+    candidates.push(cand(RENTAL_CALENDAR_PAGE_SIZE + 1, true));
+    const { m, result } = run({ candidates, dayRows: [openDay(pad(RENTAL_CALENDAR_PAGE_SIZE + 1))] }, win);
+    await result;
+    expect(m.dayFindMany).toHaveBeenCalledTimes(1); // only the page with a ready candidate
   });
 });

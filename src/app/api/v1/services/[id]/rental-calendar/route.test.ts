@@ -65,4 +65,16 @@ describe("GET /api/v1/services/{id}/rental-calendar", () => {
     expect(res.status).toBe(500);
     expect((await res.json()).error.code).toBe("INTERNAL_ERROR");
   });
+
+  it("maps both overflow reasons → 500 INTERNAL_ERROR without leaking internal fleet/provider facts", async () => {
+    for (const reason of ["CANDIDATE_LIMIT_EXCEEDED", "ELIGIBLE_OFFERING_LIMIT_EXCEEDED"]) {
+      resolveMock.mockResolvedValue({ ok: false, reason });
+      const res = await GET(req("?from=2030-07-01&to=2030-07-02"), params("s1"));
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error.code).toBe("INTERNAL_ERROR");
+      // The safe generic message must not reveal which limit was hit or any fleet/provider/candidate detail.
+      expect(JSON.stringify(body)).not.toMatch(/candidate|offering|limit|exceeded|provider|fleet|vehicle/i);
+    }
+  });
 });

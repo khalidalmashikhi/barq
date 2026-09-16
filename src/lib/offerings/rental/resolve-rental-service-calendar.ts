@@ -38,10 +38,19 @@ import { parseOfferingAmount, normalizeOfferingCurrency, checkCapacityOverride }
 // this resolver never emits VEHICLE_CONFLICT and never claims final bookability. C3/E must revalidate
 // vehicle-reservation conflicts atomically before any booking — see `availabilityBasis: "CONFIGURED"`.
 
-// A defensive upper bound on offerings surfaced for one Service (one non-ARCHIVED offering per
-// (serviceId, vehicleId) ⇒ this is the fleet size; 100 is far beyond any real rental fleet and keeps
-// the day query bounded at offerings × window).
+// Deterministic keyset page size for scanning PUBLISHED candidate offerings (ordered by unique id).
+export const RENTAL_CALENDAR_PAGE_SIZE = 50;
+
+// Two DISTINCT bounds with distinct meanings (no silent truncation of either):
+//   • MAX_RENTAL_CALENDAR_OFFERINGS — the maximum number of ELIGIBLE offerings RETURNED in one
+//     calendar response. One non-ARCHIVED offering exists per (serviceId, vehicleId), so this is the
+//     fleet size; 100 is far beyond any real rental fleet. A 101st eligible offering is NEVER silently
+//     omitted — it fails closed (ELIGIBLE_OFFERING_LIMIT_EXCEEDED), rather than a partial "complete" calendar.
+//   • MAX_RENTAL_CALENDAR_CANDIDATES — the safety ceiling on candidate ROWS INSPECTED while scanning
+//     for eligible offerings (protection against pathological data). Reaching it with more rows left
+//     fails closed (CANDIDATE_LIMIT_EXCEEDED), never a misleading empty/partial calendar.
 export const MAX_RENTAL_CALENDAR_OFFERINGS = 100;
+export const MAX_RENTAL_CALENDAR_CANDIDATES = 1000;
 
 const RENTAL_OFFERING_KIND = "VEHICLE_RENTAL" as const;
 const OMAN_TIME_ZONE = "Asia/Muscat" as const;
@@ -81,7 +90,13 @@ export type RentalServiceCalendar = {
   currency: string | null;
   window: { from: string; to: string; timeZone: typeof OMAN_TIME_ZONE };
   offerings: RentalCalendarOffering[];
-  /** Lowest REAL daily rate across AVAILABLE days (single common currency only); never invented. */
+  /**
+   * SERVICE-WIDE (complete) lowest REAL daily rate across AVAILABLE days of ALL returned eligible
+   * offerings, in the single common currency (null when offerings mix currencies or none is
+   * available); never invented. Because a calendar is returned ONLY when the FULL eligible set fit
+   * within the response bound (a 101st eligible offering fails closed instead), this value is the
+   * complete Service-wide minimum, never computed from a silently-truncated candidate set.
+   */
   lowestAvailableDailyRate: RentalCalendarMoney | null;
   /** CONFIGURED availability only — final vehicle-reservation revalidation is a C3/E dependency. */
   availabilityBasis: "CONFIGURED";
@@ -89,7 +104,9 @@ export type RentalServiceCalendar = {
 
 export type ResolveRentalServiceCalendarResult =
   | { ok: true; calendar: RentalServiceCalendar }
-  | { ok: false; reason: "NOT_PUBLIC" | "INVALID_WINDOW" | "READ_FAILED" };
+  // NOT_PUBLIC/INVALID_WINDOW/READ_FAILED map to 404/400/500; the two *_LIMIT_EXCEEDED overflow
+  // reasons map to a safe generic public error (never revealing fleet/provider state).
+  | { ok: false; reason: "NOT_PUBLIC" | "INVALID_WINDOW" | "READ_FAILED" | "CANDIDATE_LIMIT_EXCEEDED" | "ELIGIBLE_OFFERING_LIMIT_EXCEEDED" };
 
 const CANDIDATE_VEHICLE_SELECT = {
   assetId: true,
@@ -123,6 +140,99 @@ type CandidateRow = {
     vehicleType: string | null;
   };
 };
+
+/** A candidate that passed candidate-LOCAL readiness (vehicle selectable + verified capacity + valid base money/currency). */
+type EligibleEntry = { row: CandidateRow; base: Prisma.Decimal; currency: string; effectiveCapacity: number };
+
+/**
+ * Candidate-LOCAL readiness, evaluated in memory (no query): vehicle selectable + verified capacity +
+ * valid base money/currency. Returns the eligible entry or null — a failure disqualifies ONLY this
+ * offering and never hides a valid later one.
+ */
+function toEligibleEntry(c: CandidateRow, now: Date): EligibleEntry | null {
+  if (assertRentalVehicleReady(c.vehicle, now) !== null) return null;
+  const base = parseOfferingAmount(c.baseDailyAmount);
+  const currency = normalizeOfferingCurrency(c.currency);
+  const cap = checkCapacityOverride(c.vehicle.bookablePassengerCapacity, c.offeringCapacityOverride);
+  if (base === null || currency === null || !cap.ok || cap.effectiveCapacity === null) return null;
+  return { row: c, base, currency, effectiveCapacity: cap.effectiveCapacity };
+}
+
+/** Build one eligible offering's per-date calendar over the window from its OPEN/BLOCKED day rows. */
+function buildOffering(
+  entry: EligibleEntry,
+  dateKeys: string[],
+  dayByKey: Map<string, { state: "OPEN" | "BLOCKED"; override: Prisma.Decimal | null }>,
+  now: Date,
+): RentalCalendarOffering {
+  const currency = entry.currency;
+  const days: RentalCalendarDay[] = dateKeys.map((dateKey) => {
+    // Past Oman dates are never selectable, regardless of configured state.
+    const past = isOmanPastDateKey(dateKey, now);
+    const row = dayByKey.get(`${entry.row.id}|${dateKey}`);
+    const dayState: OfferingDayState = row ? row.state : "NONE";
+
+    if (past) return { dateKey, dayState, available: false, unavailableReason: "PAST", dailyPrice: null, priceSource: null };
+    if (!row) return { dateKey, dayState: "NONE", available: false, unavailableReason: "NO_OPEN_DAY", dailyPrice: null, priceSource: null };
+    if (row.state === "BLOCKED") return { dateKey, dayState: "BLOCKED", available: false, unavailableReason: "BLOCKED", dailyPrice: null, priceSource: null };
+
+    // OPEN: override wins when present; a MALFORMED override fails CLOSED for this day (never a
+    // silent fallback to base). Absent override ⇒ the offering base.
+    if (row.override !== null) {
+      const override = parseOfferingAmount(row.override);
+      if (override === null) return { dateKey, dayState: "OPEN", available: false, unavailableReason: "NO_PRICE", dailyPrice: null, priceSource: null };
+      return { dateKey, dayState: "OPEN", available: true, unavailableReason: null, dailyPrice: { amount: override.toFixed(2), currency }, priceSource: "OVERRIDE" };
+    }
+    return { dateKey, dayState: "OPEN", available: true, unavailableReason: null, dailyPrice: { amount: entry.base.toFixed(2), currency }, priceSource: "BASE" };
+  });
+
+  return {
+    offeringId: entry.row.id,
+    vehicle: {
+      id: entry.row.vehicle.assetId,
+      make: entry.row.vehicle.make,
+      model: entry.row.vehicle.model,
+      modelYear: entry.row.vehicle.modelYear,
+      color: entry.row.vehicle.color,
+      vehicleType: entry.row.vehicle.vehicleType,
+      bookablePassengerCapacity: entry.effectiveCapacity,
+    },
+    baseDailyRate: { amount: entry.base.toFixed(2), currency },
+    days,
+  };
+}
+
+/**
+ * Assemble the final calendar from all returned eligible offerings. The lowest rate is SERVICE-WIDE
+ * (complete): it is only ever built when the whole eligible set fit within the response bound, so it
+ * is never computed from a truncated set. Mixed currencies fail closed (currency + lowest null) —
+ * mixed currencies are NEVER compared numerically.
+ */
+function buildCalendar(serviceId: string, window: { from: string; to: string }, offerings: RentalCalendarOffering[]): RentalServiceCalendar {
+  const distinctCurrencies = [...new Set(offerings.map((o) => o.baseDailyRate.currency))];
+  const commonCurrency = distinctCurrencies.length === 1 ? distinctCurrencies[0]! : null;
+  let lowest: RentalCalendarMoney | null = null;
+  if (commonCurrency !== null) {
+    let min: Prisma.Decimal | null = null;
+    for (const off of offerings) {
+      for (const day of off.days) {
+        if (!day.available || day.dailyPrice === null) continue;
+        const amt = parseOfferingAmount(day.dailyPrice.amount);
+        if (amt === null) continue;
+        if (min === null || amt.lessThan(min)) min = amt;
+      }
+    }
+    if (min !== null) lowest = { amount: min.toFixed(2), currency: commonCurrency };
+  }
+  return {
+    serviceId,
+    currency: commonCurrency,
+    window: { from: window.from, to: window.to, timeZone: OMAN_TIME_ZONE },
+    offerings,
+    lowestAvailableDailyRate: lowest,
+    availabilityBasis: "CONFIGURED",
+  };
+}
 
 /** Build the inclusive list of Oman date keys for [fromKey, toKey] (both already validated). */
 function dateKeysInWindow(fromKey: string, toKey: string): string[] {
@@ -190,122 +300,72 @@ export async function resolveRentalServiceCalendar(
     // fail closed to an EMPTY public calendar (never revealing the cause).
     if ((await assertRentalVerticalCompliant(db, service.providerId)) !== null) return { ok: true, calendar: emptyCalendar };
 
-    // Candidate PUBLISHED offerings for THIS service whose Vehicle the SAME provider owns (foreign
-    // vehicle/offering cannot match). Bounded + deterministically ordered; no start-times loaded.
-    const candidates = (await db.rentalOffering.findMany({
-      where: {
-        serviceId: params.serviceId,
-        status: "PUBLISHED",
-        vehicle: { asset: { providerId: service.providerId, assetType: "VEHICLE" } },
-      },
-      select: {
-        id: true,
-        baseDailyAmount: true,
-        currency: true,
-        offeringCapacityOverride: true,
-        vehicle: { select: CANDIDATE_VEHICLE_SELECT },
-      },
-      orderBy: { id: "asc" },
-      take: MAX_RENTAL_CALENDAR_OFFERINGS,
-    })) as unknown as CandidateRow[];
+    // ---- Deterministic KEYSET scan of PUBLISHED candidate offerings (order by unique id, id > cursor,
+    // page size 50). Provider/service scope is re-applied on EVERY page; NO offset/skip; NO start-times.
+    // Candidate-LOCAL readiness is filtered in memory; each page with ≥1 ready candidate runs ONE
+    // windowed day query. Two bounds guard the scan (see the constants): the eligible-response bound
+    // (a 101st eligible offering fails closed, never silently omitted) and the inspected-candidate
+    // ceiling (reaching it with more rows left fails closed, never a partial "complete" calendar). ----
+    const baseWhere = {
+      serviceId: params.serviceId,
+      status: "PUBLISHED" as const,
+      vehicle: { asset: { providerId: service.providerId, assetType: "VEHICLE" as const } },
+    };
+    const dbFrom = dbDateFromOmanDateKey(window.from)!;
+    const dbTo = dbDateFromOmanDateKey(window.to)!;
+    const offerings: RentalCalendarOffering[] = [];
+    let cursor: string | null = null;
+    let inspected = 0;
 
-    // Candidate-LOCAL readiness (in memory): vehicle selectable + verified capacity + valid base
-    // money/currency. A failure disqualifies ONLY that offering (never hides another valid one).
-    const eligible = candidates
-      .map((c) => {
-        if (assertRentalVehicleReady(c.vehicle, now) !== null) return null;
-        const base = parseOfferingAmount(c.baseDailyAmount);
-        const currency = normalizeOfferingCurrency(c.currency);
-        const cap = checkCapacityOverride(c.vehicle.bookablePassengerCapacity, c.offeringCapacityOverride);
-        if (base === null || currency === null || !cap.ok || cap.effectiveCapacity === null) return null;
-        return { row: c, base, currency, effectiveCapacity: cap.effectiveCapacity };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
-
-    if (eligible.length === 0) return { ok: true, calendar: emptyCalendar };
-
-    // One bounded day query for ALL eligible offerings within the window (offerings × ≤62 rows). No
-    // start-time rows; no unbounded history.
-    const dayRows = (await db.rentalOfferingDay.findMany({
-      where: {
-        rentalOfferingId: { in: eligible.map((e) => e.row.id) },
-        serviceDate: { gte: dbDateFromOmanDateKey(window.from)!, lte: dbDateFromOmanDateKey(window.to)! },
-      },
-      select: { rentalOfferingId: true, serviceDate: true, state: true, dailyAmountOverride: true },
-    })) as unknown as { rentalOfferingId: string; serviceDate: Date; state: "OPEN" | "BLOCKED"; dailyAmountOverride: Prisma.Decimal | null }[];
-
-    const dayByKey = new Map<string, { state: "OPEN" | "BLOCKED"; override: Prisma.Decimal | null }>();
-    for (const r of dayRows) {
-      dayByKey.set(`${r.rentalOfferingId}|${omanDateKeyFromDbDate(r.serviceDate)}`, { state: r.state, override: r.dailyAmountOverride });
-    }
-
-    const offerings: RentalCalendarOffering[] = eligible.map((e) => {
-      const currency = e.currency;
-      const days: RentalCalendarDay[] = dateKeys.map((dateKey) => {
-        // Past Oman dates are never selectable, regardless of configured state.
-        const past = isOmanPastDateKey(dateKey, now);
-        const row = dayByKey.get(`${e.row.id}|${dateKey}`);
-        const dayState: OfferingDayState = row ? row.state : "NONE";
-
-        if (past) return { dateKey, dayState, available: false, unavailableReason: "PAST", dailyPrice: null, priceSource: null };
-        if (!row) return { dateKey, dayState: "NONE", available: false, unavailableReason: "NO_OPEN_DAY", dailyPrice: null, priceSource: null };
-        if (row.state === "BLOCKED") return { dateKey, dayState: "BLOCKED", available: false, unavailableReason: "BLOCKED", dailyPrice: null, priceSource: null };
-
-        // OPEN: override wins when present; a MALFORMED override fails CLOSED for this day (never a
-        // silent fallback to base). Absent override ⇒ the offering base.
-        if (row.override !== null) {
-          const override = parseOfferingAmount(row.override);
-          if (override === null) return { dateKey, dayState: "OPEN", available: false, unavailableReason: "NO_PRICE", dailyPrice: null, priceSource: null };
-          return { dateKey, dayState: "OPEN", available: true, unavailableReason: null, dailyPrice: { amount: override.toFixed(2), currency }, priceSource: "OVERRIDE" };
-        }
-        return { dateKey, dayState: "OPEN", available: true, unavailableReason: null, dailyPrice: { amount: e.base.toFixed(2), currency }, priceSource: "BASE" };
-      });
-
-      return {
-        offeringId: e.row.id,
-        vehicle: {
-          id: e.row.vehicle.assetId,
-          make: e.row.vehicle.make,
-          model: e.row.vehicle.model,
-          modelYear: e.row.vehicle.modelYear,
-          color: e.row.vehicle.color,
-          vehicleType: e.row.vehicle.vehicleType,
-          bookablePassengerCapacity: e.effectiveCapacity,
+    while (inspected < MAX_RENTAL_CALENDAR_CANDIDATES) {
+      const take = Math.min(RENTAL_CALENDAR_PAGE_SIZE, MAX_RENTAL_CALENDAR_CANDIDATES - inspected);
+      const page = (await db.rentalOffering.findMany({
+        where: cursor === null ? baseWhere : { ...baseWhere, id: { gt: cursor } },
+        select: {
+          id: true,
+          baseDailyAmount: true,
+          currency: true,
+          offeringCapacityOverride: true,
+          vehicle: { select: CANDIDATE_VEHICLE_SELECT },
         },
-        baseDailyRate: { amount: e.base.toFixed(2), currency },
-        days,
-      };
-    });
+        orderBy: { id: "asc" },
+        take,
+      })) as unknown as CandidateRow[];
+      if (page.length === 0) return { ok: true, calendar: buildCalendar(params.serviceId, window, offerings) }; // exhausted
 
-    // Service currency + lowest aggregate: only when all eligible offerings share ONE currency; mixed
-    // currencies fail closed (currency null, lowest null) — never compare mixed currencies numerically.
-    const distinctCurrencies = [...new Set(eligible.map((e) => e.currency))];
-    const commonCurrency = distinctCurrencies.length === 1 ? distinctCurrencies[0]! : null;
-    let lowest: RentalCalendarMoney | null = null;
-    if (commonCurrency !== null) {
-      let min: Prisma.Decimal | null = null;
-      for (const off of offerings) {
-        for (const day of off.days) {
-          if (!day.available || day.dailyPrice === null) continue;
-          const amt = parseOfferingAmount(day.dailyPrice.amount);
-          if (amt === null) continue;
-          if (min === null || amt.lessThan(min)) min = amt;
+      const ready = page.map((c) => toEligibleEntry(c, now)).filter((x): x is EligibleEntry => x !== null);
+      if (ready.length > 0) {
+        // ONE batched windowed day query for THIS page's ready offerings (no query for a page with
+        // zero ready candidates; serviceDate gte/lte; no start-times; no unbounded history).
+        const dayRows = (await db.rentalOfferingDay.findMany({
+          where: { rentalOfferingId: { in: ready.map((e) => e.row.id) }, serviceDate: { gte: dbFrom, lte: dbTo } },
+          select: { rentalOfferingId: true, serviceDate: true, state: true, dailyAmountOverride: true },
+        })) as unknown as { rentalOfferingId: string; serviceDate: Date; state: "OPEN" | "BLOCKED"; dailyAmountOverride: Prisma.Decimal | null }[];
+        const dayByKey = new Map<string, { state: "OPEN" | "BLOCKED"; override: Prisma.Decimal | null }>();
+        for (const r of dayRows) dayByKey.set(`${r.rentalOfferingId}|${omanDateKeyFromDbDate(r.serviceDate)}`, { state: r.state, override: r.dailyAmountOverride });
+
+        for (const e of ready) {
+          offerings.push(buildOffering(e, dateKeys, dayByKey, now));
+          // One eligible past the response bound is the overflow WITNESS: fail closed rather than
+          // silently omit it (and never present a truncated set as a complete calendar).
+          if (offerings.length > MAX_RENTAL_CALENDAR_OFFERINGS) {
+            logger.warn("resolveRentalServiceCalendar.eligible_offering_limit_exceeded", { serviceId: params.serviceId, eligible: offerings.length });
+            return { ok: false, reason: "ELIGIBLE_OFFERING_LIMIT_EXCEEDED" };
+          }
         }
       }
-      if (min !== null) lowest = { amount: min.toFixed(2), currency: commonCurrency };
+
+      inspected += page.length;
+      cursor = page[page.length - 1]!.id;
+      if (page.length < take) return { ok: true, calendar: buildCalendar(params.serviceId, window, offerings) }; // partial page ⇒ exhausted (no overflow probe)
     }
 
-    return {
-      ok: true,
-      calendar: {
-        serviceId: params.serviceId,
-        currency: commonCurrency,
-        window: { from: window.from, to: window.to, timeZone: OMAN_TIME_ZONE },
-        offerings,
-        lowestAvailableDailyRate: lowest,
-        availabilityBasis: "CONFIGURED",
-      },
-    };
+    // Reached the inspected-candidate ceiling. If NO further candidate exists, the full set was scanned
+    // → return the calendar. If one remains, fail closed (never a misleading empty/partial calendar).
+    const more = await db.rentalOffering.findFirst({ where: { ...baseWhere, id: { gt: cursor! } }, select: { id: true }, orderBy: { id: "asc" } });
+    if (!more) return { ok: true, calendar: buildCalendar(params.serviceId, window, offerings) };
+    logger.warn("resolveRentalServiceCalendar.candidate_limit_exceeded", { serviceId: params.serviceId, inspected });
+    return { ok: false, reason: "CANDIDATE_LIMIT_EXCEEDED" };
   } catch (error) {
     logger.error("resolveRentalServiceCalendar.read_failed", {
       serviceId: params.serviceId,
