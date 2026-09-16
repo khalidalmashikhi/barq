@@ -610,17 +610,17 @@ model Customer {
   createdAt          DateTime @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @db.Timestamptz(6)
 
-  bookings                Booking[]
-  reviews                 Review[]
-  wallet                  Wallet?
-  contracts               Contract[]
-  supportTickets          SupportTicket[]
+  bookings               Booking[]
+  reviews                Review[]
+  wallet                 Wallet?
+  contracts              Contract[]
+  supportTickets         SupportTicket[]
   /// BOOKING-IDEMPOTENCY — this customer's booking-creation idempotency claims (see
   /// BookingIdempotencyKey). Back-relation only; ownership is scoped by its customerId.
-  bookingIdempotencyKeys  BookingIdempotencyKey[]
-  /// Phase 3C Slice C3/E1 — this customer's daily-rental vehicle/day reservations (holds/confirms).
-  /// Virtual back-relation only; the FK lives on rental_vehicle_day_reservations.
-  dailyRentalReservations RentalVehicleDayReservation[]
+  bookingIdempotencyKeys BookingIdempotencyKey[]
+  /// Phase 3C Slice C3/E1 — this customer's daily-rental hold groups (the idempotency-scoped
+  /// identity; child date rows hang off each group). Virtual back-relation only; FK on the group.
+  dailyRentalHoldGroups  RentalVehicleDayHoldGroup[]
 
   @@map("customers")
 }
@@ -1017,8 +1017,9 @@ model Vehicle {
   /// DDL (the FK lives on the offering tables).
   rentalOfferings            RentalOffering[]
   guidedTourVehicleOfferings GuidedTourVehicleOffering[]
-  /// Phase 3C Slice C3/E1 — this physical vehicle's daily-rental day reservations (holds/confirms).
-  /// Virtual back-relation only (FK on rental_vehicle_day_reservations, RESTRICT).
+  /// Phase 3C Slice C3/E1 — this physical vehicle's daily-rental hold groups + their per-day
+  /// reservation rows (both carry vehicleId). Virtual back-relations only (FKs RESTRICT).
+  dailyRentalHoldGroups      RentalVehicleDayHoldGroup[]
   dailyRentalReservations    RentalVehicleDayReservation[]
 
   @@map("vehicles")
@@ -1267,9 +1268,9 @@ model Service {
   /// DDL (the FK lives on the offering tables).
   rentalOfferings            RentalOffering[]
   guidedTourVehicleOfferings GuidedTourVehicleOffering[]
-  /// Phase 3C Slice C3/E1 — daily-rental vehicle/day reservations against this service.
-  /// Virtual back-relation only (FK on rental_vehicle_day_reservations, RESTRICT).
-  dailyRentalReservations    RentalVehicleDayReservation[]
+  /// Phase 3C Slice C3/E1 — daily-rental hold groups against this service.
+  /// Virtual back-relation only (FK on rental_vehicle_day_hold_groups, RESTRICT).
+  dailyRentalHoldGroups      RentalVehicleDayHoldGroup[]
 
   @@index([providerId])
   @@index([status])
@@ -1398,10 +1399,10 @@ model RentalOffering {
   createdAt                DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt                DateTime             @updatedAt @db.Timestamptz(6)
 
-  days            RentalOfferingDay[]
-  /// Phase 3C Slice C3/E1 — the daily-rental day reservations placed against this offering.
-  /// Virtual back-relation only (FK on rental_vehicle_day_reservations, RESTRICT).
-  dayReservations RentalVehicleDayReservation[]
+  days                  RentalOfferingDay[]
+  /// Phase 3C Slice C3/E1 — the daily-rental hold groups placed against this offering.
+  /// Virtual back-relation only (FK on rental_vehicle_day_hold_groups, RESTRICT).
+  dailyRentalHoldGroups RentalVehicleDayHoldGroup[]
 
   @@index([serviceId])
   @@index([vehicleId])
@@ -1648,10 +1649,9 @@ model Booking {
   /// client idempotency key (legacy, or a client that supplied none) simply has none. Virtual
   /// back-relation only — no column on Booking.
   idempotencyKey            BookingIdempotencyKey?
-  /// Phase 3C Slice C3/E1 — daily-rental day reservations CONFIRMED against this booking (C3/E2
-  /// sets the FK at HELD→CONFIRMED). Virtual back-relation only — no column on Booking; a hold row
-  /// is null here until confirmed. RESTRICT at the FK.
-  dailyRentalReservations   RentalVehicleDayReservation[]
+  /// Phase 3C Slice C3/E1 — daily-rental hold groups CONFIRMED against this booking (C3/E2 sets the
+  /// FK at HELD→CONFIRMED). Virtual back-relation only — no column on Booking; null until confirmed.
+  dailyRentalHoldGroups     RentalVehicleDayHoldGroup[]
 
   @@index([customerId])
   @@index([providerId])
@@ -1748,75 +1748,118 @@ enum RentalReservationStatus {
 /// SEPARATE from the legacy interval VehicleReservation and from the guided-tour tables (business
 /// separation is structural). Pricing is per-vehicle per-day; passenger count is capacity-only and
 /// NEVER a price factor. Legacy Price / PER_DAY / PER_VEHICLE_DAY are NEVER the pricing authority.
-model RentalVehicleDayReservation {
+/// Phase 3C Slice C3/E1 — the HEADER / identity of ONE logical daily-rental hold (a "hold group").
+/// It is the DB-ENFORCED idempotency identity: `@@unique([customerId, idempotencyKey])` guarantees
+/// AT MOST ONE logical request per (customer, key) — independent of how many date rows the hold has.
+/// A NULL idempotencyKey (a hold acquired without a client key) is EXEMPT: Postgres treats NULLs as
+/// distinct in a unique index, so any number of keyless groups may coexist for one customer. The
+/// group carries the shared identity + the authoritative QUOTE snapshot (fingerprints + total +
+/// currency); the mutable LIFECYCLE (status / expiry / release) lives on the child rows below,
+/// because the active-vehicle/day partial-unique index predicate and the bounded expiry updateMany
+/// both require those columns on the row they act on. Child rows reference this header via holdGroupId
+/// (a NOT-NULL FK), so an orphan child cannot exist. A group is never deleted (historical replay).
+model RentalVehicleDayHoldGroup {
   id String @id @default(uuid(7)) @db.Uuid
 
-  /// The atomic-acquisition group: every row written by one acquireDailyRentalHold call shares
-  /// this id, so the multi-date hold is one logical unit (release/confirm operate by group).
-  holdGroupId String @db.Uuid
-  /// A server-generated, opaque, per-GROUP handle returned to the client to later reference the
-  /// hold. It is NOT authorization: every release/confirm STILL re-checks the authenticated owner
-  /// (customerId) — a guessed token can never act on another customer's hold.
-  holdToken   String
+  /// A server-generated opaque handle returned to the client to reference the hold. NOT
+  /// authorization — release/confirm STILL re-check the authenticated owner (customerId).
+  holdToken String
 
   /// The authenticated owner. Server-derived (requireCustomer → customer.id); NEVER client-supplied.
-  /// RESTRICT: a customer with reservation history is never silently removed.
   customerId String   @db.Uuid
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
-  /// The publicly-visible VEHICLE_RENTAL Service this reservation belongs to (denormalized from
-  /// the offering for query convenience + integrity). RESTRICT (archival, never row-deleted).
-  serviceId String  @db.Uuid
-  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-
-  /// The RentalOffering whose day/price this reserves. RESTRICT (history-safe).
+  /// The publicly-visible VEHICLE_RENTAL Service, its RentalOffering, and the physical Vehicle this
+  /// hold is for (all RESTRICT — archival history, never row-deleted).
+  serviceId        String         @db.Uuid
+  service          Service        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   rentalOfferingId String         @db.Uuid
   rentalOffering   RentalOffering @relation(fields: [rentalOfferingId], references: [id], onDelete: Restrict)
+  vehicleId        String         @db.Uuid
+  vehicle          Vehicle        @relation(fields: [vehicleId], references: [assetId], onDelete: Restrict)
 
-  /// The physical reserved vehicle. RESTRICT (a vehicle with reservation history is never removed).
+  /// Party size — capacity validation ONLY, NEVER a price factor. Part of the request fingerprint.
+  passengerCount Int
+
+  /// The opaque per-customer client idempotency key (nullable) + the SHA-256 fingerprint of the
+  /// normalized REQUEST (offering + sorted dates + passengerCount). Same key + same fingerprint →
+  /// replay this group; same key + different fingerprint → IDEMPOTENCY_MISMATCH. The @@unique below
+  /// is the sole DB arbiter; requestFingerprint is compared on replay, never a uniqueness key.
+  idempotencyKey     String?
+  requestFingerprint String?
+
+  /// The authoritative QUOTE snapshot (stable for replay + C3/E2 confirmation): a deterministic
+  /// fingerprint of the resolved per-date rates + the total + currency. Frozen at acquisition.
+  /// `Prisma.Decimal`, 2dp; passenger count never affects it.
+  quoteFingerprint String
+  totalAmount      Decimal @db.Decimal(12, 2)
+  currency         String
+
+  /// The confirmed Booking (C3/E2 sets this atomically at HELD→CONFIRMED for the whole group).
+  /// Additive + nullable: a HELD/RELEASED/EXPIRED group is null. RESTRICT.
+  bookingId String?  @db.Uuid
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  reservations RentalVehicleDayReservation[]
+
+  /// THE GROUP IDEMPOTENCY ARBITER — one logical request per (customer, key). NULL key exempt
+  /// (multiple NULLs allowed). Concurrent same-key inserts serialize; exactly one commits.
+  @@unique([customerId, idempotencyKey])
+  @@index([vehicleId])
+  @@index([bookingId])
+  @@map("rental_vehicle_day_hold_groups")
+}
+
+/// Phase 3C Slice C3/E1 — one physical vehicle held or confirmed for ONE Oman calendar day, with
+/// that day's authoritative price snapshot. A multi-date acquisition writes N child rows (one per
+/// selected day) that all reference ONE RentalVehicleDayHoldGroup, atomically (all-or-nothing) with
+/// the header in a single transaction. The core safety invariant — a physical vehicle never has two
+/// ACTIVE (HELD|CONFIRMED) reservations for the same Oman day — is DB-ENFORCED by a raw PARTIAL
+/// UNIQUE INDEX on (vehicleId, serviceDate) WHERE status IN ('HELD','CONFIRMED') (Prisma 5.22 cannot
+/// express a partial unique in the DSL; same convention as bookings_active_slot_per_customer_key).
+/// status + expiresAt live HERE (not on the group) because the partial-index predicate and the
+/// bounded expiry updateMany both act on this row's own columns. SEPARATE from the legacy interval
+/// VehicleReservation and the guided-tour tables. Pricing is per-vehicle per-day; passengers never
+/// multiply price; legacy Price / PER_DAY / PER_VEHICLE_DAY are NEVER the pricing authority.
+model RentalVehicleDayReservation {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// The owning hold group (NOT-NULL FK → no orphan child can exist). RESTRICT (history-safe).
+  holdGroupId String                    @db.Uuid
+  holdGroup   RentalVehicleDayHoldGroup @relation(fields: [holdGroupId], references: [id], onDelete: Restrict)
+
+  /// The physical reserved vehicle — kept ON THIS ROW (not only on the group) so the active
+  /// (vehicleId, serviceDate) partial-unique index and the single-table conflict reader work
+  /// directly. RESTRICT (a vehicle with reservation history is never silently removed).
   vehicleId String  @db.Uuid
   vehicle   Vehicle @relation(fields: [vehicleId], references: [assetId], onDelete: Restrict)
 
-  /// The reserved Oman calendar DAY — a zone-free @db.Date at UTC-midnight (never shifts), same
-  /// convention as RentalOfferingDay.serviceDate.
+  /// The reserved Oman calendar DAY — a zone-free @db.Date at UTC-midnight (never shifts).
   serviceDate DateTime @db.Date
 
   status RentalReservationStatus @default(HELD)
 
-  /// This day's AUTHORITATIVE price snapshot, resolved at acquisition (override wins over base).
-  /// Frozen: a later offering/day edit never rewrites a held/confirmed reservation's price.
+  /// This day's AUTHORITATIVE price snapshot (override wins over base). Frozen; currency mirrors the
+  /// group currency (all rows of one group share it), kept here so the per-date snapshot is complete.
   dailyAmount Decimal @db.Decimal(12, 2)
-  /// The offering currency at acquisition (all rows of one group share one currency).
   currency    String
-  /// "BASE" | "OVERRIDE" — which authoritative source this day's amount came from (audit clarity).
+  /// "BASE" | "OVERRIDE" — which authoritative source this day's amount came from.
   priceSource String
 
-  /// Server-owned hold expiry (absolute instant). Set for HELD (now + TTL); a HELD row BLOCKS the
-  /// vehicle/day only until this instant, after which it is EXPIRABLE. NULL once CONFIRMED (a
-  /// confirmed reservation NEVER auto-expires). Client input NEVER controls this value.
+  /// Server-owned hold expiry (absolute instant), mirrored onto every child of the group. Set for
+  /// HELD (now + TTL); NULL once CONFIRMED (never auto-expires). Client input NEVER controls it.
   expiresAt  DateTime? @db.Timestamptz(6)
-  /// Set when a HELD row is voluntarily RELEASED before expiry (audit trail; the row is never deleted).
+  /// Set when the group is voluntarily RELEASED before expiry (the row is never deleted).
   releasedAt DateTime? @db.Timestamptz(6)
-
-  /// The confirmed Booking (C3/E2 sets this atomically at HELD→CONFIRMED). Additive + nullable:
-  /// every HELD/RELEASED/EXPIRED row is null; only a CONFIRMED row references a Booking. RESTRICT.
-  bookingId String?  @db.Uuid
-  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-
-  /// GROUP-LEVEL idempotency (denormalized onto every row of the group): the opaque, per-customer
-  /// client key + a server-side SHA-256 fingerprint of the normalized request (offering + sorted
-  /// dates + passengers + expected quote). Same key + same fingerprint → replay the same group;
-  /// same key + different fingerprint → idempotency mismatch. Nullable: a hold acquired without a
-  /// client key simply has none. Never authorization; scoped to customerId.
-  idempotencyKey     String?
-  requestFingerprint String?
 
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   @@index([holdGroupId])
   @@index([vehicleId, serviceDate])
-  @@index([customerId, idempotencyKey])
   @@index([status, expiresAt])
   // The ACTIVE-partial safety invariant — one HELD|CONFIRMED per (vehicleId, serviceDate) — is a
   // raw PARTIAL UNIQUE INDEX "rental_vehicle_day_reservations_active_vehicle_date_key" created in

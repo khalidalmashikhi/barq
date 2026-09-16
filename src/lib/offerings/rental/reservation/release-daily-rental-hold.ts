@@ -2,11 +2,13 @@ import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { logger } from "@/lib/logger";
 
-// Phase 3C Slice C3/E1 — server-only voluntary RELEASE of a temporary daily-rental hold. Only the
-// authenticated OWNER may release, and only a HELD row may transition to RELEASED (a CONFIRMED /
-// EXPIRED / CANCELLED row is never released here). Idempotent: releasing an already-released group
-// succeeds with releasedCount 0. Ownership is a where-clause predicate (customerId), so a foreign or
-// missing group resolves to a uniform NOT_FOUND — never leaking whether it exists or whose it is.
+// Phase 3C Slice C3/E1 — server-only voluntary RELEASE of a temporary daily-rental hold. Ownership
+// lives on the hold-group HEADER (customerId), so release is authorized by re-reading the group:
+// only the authenticated OWNER may release, and only HELD child rows transition to RELEASED (a
+// CONFIRMED / EXPIRED / CANCELLED group is never released here). Idempotent: releasing an
+// already-released group succeeds with releasedCount 0. Ownership is a where-clause predicate on the
+// group, so a foreign or missing group resolves to a uniform NOT_FOUND — never leaking whether it
+// exists or whose it is. Historical rows are never deleted.
 
 export type ReleaseDailyRentalHoldResult =
   | { ok: true; releasedCount: number }
@@ -20,15 +22,15 @@ export async function releaseDailyRentalHold(
   try {
     return await prisma.$transaction(async (tx) => {
       // The group must belong to THIS customer (non-enumerating: foreign/missing → NOT_FOUND).
-      const owned = await tx.rentalVehicleDayReservation.findFirst({
-        where: { holdGroupId: params.holdGroupId, customerId: params.customerId },
+      const group = await tx.rentalVehicleDayHoldGroup.findFirst({
+        where: { id: params.holdGroupId, customerId: params.customerId },
         select: { id: true },
       });
-      if (!owned) return { ok: false as const, reason: "NOT_FOUND" as const };
+      if (!group) return { ok: false as const, reason: "NOT_FOUND" as const };
 
-      // Only HELD → RELEASED. Repeated release is a no-op (count 0) — idempotent, no audit spam.
+      // Only HELD child rows → RELEASED. Repeated release is a no-op (count 0) — idempotent, no audit spam.
       const updated = await tx.rentalVehicleDayReservation.updateMany({
-        where: { holdGroupId: params.holdGroupId, customerId: params.customerId, status: "HELD" },
+        where: { holdGroupId: params.holdGroupId, status: "HELD" },
         data: { status: "RELEASED", releasedAt: now },
       });
 
@@ -38,7 +40,7 @@ export async function releaseDailyRentalHold(
             actorType: "CUSTOMER",
             actorId: params.customerId,
             action: "rental.daily_hold_released",
-            entityType: "RentalVehicleDayReservation",
+            entityType: "RentalVehicleDayHoldGroup",
             entityId: params.holdGroupId,
             newValue: { holdGroupId: params.holdGroupId, releasedCount: updated.count },
           },

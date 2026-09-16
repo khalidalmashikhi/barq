@@ -60,13 +60,18 @@ export type RentalHoldQuote = {
   quoteFingerprint: string;
 };
 
+/** The lifecycle state of a hold group's rows (all rows of a group share one status). */
+export type RentalHoldStatus = "HELD" | "CONFIRMED" | "RELEASED" | "EXPIRED" | "CANCELLED";
+
 /** The safe hold DTO returned on a successful (or replayed) acquisition. No other customer's data. */
 export type DailyRentalHold = {
   holdGroupId: string;
   holdToken: string;
-  status: "HELD";
-  /** Absolute expiry instant (ISO) — server-owned; the hold blocks until then. */
-  expiresAt: string;
+  /** The group's current state. A fresh acquisition is HELD; a replay reflects the group's real
+   * current state (a replayed-after-expiry hold is EXPIRED — replay never creates a fresh hold). */
+  status: RentalHoldStatus;
+  /** Absolute expiry instant (ISO) — server-owned; null once CONFIRMED (never auto-expires). */
+  expiresAt: string | null;
   quote: RentalHoldQuote;
   /** True when this result replays an existing idempotent hold rather than creating a new one. */
   replayed: boolean;
