@@ -154,11 +154,30 @@ describe.runIf(RUN)("confirm authority — REAL two-client concurrency + consist
     const ok = await confirm(db, hold.hold.holdGroupId, "ck-4", hold.hold.quote.quoteFingerprint);
     expect(ok.ok).toBe(true);
     if (!ok.ok) return;
-    // Force the deadline into the past, then run the sweep's transaction shape against this DB.
+    // Force the deadline into the past, then run the sweep's FAIL-CLOSED selection against this DB.
     const past = new Date("2020-01-01T00:00:00Z");
     await db.booking.update({ where: { id: ok.booking.id }, data: { providerResponseDeadlineAt: past } });
-    const stale = await db.booking.findMany({ where: { status: "PENDING_PROVIDER", OR: [{ providerResponseDeadlineAt: { lte: new Date() } }] }, select: { id: true } });
+
+    // Insert a NON-rental booking with a STRAY expired deadline (rentalSnapshot SQL NULL, no
+    // availability) — the exact false-positive the correction guards against.
+    const strayId = randomUUID();
+    await db.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SET LOCAL session_replication_role = replica");
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "bookings" ("id","customerId","serviceId","providerId","status","seats","providerResponseDeadlineAt","createdAt","updatedAt") VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,'PENDING_PROVIDER'::"BookingStatus",1,$5::timestamptz,now(),now())`,
+        strayId, CUST, SVC, PROV, past.toISOString(),
+      );
+    });
+
+    // The OLD deadline-only predicate WOULD have swept the stray non-rental booking (the bug).
+    const oldPredicate = await db.booking.findMany({ where: { status: "PENDING_PROVIDER", providerResponseDeadlineAt: { lte: new Date() } }, select: { id: true } });
+    expect(oldPredicate.some((s) => s.id === strayId)).toBe(true);
+
+    // The NEW fail-closed predicate (`rentalSnapshot` non-null AND deadline passed) selects the real
+    // rental but EXCLUDES the stray non-rental booking — proven against real PostgreSQL.
+    const stale = await db.booking.findMany({ where: { status: "PENDING_PROVIDER", OR: [{ rentalSnapshot: { not: Prisma.DbNull }, providerResponseDeadlineAt: { lte: new Date() } }] }, select: { id: true } });
     expect(stale.some((s) => s.id === ok.booking.id)).toBe(true);
+    expect(stale.some((s) => s.id === strayId)).toBe(false);
     await db.$transaction(async (tx) => {
       await tx.booking.update({ where: { id: ok.booking.id }, data: { status: "EXPIRED" } });
       const groups = await tx.rentalVehicleDayHoldGroup.findMany({ where: { bookingId: ok.booking.id }, select: { id: true } });

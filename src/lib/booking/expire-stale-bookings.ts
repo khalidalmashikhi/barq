@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
 import { cancelConfirmedDailyRentalReservations } from "@/lib/offerings/rental/reservation/cancel-confirmed-daily-rental-reservations";
@@ -35,22 +36,34 @@ export async function expireStaleBookings(): Promise<ExpireStaleBookingsResult> 
   const now = new Date();
 
   // A PENDING_PROVIDER booking is stale when EITHER (slot) its Availability slot has already started,
-  // OR (Phase 3C Slice C3/E2 — rental) its server-owned provider-response deadline has passed. The two
-  // are disjoint: a slot booking has an Availability + a null deadline; a rental booking is slotless
-  // with a non-null deadline. `providerResponseDeadlineAt != null` identifies a rental booking.
+  // OR (Phase 3C Slice C3/E2 — rental) it is a rental booking whose server-owned provider-response
+  // deadline has passed. The rental arm is FAIL-CLOSED: a booking qualifies as a rental ONLY when it
+  // carries an actual `rentalSnapshot`, NOT merely a non-null deadline. `rentalSnapshot` is a nullable
+  // Json column — a non-rental booking stores SQL NULL and a rental stores a full object (the JSON
+  // `null` literal is never written), so `{ not: Prisma.DbNull }` (SQL NULL, the state distinct from
+  // `Prisma.JsonNull`) is the exact "has a rental snapshot" predicate. This prevents a stray/
+  // imported/manually-repaired `providerResponseDeadlineAt` on a non-rental booking from being swept
+  // by this branch — the deadline alone is no longer sufficient. Booking identity (rental vs slot) is
+  // decided by the snapshot below, not by the deadline.
   const staleBookings = await prisma.booking.findMany({
     where: {
       status: "PENDING_PROVIDER",
-      OR: [{ availability: { startTime: { lte: now } } }, { providerResponseDeadlineAt: { lte: now } }],
+      OR: [
+        { availability: { startTime: { lte: now } } },
+        { rentalSnapshot: { not: Prisma.DbNull }, providerResponseDeadlineAt: { lte: now } },
+      ],
     },
-    select: { id: true, availabilityId: true, seats: true, providerResponseDeadlineAt: true },
+    select: { id: true, availabilityId: true, seats: true, rentalSnapshot: true, providerResponseDeadlineAt: true },
   });
 
   let expiredCount = 0;
   let failedCount = 0;
 
   for (const booking of staleBookings) {
-    const isRental = booking.providerResponseDeadlineAt !== null;
+    // Rental identity is the SNAPSHOT, not the deadline: a non-rental booking with a stray deadline
+    // that was matched only by the slot arm is still treated as a slot booking (fires the hook,
+    // rental release is an idempotent no-op). A rental row always has both fields set.
+    const isRental = booking.rentalSnapshot !== null;
     try {
       const hookContext = await prisma.$transaction(async (tx) => {
         const ctx = await transitionBooking(
