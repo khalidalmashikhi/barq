@@ -36,6 +36,21 @@ const str = (v: unknown): v is string => typeof v === "string";
 const posInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v > 0;
 
 /**
+ * Lightweight, FAIL-CLOSED structural guard for SERVER LIFECYCLE routing (e.g. the stale-booking
+ * expiry sweep deciding rental vs slot handling). Returns true only for a real rental-snapshot object
+ * carrying the stable rental discriminator `rentalOfferingId`. It rejects null, arrays, primitive JSON
+ * values, and malformed objects missing that discriminator — so a non-null-yet-malformed JSON value
+ * (e.g. `{}`) that a DB `not: AnyNull` filter cannot exclude never receives rental treatment.
+ *
+ * Deliberately NOT the full DTO parser (`parseRentalBookingSummary`): routing needs only the stable
+ * discriminator, not every presentable field, so a genuine rental is never mis-routed to slot
+ * handling (which would strand its confirmed dates) over a missing presentation-only field.
+ */
+export function isRentalBookingSnapshot(raw: unknown): boolean {
+  return isObj(raw) && str(raw.rentalOfferingId) && raw.rentalOfferingId.length > 0;
+}
+
+/**
  * Parse a Booking.rentalSnapshot into a customer-safe summary, or null if absent/legacy/malformed.
  * Fail-closed: any structural surprise yields null rather than a partial/leaky object.
  */

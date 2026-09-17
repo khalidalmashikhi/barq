@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { parseRentalBookingSummary } from "./rental-booking-summary";
+import { parseRentalBookingSummary, isRentalBookingSnapshot } from "./rental-booking-summary";
 
 const valid = {
   rentalOfferingId: "off-1",
@@ -52,5 +52,27 @@ describe("parseRentalBookingSummary", () => {
     expect(s).not.toBeNull();
     expect(s!.vehicle.make).toBeNull();
     expect(s!.vehicle.bookablePassengerCapacity).toBe(6);
+  });
+});
+
+describe("isRentalBookingSnapshot (lifecycle routing guard)", () => {
+  it("accepts a real snapshot object carrying the rentalOfferingId discriminator", () => {
+    expect(isRentalBookingSnapshot(valid)).toBe(true);
+    // Sufficient for routing: only the stable discriminator is required, not every presentable field.
+    expect(isRentalBookingSnapshot({ rentalOfferingId: "off-9" })).toBe(true);
+  });
+
+  it("rejects null, JS null, arrays, primitives, and objects missing the discriminator (fail-closed)", () => {
+    expect(isRentalBookingSnapshot(null)).toBe(false);
+    expect(isRentalBookingSnapshot(undefined)).toBe(false);
+    expect(isRentalBookingSnapshot([])).toBe(false);
+    expect(isRentalBookingSnapshot([{ rentalOfferingId: "off-9" }])).toBe(false);
+    expect(isRentalBookingSnapshot("off-9")).toBe(false);
+    expect(isRentalBookingSnapshot(5)).toBe(false);
+    expect(isRentalBookingSnapshot(true)).toBe(false);
+    expect(isRentalBookingSnapshot({})).toBe(false);
+    expect(isRentalBookingSnapshot({ passengerCount: 2 })).toBe(false); // missing discriminator
+    expect(isRentalBookingSnapshot({ rentalOfferingId: "" })).toBe(false); // empty discriminator
+    expect(isRentalBookingSnapshot({ rentalOfferingId: 123 })).toBe(false); // non-string discriminator
   });
 });

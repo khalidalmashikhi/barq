@@ -54,25 +54,26 @@ describe("expireStaleBookings", () => {
 
     await expireStaleBookings();
 
-    // Fail-closed: the rental arm ANDs an explicit non-null `rentalSnapshot` (SQL-NULL, i.e.
-    // Prisma.DbNull, excluded) with the passed deadline — a stray deadline on a non-rental booking
-    // can never be returned by this branch. `rentalSnapshot` is also fetched for classification.
+    // Fail-closed: the rental arm ANDs an explicit non-null `rentalSnapshot` — `Prisma.AnyNull`
+    // excludes BOTH SQL NULL and the JSON `null` literal — with the passed deadline, so neither a
+    // stray deadline on a non-rental booking nor a JSON-null snapshot can be returned by this branch.
+    // `rentalSnapshot` is also fetched for the runtime structural guard.
     expect(findManyMock).toHaveBeenCalledWith({
       where: {
         status: "PENDING_PROVIDER",
         OR: [
           { availability: { startTime: { lte: expect.any(Date) } } },
-          { rentalSnapshot: { not: Prisma.DbNull }, providerResponseDeadlineAt: { lte: expect.any(Date) } },
+          { rentalSnapshot: { not: Prisma.AnyNull }, providerResponseDeadlineAt: { lte: expect.any(Date) } },
         ],
       },
       select: { id: true, availabilityId: true, seats: true, rentalSnapshot: true, providerResponseDeadlineAt: true },
     });
 
-    // Explicit, unmissable assertion of the non-null rentalSnapshot requirement on the rental arm.
+    // Explicit, unmissable assertion of the AnyNull (SQL NULL + JSON null) requirement on the rental arm.
     const firstCallArg = findManyMock.mock.calls[0]?.[0] as { where: { OR: Array<Record<string, unknown>> } } | undefined;
     const rentalArm = firstCallArg?.where.OR.find((clause) => "rentalSnapshot" in clause);
     expect(rentalArm).toBeDefined();
-    expect(rentalArm!.rentalSnapshot).toEqual({ not: Prisma.DbNull });
+    expect(rentalArm!.rentalSnapshot).toEqual({ not: Prisma.AnyNull });
     expect(rentalArm!.providerResponseDeadlineAt).toEqual({ lte: expect.any(Date) });
   });
 
@@ -166,6 +167,46 @@ describe("expireStaleBookings", () => {
     // The rental release is the idempotent in-tx no-op (0 hold groups), identical to any slot booking —
     // it never receives rental-specific treatment on the basis of the stray deadline.
     expect(cancelRentalMock).toHaveBeenCalledWith(expect.anything(), "slot-stray", expect.any(Date));
+    expect(result).toEqual({ expiredCount: 1, failedCount: 0 });
+  });
+
+  // Stage-2 fail-closed guard — a non-null but MALFORMED snapshot ({} / array / primitive / object
+  // missing the discriminator) that slipped past the DB `not: AnyNull` filter, on a SLOTLESS booking,
+  // is skipped SAFELY: no transition, no capacity release, no rental-day release, no hook, no failure.
+  it.each([
+    ["empty object", {}],
+    ["array", [] as unknown],
+    ["primitive string", "not-a-snapshot"],
+    ["primitive number", 5],
+    ["object missing discriminator", { passengerCount: 2 }],
+  ])("skips a slotless booking with a malformed snapshot (%s) — no transition, no release, no hook", async (_label, snapshot) => {
+    findManyMock.mockResolvedValue([
+      { id: "malformed-1", availabilityId: null, seats: 1, rentalSnapshot: snapshot, providerResponseDeadlineAt: new Date("2030-01-01T00:00:00Z") },
+    ]);
+
+    const result = await expireStaleBookings();
+
+    expect(transitionBookingMock).not.toHaveBeenCalled(); // never transitioned
+    expect(cancelRentalMock).not.toHaveBeenCalled(); // no rental-day children released for a false positive
+    expect(executeRawMock).not.toHaveBeenCalled();
+    expect(dispatchLifecycleHookMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ expiredCount: 0, failedCount: 0 }); // neither expired nor failed — safely skipped
+  });
+
+  // A malformed snapshot on a booking WITH a started slot is still a legitimate SLOT expiry (the junk
+  // snapshot never triggers rental treatment): transition + capacity release + hook, rental release no-op.
+  it("treats a malformed-snapshot booking with a started slot as a SLOT booking", async () => {
+    findManyMock.mockResolvedValue([
+      { id: "slot-malformed", availabilityId: "slot-7", seats: 1, rentalSnapshot: {}, providerResponseDeadlineAt: null },
+    ]);
+    transitionBookingMock.mockResolvedValue({ bookingId: "slot-malformed", toStatus: "EXPIRED" });
+
+    const result = await expireStaleBookings();
+
+    expect(transitionBookingMock).toHaveBeenCalledWith({ bookingId: "slot-malformed", toStatus: "EXPIRED", actorType: "SYSTEM" }, expect.anything());
+    expect(executeRawMock).toHaveBeenCalledTimes(1); // slot → capacity release
+    expect(dispatchLifecycleHookMock).toHaveBeenCalledWith({ bookingId: "slot-malformed", toStatus: "EXPIRED" }); // slot → hook fires
+    expect(cancelRentalMock).toHaveBeenCalledWith(expect.anything(), "slot-malformed", expect.any(Date)); // idempotent no-op
     expect(result).toEqual({ expiredCount: 1, failedCount: 0 });
   });
 });

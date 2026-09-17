@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
 import { cancelConfirmedDailyRentalReservations } from "@/lib/offerings/rental/reservation/cancel-confirmed-daily-rental-reservations";
+import { isRentalBookingSnapshot } from "@/lib/booking/rental-booking-summary";
 import { logger } from "@/lib/logger";
 
 // Automatic expiry for stale bookings — Phase 5.1 (Production
@@ -37,20 +38,22 @@ export async function expireStaleBookings(): Promise<ExpireStaleBookingsResult> 
 
   // A PENDING_PROVIDER booking is stale when EITHER (slot) its Availability slot has already started,
   // OR (Phase 3C Slice C3/E2 — rental) it is a rental booking whose server-owned provider-response
-  // deadline has passed. The rental arm is FAIL-CLOSED: a booking qualifies as a rental ONLY when it
-  // carries an actual `rentalSnapshot`, NOT merely a non-null deadline. `rentalSnapshot` is a nullable
-  // Json column — a non-rental booking stores SQL NULL and a rental stores a full object (the JSON
-  // `null` literal is never written), so `{ not: Prisma.DbNull }` (SQL NULL, the state distinct from
-  // `Prisma.JsonNull`) is the exact "has a rental snapshot" predicate. This prevents a stray/
-  // imported/manually-repaired `providerResponseDeadlineAt` on a non-rental booking from being swept
-  // by this branch — the deadline alone is no longer sufficient. Booking identity (rental vs slot) is
-  // decided by the snapshot below, not by the deadline.
+  // deadline has passed. The rental arm is FAIL-CLOSED in TWO stages. Stage 1 (this query): a booking
+  // qualifies for the rental arm only when `rentalSnapshot` is a real, non-null JSON value — NOT SQL
+  // NULL and NOT the JSON literal `null`. `rentalSnapshot` is a nullable Json column, so `Prisma.AnyNull`
+  // is the value that excludes BOTH null representations (`Prisma.DbNull` alone would still match a JSON
+  // `null` literal; `Prisma.JsonNull` alone would still match SQL NULL). This prevents a stray/imported/
+  // manually-repaired `providerResponseDeadlineAt` on a non-rental booking (SQL NULL or JSON-null
+  // snapshot) from being swept by this branch — the deadline alone is not sufficient. Stage 2 is the
+  // runtime `isRentalBookingSnapshot` guard below: `AnyNull` cannot exclude a non-null-yet-malformed
+  // JSON value (e.g. `{}`, an array, a primitive), so the guard rejects those before any transition or
+  // release. Booking identity (rental vs slot) is decided by the snapshot, never by the deadline.
   const staleBookings = await prisma.booking.findMany({
     where: {
       status: "PENDING_PROVIDER",
       OR: [
         { availability: { startTime: { lte: now } } },
-        { rentalSnapshot: { not: Prisma.DbNull }, providerResponseDeadlineAt: { lte: now } },
+        { rentalSnapshot: { not: Prisma.AnyNull }, providerResponseDeadlineAt: { lte: now } },
       ],
     },
     select: { id: true, availabilityId: true, seats: true, rentalSnapshot: true, providerResponseDeadlineAt: true },
@@ -60,10 +63,20 @@ export async function expireStaleBookings(): Promise<ExpireStaleBookingsResult> 
   let failedCount = 0;
 
   for (const booking of staleBookings) {
-    // Rental identity is the SNAPSHOT, not the deadline: a non-rental booking with a stray deadline
-    // that was matched only by the slot arm is still treated as a slot booking (fires the hook,
-    // rental release is an idempotent no-op). A rental row always has both fields set.
-    const isRental = booking.rentalSnapshot !== null;
+    // Rental identity is the SNAPSHOT, not the deadline: classification uses the fail-closed structural
+    // guard, so a non-rental booking with a stray deadline matched only by the slot arm is still
+    // treated as a slot booking (fires the hook, rental release is an idempotent no-op).
+    const isRental = isRentalBookingSnapshot(booking.rentalSnapshot);
+
+    // Stage-2 fail-closed skip: a booking that is NOT a valid rental and has NO slot could only have
+    // reached this list via the rental arm on a non-null-yet-malformed snapshot ({} / array / primitive
+    // that `not: AnyNull` cannot exclude). Skip it entirely — no status change, no release — and log
+    // ONLY its id (never snapshot content). Malformed rows are neither expired nor counted as failures.
+    if (!isRental && booking.availabilityId === null) {
+      logger.warn("expireStaleBookings.skipped_malformed_rental_candidate", { bookingId: booking.id });
+      continue;
+    }
+
     try {
       const hookContext = await prisma.$transaction(async (tx) => {
         const ctx = await transitionBooking(
@@ -71,7 +84,7 @@ export async function expireStaleBookings(): Promise<ExpireStaleBookingsResult> 
           tx
         );
 
-        if (booking.availabilityId) {
+        if (!isRental && booking.availabilityId) {
           await tx.$executeRaw`
             UPDATE availabilities
             SET "bookedCount" = GREATEST("bookedCount" - ${booking.seats}, 0)

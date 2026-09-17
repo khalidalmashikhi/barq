@@ -188,4 +188,61 @@ describe.runIf(RUN)("confirm authority — REAL two-client concurrency + consist
     expect(b!.status).toBe("EXPIRED");
     expect(children.every((c) => c.status === "CANCELLED")).toBe(true);
   });
+
+  // JSON-NULL SEMANTICS — the exact PostgreSQL behavior of the three Prisma null filters against four
+  // stored rentalSnapshot states, proven with real inserted rows. This is the evidence behind choosing
+  // `not: AnyNull` for the production rental-expiry arm (and the runtime guard for malformed non-null).
+  it("Prisma JSON null semantics — DbNull vs JsonNull vs AnyNull over {SQL NULL, JSON null, {}, valid}", async () => {
+    const past = new Date("2020-02-02T00:00:00Z");
+    const ids = { sqlNull: randomUUID(), jsonNull: randomUUID(), emptyObj: randomUUID(), valid: randomUUID() };
+    await db.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SET LOCAL session_replication_role = replica");
+      const ins = (id: string, snapshotSql: string) =>
+        tx.$executeRawUnsafe(
+          `INSERT INTO "bookings" ("id","customerId","serviceId","providerId","status","seats","rentalSnapshot","providerResponseDeadlineAt","createdAt","updatedAt") VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,'PENDING_PROVIDER'::"BookingStatus",1,${snapshotSql},$5::timestamptz,now(),now())`,
+          id, CUST, SVC, PROV, past.toISOString(),
+        );
+      await ins(ids.sqlNull, "NULL");                              // SQL/database NULL
+      await ins(ids.jsonNull, "'null'::jsonb");                    // JSON literal null
+      await ins(ids.emptyObj, "'{}'::jsonb");                      // non-null but malformed (no discriminator)
+      await ins(ids.valid, `'{"rentalOfferingId":"off-x"}'::jsonb`); // real snapshot object
+    });
+
+    const all = new Set(Object.values(ids));
+    const matched = async (snapshotFilter: Prisma.JsonNullableFilter) =>
+      new Set(
+        (await db.booking.findMany({ where: { status: "PENDING_PROVIDER", rentalSnapshot: snapshotFilter, providerResponseDeadlineAt: { lte: new Date() }, id: { in: [...all] } }, select: { id: true } })).map((r) => r.id),
+      );
+
+    const dbNull = await matched({ not: Prisma.DbNull });
+    const jsonNull = await matched({ not: Prisma.JsonNull });
+    const anyNull = await matched({ not: Prisma.AnyNull });
+
+    // Report exact matched IDs for the record.
+    console.log("[dbproof json-null semantics]", {
+      ids,
+      "not:DbNull": [...dbNull],
+      "not:JsonNull": [...jsonNull],
+      "not:AnyNull": [...anyNull],
+    });
+
+    // DbNull excludes ONLY SQL NULL → still matches the JSON-null literal (the original concern).
+    expect(dbNull.has(ids.sqlNull)).toBe(false);
+    expect(dbNull.has(ids.jsonNull)).toBe(true);
+    expect(dbNull.has(ids.emptyObj)).toBe(true);
+    expect(dbNull.has(ids.valid)).toBe(true);
+
+    // JsonNull excludes the JSON-null literal (and SQL NULL, by SQL three-valued logic).
+    expect(jsonNull.has(ids.sqlNull)).toBe(false);
+    expect(jsonNull.has(ids.jsonNull)).toBe(false);
+    expect(jsonNull.has(ids.emptyObj)).toBe(true);
+    expect(jsonNull.has(ids.valid)).toBe(true);
+
+    // AnyNull excludes BOTH null representations → the production predicate. It still admits `{}` (a
+    // non-null JSON value), which the runtime isRentalBookingSnapshot guard rejects — hence two stages.
+    expect(anyNull.has(ids.sqlNull)).toBe(false);
+    expect(anyNull.has(ids.jsonNull)).toBe(false);
+    expect(anyNull.has(ids.emptyObj)).toBe(true);
+    expect(anyNull.has(ids.valid)).toBe(true);
+  });
 });
