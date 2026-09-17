@@ -1520,19 +1520,19 @@ model GuidedTourVehicleStartTime {
 // =============================================================================
 
 model Booking {
-  id                      String        @id @default(uuid(7)) @db.Uuid
-  customerId              String        @db.Uuid
-  customer                Customer      @relation(fields: [customerId], references: [id])
-  serviceId               String        @db.Uuid
-  service                 Service       @relation(fields: [serviceId], references: [id])
+  id                         String        @id @default(uuid(7)) @db.Uuid
+  customerId                 String        @db.Uuid
+  customer                   Customer      @relation(fields: [customerId], references: [id])
+  serviceId                  String        @db.Uuid
+  service                    Service       @relation(fields: [serviceId], references: [id])
   /// Denormalized for query convenience — see implementation note 8 above.
-  providerId              String        @db.Uuid
-  provider                Provider      @relation("BookingProvider", fields: [providerId], references: [id])
-  driverId                String?       @db.Uuid
-  driver                  Driver?       @relation(fields: [driverId], references: [id])
-  guideId                 String?       @db.Uuid
-  guide                   Guide?        @relation(fields: [guideId], references: [id])
-  vehicleId               String?       @db.Uuid
+  providerId                 String        @db.Uuid
+  provider                   Provider      @relation("BookingProvider", fields: [providerId], references: [id])
+  driverId                   String?       @db.Uuid
+  driver                     Driver?       @relation(fields: [driverId], references: [id])
+  guideId                    String?       @db.Uuid
+  guide                      Guide?        @relation(fields: [guideId], references: [id])
+  vehicleId                  String?       @db.Uuid
   /// FIXED: this relation incorrectly referenced Vehicle's non-existent
   /// "id" field since the schema was originally authored — Vehicle's
   /// actual primary key is assetId (shared-PK Class Table Inheritance
@@ -1544,7 +1544,7 @@ model Booking {
   /// report — not found by any of the "clean typecheck"/model-count
   /// checks relied on in earlier sprints, which structurally cannot
   /// catch this class of error.
-  vehicle                 Vehicle?      @relation(fields: [vehicleId], references: [assetId])
+  vehicle                    Vehicle?      @relation(fields: [vehicleId], references: [assetId])
   /// BOOKING-VEHICLE-SNAPSHOT — a historical, CUSTOMER-SAFE snapshot of the assigned
   /// vehicle's facts, captured atomically at provider acceptance alongside vehicleId (never
   /// by create-booking). Immutable presentation history: later edits to the live Vehicle
@@ -1554,7 +1554,7 @@ model Booking {
   /// (make/model/modelYear/color/passengerCapacity/vehicleType/isFourByFour) — NEVER
   /// registrationNumber, documents, objectKey, verificationStatus, or the raw trusted/
   /// claimed 4x4 flags. Nullable + no backfill: legacy and no-vehicle bookings stay null.
-  vehicleSnapshot         Json?
+  vehicleSnapshot            Json?
   /// Phase 3C Slice C3/E2 — the immutable RENTAL snapshot + rental discriminator. NON-NULL only for
   /// a daily-rental Booking created by confirming a C3/E1 hold; NULL for every legacy/slot/tour
   /// booking (additive, no backfill). Its presence marks this Booking as a rental (so acceptance
@@ -1568,7 +1568,16 @@ model Booking {
   /// price. registrationNumber / registeredSeats are NEVER included. The authoritative money is the
   /// TOTALIZED snapshot columns below (bookingTotalSnapshot = the per-date sum); this is the domain
   /// detail behind that total. The hold-group→Booking link lives on RentalVehicleDayHoldGroup.bookingId.
-  rentalSnapshot          Json?
+  rentalSnapshot             Json?
+  /// Phase 3C Slice C3/E2 (correction) — the SERVER-OWNED provider-response deadline for a rental
+  /// Booking. Unlike a slot booking (whose stale-expiry deadline is its Availability.startTime), a
+  /// rental Booking is slotless yet commits its daily inventory as CONFIRMED at creation, so an
+  /// unanswered PENDING_PROVIDER rental would block the vehicle's dates indefinitely. Set at
+  /// confirmation to now + RENTAL_PROVIDER_RESPONSE_HOURS; expireStaleBookings expires a rental
+  /// PENDING_PROVIDER booking past it (→ EXPIRED + its CONFIRMED daily children → CANCELLED, atomic).
+  /// Client input NEVER sets it. Additive + nullable: NULL for every legacy/slot/tour booking (they
+  /// keep the Availability-based expiry) and every booking created before this field.
+  providerResponseDeadlineAt DateTime?     @db.Timestamptz(6)
   /// BOOKING-INTERVAL-1 — the ONE authoritative operational time window during which this
   /// booking's operational resources (the assigned Vehicle now; guide/driver later) are
   /// committed. Absolute instants (timestamptz), half-open [start, end). Populated at
@@ -1579,8 +1588,8 @@ model Booking {
   /// booking cannot reach CONFIRMED without a valid interval (start < end) — enforced in
   /// acceptBooking, NOT by the DB. This is the interval BOOKING-CONFLICT-1 will reserve on;
   /// this gate only establishes it (no overlap/reservation logic here).
-  operationalStartAt      DateTime?     @db.Timestamptz(6)
-  operationalEndAt        DateTime?     @db.Timestamptz(6)
+  operationalStartAt         DateTime?     @db.Timestamptz(6)
+  operationalEndAt           DateTime?     @db.Timestamptz(6)
   /// BOOKING FULFILLMENT LOGISTICS — booking-SPECIFIC meeting/pickup instructions authored by
   /// the provider AFTER acceptance (WHERE to go / WHEN / HOW to meet), e.g. "Pickup at the
   /// Crowne Plaza main entrance at 08:15, white Land Cruiser." DISTINCT from
@@ -1591,8 +1600,8 @@ model Booking {
   /// write (CONFIRMED/IN_PROGRESS only); customer reads own; admin reads. Nullable + no backfill:
   /// every existing booking and every not-yet-annotated booking is null. Written ONLY by
   /// setBookingFulfillmentInstructions — acceptBooking never touches it (kept frozen).
-  fulfillmentInstructions Json?
-  status                  BookingStatus @default(CREATED)
+  fulfillmentInstructions    Json?
+  status                     BookingStatus @default(CREATED)
 
   /// Group booking support (approved architecture, Entries 066-067):
   /// how many seats/spots this single Booking reserves. Defaults to 1

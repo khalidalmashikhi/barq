@@ -6,6 +6,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { parseRentalBookingSummary, type RentalBookingSummary } from "@/lib/booking/rental-booking-summary";
 import { localizeFulfillmentInstructions } from "@/lib/booking/fulfillment-instructions";
 import { isFulfillmentInstructionsVisible } from "@/lib/booking/cancellation-policy";
 import type { Locale } from "@/i18n/locales";
@@ -33,7 +34,13 @@ export type BookingDetail = {
   /// quantity) via resolveBookingMoney. Drives the detail pricing block AND the post-create
   /// confirmation total (§12). `seats` below stays the physical guest count, never the multiplier.
   bookingMoney: BookingMoneyView;
+  /// The displayed party size. For a rental booking this is the rental passengerCount (NOT the
+  /// billing-neutral Booking.seats=1); for every other booking it is the physical guest count.
   seats: number;
+  /// Phase 3C Slice C3/E2 — the customer-safe rental summary (passenger/day/per-date breakdown behind
+  /// the authoritative bookingMoney total), or null for a non-rental booking. Carries NO internal
+  /// hold-group id / quote fingerprint. Prefer `rental.passengerCount` for the party size.
+  rental?: RentalBookingSummary | null;
   slotStartTime: Date | null;
   confirmedAt: Date | null;
   createdAt: Date;
@@ -107,6 +114,7 @@ export async function getBookingDetail(
     confirmedAt: Date | null;
     createdAt: Date;
     vehicleSnapshot: unknown;
+    rentalSnapshot: unknown;
     fulfillmentInstructions: unknown;
     service: { name: unknown; startInstructions: unknown };
     provider: { businessName: unknown };
@@ -117,6 +125,7 @@ export async function getBookingDetail(
 
   const row = booking as BookingRow;
   const locale = localeOverride ?? (await getLocale());
+  const rental = parseRentalBookingSummary(row.rentalSnapshot);
 
   return {
     id: row.id,
@@ -130,7 +139,9 @@ export async function getBookingDetail(
         ? `${row.priceSnapshotAmount} ${row.priceSnapshotCurrency}`
         : null,
     bookingMoney: bookingMoneyViewFromRow(row),
-    seats: row.seats,
+    // A rental booking's party size is its passengerCount, NEVER the billing-neutral seats=1.
+    seats: rental ? rental.passengerCount : row.seats,
+    rental,
     slotStartTime: row.availability?.startTime ?? null,
     confirmedAt: row.confirmedAt,
     createdAt: row.createdAt,

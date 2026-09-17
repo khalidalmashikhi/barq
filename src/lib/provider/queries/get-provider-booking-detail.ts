@@ -6,6 +6,7 @@ import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import { parseBookingVehicleSnapshot, type BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { parseRentalBookingSummary, type RentalBookingSummary } from "@/lib/booking/rental-booking-summary";
 import {
   readFulfillmentInstructions,
   localizeFulfillmentInstructions,
@@ -39,7 +40,11 @@ export type ProviderBookingDetail = {
   serviceId: string;
   serviceName: string;
   status: BookingStatus;
+  /// Party size: rental passengerCount for a rental booking, else the physical guest count.
   seats: number;
+  /// Phase 3C Slice C3/E2 — customer-safe rental summary (passenger/day/per-date), or null for a
+  /// non-rental booking. No internal hold-group id / quote fingerprint.
+  rental?: RentalBookingSummary | null;
   /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
   /// BOOKING TOTAL PRESENTATION — authoritative money view (effective TOTAL + unit/basis/quantity).
@@ -93,6 +98,7 @@ export async function getProviderBookingDetail(
     bookingTotalSnapshot: unknown;
     createdAt: Date;
     vehicleSnapshot: unknown;
+    rentalSnapshot: unknown;
     fulfillmentInstructions: unknown;
     service: { name: unknown };
     availability: { startTime: Date } | null;
@@ -100,6 +106,7 @@ export async function getProviderBookingDetail(
   };
 
   const row = booking as BookingRow;
+  const rental = parseRentalBookingSummary(row.rentalSnapshot);
 
   // Historical facts come from the snapshot ONLY; the live plate is the sole live field.
   const snapshot = parseBookingVehicleSnapshot(row.vehicleSnapshot);
@@ -112,7 +119,8 @@ export async function getProviderBookingDetail(
     serviceId: row.serviceId,
     serviceName: extractLocalizedText(row.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     status: row.status,
-    seats: row.seats,
+    seats: rental ? rental.passengerCount : row.seats,
+    rental,
     priceSnapshot:
       row.priceSnapshotAmount !== null && row.priceSnapshotCurrency
         ? `${row.priceSnapshotAmount} ${row.priceSnapshotCurrency}`

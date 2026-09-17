@@ -82,6 +82,8 @@ describe("POST /api/v1/me/provider/bookings/{id}/accept", () => {
       moneyMode: "LEGACY",
       pricingUnit: null,
       billableQuantity: null,
+      // Phase 3C Slice C3/E2 — additive customer-safe rental summary; null for a non-rental booking.
+      rental: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       createdAt: "2026-05-01T00:00:00.000Z",
       // BOOKING-VEHICLE-2 — the DETAIL fixture has no snapshot, so the DTO maps assignedVehicle to null.

@@ -35,6 +35,20 @@ export type RentalPriceSource = "BASE" | "OVERRIDE";
  */
 export const RENTAL_PRICING_UNIT = "PER_VEHICLE_DAY" as const;
 
+/**
+ * Phase 3C Slice C3/E2 — the server-owned provider-response window for a confirmed rental Booking.
+ * A rental Booking is created PENDING_PROVIDER with its daily inventory CONFIRMED; if the provider
+ * does not accept/reject within this many hours, expireStaleBookings expires it and releases the
+ * dates. Env-tunable; NEVER settable by client input.
+ */
+export const RENTAL_PROVIDER_RESPONSE_HOURS = (() => {
+  const raw = process.env.RENTAL_PROVIDER_RESPONSE_HOURS;
+  if (!raw) return 48;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`RENTAL_PROVIDER_RESPONSE_HOURS must be a positive integer if set (got "${raw}")`);
+  return n;
+})();
+
 /** One selected day's authoritative price snapshot (safe DTO). */
 export type RentalHoldDay = {
   dateKey: string;

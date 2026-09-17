@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { transitionBooking, dispatchLifecycleHook } from "@/lib/booking/lifecycle";
+import { cancelConfirmedDailyRentalReservations } from "@/lib/offerings/rental/reservation/cancel-confirmed-daily-rental-reservations";
 import { logger } from "@/lib/logger";
 
 // Automatic expiry for stale bookings — Phase 5.1 (Production
@@ -33,18 +34,23 @@ export interface ExpireStaleBookingsResult {
 export async function expireStaleBookings(): Promise<ExpireStaleBookingsResult> {
   const now = new Date();
 
+  // A PENDING_PROVIDER booking is stale when EITHER (slot) its Availability slot has already started,
+  // OR (Phase 3C Slice C3/E2 — rental) its server-owned provider-response deadline has passed. The two
+  // are disjoint: a slot booking has an Availability + a null deadline; a rental booking is slotless
+  // with a non-null deadline. `providerResponseDeadlineAt != null` identifies a rental booking.
   const staleBookings = await prisma.booking.findMany({
     where: {
       status: "PENDING_PROVIDER",
-      availability: { startTime: { lte: now } },
+      OR: [{ availability: { startTime: { lte: now } } }, { providerResponseDeadlineAt: { lte: now } }],
     },
-    select: { id: true, availabilityId: true, seats: true },
+    select: { id: true, availabilityId: true, seats: true, providerResponseDeadlineAt: true },
   });
 
   let expiredCount = 0;
   let failedCount = 0;
 
   for (const booking of staleBookings) {
+    const isRental = booking.providerResponseDeadlineAt !== null;
     try {
       const hookContext = await prisma.$transaction(async (tx) => {
         const ctx = await transitionBooking(
@@ -60,10 +66,17 @@ export async function expireStaleBookings(): Promise<ExpireStaleBookingsResult> 
           `;
         }
 
+        // Phase 3C Slice C3/E2 — release a rental booking's daily inventory in the SAME transaction:
+        // its CONFIRMED daily children → CANCELLED. Idempotent no-op for a non-rental booking.
+        await cancelConfirmedDailyRentalReservations(tx, booking.id, now);
+
         return ctx;
       });
 
-      await dispatchLifecycleHook(hookContext);
+      // Existing slot-booking expiry fires the lifecycle hook (customer notification). Rental-booking
+      // notification is out of this slice's scope (mirrors the confirm authority's no-hook stance) —
+      // the EXPIRED booking is visible in the customer's surfaces; wiring the notification is deferred.
+      if (!isRental) await dispatchLifecycleHook(hookContext);
       expiredCount += 1;
     } catch (error) {
       failedCount += 1;

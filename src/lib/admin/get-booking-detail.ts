@@ -5,6 +5,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { parseRentalBookingSummary, type RentalBookingSummary } from "@/lib/booking/rental-booking-summary";
 import { readFulfillmentInstructions } from "@/lib/booking/fulfillment-instructions";
 
 // Admin Booking detail query — Phase 2.9 (Booking Foundation). Returns
@@ -36,7 +37,10 @@ export type BookingAdminDetail = {
   providerId: string;
   providerName: string;
   status: string;
+  /// Party size: rental passengerCount for a rental booking, else the physical guest count.
   seats: number;
+  /// Phase 3C Slice C3/E2 — customer-safe rental summary (passenger/day/per-date) or null.
+  rental?: RentalBookingSummary | null;
   availabilityId: string | null;
   slotStartTime: Date | null;
   slotEndTime: Date | null;
@@ -105,6 +109,7 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
     createdAt: Date;
     updatedAt: Date;
     fulfillmentInstructions: unknown;
+    rentalSnapshot: unknown;
     service: { name: unknown };
     provider: { businessName: unknown };
     availability: { startTime: Date; endTime: Date } | null;
@@ -113,6 +118,7 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
   };
 
   const row = booking as BookingRow;
+  const rental = parseRentalBookingSummary(row.rentalSnapshot);
 
   return {
     id: row.id,
@@ -123,7 +129,8 @@ export async function getBookingDetail(bookingId: string): Promise<BookingAdminD
     providerName:
       extractLocalizedText(row.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     status: row.status,
-    seats: row.seats,
+    seats: rental ? rental.passengerCount : row.seats,
+    rental,
     availabilityId: row.availabilityId,
     slotStartTime: row.availability?.startTime ?? null,
     slotEndTime: row.availability?.endTime ?? null,

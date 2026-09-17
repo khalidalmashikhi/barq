@@ -91,6 +91,8 @@ describe("toBookingSummaryDTO", () => {
       moneyMode: "LEGACY",
       pricingUnit: null,
       billableQuantity: null,
+      // Phase 3C Slice C3/E2 — additive customer-safe rental summary; null for a non-rental booking.
+      rental: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       availabilityId: "av-1",
       createdAt: "2026-05-01T00:00:00.000Z",
@@ -264,6 +266,8 @@ describe("toBookingDetailDTO", () => {
       moneyMode: "LEGACY",
       pricingUnit: null,
       billableQuantity: null,
+      // Phase 3C Slice C3/E2 — additive customer-safe rental summary; null for a non-rental booking.
+      rental: null,
       scheduledStartTime: "2026-06-01T09:00:00.000Z",
       confirmedAt: "2026-05-02T00:00:00.000Z",
       createdAt: "2026-05-01T00:00:00.000Z",

@@ -34,9 +34,9 @@ const dbDate = (k: string) => new Date(`${k}T00:00:00.000Z`);
 const dec = (s: string) => new Prisma.Decimal(s);
 const future = new Date(NOW.getTime() + 600000);
 
-type Child = { holdGroupId: string; serviceDate: Date; status: string; expiresAt: Date | null };
-type Group = { id: string; customerId: string; rentalOfferingId: string; passengerCount: number; bookingId: string | null; children: Child[] };
-type Booking = { id: string; status: string; rentalSnapshot: unknown; bookingTotalSnapshot: Prisma.Decimal | null; billableQuantitySnapshot: number | null; pricingUnitSnapshot: string | null; seats: number };
+type Child = { holdGroupId: string; serviceDate: Date; status: string; expiresAt: Date | null; dailyAmount: Prisma.Decimal; currency: string; priceSource: string };
+type Group = { id: string; customerId: string; rentalOfferingId: string; passengerCount: number; bookingId: string | null; totalAmount: Prisma.Decimal; currency: string; quoteFingerprint: string; children: Child[] };
+type Booking = { id: string; status: string; rentalSnapshot: unknown; bookingTotalSnapshot: Prisma.Decimal | null; billableQuantitySnapshot: number | null; pricingUnitSnapshot: string | null; seats: number; providerResponseDeadlineAt: Date | null };
 type IdemKey = { customerId: string; idempotencyKey: string; requestFingerprint: string; bookingId: string };
 
 function makeDb(opts: {
@@ -78,18 +78,26 @@ function makeDb(opts: {
         if (!g) return null;
         return { id: g.id, rentalOfferingId: g.rentalOfferingId, passengerCount: g.passengerCount, bookingId: g.bookingId, reservations: g.children.map((c) => ({ serviceDate: c.serviceDate, status: c.status, expiresAt: c.expiresAt })) };
       },
-      update: async ({ where, data }: { where: { id: string }; data: { bookingId: string } }) => {
-        const g = groups.find((x) => x.id === where.id);
-        if (g) g.bookingId = data.bookingId;
-        return {};
+      // Guarded link + FINAL group quote (Issue 1 + 2): only links when bookingId IS NULL; writes total/currency/quoteFingerprint.
+      updateMany: async ({ where, data }: { where: { id: string; customerId: string; bookingId: null }; data: { bookingId: string; totalAmount: Prisma.Decimal; currency: string; quoteFingerprint: string } }) => {
+        let count = 0;
+        for (const g of groups) if (g.id === where.id && g.customerId === where.customerId && g.bookingId === where.bookingId) {
+          g.bookingId = data.bookingId; g.totalAmount = data.totalAmount; g.currency = data.currency; g.quoteFingerprint = data.quoteFingerprint; count++;
+        }
+        return { count };
       },
     },
     rentalVehicleDayReservation: {
-      updateMany: async ({ where, data }: { where: { holdGroupId: string; status: string; expiresAt?: { gt: Date } }; data: { status: string; expiresAt: null } }) => {
+      // Per-date guarded confirm that ALSO writes the FINAL per-date amount/currency/source (Issue 1).
+      updateMany: async ({ where, data }: { where: { holdGroupId: string; serviceDate?: Date; status: string; expiresAt?: { gt: Date } }; data: { status: string; expiresAt: null; dailyAmount?: Prisma.Decimal; currency?: string; priceSource?: string } }) => {
         let count = 0;
         for (const g of groups) for (const c of g.children) {
-          if (c.holdGroupId === where.holdGroupId && c.status === where.status && (!where.expiresAt || (c.expiresAt !== null && c.expiresAt > where.expiresAt.gt))) {
-            c.status = data.status; c.expiresAt = data.expiresAt; count++;
+          if (c.holdGroupId === where.holdGroupId && c.status === where.status && (!where.serviceDate || c.serviceDate.getTime() === where.serviceDate.getTime()) && (!where.expiresAt || (c.expiresAt !== null && c.expiresAt > where.expiresAt.gt))) {
+            c.status = data.status; c.expiresAt = data.expiresAt;
+            if (data.dailyAmount !== undefined) c.dailyAmount = data.dailyAmount;
+            if (data.currency !== undefined) c.currency = data.currency;
+            if (data.priceSource !== undefined) c.priceSource = data.priceSource;
+            count++;
           }
         }
         return { count };
@@ -98,7 +106,7 @@ function makeDb(opts: {
     booking: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
         const id = `bk-${++seq}`;
-        bookings.push({ id, status: "PENDING_PROVIDER", rentalSnapshot: data.rentalSnapshot, bookingTotalSnapshot: data.bookingTotalSnapshot as Prisma.Decimal, billableQuantitySnapshot: data.billableQuantitySnapshot as number, pricingUnitSnapshot: data.pricingUnitSnapshot as string, seats: data.seats as number });
+        bookings.push({ id, status: "PENDING_PROVIDER", rentalSnapshot: data.rentalSnapshot, bookingTotalSnapshot: data.bookingTotalSnapshot as Prisma.Decimal, billableQuantitySnapshot: data.billableQuantitySnapshot as number, pricingUnitSnapshot: data.pricingUnitSnapshot as string, seats: data.seats as number, providerResponseDeadlineAt: (data.providerResponseDeadlineAt as Date) ?? null });
         return { id };
       },
       findUnique: async ({ where }: { where: { id: string } }) => bookings.find((b) => b.id === where.id) ?? null,
@@ -135,9 +143,13 @@ function makeDb(opts: {
   return { db, groups, bookings, keys, audits };
 }
 
+// The group + children are seeded at the HOLD (acquisition) price "A": totalAmount 99.99 / fingerprint
+// "held-A" / each child dailyAmount 99.99 / source "OVERRIDE". A successful confirm must OVERWRITE all
+// of these with the recomputed authoritative quote (Issue 1: no stale acquisition price left behind).
 const grp = (children: Array<{ dateKey: string; status?: string; expiresAt?: Date | null }>, over: Partial<Group> = {}): Group => ({
   id: HG, customerId: CUST, rentalOfferingId: OFFERING, passengerCount: 2, bookingId: null,
-  children: children.map((c) => ({ holdGroupId: HG, serviceDate: dbDate(c.dateKey), status: c.status ?? "HELD", expiresAt: c.expiresAt !== undefined ? c.expiresAt : future })),
+  totalAmount: dec("99.99"), currency: "OMR", quoteFingerprint: "held-A",
+  children: children.map((c) => ({ holdGroupId: HG, serviceDate: dbDate(c.dateKey), status: c.status ?? "HELD", expiresAt: c.expiresAt !== undefined ? c.expiresAt : future, dailyAmount: dec("99.99"), currency: "OMR", priceSource: "OVERRIDE" })),
   ...over,
 });
 const OPEN2 = { "2030-07-10": { state: "OPEN" as const }, "2030-07-11": { state: "OPEN" as const }, "2030-07-12": { state: "OPEN" as const } };
@@ -182,6 +194,29 @@ describe("confirmDailyRentalHoldAndCreateBooking — happy path", () => {
     const a = makeDb({ group: grp([{ dateKey: "2030-07-10" }], { passengerCount: 5 }), offering: { bookableCapacity: 7 }, days: OPEN2 });
     const res = await run(a.db, { expectedQuote: { fingerprint: acceptedFp(["2030-07-10"], [{ dateKey: "2030-07-10", amount: "40.00", source: "BASE" }]) } });
     expect(res.ok && a.bookings[0]!.bookingTotalSnapshot!.toFixed(2)).toBe("40.00");
+  });
+  it("ISSUE 1 — a successful confirm overwrites the hold-group + child price snapshots with the FINAL quote (no stale acquisition price)", async () => {
+    // The hold was seeded at price A (group total 99.99 / fingerprint held-A / child 99.99/OVERRIDE).
+    // The current authoritative quote is B (base 40.00). After confirming at B, EVERYTHING agrees on B.
+    const { db, groups, bookings } = makeDb({ group: grp([{ dateKey: "2030-07-10" }, { dateKey: "2030-07-11" }]), offering: { base: "40.00" }, days: OPEN2 });
+    const bFp = acceptedFp(["2030-07-10", "2030-07-11"], [{ dateKey: "2030-07-10", amount: "40.00", source: "BASE" }, { dateKey: "2030-07-11", amount: "40.00", source: "BASE" }]);
+    const res = await run(db, { expectedQuote: { fingerprint: bFp } });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // Hold-group final quote fields = B.
+    expect(groups[0]!.totalAmount.toFixed(2)).toBe("80.00");
+    expect(groups[0]!.currency).toBe("OMR");
+    expect(groups[0]!.quoteFingerprint).toBe(res.booking.rentalSnapshot.quoteFingerprint);
+    expect(groups[0]!.quoteFingerprint).not.toBe("held-A");
+    // Every confirmed child's per-date snapshot = B (40.00 / BASE), NOT the stale 99.99 / OVERRIDE.
+    expect(groups[0]!.children.every((c) => c.dailyAmount.toFixed(2) === "40.00" && c.priceSource === "BASE" && c.status === "CONFIRMED")).toBe(true);
+    // Sum of confirmed child amounts === Booking total === snapshot total === accepted quote.
+    const childSum = groups[0]!.children.reduce((s, c) => s + Number(c.dailyAmount), 0).toFixed(2);
+    expect(childSum).toBe("80.00");
+    expect(bookings[0]!.bookingTotalSnapshot!.toFixed(2)).toBe("80.00");
+    expect(res.booking.rentalSnapshot.total).toBe("80.00");
+    // A server-owned provider-response deadline was set (Issue 3).
+    expect(bookings[0]!.providerResponseDeadlineAt).not.toBeNull();
   });
   it("reserves ONLY the selected dates (non-consecutive gap absent from snapshot)", async () => {
     const days = [{ dateKey: "2030-07-10", amount: "40.00", source: "BASE" as const }, { dateKey: "2030-07-12", amount: "40.00", source: "BASE" as const }];

@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { parseRentalBookingSummary, type RentalBookingSummary } from "@/lib/booking/rental-booking-summary";
 import type { BookingStatus } from "@prisma/client";
 import type { Locale } from "@/i18n/locales";
 
@@ -63,7 +64,10 @@ export type ProviderBookingListItem = {
   id: string;
   serviceName: string;
   status: string;
+  /// Party size: rental passengerCount for a rental booking, else the physical guest count.
   seats: number;
+  /// Phase 3C Slice C3/E2 — customer-safe rental summary or null for a non-rental booking.
+  rental?: RentalBookingSummary | null;
   /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
   /// BOOKING TOTAL PRESENTATION — the authoritative money view. The provider row shows the
@@ -145,6 +149,7 @@ export async function getProviderBookings(
     bookingTotalSnapshot: unknown;
     availabilityId: string | null;
     createdAt: Date;
+    rentalSnapshot: unknown;
     service: { name: unknown };
     availability: { startTime: Date } | null;
   };
@@ -153,7 +158,8 @@ export async function getProviderBookings(
     id: booking.id,
     serviceName: extractLocalizedText(booking.service.name, locale) || (locale === "ar" ? "تجربة" : "Experience"),
     status: booking.status,
-    seats: booking.seats,
+    seats: (() => { const r = parseRentalBookingSummary(booking.rentalSnapshot); return r ? r.passengerCount : booking.seats; })(),
+    rental: parseRentalBookingSummary(booking.rentalSnapshot),
     priceSnapshot:
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`

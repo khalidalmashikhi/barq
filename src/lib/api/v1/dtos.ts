@@ -4,6 +4,7 @@ import type { ServiceDetail, ActivePriceOption } from "@/lib/services/get-servic
 import type { ServiceInfoLocalized } from "@/lib/services/service-info";
 import type { PublicTourVehicleSummary } from "@/lib/tour-template/vehicle-pool/public-tour-vehicles";
 import type { BookingVehicleSnapshot } from "@/lib/booking/booking-vehicle-snapshot";
+import type { RentalBookingSummary } from "@/lib/booking/rental-booking-summary";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { defaultLocale } from "@/i18n/locales";
 import type { AccountType } from "@prisma/client";
@@ -466,6 +467,9 @@ export interface BookingSummaryDTO extends BookingMoneyFieldsDTO {
   /// caller's own bookings.
   availabilityId: string | null;
   createdAt: string; // ISO-8601
+  // Phase 3C Slice C3/E2 — customer-safe rental summary (passenger count, chargeable days, per-date
+  // price behind the authoritative total), or null for a non-rental booking. No internal ids.
+  rental: RentalBookingSummary | null;
 }
 
 export function toBookingSummaryDTO(item: MyBookingListItem): BookingSummaryDTO {
@@ -479,6 +483,7 @@ export function toBookingSummaryDTO(item: MyBookingListItem): BookingSummaryDTO 
     scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
     availabilityId: item.availabilityId,
     createdAt: item.createdAt.toISOString(),
+    rental: item.rental ?? null,
   };
 }
 
@@ -591,6 +596,10 @@ export interface BookingDetailDTO extends BookingMoneyFieldsDTO {
   // contact channel.
   fulfillmentInstructions: string | null;
   serviceStartInstructions: string | null;
+  // Phase 3C Slice C3/E2 — customer-safe rental summary (passenger count, chargeable days, per-date
+  // price behind the authoritative total), or null for a non-rental booking. `seats` above already
+  // carries the rental passengerCount (never seats=1). No internal hold-group id / quote fingerprint.
+  rental: RentalBookingSummary | null;
 }
 
 export function toBookingDetailDTO(detail: BookingDetail, locale: Locale): BookingDetailDTO {
@@ -612,6 +621,7 @@ export function toBookingDetailDTO(detail: BookingDetail, locale: Locale): Booki
     assignedVehicle: toAssignedVehicleDTO(detail.assignedVehicle, locale),
     fulfillmentInstructions: detail.fulfillmentInstructions,
     serviceStartInstructions: detail.serviceStartInstructions,
+    rental: detail.rental ?? null,
   };
 }
 
@@ -811,6 +821,8 @@ export interface ProviderBookingListItemDTO extends BookingMoneyFieldsDTO {
   scheduledStartTime: string | null;
   availabilityId: string | null;
   createdAt: string;
+  // Phase 3C Slice C3/E2 — customer-safe rental summary or null. `seats` already carries passengerCount.
+  rental: RentalBookingSummary | null;
 }
 
 export function toProviderBookingListItemDTO(item: ProviderBookingListItem): ProviderBookingListItemDTO {
@@ -824,6 +836,7 @@ export function toProviderBookingListItemDTO(item: ProviderBookingListItem): Pro
     scheduledStartTime: item.slotStartTime ? item.slotStartTime.toISOString() : null,
     availabilityId: item.availabilityId,
     createdAt: item.createdAt.toISOString(),
+    rental: item.rental ?? null,
   };
 }
 
@@ -843,6 +856,8 @@ export interface ProviderBookingDetailDTO extends BookingMoneyFieldsDTO {
   // the provider WRITE path is the Web action only in this gate (a REST write endpoint is deferred
   // fulfillment debt), so no editable/raw fields are exposed here.
   fulfillmentInstructions: string | null;
+  // Phase 3C Slice C3/E2 — customer-safe rental summary or null. `seats` already carries passengerCount.
+  rental: RentalBookingSummary | null;
 }
 
 export function toProviderBookingDetailDTO(
@@ -861,6 +876,7 @@ export function toProviderBookingDetailDTO(
     createdAt: detail.createdAt.toISOString(),
     assignedVehicle: toProviderAssignedVehicleDTO(detail.assignedVehicle, locale),
     fulfillmentInstructions: detail.fulfillmentInstructions,
+    rental: detail.rental ?? null,
   };
 }
 

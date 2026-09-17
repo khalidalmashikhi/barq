@@ -5,6 +5,7 @@ import { getLocale } from "next-intl/server";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { isValidUuid } from "@/lib/uuid";
 import { bookingMoneyViewFromRow, type BookingMoneyView } from "@/lib/booking/pricing/booking-money-view";
+import { parseRentalBookingSummary, type RentalBookingSummary } from "@/lib/booking/rental-booking-summary";
 import type { BookingStatus } from "@prisma/client";
 
 // Admin Booking list query — Phase 2.9 (Booking Foundation).
@@ -57,7 +58,10 @@ export type BookingAdminListItem = {
   providerId: string;
   providerName: string;
   status: string;
+  /// Party size: rental passengerCount for a rental booking, else the physical guest count.
   seats: number;
+  /// Phase 3C Slice C3/E2 — customer-safe rental summary (passenger/day/per-date) or null.
+  rental?: RentalBookingSummary | null;
   /// UNIT price snapshot (backward-compatible; unchanged meaning).
   priceSnapshot: string | null;
   /// BOOKING TOTAL PRESENTATION — authoritative money view (effective TOTAL + unit/basis/quantity).
@@ -146,6 +150,7 @@ export async function getBookings(filters: BookingAdminListFilters = {}): Promis
     billableQuantitySnapshot: number | null;
     bookingTotalSnapshot: unknown;
     createdAt: Date;
+    rentalSnapshot: unknown;
     service: { name: unknown };
     provider: { businessName: unknown };
     availability: { startTime: Date } | null;
@@ -160,7 +165,8 @@ export async function getBookings(filters: BookingAdminListFilters = {}): Promis
     providerName:
       extractLocalizedText(booking.provider.businessName, locale) || (locale === "ar" ? "مزود خدمة" : "Service Provider"),
     status: booking.status,
-    seats: booking.seats,
+    seats: (() => { const r = parseRentalBookingSummary(booking.rentalSnapshot); return r ? r.passengerCount : booking.seats; })(),
+    rental: parseRentalBookingSummary(booking.rentalSnapshot),
     priceSnapshot:
       booking.priceSnapshotAmount !== null && booking.priceSnapshotCurrency
         ? `${booking.priceSnapshotAmount} ${booking.priceSnapshotCurrency}`
