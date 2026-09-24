@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { CarFront, Package, FileText, BadgeCheck, Ban, Car, ShieldAlert, CalendarDays, Users, AlertTriangle } from "lucide-react";
+import { CarFront, Package, FileText, BadgeCheck, Ban, Car, ShieldAlert, CalendarDays, Users, AlertTriangle, Plus } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { resolveRentalWorkspaceViewAccess } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { listProviderRentalOfferings } from "@/lib/offerings/rental/provider/list-provider-rental-offerings";
@@ -70,10 +70,19 @@ export default async function ProviderVehicleRentalsPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-8">
-      <header>
-        <h1 className="text-2xl font-semibold text-foreground">{t("rentalWorkspaceTitle")}</h1>
-        <p className="mt-1 text-sm text-foreground/70">{t("rentalWorkspaceSubtitle")}</p>
-        <p className="mt-2 text-xs text-foreground/60">{t("rentalPricedPerVehiclePerDay")}</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t("rentalWorkspaceTitle")}</h1>
+          <p className="mt-1 text-sm text-foreground/70">{t("rentalWorkspaceSubtitle")}</p>
+          <p className="mt-2 text-xs text-foreground/60">{t("rentalPricedPerVehiclePerDay")}</p>
+        </div>
+        <Link
+          href="/provider/vehicle-rentals/new"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <Plus size={16} strokeWidth={2} aria-hidden />
+          {t("rentalCreateTitle")}
+        </Link>
       </header>
 
       {/* Overview — authoritative operational counts. */}
@@ -110,6 +119,15 @@ export default async function ProviderVehicleRentalsPage() {
             description={t("rentalNoOfferingsDescription")}
             gap="gap-3"
             padding="py-16"
+            action={
+              <Link
+                href="/provider/vehicle-rentals/new"
+                className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <Plus size={16} strokeWidth={2} aria-hidden />
+                {t("rentalCreateTitle")}
+              </Link>
+            }
           />
         ) : (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

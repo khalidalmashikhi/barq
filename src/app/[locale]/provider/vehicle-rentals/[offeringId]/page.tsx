@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
-import { ArrowLeft, CarFront, Users, Tag, CalendarDays, CircleCheck, Ban, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CarFront, Users, Tag, CalendarDays, AlertTriangle } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { resolveRentalWorkspaceViewAccess } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { getProviderRentalOfferingWithDays } from "@/lib/offerings/rental/provider/get-provider-rental-offering";
@@ -10,25 +10,24 @@ import {
   getRentalOfferingStatusTranslationKey,
   getRentalBlockerTranslationKey,
 } from "@/lib/offerings/rental/provider/rental-offering-status";
-import { dbDateFromOmanDateKey } from "@/lib/date/oman-time";
 import { formatMoney } from "@/lib/i18n/format-money";
-import { formatDate } from "@/lib/i18n/format-date";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
-import type { Locale } from "@/i18n/locales";
+import { OfferingLifecyclePanel } from "../_components/offering-lifecycle-panel";
+import { EditOfferingForm } from "../_components/edit-offering-form";
+import { AvailabilityCalendar } from "../_components/availability-calendar";
 
-// Phase 3C Slice C2d-R1 — the provider's READ-ONLY rental offering detail: identity + commercial
-// summary + the configured-days availability/price view. A foreign/missing offering resolves to
-// notFound() (non-enumerating; the read model returns null). Interactive day management, price
-// overrides, and lifecycle transitions arrive in Checkpoint B — this view never mutates. Day state
-// is conveyed by text + icon, never color alone (accessibility).
+// Phase 3C Slice C2d-R1 Checkpoint B — the provider's rental offering MANAGEMENT page: identity +
+// commercial summary, lifecycle controls, an edit form, and the interactive configuration calendar.
+// A foreign/missing offering resolves to notFound() (non-enumerating). All mutations go through
+// Server Actions → the C2b-R domain authority. An ARCHIVED offering is fully read-only (no edit form;
+// the calendar renders in read-only mode). The calendar is CONFIGURATION, not reservation-aware
+// customer availability (C2c remains that authority).
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function ProviderRentalOfferingDetailPage({
   params,
@@ -39,8 +38,6 @@ export default async function ProviderRentalOfferingDetailPage({
   const locale = await getLocale();
   const { offeringId } = await params;
 
-  // Shared access gate (same decision as the nav + list page): a non-rental-company provider is
-  // denied via notFound() before any offering is read (non-enumerating).
   const access = await resolveRentalWorkspaceViewAccess();
   if (!access.ok) {
     if (access.reason === "UNAUTHENTICATED") redirect({ href: "/login", locale });
@@ -73,10 +70,11 @@ export default async function ProviderRentalOfferingDetailPage({
   const facts = [offering.vehicleModelYear ? String(offering.vehicleModelYear) : null, typeText, offering.vehicleColor].filter(
     (f): f is string => Boolean(f),
   );
-  const formatDay = (dateKey: string) => {
-    const date = dbDateFromOmanDateKey(dateKey);
-    return date ? formatDate(date, locale as Locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : dateKey;
-  };
+
+  const isArchived = offering.status === "ARCHIVED";
+  // Currency is editable only while DRAFT with no day overrides present (the domain re-enforces).
+  const hasOverride = offering.configuredDays.some((d) => d.priceSource === "OVERRIDE");
+  const currencyLocked = offering.status !== "DRAFT" || hasOverride;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 sm:px-8">
@@ -148,58 +146,36 @@ export default async function ProviderRentalOfferingDetailPage({
         ) : null}
       </header>
 
-      {/* Configured days — read-only availability + resolved price. */}
-      <section aria-labelledby="rental-days-heading" className="flex flex-col gap-3">
-        <h2 id="rental-days-heading" className="text-sm font-medium text-foreground/80">
-          {t("rentalConfiguredDaysHeading")}
-        </h2>
+      {/* Lifecycle controls. */}
+      <OfferingLifecyclePanel offeringId={offering.id} status={offering.status} />
 
-        {offering.configuredDays.length === 0 ? (
-          <EmptyState
-            icon={CalendarDays}
-            message={t("rentalNoConfiguredDaysLabel")}
-            description={t("rentalNoConfiguredDaysDescription")}
-            gap="gap-3"
-            padding="py-12"
-          />
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {offering.configuredDays.map((day) => {
-              const isOpen = day.state === "OPEN";
-              return (
-                <li
-                  key={day.dateKey}
-                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-border bg-card p-3.5 text-sm shadow-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={
-                        isOpen
-                          ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/10 text-success"
-                          : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-foreground/60"
-                      }
-                    >
-                      {isOpen ? <CircleCheck size={16} strokeWidth={1.75} aria-hidden /> : <Ban size={16} strokeWidth={1.75} aria-hidden />}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-foreground">{formatDay(day.dateKey)}</span>
-                      <span className={isOpen ? "text-xs text-success" : "text-xs text-foreground/60"}>
-                        {isOpen ? t("rentalDayStateOpen") : t("rentalDayStateBlocked")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="font-medium text-foreground">{formatMoney(day.dailyAmount, day.currency, locale)}</span>
-                    <span className="text-xs text-foreground/60">
-                      {day.priceSource === "OVERRIDE" ? t("rentalPriceSourceOverride") : t("rentalPriceSourceBase")}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      {/* Commercial edit — hidden for an ARCHIVED (immutable) offering. */}
+      {!isArchived && (
+        <section aria-labelledby="rental-edit-heading" className="flex flex-col gap-3">
+          <h2 id="rental-edit-heading" className="text-sm font-medium text-foreground/80">{t("rentalEditHeading")}</h2>
+          <Card hoverLift={false}>
+            <EditOfferingForm
+              offeringId={offering.id}
+              baseDailyAmount={offering.baseDailyAmount}
+              currency={offering.currency}
+              offeringCapacityOverride={offering.offeringCapacityOverride}
+              currencyLocked={currencyLocked}
+            />
+          </Card>
+        </section>
+      )}
+
+      {/* Interactive configuration calendar (read-only when archived). */}
+      <AvailabilityCalendar
+        offeringId={offering.id}
+        baseDailyAmount={offering.baseDailyAmount}
+        currency={offering.currency}
+        configuredDays={offering.configuredDays}
+        todayKey={offering.todayKey}
+        windowDays={offering.windowDays}
+        locale={locale}
+        readOnly={isArchived}
+      />
     </div>
   );
 }

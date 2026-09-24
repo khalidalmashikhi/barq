@@ -63,11 +63,15 @@ export type ProviderRentalOfferingDetail = {
   baseDailyAmount: string;
   currency: string;
   readinessBlocker: RentalReadinessBlockerCode | null;
-  /** Configured days sorted ascending by Oman date. Days with no row are simply absent. */
+  /** Configured days within the forward window, sorted ascending. Unconfigured days are absent. */
   configuredDays: ProviderRentalOfferingDay[];
   // OPEN is provider CONFIGURATION state, not reservation-aware customer availability.
-  /** Count of configured OPEN days today-or-later. */
+  /** Count of configured OPEN days today-or-later (within the window). */
   upcomingConfiguredOpenDays: number;
+  /** Oman "today" key (YYYY-MM-DD) — the calendar's earliest configurable date. */
+  todayKey: string;
+  /** Inclusive size of the forward configuration window (days from today). */
+  windowDays: number;
 };
 
 /** Operational summary of the provider's rental inventory, all authoritatively derived. */

@@ -5,9 +5,10 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider } from "@/lib/auth";
 import { extractLocalizedText } from "@/lib/i18n/extract-localized-text";
 import { buildVehicleTitle } from "@/lib/vehicles/vehicle-title";
-import { omanDateKeyFromDbDate } from "@/lib/date/oman-time";
+import { omanDateKeyFromDbDate, omanDateKey } from "@/lib/date/oman-time";
 import { assertRentalVerticalCompliant } from "../rental-offering-authorization";
 import { omanTodayDbDateBoundary } from "../rental-service-publishability";
+import { MAX_CALENDAR_WINDOW_DAYS } from "../../calendar/offering-calendar-types";
 import { RENTAL_WORKSPACE_VEHICLE_SELECT, resolveRentalReadinessBlocker, type LoadedWorkspaceVehicle } from "./provider-rental-readiness";
 import type { ProviderRentalOfferingDay, ProviderRentalOfferingDetail } from "./provider-rental-offering-dto";
 
@@ -21,6 +22,12 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
   const locale = await getLocale();
   const now = new Date();
 
+  // BOUNDED forward window: only the configurable/manageable days [today, today + MAX window) are
+  // returned — the same inclusive span C2b bulk-open allows. Past days are immutable history and are
+  // never shown in the management calendar, so the query can never fan out unbounded day history.
+  const boundary = omanTodayDbDateBoundary(now);
+  const windowEnd = new Date(boundary.getTime() + MAX_CALENDAR_WINDOW_DAYS * 86_400_000);
+
   const row = await prisma.rentalOffering.findFirst({
     where: { id: offeringId, service: { providerId: provider.id } },
     select: {
@@ -33,8 +40,8 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
       offeringCapacityOverride: true,
       service: { select: { name: true } },
       vehicle: { select: RENTAL_WORKSPACE_VEHICLE_SELECT },
-      // Days are bounded per offering by the C2b bulk-open window contract; sorted ascending here.
       days: {
+        where: { serviceDate: { gte: boundary, lt: windowEnd } },
         select: { serviceDate: true, state: true, dailyAmountOverride: true },
         orderBy: { serviceDate: "asc" },
       },
@@ -45,7 +52,6 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
   const vehicle = row.vehicle as unknown as LoadedWorkspaceVehicle;
   const base = row.baseDailyAmount as Prisma.Decimal;
   const baseString = base.toFixed(2);
-  const boundary = omanTodayDbDateBoundary(now);
 
   const verticalBlocker = await assertRentalVerticalCompliant(prisma, provider.id);
 
@@ -83,5 +89,7 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
     readinessBlocker: resolveRentalReadinessBlocker(verticalBlocker, vehicle, now),
     configuredDays,
     upcomingConfiguredOpenDays,
+    todayKey: omanDateKey(now),
+    windowDays: MAX_CALENDAR_WINDOW_DAYS,
   };
 }

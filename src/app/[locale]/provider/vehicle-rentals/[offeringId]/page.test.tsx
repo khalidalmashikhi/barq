@@ -16,42 +16,59 @@ const accessMock = vi.fn();
 vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
   resolveRentalWorkspaceViewAccess: (...a: unknown[]) => accessMock(...a),
 }));
-
 const detailMock = vi.fn();
 vi.mock("@/lib/offerings/rental/provider/get-provider-rental-offering", () => ({
   getProviderRentalOfferingWithDays: (...a: unknown[]) => detailMock(...a),
 }));
 
+// Stub the interactive client components so the server page test stays isolated and can assert wiring.
+// Named functions so the rendered element's `type.name` identifies them (they are never invoked).
+vi.mock("../_components/offering-lifecycle-panel", () => ({ OfferingLifecyclePanel: function OfferingLifecyclePanel() { return null; } }));
+vi.mock("../_components/edit-offering-form", () => ({ EditOfferingForm: function EditOfferingForm() { return null; } }));
+vi.mock("../_components/availability-calendar", () => ({ AvailabilityCalendar: function AvailabilityCalendar() { return null; } }));
+
 const { default: ProviderRentalOfferingDetailPage } = await import("./page");
 
+type AnyEl = { type: unknown; props?: Record<string, unknown> };
+function findByType(el: unknown, typeName: string): AnyEl | null {
+  if (!el || typeof el !== "object") return null;
+  if (Array.isArray(el)) {
+    for (const c of el) { const r = findByType(c, typeName); if (r) return r; }
+    return null;
+  }
+  const e = el as AnyEl;
+  if (typeof e.type === "function" && (e.type as { name?: string }).name === typeName) return e;
+  return findByType(e.props?.children, typeName);
+}
 function collectStrings(el: unknown, out: string[]): void {
   if (el == null) return;
   if (typeof el === "string") return void out.push(el);
   if (Array.isArray(el)) return void el.forEach((c) => collectStrings(c, out));
   if (typeof el !== "object") return;
-  const e = el as { props?: Record<string, unknown> };
+  const e = el as AnyEl;
   for (const key of ["label", "message", "description", "value", "title"]) {
     if (typeof e.props?.[key] === "string") out.push(e.props[key] as string);
   }
   collectStrings(e.props?.children, out);
 }
-function collectHrefs(el: unknown, out: string[]): void {
-  if (!el || typeof el !== "object") return;
-  if (Array.isArray(el)) return void el.forEach((c) => collectHrefs(c, out));
-  const e = el as { props?: Record<string, unknown> };
-  if (typeof e.props?.href === "string") out.push(e.props.href as string);
-  collectHrefs(e.props?.children, out);
-}
 const params = (offeringId: string) => Promise.resolve({ offeringId });
+
+const baseDetail = {
+  id: "off-1", serviceId: "svc-1", serviceName: "Van Rental", vehicleId: "veh-1", vehicleTitle: "Toyota Hiace",
+  vehicleType: "VAN", vehicleColor: "White", vehicleModelYear: 2029, bookablePassengerCapacity: 6, registeredSeats: 12,
+  offeringCapacityOverride: null, effectiveCapacity: 6, baseDailyAmount: "40.00", currency: "OMR", readinessBlocker: null,
+  configuredDays: [{ dateKey: "2030-07-10", state: "OPEN", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" }],
+  upcomingConfiguredOpenDays: 1, todayKey: "2030-07-01", windowDays: 62,
+};
 
 beforeEach(() => {
   detailMock.mockReset();
   notFoundMock.mockReset();
   redirectMock.mockReset();
-  accessMock.mockReset().mockResolvedValue({ ok: true, providerId: "prov-1" }); // authorized by default
+  accessMock.mockReset().mockResolvedValue({ ok: true, providerId: "prov-1" });
 });
 
-describe("ProviderRentalOfferingDetailPage", () => {
+describe("ProviderRentalOfferingDetailPage (Checkpoint B)", () => {
   it("denies a provider without rental-workspace access via notFound() before reading the offering", async () => {
     accessMock.mockResolvedValue({ ok: false, reason: "NO_RENTAL_ACCESS" });
     const result = await ProviderRentalOfferingDetailPage({ params: params("off-1") });
@@ -67,54 +84,47 @@ describe("ProviderRentalOfferingDetailPage", () => {
     expect(result).toBeNull();
   });
 
-  it("renders identity, commercial summary, and each configured day with its state + price source", async () => {
-    detailMock.mockResolvedValue({
-      id: "off-1", status: "PUBLISHED", serviceId: "svc-1", serviceName: "Van Rental",
-      vehicleId: "veh-1", vehicleTitle: "Toyota Hiace", vehicleType: "VAN", vehicleColor: "White", vehicleModelYear: 2029,
-      bookablePassengerCapacity: 6, registeredSeats: 12, offeringCapacityOverride: null, effectiveCapacity: 6,
-      baseDailyAmount: "40.00", currency: "OMR", readinessBlocker: null,
-      upcomingConfiguredOpenDays: 2,
-      configuredDays: [
-        { dateKey: "2030-07-10", state: "OPEN", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" },
-        { dateKey: "2030-07-15", state: "BLOCKED", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" },
-        { dateKey: "2030-07-20", state: "OPEN", dailyAmount: "55.00", currency: "OMR", priceSource: "OVERRIDE" },
-      ],
-    });
-
+  it("renders the summary and mounts lifecycle, edit, and the interactive calendar for a DRAFT offering", async () => {
+    detailMock.mockResolvedValue({ ...baseDetail, status: "DRAFT" });
     const tree = await ProviderRentalOfferingDetailPage({ params: params("off-1") });
     const texts: string[] = [];
-    const hrefs: string[] = [];
     collectStrings(tree, texts);
-    collectHrefs(tree, hrefs);
 
-    expect(notFoundMock).not.toHaveBeenCalled();
     expect(texts).toContain("Toyota Hiace");
     expect(texts).toContain("Van Rental");
-    expect(texts).toContain("rentalOfferingStatusPublished");
-    expect(texts).toContain("rentalBasePriceLabel");
-    expect(texts).toContain("rentalRegisteredSeatsLabel");
+    expect(texts).toContain("rentalOfferingStatusDraft");
     expect(texts).toContain("rentalPassengersDoNotChangePrice");
-    expect(texts).toContain("rentalConfiguredDaysHeading");
-    // Day states + price sources both present (text, never color alone).
-    expect(texts).toContain("rentalDayStateOpen");
-    expect(texts).toContain("rentalDayStateBlocked");
-    expect(texts).toContain("rentalPriceSourceBase");
-    expect(texts).toContain("rentalPriceSourceOverride");
-    // Back link to the workspace root.
-    expect(hrefs).toContain("/provider/vehicle-rentals");
+
+    const lifecycle = findByType(tree, "OfferingLifecyclePanel");
+    expect(lifecycle?.props).toMatchObject({ offeringId: "off-1", status: "DRAFT" });
+
+    const edit = findByType(tree, "EditOfferingForm");
+    expect(edit?.props).toMatchObject({ offeringId: "off-1", baseDailyAmount: "40.00", currency: "OMR", currencyLocked: false });
+
+    const calendar = findByType(tree, "AvailabilityCalendar");
+    expect(calendar?.props).toMatchObject({ offeringId: "off-1", todayKey: "2030-07-01", windowDays: 62, readOnly: false });
+    expect((calendar?.props?.configuredDays as unknown[]).length).toBe(1);
   });
 
-  it("shows an empty configured-days state when none exist", async () => {
+  it("locks currency when overrides are present on a draft", async () => {
     detailMock.mockResolvedValue({
-      id: "off-2", status: "DRAFT", serviceId: "s", serviceName: "X",
-      vehicleId: "v", vehicleTitle: "Car", vehicleType: null, vehicleColor: null, vehicleModelYear: null,
-      bookablePassengerCapacity: 4, registeredSeats: null, offeringCapacityOverride: null, effectiveCapacity: 4,
-      baseDailyAmount: "10.00", currency: "OMR", readinessBlocker: null, upcomingConfiguredOpenDays: 0, configuredDays: [],
+      ...baseDetail, status: "DRAFT",
+      configuredDays: [{ dateKey: "2030-07-10", state: "OPEN", dailyAmount: "55.00", currency: "OMR", priceSource: "OVERRIDE" }],
     });
-    const tree = await ProviderRentalOfferingDetailPage({ params: params("off-2") });
-    const texts: string[] = [];
-    collectStrings(tree, texts);
-    expect(texts).toContain("rentalNoConfiguredDaysLabel");
-    expect(texts).not.toContain("rentalRegisteredSeatsLabel"); // registeredSeats null → row omitted
+    const tree = await ProviderRentalOfferingDetailPage({ params: params("off-1") });
+    expect(findByType(tree, "EditOfferingForm")?.props).toMatchObject({ currencyLocked: true });
+  });
+
+  it("locks currency for a PUBLISHED offering", async () => {
+    detailMock.mockResolvedValue({ ...baseDetail, status: "PUBLISHED" });
+    expect(findByType(await ProviderRentalOfferingDetailPage({ params: params("off-1") }), "EditOfferingForm")?.props).toMatchObject({ currencyLocked: true });
+  });
+
+  it("an ARCHIVED offering hides the edit form and renders the calendar read-only", async () => {
+    detailMock.mockResolvedValue({ ...baseDetail, status: "ARCHIVED" });
+    const tree = await ProviderRentalOfferingDetailPage({ params: params("off-1") });
+    expect(findByType(tree, "EditOfferingForm")).toBeNull();
+    expect(findByType(tree, "AvailabilityCalendar")?.props).toMatchObject({ readOnly: true });
+    expect(findByType(tree, "OfferingLifecyclePanel")?.props).toMatchObject({ status: "ARCHIVED" });
   });
 });
