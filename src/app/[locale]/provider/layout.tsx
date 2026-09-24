@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
-import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound, FileCheck2, Car, BadgeCheck } from "lucide-react";
+import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound, FileCheck2, Car, CarFront, BadgeCheck } from "lucide-react";
 import { requireProvider, UnauthenticatedError, ForbiddenError, isActiveAdminSession } from "@/lib/auth";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
@@ -100,6 +100,8 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     // VEHICLE-2 — provider-workspace-only entry (never public/customer/admin nav).
     // Vehicle ownership stays independent of ProviderCategory (B4/B5).
     { label: t("navVehicles"), href: getPathname({ href: "/provider/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
+    // C2d-R1 — RENTAL_COMPANY vehicle-rental management workspace (provider-only nav entry).
+    { label: t("navVehicleRentals"), href: getPathname({ href: "/provider/vehicle-rentals", locale }), icon: <CarFront size={18} strokeWidth={1.75} /> },
     {
       label: t("navNotifications"),
       href: getPathname({ href: "/provider/notifications", locale }),
