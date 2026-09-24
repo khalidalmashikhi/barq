@@ -54,7 +54,7 @@ describe("getProviderRentalWorkspaceOverview", () => {
       suspendedOfferings: 1,
       vehiclesReadyForRental: 2,
       vehiclesRequiringVerification: 1,
-      upcomingOpenDays: 9,
+      upcomingConfiguredOpenDays: 9,
     });
   });
 
@@ -64,9 +64,9 @@ describe("getProviderRentalWorkspaceOverview", () => {
     dayCount.mockResolvedValue(0);
 
     await getProviderRentalWorkspaceOverview();
-    expect(groupBy.mock.calls[0][0].where).toEqual({ service: { providerId: "prov-1" } });
-    expect(vehicleFindMany.mock.calls[0][0].where).toEqual({ asset: { providerId: "prov-1", assetType: "VEHICLE" } });
-    expect(dayCount.mock.calls[0][0].where).toEqual({
+    expect(groupBy.mock.calls[0]?.[0]?.where).toEqual({ service: { providerId: "prov-1" } });
+    expect(vehicleFindMany.mock.calls[0]?.[0]?.where).toEqual({ asset: { providerId: "prov-1", assetType: "VEHICLE" } });
+    expect(dayCount.mock.calls[0]?.[0]?.where).toEqual({
       state: "OPEN",
       serviceDate: { gte: new Date("2030-07-01T00:00:00.000Z") },
       rentalOffering: { service: { providerId: "prov-1" } },
@@ -85,7 +85,7 @@ describe("getProviderRentalWorkspaceOverview", () => {
       suspendedOfferings: 0,
       vehiclesReadyForRental: 0,
       vehiclesRequiringVerification: 0,
-      upcomingOpenDays: 0,
+      upcomingConfiguredOpenDays: 0,
     });
   });
 });

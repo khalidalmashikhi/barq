@@ -45,7 +45,7 @@ describe("getProviderRentalOfferingWithDays", () => {
     offeringFindFirst.mockResolvedValue(null);
     const result = await getProviderRentalOfferingWithDays("off-x");
     expect(result).toBeNull();
-    expect(offeringFindFirst.mock.calls[0][0].where).toEqual({ id: "off-x", service: { providerId: "prov-1" } });
+    expect(offeringFindFirst.mock.calls[0]?.[0]?.where).toEqual({ id: "off-x", service: { providerId: "prov-1" } });
   });
 
   it("resolves per-day price (override wins over base) and counts upcoming OPEN days", async () => {
@@ -71,7 +71,7 @@ describe("getProviderRentalOfferingWithDays", () => {
     expect(result).not.toBeNull();
     expect(result!.serviceName).toBe("Van Rental");
     expect(result!.registeredSeats).toBe(12);
-    expect(result!.openUpcomingCount).toBe(2);
+    expect(result!.upcomingConfiguredOpenDays).toBe(2);
     expect(result!.configuredDays).toEqual([
       { dateKey: "2030-06-20", state: "OPEN", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" },
       { dateKey: "2030-07-10", state: "OPEN", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" },
@@ -89,6 +89,6 @@ describe("getProviderRentalOfferingWithDays", () => {
     const result = await getProviderRentalOfferingWithDays("off-2");
     expect(result!.readinessBlocker).toBe("VERIFIED_CAPACITY_MISSING");
     expect(result!.configuredDays).toEqual([]);
-    expect(result!.openUpcomingCount).toBe(0);
+    expect(result!.upcomingConfiguredOpenDays).toBe(0);
   });
 });

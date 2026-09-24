@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
 import { CarFront, Package, FileText, BadgeCheck, Ban, Car, ShieldAlert, CalendarDays, Users, AlertTriangle } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { resolveRentalWorkspaceViewAccess } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { listProviderRentalOfferings } from "@/lib/offerings/rental/provider/list-provider-rental-offerings";
 import { getProviderRentalWorkspaceOverview } from "@/lib/offerings/rental/provider/get-provider-rental-overview";
 import {
@@ -34,6 +35,16 @@ export const metadata: Metadata = {
 export default async function ProviderVehicleRentalsPage() {
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
+
+  // Shared, server-authoritative access gate (same decision the nav uses). A non-rental-company
+  // provider (guide-only / unrelated vertical / lapsed to REJECTED-SUSPENDED) is denied via
+  // notFound() — non-enumerating; the workspace's existence is never revealed.
+  const access = await resolveRentalWorkspaceViewAccess();
+  if (!access.ok) {
+    if (access.reason === "UNAUTHENTICATED") redirect({ href: "/login", locale });
+    else notFound();
+    return null;
+  }
 
   let overview;
   let offerings;
@@ -82,7 +93,7 @@ export default async function ProviderVehicleRentalsPage() {
             icon={ShieldAlert}
             tone={overview.vehiclesRequiringVerification > 0 ? "danger" : "default"}
           />
-          <KpiCard label={t("rentalMetricUpcomingOpenDays")} value={String(overview.upcomingOpenDays)} icon={CalendarDays} />
+          <KpiCard label={t("rentalMetricUpcomingConfiguredOpenDays")} value={String(overview.upcomingConfiguredOpenDays)} icon={CalendarDays} />
         </div>
       </section>
 
@@ -141,9 +152,9 @@ export default async function ProviderVehicleRentalsPage() {
                     ) : null}
 
                     <span className="text-xs text-foreground/60">
-                      {offering.nearestOpenDateKey
-                        ? t("rentalNextAvailableLabel", { date: formatDay(offering.nearestOpenDateKey) })
-                        : t("rentalNoAvailableDaysLabel")}
+                      {offering.nearestConfiguredOpenDateKey
+                        ? t("rentalNextConfiguredOpenLabel", { date: formatDay(offering.nearestConfiguredOpenDateKey) })
+                        : t("rentalNoConfiguredOpenDaysLabel")}
                     </span>
 
                     {offering.readinessBlocker ? (

@@ -20,7 +20,8 @@ export async function getProviderRentalWorkspaceOverview(): Promise<ProviderRent
   const now = new Date();
   const boundary = omanTodayDbDateBoundary(now);
 
-  const [statusGroups, vehicles, upcomingOpenDays] = await Promise.all([
+  // OPEN is provider CONFIGURATION state, NOT reservation-aware customer availability.
+  const [statusGroups, vehicles, upcomingConfiguredOpenDays] = await Promise.all([
     prisma.rentalOffering.groupBy({
       by: ["status"],
       where: { service: { providerId: provider.id } },
@@ -58,6 +59,6 @@ export async function getProviderRentalWorkspaceOverview(): Promise<ProviderRent
     suspendedOfferings,
     vehiclesReadyForRental,
     vehiclesRequiringVerification,
-    upcomingOpenDays,
+    upcomingConfiguredOpenDays,
   };
 }

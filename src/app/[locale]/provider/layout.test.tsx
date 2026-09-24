@@ -6,6 +6,9 @@ import type { ReactElement } from "react";
 // and a customer can get back to the customer side. It is a plain nav item, not
 // a mode switcher. ProviderLayout is an async Server Component called directly;
 // we inspect the AppShell navItems it composes.
+//
+// C2d-R1 (correction): the "Vehicle rentals" nav item is gated by the shared
+// canViewRentalWorkspace access decision — the SAME decision the pages enforce.
 
 vi.mock("server-only", () => ({}));
 
@@ -17,6 +20,13 @@ vi.mock("@/lib/auth", () => ({
   // Gate A: the layout redirects an active admin before requireProvider(); a normal
   // provider is not an active admin, so it never redirects.
   isActiveAdminSession: async () => false,
+}));
+
+// C2d-R1 — the shared rental-workspace access gate (its own unit test proves the RENTAL_COMPANY
+// matrix). Default false so the pre-existing nav tests below (which don't opt in) never see it.
+const canViewRentalWorkspaceMock = vi.fn();
+vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
+  canViewRentalWorkspace: (...a: unknown[]) => canViewRentalWorkspaceMock(...a),
 }));
 
 vi.mock("@/i18n/navigation", () => ({
@@ -36,7 +46,10 @@ const { default: ProviderLayout } = await import("./layout");
 
 type NavItem = { label: string; href?: string };
 
-afterEach(() => requireProviderMock.mockReset());
+afterEach(() => {
+  requireProviderMock.mockReset();
+  canViewRentalWorkspaceMock.mockReset();
+});
 
 describe("ProviderLayout — customer return path", () => {
   it("includes a 'Customer Dashboard' nav item pointing at /dashboard", async () => {
@@ -62,5 +75,40 @@ describe("ProviderLayout — customer return path", () => {
     const vehicles = el.props.navItems.find((item) => item.href === "/provider/vehicles");
     expect(vehicles).toBeDefined();
     expect(vehicles?.label).toBe("navVehicles");
+  });
+});
+
+describe("ProviderLayout — Vehicle rentals nav gating (C2d-R1)", () => {
+  async function navItems(): Promise<NavItem[]> {
+    const el = (await ProviderLayout({ children: null })) as ReactElement<{ navItems: NavItem[] }>;
+    return el.props.navItems;
+  }
+
+  it("shows the Vehicle rentals nav item ONLY when the shared access gate allows it", async () => {
+    requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "prov-1", status: "APPROVED" } });
+    canViewRentalWorkspaceMock.mockResolvedValue(true);
+
+    const items = await navItems();
+    expect(items.find((i) => i.href === "/provider/vehicle-rentals")?.label).toBe("navVehicleRentals");
+    // Identity is session-derived (from requireProvider), never client-supplied.
+    expect(canViewRentalWorkspaceMock).toHaveBeenCalledWith({ id: "prov-1", status: "APPROVED" });
+  });
+
+  it("hides the Vehicle rentals nav item when access is denied (guide-only / unrelated / not a rental company)", async () => {
+    requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "prov-1", status: "APPROVED" } });
+    canViewRentalWorkspaceMock.mockResolvedValue(false);
+
+    const items = await navItems();
+    expect(items.some((i) => i.href === "/provider/vehicle-rentals")).toBe(false);
+    // The rest of the workspace is unaffected.
+    expect(items.some((i) => i.href === "/provider/vehicles")).toBe(true);
+  });
+
+  it("consults the gate once per layout render (bounded — not per nav item)", async () => {
+    requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "prov-1", status: "APPROVED" } });
+    canViewRentalWorkspaceMock.mockResolvedValue(true);
+
+    await navItems();
+    expect(canViewRentalWorkspaceMock).toHaveBeenCalledTimes(1);
   });
 });

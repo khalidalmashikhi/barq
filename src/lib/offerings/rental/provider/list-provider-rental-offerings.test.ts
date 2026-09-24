@@ -60,7 +60,7 @@ describe("listProviderRentalOfferings", () => {
     offeringFindMany.mockResolvedValue([]);
     await listProviderRentalOfferings();
     expect(offeringFindMany).toHaveBeenCalledTimes(1);
-    expect(offeringFindMany.mock.calls[0][0].where).toEqual({ service: { providerId: "prov-1" } });
+    expect(offeringFindMany.mock.calls[0]?.[0]?.where).toEqual({ service: { providerId: "prov-1" } });
   });
 
   it("maps offering fields, resolves the localized service name, and formats money as a 2dp string", async () => {
@@ -93,7 +93,7 @@ describe("listProviderRentalOfferings", () => {
       effectiveCapacity: 6,
       baseDailyAmount: "40.00",
       currency: "OMR",
-      nearestOpenDateKey: "2030-07-12", // earliest upcoming OPEN day
+      nearestConfiguredOpenDateKey: "2030-07-12", // earliest upcoming OPEN day
       readinessBlocker: null,
     });
   });
@@ -103,8 +103,8 @@ describe("listProviderRentalOfferings", () => {
       { id: "o", serviceId: "s", vehicleId: "v", status: "DRAFT", baseDailyAmount: dec("10.00"), currency: "OMR", offeringCapacityOverride: 3, service: { name: { en: "S" } }, vehicle: vehicle("v") },
     ]);
     const [item] = await listProviderRentalOfferings();
-    expect(item.bookablePassengerCapacity).toBe(6);
-    expect(item.effectiveCapacity).toBe(3);
+    expect(item!.bookablePassengerCapacity).toBe(6);
+    expect(item!.effectiveCapacity).toBe(3);
   });
 
   it("evaluates vertical compliance exactly ONCE for the whole list and applies it to every offering", async () => {

@@ -26,8 +26,10 @@ export type ProviderRentalOfferingListItem = {
   effectiveCapacity: number | null;
   baseDailyAmount: string; // 2dp string
   currency: string;
+  // OPEN is provider CONFIGURATION state, NOT reservation-aware customer availability (holds /
+  // confirmations are resolved by the C3/E authority + the C2c customer calendar, not here).
   /** Nearest configured OPEN day today-or-later (Oman key), or null when none is configured. */
-  nearestOpenDateKey: string | null;
+  nearestConfiguredOpenDateKey: string | null;
   /** The single most-relevant readiness/compliance blocker, or null when ready. Never a doc id. */
   readinessBlocker: RentalReadinessBlockerCode | null;
 };
@@ -63,8 +65,9 @@ export type ProviderRentalOfferingDetail = {
   readinessBlocker: RentalReadinessBlockerCode | null;
   /** Configured days sorted ascending by Oman date. Days with no row are simply absent. */
   configuredDays: ProviderRentalOfferingDay[];
+  // OPEN is provider CONFIGURATION state, not reservation-aware customer availability.
   /** Count of configured OPEN days today-or-later. */
-  openUpcomingCount: number;
+  upcomingConfiguredOpenDays: number;
 };
 
 /** Operational summary of the provider's rental inventory, all authoritatively derived. */
@@ -78,6 +81,7 @@ export type ProviderRentalOverview = {
   vehiclesReadyForRental: number;
   /** Provider VEHICLE assets that do NOT yet pass rental readiness. */
   vehiclesRequiringVerification: number;
-  /** OPEN configured days today-or-later across all the provider's offerings. */
-  upcomingOpenDays: number;
+  // OPEN is provider CONFIGURATION state, NOT reservation-aware customer availability.
+  /** Configured OPEN days today-or-later across all the provider's offerings. */
+  upcomingConfiguredOpenDays: number;
 };

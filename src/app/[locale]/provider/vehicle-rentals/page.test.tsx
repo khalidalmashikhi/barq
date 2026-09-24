@@ -3,12 +3,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async () => (k: string) => k }));
 vi.mock("next-intl/server", () => ({ getLocale: async () => "en" }));
+const notFoundMock = vi.fn();
+vi.mock("next/navigation", () => ({ notFound: (...a: unknown[]) => notFoundMock(...a) }));
+const redirectMock = vi.fn();
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, children }: { href: string; children: unknown }) => ({ type: "a", props: { href, children } }),
-  redirect: vi.fn(),
+  redirect: (...a: unknown[]) => redirectMock(...a),
 }));
-vi.mock("next/navigation", () => ({ notFound: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ UnauthenticatedError: class extends Error {}, ForbiddenError: class extends Error {} }));
+
+// The shared access gate (its own unit test proves the RENTAL_COMPANY matrix). Here we drive it.
+const accessMock = vi.fn();
+vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
+  resolveRentalWorkspaceViewAccess: (...a: unknown[]) => accessMock(...a),
+}));
 
 const listMock = vi.fn();
 const overviewMock = vi.fn();
@@ -44,15 +52,34 @@ function collectHrefs(el: unknown, out: string[]): void {
 
 const zeroOverview = {
   totalOfferings: 0, draftOfferings: 0, publishedOfferings: 0, suspendedOfferings: 0,
-  vehiclesReadyForRental: 0, vehiclesRequiringVerification: 0, upcomingOpenDays: 0,
+  vehiclesReadyForRental: 0, vehiclesRequiringVerification: 0, upcomingConfiguredOpenDays: 0,
 };
 
 beforeEach(() => {
   listMock.mockReset();
   overviewMock.mockReset();
+  notFoundMock.mockReset();
+  redirectMock.mockReset();
+  accessMock.mockReset().mockResolvedValue({ ok: true, providerId: "prov-1" }); // authorized by default
 });
 
 describe("ProviderVehicleRentalsPage", () => {
+  it("denies a provider without rental-workspace access via notFound() and reads no data", async () => {
+    accessMock.mockResolvedValue({ ok: false, reason: "NO_RENTAL_ACCESS" });
+    const result = await ProviderVehicleRentalsPage();
+    expect(notFoundMock).toHaveBeenCalledTimes(1);
+    expect(result).toBeNull();
+    expect(overviewMock).not.toHaveBeenCalled();
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects an unauthenticated caller to login", async () => {
+    accessMock.mockResolvedValue({ ok: false, reason: "UNAUTHENTICATED" });
+    await ProviderVehicleRentalsPage();
+    expect(redirectMock).toHaveBeenCalledWith({ href: "/login", locale: "en" });
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
   it("renders the overview metric labels and an empty-offerings state", async () => {
     overviewMock.mockResolvedValue(zeroOverview);
     listMock.mockResolvedValue([]);
@@ -71,7 +98,7 @@ describe("ProviderVehicleRentalsPage", () => {
       "rentalMetricSuspended",
       "rentalMetricVehiclesReady",
       "rentalMetricVehiclesRequiringVerification",
-      "rentalMetricUpcomingOpenDays",
+      "rentalMetricUpcomingConfiguredOpenDays",
     ]) {
       expect(texts).toContain(key);
     }
@@ -87,7 +114,7 @@ describe("ProviderVehicleRentalsPage", () => {
         id: "off-1", status: "PUBLISHED", serviceId: "svc-1", serviceName: "Desert Safari",
         vehicleId: "veh-1", vehicleTitle: "Toyota Land Cruiser", vehicleType: "SUV",
         bookablePassengerCapacity: 6, offeringCapacityOverride: null, effectiveCapacity: 6,
-        baseDailyAmount: "40.00", currency: "OMR", nearestOpenDateKey: "2030-07-12", readinessBlocker: null,
+        baseDailyAmount: "40.00", currency: "OMR", nearestConfiguredOpenDateKey: "2030-07-12", readinessBlocker: null,
       },
     ]);
 
@@ -101,7 +128,7 @@ describe("ProviderVehicleRentalsPage", () => {
     expect(texts).toContain("Toyota Land Cruiser");
     expect(texts).toContain("rentalOfferingStatusPublished"); // Badge child (status key)
     expect(texts).toContain("rentalMaxPassengersValue"); // capacity line present
-    expect(texts).toContain("rentalNextAvailableLabel"); // nearest-open label present
+    expect(texts).toContain("rentalNextConfiguredOpenLabel"); // nearest-open label present
     expect(texts).not.toContain("rentalNoOfferingsLabel");
     expect(hrefs).toContain("/provider/vehicle-rentals/off-1");
   });
@@ -113,7 +140,7 @@ describe("ProviderVehicleRentalsPage", () => {
         id: "off-2", status: "DRAFT", serviceId: "svc-2", serviceName: "Van hire",
         vehicleId: "veh-2", vehicleTitle: null, vehicleType: null,
         bookablePassengerCapacity: null, offeringCapacityOverride: null, effectiveCapacity: null,
-        baseDailyAmount: "10.00", currency: "OMR", nearestOpenDateKey: null, readinessBlocker: "VEHICLE_NOT_SELECTABLE",
+        baseDailyAmount: "10.00", currency: "OMR", nearestConfiguredOpenDateKey: null, readinessBlocker: "VEHICLE_NOT_SELECTABLE",
       },
     ]);
 
@@ -122,7 +149,7 @@ describe("ProviderVehicleRentalsPage", () => {
     collectStrings(tree, texts);
 
     expect(texts).toContain("rentalVehicleUntitled"); // null title fallback
-    expect(texts).toContain("rentalNoAvailableDaysLabel");
+    expect(texts).toContain("rentalNoConfiguredOpenDaysLabel");
     expect(texts).toContain("rentalBlockerVehicleNotSelectable"); // readiness warning
   });
 });

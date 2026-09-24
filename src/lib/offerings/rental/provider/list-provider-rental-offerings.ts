@@ -43,7 +43,8 @@ export async function listProviderRentalOfferings(): Promise<ProviderRentalOffer
   // Vertical compliance is a provider-global fact — evaluate exactly once for the whole list.
   const verticalBlocker = await assertRentalVerticalCompliant(prisma, provider.id);
 
-  // Nearest upcoming OPEN day per offering — one grouped, ordered query; reduce to the earliest.
+  // Nearest upcoming configured OPEN day per offering — one grouped, ordered query; reduce to the
+  // earliest. OPEN is provider configuration state, not reservation-aware customer availability.
   const boundary = omanTodayDbDateBoundary(now);
   const openDays = await prisma.rentalOfferingDay.findMany({
     where: { rentalOfferingId: { in: rows.map((r) => r.id) }, state: "OPEN", serviceDate: { gte: boundary } },
@@ -74,7 +75,7 @@ export async function listProviderRentalOfferings(): Promise<ProviderRentalOffer
       effectiveCapacity: row.offeringCapacityOverride ?? capacity,
       baseDailyAmount: baseAmount.toFixed(2),
       currency: row.currency,
-      nearestOpenDateKey: nearestByOffering.get(row.id) ?? null,
+      nearestConfiguredOpenDateKey: nearestByOffering.get(row.id) ?? null,
       readinessBlocker: resolveRentalReadinessBlocker(verticalBlocker, vehicle, now),
     };
   });

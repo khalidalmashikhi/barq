@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
 import { ArrowLeft, CarFront, Users, Tag, CalendarDays, CircleCheck, Ban, AlertTriangle } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
+import { resolveRentalWorkspaceViewAccess } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { getProviderRentalOfferingWithDays } from "@/lib/offerings/rental/provider/get-provider-rental-offering";
 import {
   getRentalOfferingStatusBadgeVariant,
@@ -37,6 +38,15 @@ export default async function ProviderRentalOfferingDetailPage({
   const t = await getServerTranslator("provider");
   const locale = await getLocale();
   const { offeringId } = await params;
+
+  // Shared access gate (same decision as the nav + list page): a non-rental-company provider is
+  // denied via notFound() before any offering is read (non-enumerating).
+  const access = await resolveRentalWorkspaceViewAccess();
+  if (!access.ok) {
+    if (access.reason === "UNAUTHENTICATED") redirect({ href: "/login", locale });
+    else notFound();
+    return null;
+  }
 
   let offering;
   try {
@@ -120,10 +130,10 @@ export default async function ProviderRentalOfferingDetailPage({
             </div>
           )}
           <div className="flex flex-col">
-            <dt className="text-xs text-foreground/60">{t("rentalUpcomingOpenDaysLabel")}</dt>
+            <dt className="text-xs text-foreground/60">{t("rentalUpcomingConfiguredOpenDaysLabel")}</dt>
             <dd className="flex items-center gap-1 font-medium text-foreground">
               <CalendarDays size={14} strokeWidth={1.75} aria-hidden />
-              {offering.openUpcomingCount}
+              {offering.upcomingConfiguredOpenDays}
             </dd>
           </div>
         </dl>

@@ -4,6 +4,7 @@ import { redirect } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
 import { LayoutDashboard, Package, CalendarCheck, Clock, Bell, Settings, Wallet, CreditCard, UserRound, FileCheck2, Car, CarFront, BadgeCheck } from "lucide-react";
 import { requireProvider, UnauthenticatedError, ForbiddenError, isActiveAdminSession } from "@/lib/auth";
+import { canViewRentalWorkspace } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { AppShell, type AppNavItem } from "@/components/app-shell/app-shell";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
 import { getLocale } from "next-intl/server";
@@ -70,8 +71,13 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     redirect({ href: "/admin", locale });
   }
 
+  // Capture the provider so the shared rental-workspace access gate can decide nav visibility in the
+  // SAME place the pages enforce route access (no drift). One bounded vertical-status query for the
+  // whole layout — never per nav item.
+  let canViewRentals = false;
   try {
-    await requireProvider();
+    const { provider } = await requireProvider();
+    canViewRentals = await canViewRentalWorkspace(provider);
   } catch (error) {
     if (error instanceof UnauthenticatedError) {
       redirect({ href: "/login", locale });
@@ -100,8 +106,13 @@ export default async function ProviderLayout({ children }: { children: ReactNode
     // VEHICLE-2 — provider-workspace-only entry (never public/customer/admin nav).
     // Vehicle ownership stays independent of ProviderCategory (B4/B5).
     { label: t("navVehicles"), href: getPathname({ href: "/provider/vehicles", locale }), icon: <Car size={18} strokeWidth={1.75} /> },
-    // C2d-R1 — RENTAL_COMPANY vehicle-rental management workspace (provider-only nav entry).
-    { label: t("navVehicleRentals"), href: getPathname({ href: "/provider/vehicle-rentals", locale }), icon: <CarFront size={18} strokeWidth={1.75} /> },
+    // C2d-R1 — RENTAL_COMPANY vehicle-rental management workspace. Shown ONLY to a provider the shared
+    // access gate authorizes (approved provider + draft-authorized RENTAL_COMPANY vertical); a
+    // tourist-guide-only or unrelated-vertical provider never sees it, and the pages deny direct access
+    // via the same decision. Categories / vehicle ownership never grant it.
+    ...(canViewRentals
+      ? [{ label: t("navVehicleRentals"), href: getPathname({ href: "/provider/vehicle-rentals", locale }), icon: <CarFront size={18} strokeWidth={1.75} /> }]
+      : []),
     {
       label: t("navNotifications"),
       href: getPathname({ href: "/provider/notifications", locale }),

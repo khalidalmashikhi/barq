@@ -49,10 +49,11 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
 
   const verticalBlocker = await assertRentalVerticalCompliant(prisma, provider.id);
 
-  let openUpcomingCount = 0;
+  // OPEN is provider CONFIGURATION state, not reservation-aware customer availability.
+  let upcomingConfiguredOpenDays = 0;
   const configuredDays: ProviderRentalOfferingDay[] = (row.days as { serviceDate: Date; state: "OPEN" | "BLOCKED"; dailyAmountOverride: Prisma.Decimal | null }[]).map((day) => {
     const override = day.dailyAmountOverride;
-    if (day.state === "OPEN" && day.serviceDate >= boundary) openUpcomingCount += 1;
+    if (day.state === "OPEN" && day.serviceDate >= boundary) upcomingConfiguredOpenDays += 1;
     return {
       dateKey: omanDateKeyFromDbDate(day.serviceDate),
       state: day.state,
@@ -81,6 +82,6 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
     currency: row.currency,
     readinessBlocker: resolveRentalReadinessBlocker(verticalBlocker, vehicle, now),
     configuredDays,
-    openUpcomingCount,
+    upcomingConfiguredOpenDays,
   };
 }
