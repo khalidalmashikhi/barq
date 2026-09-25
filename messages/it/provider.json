@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "Impostare un prezzo personalizzato per {range}?",
   "rentalCalConfirmClearOverride": "Ripristinare {range} al prezzo giornaliero base?",
   "rentalCalOverrideAmount": "Prezzo giornaliero",
-  "rentalCalSuccess": "Calendario aggiornato."
+  "rentalCalSuccess": "Calendario aggiornato.",
+  "rentalCreateListTruncated": "Vengono mostrati i {count} più recenti. Gli elementi meno recenti non sono elencati."
 }

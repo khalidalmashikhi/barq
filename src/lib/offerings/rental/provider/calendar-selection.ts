@@ -64,3 +64,40 @@ export function toggleKey(selection: ReadonlySet<string>, key: string): Set<stri
   else next.add(key);
   return next;
 }
+
+/** One configured-day record as the calendar consumes it (subset of the read model's day DTO). */
+export type CalendarDayRecord = { state: "OPEN" | "BLOCKED"; dailyAmount: string; priceSource: "BASE" | "OVERRIDE" };
+
+/** The fully-derived render state of one calendar cell — the single source the component renders from. */
+export type RentalCalendarCell = {
+  dateKey: string;
+  /** OPEN / BLOCKED when configured, else NONE (no day row). CONFIGURATION state, not availability. */
+  state: "OPEN" | "BLOCKED" | "NONE";
+  /** Resolved daily price: the day override when present, else the offering base. Never computed. */
+  priceAmount: string;
+  priceSource: "BASE" | "OVERRIDE";
+  /** Today-or-later AND within the forward window → the provider may select/mutate it. */
+  configurable: boolean;
+  past: boolean;
+  selected: boolean;
+};
+
+/**
+ * Derive a calendar cell's render state purely (no React) so the component's per-cell logic is unit-
+ * tested directly. Override price wins over base; a cell with no day row is NONE at the base price.
+ */
+export function deriveRentalCalendarCell(
+  dateKey: string,
+  opts: { day?: CalendarDayRecord; baseDailyAmount: string; todayKey: string; windowDays: number; selected: boolean },
+): RentalCalendarCell {
+  const { day, baseDailyAmount, todayKey, windowDays, selected } = opts;
+  return {
+    dateKey,
+    state: day ? day.state : "NONE",
+    priceAmount: day ? day.dailyAmount : baseDailyAmount,
+    priceSource: day && day.priceSource === "OVERRIDE" ? "OVERRIDE" : "BASE",
+    configurable: isConfigurableKey(dateKey, todayKey, windowDays),
+    past: isPastKey(dateKey, todayKey),
+    selected,
+  };
+}

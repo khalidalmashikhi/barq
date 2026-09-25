@@ -10,9 +10,9 @@ import { formatMoney } from "@/lib/i18n/format-money";
 import {
   dateKeysInInclusiveRange,
   isConfigurableKey,
-  isPastKey,
   monthDayKeys,
   toggleKey,
+  deriveRentalCalendarCell,
 } from "@/lib/offerings/rental/provider/calendar-selection";
 import { rentalActionMessageKey } from "@/lib/offerings/rental/provider/rental-action-result";
 import type { ProviderRentalOfferingDay } from "@/lib/offerings/rental/provider/provider-rental-offering-dto";
@@ -196,45 +196,40 @@ export function AvailabilityCalendar({
           ))}
           {Array.from({ length: firstWeekday }, (_, i) => <div key={`b-${i}`} aria-hidden />)}
           {monthKeys.map((key) => {
-            const day = Number(key.slice(-2));
-            const utc = new Date(Date.UTC(view.y, view.m0, day));
-            const configurable = isConfigurableKey(key, todayKey, windowDays);
-            const rec = info.get(key);
-            const state = rec ? rec.state : "NONE";
-            const priceStr = rec ? rec.dailyAmount : baseDailyAmount;
-            const isOverride = rec?.priceSource === "OVERRIDE";
-            const selected = selection.has(key);
+            const utc = new Date(Date.UTC(view.y, view.m0, Number(key.slice(-2))));
+            const cell = deriveRentalCalendarCell(key, { day: info.get(key), baseDailyAmount, todayKey, windowDays, selected: selection.has(key) });
             const isToday = key === todayKey;
-            const stateText = state === "OPEN" ? t("rentalDayStateOpen") : state === "BLOCKED" ? t("rentalDayStateBlocked") : t("rentalDayStateNotConfigured");
+            const stateText = cell.state === "OPEN" ? t("rentalDayStateOpen") : cell.state === "BLOCKED" ? t("rentalDayStateBlocked") : t("rentalDayStateNotConfigured");
+            const isOverride = cell.priceSource === "OVERRIDE" && cell.state !== "NONE";
 
-            if (!configurable) {
+            if (!cell.configurable) {
               return (
-                <div key={key} className={clsx(cellBase, "text-foreground/30", isPastKey(key, todayKey) && "line-through", isToday && "ring-1 ring-inset ring-primary/40")} aria-hidden>
+                <div key={key} className={clsx(cellBase, "text-foreground/30", cell.past && "line-through", isToday && "ring-1 ring-inset ring-primary/40")} aria-hidden>
                   <span>{dtf.dayNum.format(utc)}</span>
                 </div>
               );
             }
             return (
-              <button key={key} type="button" onClick={() => onCellClick(key)} aria-pressed={selected} disabled={readOnly || isPending}
-                aria-label={`${dtf.full.format(utc)} — ${stateText} — ${formatMoney(priceStr, currency, locale)}`}
+              <button key={key} type="button" onClick={() => onCellClick(key)} aria-pressed={cell.selected} disabled={readOnly || isPending}
+                aria-label={`${dtf.full.format(utc)} — ${stateText} — ${formatMoney(cell.priceAmount, currency, locale)}`}
                 className={clsx(
                   cellBase, "font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  selected ? "bg-primary text-primary-foreground ring-2 ring-primary" : clsx(
+                  cell.selected ? "bg-primary text-primary-foreground ring-2 ring-primary" : clsx(
                     "border bg-card text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:border-primary/40",
-                    state === "OPEN" ? "border-success/40" : state === "BLOCKED" ? "border-border bg-foreground/5" : "border-dashed border-border",
+                    cell.state === "OPEN" ? "border-success/40" : cell.state === "BLOCKED" ? "border-border bg-foreground/5" : "border-dashed border-border",
                     isToday && "ring-1 ring-inset ring-primary/40",
                   ),
                   readOnly && "cursor-default",
                 )}>
                 <span className="flex items-center gap-0.5">
-                  {state === "OPEN" && <CircleCheck size={11} strokeWidth={2} aria-hidden className={selected ? "" : "text-success"} />}
-                  {state === "BLOCKED" && <Ban size={11} strokeWidth={2} aria-hidden />}
+                  {cell.state === "OPEN" && <CircleCheck size={11} strokeWidth={2} aria-hidden className={cell.selected ? "" : "text-success"} />}
+                  {cell.state === "BLOCKED" && <Ban size={11} strokeWidth={2} aria-hidden />}
                   {dtf.dayNum.format(utc)}
                 </span>
-                <span className={clsx("tabular-nums", selected ? "text-primary-foreground/90" : "text-foreground/60")}>
-                  {formatMoney(priceStr, currency, locale)}
+                <span className={clsx("tabular-nums", cell.selected ? "text-primary-foreground/90" : "text-foreground/60")}>
+                  {formatMoney(cell.priceAmount, currency, locale)}
                 </span>
-                {isOverride && <span className={clsx("text-[10px]", selected ? "text-primary-foreground/90" : "text-primary")}>{t("rentalOverrideBadge")}</span>}
+                {isOverride && <span className={clsx("text-[10px]", cell.selected ? "text-primary-foreground/90" : "text-primary")}>{t("rentalOverrideBadge")}</span>}
               </button>
             );
           })}

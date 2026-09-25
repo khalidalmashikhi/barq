@@ -57,6 +57,7 @@ const baseDetail = {
   id: "off-1", serviceId: "svc-1", serviceName: "Van Rental", vehicleId: "veh-1", vehicleTitle: "Toyota Hiace",
   vehicleType: "VAN", vehicleColor: "White", vehicleModelYear: 2029, bookablePassengerCapacity: 6, registeredSeats: 12,
   offeringCapacityOverride: null, effectiveCapacity: 6, baseDailyAmount: "40.00", currency: "OMR", readinessBlocker: null,
+  hasAnyDailyOverride: false,
   configuredDays: [{ dateKey: "2030-07-10", state: "OPEN", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" }],
   upcomingConfiguredOpenDays: 1, todayKey: "2030-07-01", windowDays: 62,
 };
@@ -106,13 +107,20 @@ describe("ProviderRentalOfferingDetailPage (Checkpoint B)", () => {
     expect((calendar?.props?.configuredDays as unknown[]).length).toBe(1);
   });
 
-  it("locks currency when overrides are present on a draft", async () => {
+  it("locks currency on a draft when an override exists ANYWHERE (global flag, not the visible window)", async () => {
     detailMock.mockResolvedValue({
       ...baseDetail, status: "DRAFT",
-      configuredDays: [{ dateKey: "2030-07-10", state: "OPEN", dailyAmount: "55.00", currency: "OMR", priceSource: "OVERRIDE" }],
+      hasAnyDailyOverride: true, // e.g. a past/out-of-window override the visible days don't show
+      configuredDays: [{ dateKey: "2030-07-10", state: "OPEN", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" }],
     });
     const tree = await ProviderRentalOfferingDetailPage({ params: params("off-1") });
     expect(findByType(tree, "EditOfferingForm")?.props).toMatchObject({ currencyLocked: true });
+  });
+
+  it("does NOT lock currency on a draft with no override anywhere", async () => {
+    detailMock.mockResolvedValue({ ...baseDetail, status: "DRAFT", hasAnyDailyOverride: false });
+    const tree = await ProviderRentalOfferingDetailPage({ params: params("off-1") });
+    expect(findByType(tree, "EditOfferingForm")?.props).toMatchObject({ currencyLocked: false });
   });
 
   it("locks currency for a PUBLISHED offering", async () => {

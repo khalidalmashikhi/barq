@@ -29,7 +29,20 @@ export type RentalCreateVehicleOption = {
   readinessBlocker: RentalReadinessBlockerCode | null;
 };
 
-export type RentalCreateOptions = { services: RentalCreateServiceOption[]; vehicles: RentalCreateVehicleOption[] };
+export type RentalCreateOptions = {
+  services: RentalCreateServiceOption[];
+  vehicles: RentalCreateVehicleOption[];
+  /** True when the provider owns more than the shown limit — the UI must explain, never silently hide. */
+  servicesOverflow: boolean;
+  vehiclesOverflow: boolean;
+  /** The per-list display limit (deterministic order; newest first). */
+  limit: number;
+};
+
+// Explicit finite bound: a rental company realistically has far fewer than this. We fetch LIMIT+1 to
+// DETECT overflow precisely, then show exactly LIMIT (newest first) and surface an overflow flag so the
+// UI can explain rather than silently truncate. (No pagination UI is warranted at this scale.)
+export const RENTAL_CREATE_OPTIONS_LIMIT = 200;
 
 export async function getRentalCreateOptions(): Promise<RentalCreateOptions> {
   const { provider } = await requireApprovedProvider();
@@ -41,20 +54,25 @@ export async function getRentalCreateOptions(): Promise<RentalCreateOptions> {
       where: { providerId: provider.id, offeringKind: "VEHICLE_RENTAL" },
       select: { id: true, name: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: RENTAL_CREATE_OPTIONS_LIMIT + 1,
     }),
     prisma.vehicle.findMany({
       where: { asset: { providerId: provider.id, assetType: "VEHICLE" } },
       select: RENTAL_WORKSPACE_VEHICLE_SELECT,
       orderBy: [{ assetId: "desc" }],
+      take: RENTAL_CREATE_OPTIONS_LIMIT + 1,
     }),
   ]);
 
-  const services: RentalCreateServiceOption[] = serviceRows.map((s) => ({
+  const servicesOverflow = serviceRows.length > RENTAL_CREATE_OPTIONS_LIMIT;
+  const vehiclesOverflow = vehicleRows.length > RENTAL_CREATE_OPTIONS_LIMIT;
+
+  const services: RentalCreateServiceOption[] = serviceRows.slice(0, RENTAL_CREATE_OPTIONS_LIMIT).map((s) => ({
     serviceId: s.id,
     serviceName: extractLocalizedText(s.name, locale),
   }));
 
-  const vehicles: RentalCreateVehicleOption[] = (vehicleRows as unknown as LoadedWorkspaceVehicle[]).map((v) => {
+  const vehicles: RentalCreateVehicleOption[] = (vehicleRows.slice(0, RENTAL_CREATE_OPTIONS_LIMIT) as unknown as LoadedWorkspaceVehicle[]).map((v) => {
     const blocker = assertRentalVehicleReady(v, now);
     return {
       vehicleId: v.assetId,
@@ -67,5 +85,5 @@ export async function getRentalCreateOptions(): Promise<RentalCreateOptions> {
     };
   });
 
-  return { services, vehicles };
+  return { services, vehicles, servicesOverflow, vehiclesOverflow, limit: RENTAL_CREATE_OPTIONS_LIMIT };
 }

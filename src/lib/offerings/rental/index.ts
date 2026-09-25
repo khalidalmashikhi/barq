@@ -9,6 +9,6 @@ export { createRentalOffering, type CreateRentalOfferingInput } from "./create-r
 export { updateRentalOffering, type UpdateRentalOfferingInput } from "./update-rental-offering";
 export { publishRentalOffering, suspendRentalOffering, archiveRentalOffering } from "./transition-rental-offering";
 export { bulkOpenRentalDays, type BulkOpenRentalDaysInput } from "./bulk-open-days";
-export { blockRentalDay, type BlockRentalDayInput, type BlockRentalDayResult } from "./block-day";
+export { blockRentalDay, blockRentalDays, type BlockRentalDayInput, type BlockRentalDayResult, type BlockRentalDaysInput, type RentalBlockDaysSummary } from "./block-day";
 export { setDailyOverride, type SetDailyOverrideInput, type DailyOverrideResult } from "./set-daily-override";
 export { manageStartTimes, type ManageStartTimesInput, MAX_START_TIMES_PER_DAY } from "./manage-start-times";

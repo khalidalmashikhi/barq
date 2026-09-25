@@ -49,6 +49,14 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
   });
   if (!row) return null;
 
+  // Global override existence — a bounded, indexed existence check INDEPENDENT of the visible window,
+  // so a past or beyond-window override still locks the currency. Never loads day history.
+  const overrideRow = await prisma.rentalOfferingDay.findFirst({
+    where: { rentalOfferingId: row.id, dailyAmountOverride: { not: null } },
+    select: { id: true },
+  });
+  const hasAnyDailyOverride = overrideRow !== null;
+
   const vehicle = row.vehicle as unknown as LoadedWorkspaceVehicle;
   const base = row.baseDailyAmount as Prisma.Decimal;
   const baseString = base.toFixed(2);
@@ -87,6 +95,7 @@ export async function getProviderRentalOfferingWithDays(offeringId: string): Pro
     baseDailyAmount: baseString,
     currency: row.currency,
     readinessBlocker: resolveRentalReadinessBlocker(verticalBlocker, vehicle, now),
+    hasAnyDailyOverride,
     configuredDays,
     upcomingConfiguredOpenDays,
     todayKey: omanDateKey(now),

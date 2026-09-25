@@ -5,6 +5,7 @@ import {
   isConfigurableKey,
   monthDayKeys,
   toggleKey,
+  deriveRentalCalendarCell,
 } from "./calendar-selection";
 
 describe("calendar-selection (pure)", () => {
@@ -55,5 +56,33 @@ describe("calendar-selection (pure)", () => {
     expect([...b].sort()).toEqual(["2030-07-10", "2030-07-14"]);
     const c = toggleKey(b, "2030-07-10"); // toggle off
     expect([...c]).toEqual(["2030-07-14"]);
+  });
+});
+
+describe("deriveRentalCalendarCell (cell render logic)", () => {
+  const base = { baseDailyAmount: "40.00", todayKey: "2030-07-01", windowDays: 62, selected: false };
+
+  it("renders OPEN/BLOCKED/NONE distinctly", () => {
+    expect(deriveRentalCalendarCell("2030-07-10", { ...base, day: { state: "OPEN", dailyAmount: "40.00", priceSource: "BASE" } }).state).toBe("OPEN");
+    expect(deriveRentalCalendarCell("2030-07-10", { ...base, day: { state: "BLOCKED", dailyAmount: "40.00", priceSource: "BASE" } }).state).toBe("BLOCKED");
+    expect(deriveRentalCalendarCell("2030-07-10", base).state).toBe("NONE");
+  });
+
+  it("override price wins over base; base shows when there is no override", () => {
+    const override = deriveRentalCalendarCell("2030-07-10", { ...base, day: { state: "OPEN", dailyAmount: "55.00", priceSource: "OVERRIDE" } });
+    expect(override).toMatchObject({ priceAmount: "55.00", priceSource: "OVERRIDE" });
+    const noOverride = deriveRentalCalendarCell("2030-07-10", { ...base, day: { state: "OPEN", dailyAmount: "40.00", priceSource: "BASE" } });
+    expect(noOverride).toMatchObject({ priceAmount: "40.00", priceSource: "BASE" });
+    expect(deriveRentalCalendarCell("2030-07-10", base).priceAmount).toBe("40.00"); // NONE → base
+  });
+
+  it("marks past and out-of-window cells non-configurable, and in-window future cells configurable", () => {
+    expect(deriveRentalCalendarCell("2030-06-30", base)).toMatchObject({ configurable: false, past: true });
+    expect(deriveRentalCalendarCell("2030-09-02", base)).toMatchObject({ configurable: false, past: false }); // beyond day 62
+    expect(deriveRentalCalendarCell("2030-07-05", base).configurable).toBe(true);
+  });
+
+  it("carries the selected flag through", () => {
+    expect(deriveRentalCalendarCell("2030-07-05", { ...base, selected: true }).selected).toBe(true);
   });
 });

@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "تعيين سعر مخصّص لـ {range}؟",
   "rentalCalConfirmClearOverride": "إعادة {range} إلى السعر اليومي الأساسي؟",
   "rentalCalOverrideAmount": "السعر اليومي",
-  "rentalCalSuccess": "تم تحديث التقويم."
+  "rentalCalSuccess": "تم تحديث التقويم.",
+  "rentalCreateListTruncated": "يتم عرض أحدث {count} عنصر. العناصر الأقدم غير مدرجة."
 }

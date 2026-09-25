@@ -15,7 +15,7 @@ const domain = {
   suspendRentalOffering: vi.fn(),
   archiveRentalOffering: vi.fn(),
   bulkOpenRentalDays: vi.fn(),
-  blockRentalDay: vi.fn(),
+  blockRentalDays: vi.fn(),
   setDailyOverride: vi.fn(),
 };
 vi.mock("@/lib/offerings/rental", () => domain);
@@ -92,14 +92,17 @@ describe("rental workspace server actions", () => {
     expect(domain.bulkOpenRentalDays).toHaveBeenCalledWith({ offeringId: "off-1", dates: ["2030-07-10", "2030-07-11"], reopenBlocked: true });
   });
 
-  it("blockRentalDaysAction: blocks each selected date, stopping at the first domain error", async () => {
-    domain.blockRentalDay
-      .mockResolvedValueOnce({ ok: true, value: {} })
-      .mockResolvedValueOnce({ ok: false, error: "INVALID_DATE" });
+  it("blockRentalDaysAction: delegates to the ATOMIC batch domain fn (one call, all dates) and maps the result", async () => {
+    expect(await blockRentalDaysAction({ offeringId: "off-1", dateKeys: [] })).toEqual({ ok: false, code: "INVALID_INPUT" });
+    domain.blockRentalDays.mockResolvedValue({ ok: true, value: { created: 3, changed: 0, unchanged: 0, total: 3 } });
     const res = await blockRentalDaysAction({ offeringId: "off-1", dateKeys: ["2030-07-10", "2030-07-11", "2030-07-12"] });
-    expect(res).toEqual({ ok: false, code: "INVALID_DATE" });
-    expect(domain.blockRentalDay).toHaveBeenCalledTimes(2); // stopped at the failing second date
-    expect(domain.blockRentalDay).toHaveBeenNthCalledWith(1, { offeringId: "off-1", date: "2030-07-10" });
+    expect(res).toEqual({ ok: true });
+    // ONE atomic call with the whole date set — never a per-date loop that could partially succeed.
+    expect(domain.blockRentalDays).toHaveBeenCalledTimes(1);
+    expect(domain.blockRentalDays).toHaveBeenCalledWith({ offeringId: "off-1", dates: ["2030-07-10", "2030-07-11", "2030-07-12"] });
+
+    domain.blockRentalDays.mockResolvedValue({ ok: false, error: "INVALID_DATE" });
+    expect(await blockRentalDaysAction({ offeringId: "off-1", dateKeys: ["2030-07-10"] })).toEqual({ ok: false, code: "INVALID_DATE" });
   });
 
   it("setRentalDayOverrideAction: accepts a money string or null; rejects other amounts", async () => {

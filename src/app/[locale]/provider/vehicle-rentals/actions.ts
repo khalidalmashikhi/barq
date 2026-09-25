@@ -9,7 +9,7 @@ import {
   suspendRentalOffering,
   archiveRentalOffering,
   bulkOpenRentalDays,
-  blockRentalDay,
+  blockRentalDays,
   setDailyOverride,
 } from "@/lib/offerings/rental";
 import type { RentalOfferingErrorCode } from "@/lib/offerings/rental";
@@ -145,20 +145,9 @@ export async function blockRentalDaysAction(input: BlockRentalDaysActionInput): 
   if (!Array.isArray(input.dateKeys) || input.dateKeys.length === 0 || !input.dateKeys.every(isNonEmptyString)) {
     return { ok: false, code: "INVALID_INPUT" };
   }
-  const offeringId = input.offeringId;
-  // Blocking is per-date, idempotent, and independent (the domain has no batch block); apply each in
-  // turn and stop at the first domain error (earlier idempotent blocks stand — the UI refreshes after).
-  try {
-    for (const dateKey of input.dateKeys as string[]) {
-      const result = await blockRentalDay({ offeringId, date: dateKey });
-      if (!result.ok) return { ok: false, code: result.error };
-    }
-    revalidateWorkspace();
-    return { ok: true };
-  } catch (error) {
-    if (error instanceof UnauthenticatedError) return { ok: false, code: "UNAUTHENTICATED" };
-    return { ok: false, code: "UNKNOWN_ERROR" };
-  }
+  // ATOMIC batch — the domain blocks every selected date in ONE transaction (all-or-nothing), so a
+  // partial "some committed, some not" outcome is impossible. No per-date loop in the adapter.
+  return runAction(() => blockRentalDays({ offeringId: input.offeringId as string, dates: input.dateKeys as string[] }));
 }
 
 export type SetRentalDayOverrideActionInput = { offeringId: unknown; dateKey: unknown; amount: unknown };

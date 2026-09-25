@@ -50,6 +50,9 @@ export function CreateOfferingForm({ options, defaultCurrency }: { options: Rent
   return (
     <form action={formAction} className="flex flex-col gap-6">
       {formError && <Alert variant="danger">{formError}</Alert>}
+      {(options.servicesOverflow || options.vehiclesOverflow) && (
+        <Alert variant="info">{t("rentalCreateListTruncated", { count: options.limit })}</Alert>
+      )}
 
       <label className="flex flex-col gap-1.5 text-sm">
         <span className="font-medium text-foreground">{t("rentalCreateServiceLabel")}</span>

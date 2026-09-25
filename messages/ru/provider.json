@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "Задать особую цену для {range}?",
   "rentalCalConfirmClearOverride": "Вернуть {range} к базовой суточной цене?",
   "rentalCalOverrideAmount": "Суточная цена",
-  "rentalCalSuccess": "Календарь обновлён."
+  "rentalCalSuccess": "Календарь обновлён.",
+  "rentalCreateListTruncated": "Показаны {count} последних. Более старые элементы не отображаются."
 }

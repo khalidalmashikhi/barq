@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "Nastavit vlastní cenu pro {range}?",
   "rentalCalConfirmClearOverride": "Obnovit {range} na základní denní cenu?",
   "rentalCalOverrideAmount": "Denní cena",
-  "rentalCalSuccess": "Kalendář aktualizován."
+  "rentalCalSuccess": "Kalendář aktualizován.",
+  "rentalCreateListTruncated": "Zobrazuje se {count} nejnovějších. Starší položky nejsou uvedeny."
 }

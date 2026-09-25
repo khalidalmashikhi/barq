@@ -7,24 +7,19 @@ import { Dialog } from "@/components/ui/dialog";
 import { clsx } from "@/components/ui/clsx";
 import { useRouter } from "@/i18n/navigation";
 import { rentalActionMessageKey } from "@/lib/offerings/rental/provider/rental-action-result";
+import { validRentalTransitions, type RentalLifecycleTransition } from "@/lib/offerings/rental/provider/rental-offering-status";
 import { publishRentalOfferingAction, suspendRentalOfferingAction, archiveRentalOfferingAction } from "../actions";
 
 // Phase 3C Slice C2d-R1 Checkpoint B — lifecycle controls. Only the transitions VALID for the current
-// status are offered; each is confirmed in an accessible Dialog before running. Every transition calls
-// the authoritative C2b-R mutation — the UI NEVER re-checks compliance / vehicle readiness / open-day
-// / ownership; when publish is blocked, the domain's provider-safe code is mapped to a localized
-// message shown here (never internal document/policy detail). Success refreshes the detail + the list/
-// overview metrics. Archived offerings expose no controls.
+// status are offered (validRentalTransitions — a pure, tested authority); each is confirmed in an
+// accessible Dialog before running. Every transition calls the authoritative C2b-R mutation — the UI
+// NEVER re-checks compliance / vehicle readiness / open-day / ownership; when publish is blocked, the
+// domain's provider-safe code is mapped to a localized message shown here (never internal document/
+// policy detail). Success refreshes the detail + the list/overview metrics. Archived offerings expose
+// no controls.
 
-type Transition = "publish" | "suspend" | "archive";
+type Transition = RentalLifecycleTransition;
 type Status = { kind: "idle" } | { kind: "error"; code: string };
-
-const TRANSITIONS: Record<RentalOfferingStatus, Transition[]> = {
-  DRAFT: ["publish", "archive"],
-  PUBLISHED: ["suspend", "archive"],
-  SUSPENDED: ["publish", "archive"],
-  ARCHIVED: [],
-};
 
 export function OfferingLifecyclePanel({ offeringId, status }: { offeringId: string; status: RentalOfferingStatus }) {
   const t = useTranslations("provider");
@@ -34,7 +29,7 @@ export function OfferingLifecyclePanel({ offeringId, status }: { offeringId: str
   const [pending, setPending] = useState<Transition | null>(null);
   const [result, setResult] = useState<Status>({ kind: "idle" });
 
-  const transitions = TRANSITIONS[status];
+  const transitions = validRentalTransitions(status);
 
   function run(transition: Transition) {
     startTransition(async () => {

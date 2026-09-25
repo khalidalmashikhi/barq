@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "Ustawić cenę niestandardową dla {range}?",
   "rentalCalConfirmClearOverride": "Przywrócić {range} do podstawowej ceny dziennej?",
   "rentalCalOverrideAmount": "Cena dzienna",
-  "rentalCalSuccess": "Kalendarz zaktualizowany."
+  "rentalCalSuccess": "Kalendarz zaktualizowany.",
+  "rentalCreateListTruncated": "Wyświetlanych jest {count} najnowszych. Starsze pozycje nie są wymienione."
 }

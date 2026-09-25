@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "Set a custom price for {range}?",
   "rentalCalConfirmClearOverride": "Reset {range} to the base daily price?",
   "rentalCalOverrideAmount": "Daily price",
-  "rentalCalSuccess": "Calendar updated."
+  "rentalCalSuccess": "Calendar updated.",
+  "rentalCreateListTruncated": "Showing the {count} most recent. Older items aren’t listed."
 }

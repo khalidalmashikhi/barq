@@ -55,3 +55,17 @@ export function isRentalReadinessBlocker(code: RentalOfferingErrorCode): code is
 export function getRentalBlockerTranslationKey(code: RentalReadinessBlockerCode) {
   return RENTAL_BLOCKER_TRANSLATION_KEYS[code];
 }
+
+/** The lifecycle transitions VALID from a given status (the lifecycle panel offers exactly these). */
+export type RentalLifecycleTransition = "publish" | "suspend" | "archive";
+
+const RENTAL_TRANSITIONS_BY_STATUS = {
+  DRAFT: ["publish", "archive"],
+  PUBLISHED: ["suspend", "archive"],
+  SUSPENDED: ["publish", "archive"],
+  ARCHIVED: [],
+} as const satisfies Record<RentalOfferingStatus, readonly RentalLifecycleTransition[]>;
+
+export function validRentalTransitions(status: RentalOfferingStatus): readonly RentalLifecycleTransition[] {
+  return RENTAL_TRANSITIONS_BY_STATUS[status] ?? [];
+}

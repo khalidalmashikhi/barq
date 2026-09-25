@@ -72,9 +72,10 @@ export default async function ProviderRentalOfferingDetailPage({
   );
 
   const isArchived = offering.status === "ARCHIVED";
-  // Currency is editable only while DRAFT with no day overrides present (the domain re-enforces).
-  const hasOverride = offering.configuredDays.some((d) => d.priceSource === "OVERRIDE");
-  const currencyLocked = offering.status !== "DRAFT" || hasOverride;
+  // Currency is editable only while DRAFT with NO day overrides anywhere. `hasAnyDailyOverride` is a
+  // global existence check (not the visible window), so a past/out-of-window override still locks it.
+  // The domain update mutation re-enforces this transactionally regardless.
+  const currencyLocked = offering.status !== "DRAFT" || offering.hasAnyDailyOverride;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 sm:px-8">

@@ -22,6 +22,7 @@ describe("C2d-R1 Checkpoint B provider translations", () => {
       rentalCalConfirmBlock: ["{count}", "{range}"],
       rentalCalConfirmSetOverride: ["{range}"],
       rentalCalConfirmClearOverride: ["{range}"],
+      rentalCreateListTruncated: ["{count}"],
     };
     for (const [key, tokens] of Object.entries(placeholders)) {
       for (const locale of LOCALES) {
@@ -37,6 +38,7 @@ describe("C2d-R1 Checkpoint B provider translations", () => {
       "rentalCapacityOverrideHint", "rentalCurrencyLockedHint", "rentalConfirmArchive", "rentalConfirmSuspend",
       "rentalConfirmPublish", "rentalErrorResourceUnavailable", "rentalErrorOfferingAlreadyActive", "rentalErrorDayNotFound",
       "rentalArchivedReadOnly", "rentalCalConfirmReopen", "rentalCalendarHeading", "rentalCreateNoServices",
+      "rentalCreateListTruncated", "rentalCurrencyLockedHint",
     ];
     for (const locale of ["de", "fr", "it", "pl", "ru", "cs"] as const) {
       for (const key of phraseKeys) {

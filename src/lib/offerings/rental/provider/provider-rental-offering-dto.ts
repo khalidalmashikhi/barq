@@ -63,6 +63,13 @@ export type ProviderRentalOfferingDetail = {
   baseDailyAmount: string;
   currency: string;
   readinessBlocker: RentalReadinessBlockerCode | null;
+  /**
+   * Whether ANY day of this offering carries a daily price override — checked globally (indexed
+   * existence query), NOT inferred from the visible calendar window. It governs the currency-lock
+   * rule (currency is DRAFT-only AND only with no overrides), so a past/out-of-window override still
+   * keeps the currency locked. The domain mutation remains the final, transactional authority.
+   */
+  hasAnyDailyOverride: boolean;
   /** Configured days within the forward window, sorted ascending. Unconfigured days are absent. */
   configuredDays: ProviderRentalOfferingDay[];
   // OPEN is provider CONFIGURATION state, not reservation-aware customer availability.

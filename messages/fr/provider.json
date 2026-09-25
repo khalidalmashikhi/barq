@@ -716,5 +716,6 @@
   "rentalCalConfirmSetOverride": "Définir un tarif personnalisé pour {range} ?",
   "rentalCalConfirmClearOverride": "Rétablir {range} au tarif journalier de base ?",
   "rentalCalOverrideAmount": "Tarif journalier",
-  "rentalCalSuccess": "Calendrier mis à jour."
+  "rentalCalSuccess": "Calendrier mis à jour.",
+  "rentalCreateListTruncated": "Affichage des {count} plus récents. Les éléments plus anciens ne sont pas listés."
 }

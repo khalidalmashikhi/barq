@@ -7,7 +7,13 @@ const requireApprovedProviderMock = vi.fn();
 vi.mock("@/lib/auth", () => ({ requireApprovedProvider: (...a: unknown[]) => requireApprovedProviderMock(...a) }));
 
 const offeringFindFirst = vi.fn();
-vi.mock("@/lib/db", () => ({ prisma: { rentalOffering: { findFirst: (...a: unknown[]) => offeringFindFirst(...a) } } }));
+const dayFindFirst = vi.fn();
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    rentalOffering: { findFirst: (...a: unknown[]) => offeringFindFirst(...a) },
+    rentalOfferingDay: { findFirst: (...a: unknown[]) => dayFindFirst(...a) },
+  },
+}));
 
 const assertVerticalMock = vi.fn();
 const assertVehicleReadyMock = vi.fn();
@@ -36,6 +42,7 @@ const vehicle = {
 beforeEach(() => {
   requireApprovedProviderMock.mockReset().mockResolvedValue({ provider: { id: "prov-1" } });
   offeringFindFirst.mockReset();
+  dayFindFirst.mockReset().mockResolvedValue(null); // no override anywhere by default
   assertVerticalMock.mockReset().mockResolvedValue(null);
   assertVehicleReadyMock.mockReset().mockReturnValue(null);
 });
@@ -78,6 +85,32 @@ describe("getProviderRentalOfferingWithDays", () => {
       { dateKey: "2030-07-15", state: "BLOCKED", dailyAmount: "40.00", currency: "OMR", priceSource: "BASE" },
       { dateKey: "2030-07-20", state: "OPEN", dailyAmount: "55.00", currency: "OMR", priceSource: "OVERRIDE" },
     ]);
+  });
+
+  it("hasAnyDailyOverride comes from a GLOBAL existence query, not the visible window", async () => {
+    offeringFindFirst.mockResolvedValue({
+      id: "off-1", serviceId: "svc-1", vehicleId: "veh-1", status: "DRAFT", baseDailyAmount: dec("40.00"), currency: "OMR",
+      offeringCapacityOverride: null, service: { name: { en: "X" } }, vehicle,
+      // Visible window shows NO override — yet the global query finds one (past/out-of-window).
+      days: [{ serviceDate: new Date("2030-07-10T00:00:00.000Z"), state: "OPEN", dailyAmountOverride: null }],
+    });
+    dayFindFirst.mockResolvedValue({ id: "some-override-day" });
+
+    const result = await getProviderRentalOfferingWithDays("off-1");
+    expect(result!.hasAnyDailyOverride).toBe(true);
+    expect(result!.configuredDays.every((d) => d.priceSource === "BASE")).toBe(true); // window has none
+    // Bounded, indexed existence check scoped to the offering + any non-null override.
+    expect(dayFindFirst.mock.calls[0]?.[0]).toMatchObject({ where: { rentalOfferingId: "off-1", dailyAmountOverride: { not: null } }, select: { id: true } });
+  });
+
+  it("hasAnyDailyOverride is false when the global query finds none", async () => {
+    offeringFindFirst.mockResolvedValue({
+      id: "off-1", serviceId: "svc-1", vehicleId: "veh-1", status: "DRAFT", baseDailyAmount: dec("40.00"), currency: "OMR",
+      offeringCapacityOverride: null, service: { name: { en: "X" } }, vehicle, days: [],
+    });
+    dayFindFirst.mockResolvedValue(null);
+    const result = await getProviderRentalOfferingWithDays("off-1");
+    expect(result!.hasAnyDailyOverride).toBe(false);
   });
 
   it("carries a readiness blocker through to the detail view", async () => {

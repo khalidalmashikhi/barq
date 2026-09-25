@@ -4,6 +4,7 @@ import {
   getRentalOfferingStatusTranslationKey,
   isRentalReadinessBlocker,
   getRentalBlockerTranslationKey,
+  validRentalTransitions,
 } from "./rental-offering-status";
 
 describe("rental-offering-status presentation", () => {
@@ -42,5 +43,12 @@ describe("rental-offering-status presentation", () => {
     // Both provider-status codes collapse to one message key (no enumeration of which).
     expect(getRentalBlockerTranslationKey("PROVIDER_NOT_APPROVED")).toBe("rentalBlockerProviderNotApproved");
     expect(getRentalBlockerTranslationKey("NO_PROVIDER_PROFILE")).toBe("rentalBlockerProviderNotApproved");
+  });
+
+  it("exposes exactly the valid lifecycle transitions per status", () => {
+    expect(validRentalTransitions("DRAFT")).toEqual(["publish", "archive"]);
+    expect(validRentalTransitions("PUBLISHED")).toEqual(["suspend", "archive"]);
+    expect(validRentalTransitions("SUSPENDED")).toEqual(["publish", "archive"]);
+    expect(validRentalTransitions("ARCHIVED")).toEqual([]); // terminal — no controls
   });
 });

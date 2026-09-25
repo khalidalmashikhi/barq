@@ -19,7 +19,7 @@ vi.mock("../rental-offering-authorization", () => ({
   assertRentalVehicleReady: (...a: unknown[]) => assertVehicleReadyMock(...a),
 }));
 
-const { getRentalCreateOptions } = await import("./get-rental-create-options");
+const { getRentalCreateOptions, RENTAL_CREATE_OPTIONS_LIMIT } = await import("./get-rental-create-options");
 
 const vehicle = (assetId: string, over: Record<string, unknown> = {}) => ({
   assetId, bookablePassengerCapacity: 6, make: "Toyota", model: "Hiace", modelYear: 2029, color: "White",
@@ -53,6 +53,26 @@ describe("getRentalCreateOptions", () => {
     assertVehicleReadyMock.mockReturnValue("VEHICLE_NOT_SELECTABLE");
     const options = await getRentalCreateOptions();
     expect(options.vehicles[0]).toMatchObject({ vehicleId: "veh-2", ready: false, readinessBlocker: "VEHICLE_NOT_SELECTABLE" });
+  });
+
+  it("bounds each query with an explicit finite take and deterministic order (no overflow by default)", async () => {
+    serviceFindMany.mockResolvedValue([]);
+    vehicleFindMany.mockResolvedValue([]);
+    const options = await getRentalCreateOptions();
+    expect(options).toMatchObject({ servicesOverflow: false, vehiclesOverflow: false, limit: RENTAL_CREATE_OPTIONS_LIMIT });
+    // Explicit finite take = LIMIT + 1 (to detect overflow), newest-first deterministic order.
+    expect(serviceFindMany.mock.calls[0]?.[0]?.take).toBe(RENTAL_CREATE_OPTIONS_LIMIT + 1);
+    expect(serviceFindMany.mock.calls[0]?.[0]?.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    expect(vehicleFindMany.mock.calls[0]?.[0]?.take).toBe(RENTAL_CREATE_OPTIONS_LIMIT + 1);
+  });
+
+  it("flags overflow and shows exactly the limit (never silently truncates without explanation)", async () => {
+    serviceFindMany.mockResolvedValue(Array.from({ length: RENTAL_CREATE_OPTIONS_LIMIT + 1 }, (_, i) => ({ id: `s${i}`, name: { en: `S${i}` } })));
+    vehicleFindMany.mockResolvedValue([]);
+    const options = await getRentalCreateOptions();
+    expect(options.servicesOverflow).toBe(true);
+    expect(options.services).toHaveLength(RENTAL_CREATE_OPTIONS_LIMIT);
+    expect(options.vehiclesOverflow).toBe(false);
   });
 
   it("propagates a ForbiddenError from the auth boundary", async () => {
