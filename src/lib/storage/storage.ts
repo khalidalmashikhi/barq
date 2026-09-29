@@ -143,6 +143,17 @@ export async function removePrivateObject(objectKey: string): Promise<void> {
   }
 }
 
+// Download a private document object's bytes to the SERVER (never to the browser).
+// Used by server-only processing (Phase 3C Slice 2 registration extraction) that must
+// read the bytes in-process — the bytes never leave the server and no signed URL is minted.
+export async function downloadPrivateObject(objectKey: string): Promise<ArrayBuffer> {
+  const { data, error } = await getClient().storage.from(getDocsBucket()).download(objectKey);
+  if (error || !data) {
+    throw new StorageOperationError(error?.message ?? "Failed to download private object");
+  }
+  return data.arrayBuffer();
+}
+
 // Mint a short-lived signed URL for a private document object. The URL is
 // returned to the caller (a server route) which redirects to it; it is never
 // persisted and the raw objectKey is never exposed to any client. When

@@ -318,6 +318,15 @@ enum AssetDocumentStatus {
   REJECTED
 }
 
+/// Phase 3C Slice 2 — outcome of a native-PDF-text registration extraction attempt.
+/// EXTRACTED = all critical fields high-confidence; NEEDS_REVIEW = partial/low/conflict;
+/// FAILED = no usable text / unsupported layout / a safe file-security failure code.
+enum VehicleRegistrationExtractionStatus {
+  EXTRACTED
+  NEEDS_REVIEW
+  FAILED
+}
+
 /// Deliberately open to future values beyond VEHICLE — per Asset's
 /// documented generality in DOMAIN_MODEL.md.
 enum AssetType {
@@ -874,6 +883,10 @@ model Asset {
   vehicle   Vehicle?
   documents AssetDocument[]
 
+  /// Phase 3C Slice 2 — private native-PDF extraction candidates for this asset's
+  /// registration documents. Back-relation only (the FK lives on the extraction table).
+  registrationExtractions VehicleRegistrationExtraction[]
+
   @@index([providerId])
   @@index([status])
   @@index([assetType])
@@ -921,6 +934,10 @@ model AssetDocument {
   createdAt         DateTime            @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
 
+  /// Phase 3C Slice 2 — the ONE active private extraction candidate for this document
+  /// (native PDF text). Back-relation only; the unique FK lives on the extraction table.
+  registrationExtraction VehicleRegistrationExtraction?
+
   /// One CURRENT document per (asset, type) — replace is an upsert (a later gate),
   /// exactly like ProviderDocument's (provider, type) uniqueness but scoped to the
   /// asset, so multiple vehicles of one provider each hold their own per-type doc.
@@ -928,6 +945,54 @@ model AssetDocument {
   @@index([status])
   @@index([reviewedByAdminId])
   @@map("asset_documents")
+}
+
+/// Phase 3C — Vehicle Registration Extraction, Slice 2. A PRIVATE, server-produced
+/// extraction CANDIDATE derived from a VEHICLE_REGISTRATION AssetDocument's native PDF
+/// text layer. It NEVER mutates the Vehicle and is NEVER public — provider confirmation
+/// and admin verification are LATER slices. No raw PDF text and no owner/insurance PII are
+/// persisted: only allowlisted operational fields, per-field confidence/warnings, and a
+/// few typed searchable identifiers for the later admin comparison.
+model VehicleRegistrationExtraction {
+  id              String  @id @default(uuid(7)) @db.Uuid
+  assetId         String  @db.Uuid
+  asset           Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /// One authoritative active extraction per document (re-run replaces it; idempotent for
+  /// the same document hash + parser version). Cascades if the document is deleted — it
+  /// can never delete unrelated Vehicle/booking history (the FK points at the document).
+  assetDocumentId String        @unique @db.Uuid
+  assetDocument   AssetDocument @relation(fields: [assetDocumentId], references: [id], onDelete: Cascade)
+  /// SHA-256 (hex) of the exact parsed bytes — idempotency + audit provenance. Not public.
+  documentSha256  String
+  parserVersion   String
+  /// Always "NATIVE_PDF_TEXT" in this slice (never OCR).
+  source          String
+  status          VehicleRegistrationExtractionStatus
+  /// Safe, stable failure code when status = FAILED (never a raw library exception).
+  failureCode     String?
+  // ---- typed searchable identifiers (justified: the later admin compare queries these) ----
+  extractedVin                       String?
+  extractedPlateNumber               String?
+  extractedLicensedPassengerCapacity Int?
+  extractedManufactureYear           Int?
+  /// ISO "YYYY-MM-DD" license expiry (kept as a validated date-string, mirroring the
+  /// document-expiry-claim convention; not a DB Date to avoid TZ-shift ambiguity here).
+  licenseExpiryDate                  String?
+  /// Tightly-VALIDATED private field metadata (raw/normalized/confidence/warnings per
+  /// allowlisted field) — NOT an unrestricted OCR JSON dump, never public, no PII, no raw text.
+  /// NULL when the attempt FAILED before any parse (e.g. encrypted/malformed/no-text-layer).
+  fields          Json?
+  /// Document-level warning CODES (e.g. "DISCARDED_PII_LABELS_PRESENT") — codes only, no values.
+  warnings        Json?
+  processedAt     DateTime? @db.Timestamptz(6)
+  /// Optimistic-concurrency guard, mirroring the review architecture's version discipline.
+  version         Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([assetId])
+  @@index([status])
+  @@map("vehicle_registration_extractions")
 }
 
 /// Specializes Asset via a shared primary key (Class Table Inheritance).
