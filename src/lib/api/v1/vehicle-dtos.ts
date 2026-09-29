@@ -22,6 +22,8 @@ export type ProviderVehicleApiDTO = {
   passengerCapacity: number | null;
   /** Slice B — official registered total seats (informational); null when unstated. Additive. */
   registeredSeats: number | null;
+  /** Phase 3C Slice 1 — official LICENSED passenger capacity (عدد الركاب); null when unstated. PRIVATE, additive. */
+  licensedPassengerCapacity: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
   status: AssetStatus;
@@ -39,6 +41,7 @@ export function toProviderVehicleApiDTO(v: ProviderVehicleDTO): ProviderVehicleA
     vehicleType: v.vehicleType,
     passengerCapacity: v.passengerCapacity,
     registeredSeats: v.registeredSeats,
+    licensedPassengerCapacity: v.licensedPassengerCapacity,
     publicDescription: v.publicDescription,
     registrationNumber: v.registrationNumber,
     status: v.status,

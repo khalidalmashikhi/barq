@@ -23,6 +23,8 @@ export type VehicleWithAsset = {
   bookablePassengerCapacity: number | null;
   /** Slice B — official registered total seats (informational); null when unstated/legacy. */
   registeredSeats: number | null;
+  /** Phase 3C Slice 1 — official LICENSED passenger capacity (عدد الركاب); null when unstated. PRIVATE. */
+  licensedPassengerCapacity: number | null;
   publicDescription: string | null;
   registrationNumber: string | null;
   claimedFourByFour: boolean | null;
@@ -33,8 +35,11 @@ export type VehicleWithAsset = {
 };
 
 // PUBLIC — the ONLY vehicle fields a customer/tour surface may ever see. No
-// registrationNumber, status, documents, objectKey, signed URLs, provider id, or
-// admin metadata. `id` is the vehicle's stable identity (its assetId).
+// registrationNumber, status, documents, objectKey, signed URLs, provider id,
+// registeredSeats, licensedPassengerCapacity, or admin metadata. The customer's
+// ONLY capacity figure is `passengerCapacity` (= bookablePassengerCapacity); the
+// official/registered/licensed counts are deliberately private. `id` is the
+// vehicle's stable identity (its assetId).
 export type PublicVehicleDTO = {
   id: string;
   make: string | null;
@@ -78,6 +83,12 @@ export type ProviderVehicleDTO = PublicVehicleDTO & {
    * PublicVehicleDTO: a customer only ever sees the bookable `passengerCapacity`.
    */
   registeredSeats: number | null;
+  /**
+   * Phase 3C Slice 1 — the official LICENSED passenger capacity (عدد الركاب) from the vehicle
+   * registration; null when unstated/legacy. PRIVATE to the owning provider (and admin) —
+   * deliberately NOT on PublicVehicleDTO, exactly like registeredSeats.
+   */
+  licensedPassengerCapacity: number | null;
   /** TOUR-VEHICLE-CAP — the provider's own ADVISORY 4x4 declaration (distinct from the trusted isFourByFour). */
   claimedFourByFour: boolean | null;
   createdAt: Date;
@@ -90,6 +101,7 @@ export function toProviderVehicle(row: VehicleWithAsset): ProviderVehicleDTO {
     registrationNumber: row.registrationNumber,
     status: row.asset.status,
     registeredSeats: row.registeredSeats,
+    licensedPassengerCapacity: row.licensedPassengerCapacity,
     claimedFourByFour: row.claimedFourByFour,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

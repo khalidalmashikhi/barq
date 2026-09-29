@@ -985,6 +985,22 @@ model Vehicle {
   /// provider enters it and it is reviewed. Positive when set. Provider-declared safety data,
   /// never a billing quantity and never used to derive bookable capacity automatically.
   registeredSeats           Int?
+  /// Phase 3C — Vehicle Registration Extraction, Slice 1. The OFFICIAL LICENSED PASSENGER
+  /// CAPACITY as printed on the Omani Motor Vehicle License ("عدد الركاب"). Semantically
+  /// DISTINCT from BOTH other capacity fields and NEVER a silent alias of either:
+  ///   • bookablePassengerCapacity — how many CUSTOMERS the provider permits to book;
+  ///   • registeredSeats           — the whole-vehicle physical seat count;
+  ///   • licensedPassengerCapacity — the registration document's official passenger figure
+  ///     (عدد الركاب), which is NOT necessarily "total seats including the driver".
+  /// PRIVATE (owner + admin only) — never in a customer/public DTO, exactly like
+  /// registrationNumber / registeredSeats. Additive, nullable, and NEVER backfilled: null for
+  /// every legacy/unstated vehicle until a later extraction + admin-confirm workflow writes it.
+  /// Authoritative ONLY when admin-confirmed; a provider claim alone is never trusted.
+  /// INVARIANT (enforced by the confirm workflow via licensedCapacityInvariantViolation — a pure
+  /// rule shipped INERT in this slice): bookablePassengerCapacity <= licensedPassengerCapacity
+  /// whenever the latter is set. Slice 1 adds ONLY the column, the private projection, and the
+  /// invariant rule — no writer, no extraction, no UI yet. Positive when set.
+  licensedPassengerCapacity Int?
   /// TOUR-VEHICLE-CAP — the PROVIDER-declared 4x4 capability (advisory only). Never
   /// authoritative for GUIDE_WITH_4X4 eligibility; an admin must confirm it into
   /// `fourByFourVerified`. Null = not declared.

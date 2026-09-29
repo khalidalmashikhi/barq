@@ -38,7 +38,7 @@ function poolRow(over: Record<string, unknown> = {}) {
   return {
     vehicle: {
       assetId: "veh-1", make: "Toyota", model: "Prado", modelYear: 2024, color: "White", vehicleType: "SUV",
-      bookablePassengerCapacity: 6, registeredSeats: null, publicDescription: null, registrationNumber: "OM 12345", claimedFourByFour: true, fourByFourVerified: null,
+      bookablePassengerCapacity: 6, registeredSeats: null, licensedPassengerCapacity: 15, publicDescription: null, registrationNumber: "OM 12345", claimedFourByFour: true, fourByFourVerified: null,
       createdAt: new Date("2026-01-01T00:00:00Z"), updatedAt: new Date("2026-01-02T00:00:00Z"),
       asset: {
         status: "ACTIVE", providerId: "prov-1", verificationStatus: "APPROVED",
@@ -95,10 +95,13 @@ describe("getPublicTourVehicleSummary — TOUR-VEHICLE-3 customer-safe read", ()
     ]);
     // Privacy: the full serialized summary carries none of the private/pool-join fields.
     const json = JSON.stringify(s);
-    for (const forbidden of ["registrationNumber", "claimedFourByFour", "fourByFourVerified", "objectKey", "OM 12345", "vehicleId", "assetId", "isInPool", "blockers", "verificationStatus", "status"]) {
+    for (const forbidden of ["registrationNumber", "claimedFourByFour", "fourByFourVerified", "objectKey", "OM 12345", "vehicleId", "assetId", "isInPool", "blockers", "verificationStatus", "status", "registeredSeats", "licensedPassengerCapacity"]) {
       expect(json).not.toContain(forbidden);
     }
     expect(s?.vehicles[0]).not.toHaveProperty("registrationNumber");
+    // Phase 3C Slice 1 — the official licensed passenger capacity (عدد الركاب) is on the internal
+    // ProviderVehicleDTO (set to 15 above) but must NEVER reach the customer-safe summary.
+    expect(s?.vehicles[0]).not.toHaveProperty("licensedPassengerCapacity");
     expect(s?.vehicles[0]?.isFourByFour).toBe(false); // trusted null → fail-closed
   });
 

@@ -14,6 +14,7 @@ function row(overrides: Partial<PoolVehicleRow> = {}): PoolVehicleRow {
     vehicleType: "SUV",
     bookablePassengerCapacity: 6,
     registeredSeats: null,
+    licensedPassengerCapacity: null,
     publicDescription: null,
     registrationNumber: "OM 12345",
     claimedFourByFour: true,

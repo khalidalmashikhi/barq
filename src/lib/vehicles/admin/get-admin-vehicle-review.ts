@@ -69,6 +69,8 @@ export type AdminVehicleReview = {
     bookablePassengerCapacity: number | null;
     /** …and the official registered total seats (informational; null when unstated/legacy). */
     registeredSeats: number | null;
+    /** Phase 3C Slice 1 — the official LICENSED passenger capacity (عدد الركاب); null when unstated. Admin-authorized private field. */
+    licensedPassengerCapacity: number | null;
     registrationNumber: string | null; // admin-authorized private field
     publicDescription: string | null;
     /** TOUR-VEHICLE-CAP — provider's advisory 4x4 declaration + the admin-confirmed trusted value. */
@@ -103,6 +105,7 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
           vehicleType: true,
           bookablePassengerCapacity: true,
           registeredSeats: true,
+          licensedPassengerCapacity: true,
           registrationNumber: true,
           publicDescription: true,
           claimedFourByFour: true,

@@ -12,6 +12,7 @@ const row = {
   vehicleType: "FOUR_BY_FOUR",
   bookablePassengerCapacity: 6,
   registeredSeats: 14,
+  licensedPassengerCapacity: 15,
   publicDescription: "Desert-ready.",
   registrationNumber: "OM 12345",
   // TOUR-VEHICLE-CAP — FOUR_BY_FOUR vehicleType + a provider claim of true, but the
@@ -33,8 +34,9 @@ describe("toPublicVehicle — the customer allowlist boundary", () => {
 
   it("never exposes registrationNumber, status, provider id, objectKey, timestamps, or the raw 4x4 claim/flag", () => {
     const dto = toPublicVehicle(row) as Record<string, unknown>;
-    // Slice B — the PUBLIC (customer) DTO must never leak the owner-only registeredSeats.
-    for (const forbidden of ["registrationNumber", "status", "providerId", "objectKey", "createdAt", "updatedAt", "asset", "claimedFourByFour", "fourByFourVerified", "registeredSeats"]) {
+    // Slice B / Phase 3C Slice 1 — the PUBLIC (customer) DTO must never leak the owner-only
+    // registeredSeats OR the official licensedPassengerCapacity (عدد الركاب).
+    for (const forbidden of ["registrationNumber", "status", "providerId", "objectKey", "createdAt", "updatedAt", "asset", "claimedFourByFour", "fourByFourVerified", "registeredSeats", "licensedPassengerCapacity"]) {
       expect(dto[forbidden]).toBeUndefined();
     }
     // Full serialized surface contains no plate value.
@@ -61,6 +63,8 @@ describe("toProviderVehicle — the owner/private view", () => {
     expect(dto.id).toBe("asset-1");
     // Slice B — the owner sees the registered-seats figure (mapped from the row).
     expect(dto.registeredSeats).toBe(14);
+    // Phase 3C Slice 1 — the owner (and admin) also see the official licensed passenger capacity.
+    expect(dto.licensedPassengerCapacity).toBe(15);
     // still no raw provider id / objectKey / nested asset
     const rec = dto as Record<string, unknown>;
     expect(rec.providerId).toBeUndefined();

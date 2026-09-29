@@ -32,6 +32,7 @@ export const POOL_VEHICLE_SELECT = {
   vehicleType: true,
   bookablePassengerCapacity: true,
   registeredSeats: true,
+  licensedPassengerCapacity: true,
   publicDescription: true,
   registrationNumber: true,
   claimedFourByFour: true,

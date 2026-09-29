@@ -1,0 +1,17 @@
+-- Phase 3C — Vehicle Registration Extraction & Privacy Boundary, Slice 1
+-- (Capacity field + privacy field-matrix foundation).
+--
+-- ADDITIVE / DATA-PRESERVING ONLY. Adds exactly ONE new nullable column,
+-- `licensedPassengerCapacity`, to the existing `vehicles` table. NO drop, NO rename,
+-- NO recreate, NO data UPDATE/DELETE, NO SET NOT NULL, NO backfill, NO index change.
+--
+-- CRITICALLY: this does NOT touch the existing `registeredSeats` or `passengerCapacity`
+-- columns. Their meaning and data are left exactly as-is. `licensedPassengerCapacity` is a
+-- NEW, DISTINCT concept — the official licensed passenger capacity printed on the Omani
+-- vehicle registration ("عدد الركاب") — never a reinterpretation, rename, or alias of either
+-- existing field.
+--
+-- The column is PRIVATE (owner + admin only), INFORMATIONAL, and remains NULL for every
+-- existing/legacy vehicle until a later extraction + admin-confirm workflow populates it —
+-- never invented, never backfilled.
+ALTER TABLE "vehicles" ADD COLUMN "licensedPassengerCapacity" INTEGER;
