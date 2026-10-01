@@ -130,3 +130,35 @@ describe("parseOmanVehicleRegistration — status + duplicates + conflicts", () 
     expect(JSON.stringify(r)).not.toContain("فلان الفلاني");
   });
 });
+
+describe("parseOmanVehicleRegistration — Arabic/RTL robustness (Slice-2 correction, G)", () => {
+  it("English colon and full-width colon variants both parse", () => {
+    expect(parseOmanVehicleRegistration("Number of Passengers: 7", NOW).fields.licensedPassengerCapacity.normalizedValue).toBe(7);
+    expect(parseOmanVehicleRegistration("عدد الركاب： 7", NOW).fields.licensedPassengerCapacity.normalizedValue).toBe(7);
+  });
+
+  it("extra whitespace around label/value is tolerated", () => {
+    expect(parseOmanVehicleRegistration("عدد   الركاب   :    7", NOW).fields.licensedPassengerCapacity.normalizedValue).toBe(7);
+  });
+
+  it("header/footer repetition (same label+value twice) → DUPLICATE_LABEL, not CONFLICT", () => {
+    const r = parseOmanVehicleRegistration("رقم الهيكل: JTEBU29J8K5012345\nرقم الهيكل: JTEBU29J8K5012345", NOW);
+    expect(r.fields.vin.normalizedValue).toBe("JTEBU29J8K5012345");
+    expect(r.fields.vin.warnings).toContain("DUPLICATE_LABEL");
+    expect(r.fields.vin.warnings).not.toContain("CONFLICT");
+  });
+
+  it("conflicting values across pages → CONFLICT + LOW, never silently authoritative", () => {
+    const r = parseOmanVehicleRegistration("رقم الهيكل: JTEBU29J8K5012345\nرقم الهيكل: JTEBU29J8K5099999", NOW);
+    expect(r.fields.vin.confidence).toBe("LOW");
+    expect(r.fields.vin.warnings).toContain("CONFLICT");
+    expect(r.overallStatus).toBe("NEEDS_REVIEW");
+  });
+
+  it("licensed passenger capacity is SEPARATE from physical registered seats — no such field exists on the result", () => {
+    const r = parseOmanVehicleRegistration("عدد الركاب: 15", NOW);
+    expect(r.fields.licensedPassengerCapacity.normalizedValue).toBe(15);
+    expect((r.fields as Record<string, unknown>).registeredSeats).toBeUndefined();
+    expect((r.fields as Record<string, unknown>).bookablePassengerCapacity).toBeUndefined();
+  });
+});

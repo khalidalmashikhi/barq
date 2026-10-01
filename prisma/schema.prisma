@@ -985,7 +985,12 @@ model VehicleRegistrationExtraction {
   /// Document-level warning CODES (e.g. "DISCARDED_PII_LABELS_PRESENT") — codes only, no values.
   warnings        Json?
   processedAt     DateTime? @db.Timestamptz(6)
-  /// Optimistic-concurrency guard, mirroring the review architecture's version discipline.
+  /// Slice-2 correction — attempt accounting so a FAILED extraction is RETRYABLE/observable and
+  /// never permanently stuck, and a prior success is distinguishable from a later re-attempt.
+  attemptCount    Int       @default(0)
+  lastAttemptedAt DateTime? @db.Timestamptz(6)
+  lastSucceededAt DateTime? @db.Timestamptz(6)
+  /// Optimistic-concurrency guard (CAS on update) — the race arbiter for concurrent extraction.
   version         Int       @default(0)
   createdAt       DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @db.Timestamptz(6)

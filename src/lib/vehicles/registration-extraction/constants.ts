@@ -21,5 +21,14 @@ export const MAX_REGISTRATION_PDF_PAGES = 8;
 /** Hard upper bound on parse wall-time before returning `PARSER_TIMEOUT` (bounded work). */
 export const REGISTRATION_PARSE_TIMEOUT_MS = 10_000;
 
+// Resource-exhaustion mitigations (NOT antivirus/CDR). A legitimate Omani registration is
+// tiny (dozens of text items, a few hundred characters); these ceilings are generous for real
+// documents yet bound a decompression/content bomb, and the parser STOPS early when exceeded
+// (returning TEXT_LIMIT_EXCEEDED) rather than materializing unbounded text.
+export const MAX_TEXT_ITEMS_PER_PAGE = 5_000;
+export const MAX_TEXT_ITEMS_TOTAL = 20_000;
+export const MAX_TEXT_CHARS_PER_PAGE = 20_000;
+export const MAX_TEXT_CHARS_TOTAL = 100_000;
+
 /** Reuses the shared 4 MiB document ceiling (below Vercel's 4.5 MB function body limit). */
 export { MAX_DOCUMENT_BYTES } from "@/lib/provider/documents/document-constants";

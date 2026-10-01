@@ -10,6 +10,9 @@ import { REGISTRATION_EXTRACTION_FAILURE_CODES } from "./codes";
 const EXTRACTION_KEYS = [
   "extractedVin", "extractedPlateNumber", "extractedLicensedPassengerCapacity", "extractedManufactureYear",
   "licenseExpiryDate", "documentSha256", "parserVersion", "fields", "warnings", "failureCode", "rawValue", "confidence",
+  // Slice-2 correction (H): the broader private/extraction surface must also never reach a public DTO.
+  "vin", "engineNumber", "licenseValidFrom", "firstRegistrationDate", "assetDocumentId", "extractionId",
+  "attemptCount", "lastAttemptedAt", "lastSucceededAt", "processedAt", "source", "normalizedValue",
 ];
 
 const row = {

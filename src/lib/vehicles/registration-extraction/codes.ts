@@ -12,7 +12,9 @@ export const REGISTRATION_EXTRACTION_FAILURE_CODES = [
   "PDF_MALFORMED", // corrupt / not a parseable PDF
   "NO_TEXT_LAYER", // valid PDF but no extractable text (scanned/image-only)
   "UNSUPPORTED_LAYOUT", // text extracted but no supported registration field recognised
-  "PARSER_TIMEOUT", // parse exceeded REGISTRATION_PARSE_TIMEOUT_MS
+  "PARSER_TIMEOUT", // parse exceeded REGISTRATION_PARSE_TIMEOUT_MS (parser work cancelled/destroyed)
+  "TEXT_LIMIT_EXCEEDED", // extracted text item/char bound exceeded (resource-exhaustion mitigation)
+  "PDF_TRAILING_DATA", // suspicious non-whitespace payload after the final %%EOF (possible polyglot)
   "EXTRACTION_FAILED", // any unexpected error (mapped, never a raw exception)
 ] as const;
 
