@@ -701,20 +701,22 @@ model Provider {
   createdAt           DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime       @updatedAt @db.Timestamptz(6)
 
-  drivers        Driver[]
-  guides         Guide[]
-  assets         Asset[]
-  services       Service[]
-  commissions    Commission[]
-  wallet         Wallet?
-  contracts      Contract[]
-  bookings       Booking[]          @relation("BookingProvider")
-  reviews        Review[]           @relation("ReviewProvider")
-  supportTickets SupportTicket[]
-  categoryLinks  ProviderCategory[]
-  mediaAssets    MediaAsset[]
-  verticals      ProviderVertical[]
-  documents      ProviderDocument[]
+  drivers                   Driver[]
+  guides                    Guide[]
+  assets                    Asset[]
+  services                  Service[]
+  commissions               Commission[]
+  wallet                    Wallet?
+  contracts                 Contract[]
+  bookings                  Booking[]                         @relation("BookingProvider")
+  reviews                   Review[]                          @relation("ReviewProvider")
+  supportTickets            SupportTicket[]
+  categoryLinks             ProviderCategory[]
+  mediaAssets               MediaAsset[]
+  verticals                 ProviderVertical[]
+  documents                 ProviderDocument[]
+  /// Phase 3C Slice 3A — private registration confirmation claims this provider submitted.
+  registrationConfirmations VehicleRegistrationConfirmation[]
 
   @@index([status])
   @@index([approvedByAdminId])
@@ -885,7 +887,9 @@ model Asset {
 
   /// Phase 3C Slice 2 — private native-PDF extraction candidates for this asset's
   /// registration documents. Back-relation only (the FK lives on the extraction table).
-  registrationExtractions VehicleRegistrationExtraction[]
+  registrationExtractions   VehicleRegistrationExtraction[]
+  /// Phase 3C Slice 3A — private provider confirmation claims for this asset's registration docs.
+  registrationConfirmations VehicleRegistrationConfirmation[]
 
   @@index([providerId])
   @@index([status])
@@ -936,7 +940,9 @@ model AssetDocument {
 
   /// Phase 3C Slice 2 — the ONE active private extraction candidate for this document
   /// (native PDF text). Back-relation only; the unique FK lives on the extraction table.
-  registrationExtraction VehicleRegistrationExtraction?
+  registrationExtraction    VehicleRegistrationExtraction?
+  /// Phase 3C Slice 3A — provider confirmation claims for this document (one active + history).
+  registrationConfirmations VehicleRegistrationConfirmation[]
 
   /// One CURRENT document per (asset, type) — replace is an upsert (a later gate),
   /// exactly like ProviderDocument's (provider, type) uniqueness but scoped to the
@@ -954,22 +960,22 @@ model AssetDocument {
 /// persisted: only allowlisted operational fields, per-field confidence/warnings, and a
 /// few typed searchable identifiers for the later admin comparison.
 model VehicleRegistrationExtraction {
-  id              String  @id @default(uuid(7)) @db.Uuid
-  assetId         String  @db.Uuid
-  asset           Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  id                                 String                              @id @default(uuid(7)) @db.Uuid
+  assetId                            String                              @db.Uuid
+  asset                              Asset                               @relation(fields: [assetId], references: [id], onDelete: Cascade)
   /// One authoritative active extraction per document (re-run replaces it; idempotent for
   /// the same document hash + parser version). Cascades if the document is deleted — it
   /// can never delete unrelated Vehicle/booking history (the FK points at the document).
-  assetDocumentId String        @unique @db.Uuid
-  assetDocument   AssetDocument @relation(fields: [assetDocumentId], references: [id], onDelete: Cascade)
+  assetDocumentId                    String                              @unique @db.Uuid
+  assetDocument                      AssetDocument                       @relation(fields: [assetDocumentId], references: [id], onDelete: Cascade)
   /// SHA-256 (hex) of the exact parsed bytes — idempotency + audit provenance. Not public.
-  documentSha256  String
-  parserVersion   String
+  documentSha256                     String
+  parserVersion                      String
   /// Always "NATIVE_PDF_TEXT" in this slice (never OCR).
-  source          String
-  status          VehicleRegistrationExtractionStatus
+  source                             String
+  status                             VehicleRegistrationExtractionStatus
   /// Safe, stable failure code when status = FAILED (never a raw library exception).
-  failureCode     String?
+  failureCode                        String?
   // ---- typed searchable identifiers (justified: the later admin compare queries these) ----
   extractedVin                       String?
   extractedPlateNumber               String?
@@ -981,23 +987,101 @@ model VehicleRegistrationExtraction {
   /// Tightly-VALIDATED private field metadata (raw/normalized/confidence/warnings per
   /// allowlisted field) — NOT an unrestricted OCR JSON dump, never public, no PII, no raw text.
   /// NULL when the attempt FAILED before any parse (e.g. encrypted/malformed/no-text-layer).
-  fields          Json?
+  fields                             Json?
   /// Document-level warning CODES (e.g. "DISCARDED_PII_LABELS_PRESENT") — codes only, no values.
-  warnings        Json?
-  processedAt     DateTime? @db.Timestamptz(6)
+  warnings                           Json?
+  processedAt                        DateTime?                           @db.Timestamptz(6)
   /// Slice-2 correction — attempt accounting so a FAILED extraction is RETRYABLE/observable and
   /// never permanently stuck, and a prior success is distinguishable from a later re-attempt.
-  attemptCount    Int       @default(0)
-  lastAttemptedAt DateTime? @db.Timestamptz(6)
-  lastSucceededAt DateTime? @db.Timestamptz(6)
+  attemptCount                       Int                                 @default(0)
+  lastAttemptedAt                    DateTime?                           @db.Timestamptz(6)
+  lastSucceededAt                    DateTime?                           @db.Timestamptz(6)
   /// Optimistic-concurrency guard (CAS on update) — the race arbiter for concurrent extraction.
-  version         Int       @default(0)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  version                            Int                                 @default(0)
+  createdAt                          DateTime                            @default(now()) @db.Timestamptz(6)
+  updatedAt                          DateTime                            @updatedAt @db.Timestamptz(6)
+
+  /// Phase 3C Slice 3A — provider confirmation claims derived from this extraction
+  /// (DRAFT/SUBMITTED, plus SUPERSEDED history). Back-relation only.
+  confirmations VehicleRegistrationConfirmation[]
 
   @@index([assetId])
   @@index([status])
   @@map("vehicle_registration_extractions")
+}
+
+/// Phase 3C Slice 3A — lifecycle of a PRIVATE provider confirmation claim over an extraction.
+/// DRAFT = editable; SUBMITTED = locked, awaiting (future) admin verification; SUPERSEDED =
+/// retained history after the document was replaced (never silently rewritten, never usable for
+/// admin approval). A partial unique index keeps at most ONE active (non-SUPERSEDED) claim per doc.
+enum VehicleRegistrationConfirmationStatus {
+  DRAFT
+  SUBMITTED
+  SUPERSEDED
+}
+
+/// Phase 3C — Vehicle Registration Workflow, Slice 3A. A PRIVATE, provider-submitted
+/// confirmation CLAIM over an extraction: what the provider confirmed/corrected from the
+/// registration document, kept SEPARATE from the parser's extracted values and from the
+/// authoritative Vehicle row (which this NEVER updates). Awaits a later admin-verification
+/// slice. Never public; holds no raw PDF text and no owner/civil/address/insurer/signature/
+/// barcode PII. Typed columns hold the authoritative comparison fields for a later admin
+/// compare; a bounded JSON holds per-field decision metadata only.
+model VehicleRegistrationConfirmation {
+  id                        String                                @id @default(uuid(7)) @db.Uuid
+  providerId                String                                @db.Uuid
+  provider                  Provider                              @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  assetId                   String                                @db.Uuid
+  asset                     Asset                                 @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetDocumentId           String                                @db.Uuid
+  assetDocument             AssetDocument                         @relation(fields: [assetDocumentId], references: [id], onDelete: Cascade)
+  extractionId              String                                @db.Uuid
+  extraction                VehicleRegistrationExtraction         @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+  /// Binds this claim to the exact extraction inputs — a document replacement (new hash) or a
+  /// parser-version change makes an active claim STALE and triggers supersession/re-review.
+  boundDocumentSha256       String
+  boundParserVersion        String
+  status                    VehicleRegistrationConfirmationStatus @default(DRAFT)
+  // ---- provider-confirmed values (typed; all nullable — a claim may omit unreadable fields) ----
+  make                      String?
+  model                     String?
+  modelYear                 Int?
+  color                     String?
+  /// Customer-facing operational capacity the provider chooses (NOT auto-copied from licensed/registered).
+  bookablePassengerCapacity Int?
+  licensedPassengerCapacity Int?
+  registeredSeats           Int?
+  vin                       String?
+  plateNumber               String?
+  plateType                 String?
+  engineNumber              String?
+  usageClassification       String?
+  engineCapacity            Int?
+  emptyWeight               Int?
+  maximumLoad               Int?
+  axleCount                 Int?
+  licenseValidFrom          String?
+  licenseExpiry             String?
+  firstRegistrationDate     String?
+  /// Bounded per-field decision metadata ONLY (e.g. { vin: { matches: false, source: "PROVIDER" } }).
+  /// Never raw text, never PII, never an unbounded parser dump. Zod-validated on write.
+  fieldDecisions            Json?
+  /// The provider's explicit accuracy declaration (required to SUBMIT).
+  declarationAccepted       Boolean                               @default(false)
+  submittedAt               DateTime?                             @db.Timestamptz(6)
+  /// The submitting provider actor (barqUser id) — audit-style plain id, no FK (mirrors AuditLog.actorId).
+  submittedByUserId         String?                               @db.Uuid
+  version                   Int                                   @default(0)
+  createdAt                 DateTime                              @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                              @updatedAt @db.Timestamptz(6)
+
+  /// At most ONE active (non-SUPERSEDED) claim per document is enforced by a raw PARTIAL UNIQUE
+  /// index in the migration (Prisma can't express a conditional unique). These are plain indexes.
+  @@index([assetDocumentId])
+  @@index([providerId])
+  @@index([assetId])
+  @@index([status])
+  @@map("vehicle_registration_confirmations")
 }
 
 /// Specializes Asset via a shared primary key (Class Table Inheritance).

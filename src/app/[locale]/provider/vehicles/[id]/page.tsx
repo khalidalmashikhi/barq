@@ -7,6 +7,8 @@ import { getVehicleStatusBadgeVariant, getVehicleStatusTranslationKey } from "@/
 import { getVehicleVerificationData } from "@/lib/vehicles/documents/get-asset-verification-data";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
 import { VehicleVerificationSection } from "@/components/provider/vehicle-verification-section";
+import { RegistrationReviewSection } from "@/components/provider/registration-review-section";
+import { getRegistrationReview } from "@/lib/vehicles/registration-review/get-registration-review";
 import { buildVehicleTitle } from "@/lib/vehicles/vehicle-title";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { Card } from "@/components/ui/card";
@@ -55,6 +57,7 @@ export default async function VehicleDetailPage({
   }
 
   const verification = await getVehicleVerificationData(id);
+  const registrationReview = await getRegistrationReview(id);
 
   // Post-redirect feedback (?docNotice/?verifyNotice = success; ?docError/?verifyError = domain code).
   const docNotice = first(sp.docNotice);
@@ -134,6 +137,8 @@ export default async function VehicleDetailPage({
       </Card>
 
       {verification && <VehicleVerificationSection vehicleId={vehicle.id} locale={locale} data={verification} />}
+
+      {registrationReview && <RegistrationReviewSection vehicleId={vehicle.id} review={registrationReview} />}
     </div>
   );
 }
