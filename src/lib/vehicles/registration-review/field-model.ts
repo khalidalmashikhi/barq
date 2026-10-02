@@ -46,7 +46,7 @@ export const CONFIRMATION_FIELDS: Record<ConfirmationFieldKey, ConfirmationField
   make: { group: "CUSTOMER", kind: "text", extractionKey: "makeDescription", sensitive: false, required: true },
   model: { group: "CUSTOMER", kind: "text", extractionKey: "model", sensitive: false, required: true },
   modelYear: { group: "CUSTOMER", kind: "int", extractionKey: "manufactureYear", sensitive: false, required: true },
-  color: { group: "CUSTOMER", kind: "text", extractionKey: "color", sensitive: false, required: false },
+  color: { group: "CUSTOMER", kind: "text", extractionKey: "color", sensitive: false, required: true },
   // Provider CHOOSES the operational bookable capacity — never auto-copied from licensed/registered.
   bookablePassengerCapacity: { group: "CUSTOMER", kind: "int", extractionKey: null, sensitive: false, required: true },
   // Private operational / verification evidence (provider file only).

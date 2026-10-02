@@ -9,6 +9,7 @@ export type RegistrationReviewCode =
   | "DOCUMENT_NOT_FOUND"
   | "EXTRACTION_NOT_READY"
   | "LOCKED"
+  | "SUPERSEDED"
   | "INVALID_INPUT"
   | "CONFLICT"
   | "STORAGE_NOT_CONFIGURED"
@@ -29,6 +30,7 @@ const MESSAGE_KEY: Record<RegistrationReviewCode, string> = {
   DOCUMENT_NOT_FOUND: "vehicleRegReviewErrNotFound", // non-enumerating: same as vehicle-not-found
   EXTRACTION_NOT_READY: "vehicleRegReviewErrNotReady",
   LOCKED: "vehicleRegReviewErrLocked",
+  SUPERSEDED: "vehicleRegReviewErrSuperseded",
   INVALID_INPUT: "vehicleRegReviewErrInvalid",
   CONFLICT: "vehicleRegReviewErrConflict",
   STORAGE_NOT_CONFIGURED: "vehicleRegReviewErrStorage",

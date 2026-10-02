@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Informacje o pojeździe",
   "vehicleRegGroupPrivate": "Prywatne dane rejestracyjne",
   "vehicleRegGroupPrivateHint": "Widoczne tylko dla Ciebie i administracji — nigdy dla klientów.",
-  "vehicleRegExtractedPrefix": "Odczytano z dokumentu",
+  "vehicleRegExtractedPrefix": "Sugestia systemu",
   "vehicleRegSubmittedOn": "Przesłano",
   "vehicleRegAwaitingAdmin": "Administracja musi zweryfikować te dane przed zatwierdzeniem pojazdu. Przesłanie nie zatwierdza pojazdu ani nie zmienia jego bieżących informacji.",
   "vehicleRegStateNotAnalyzed": "Nie przeanalizowano",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Liczba osi",
   "vehicleRegFieldLicenseValidFrom": "Ważny od",
   "vehicleRegFieldLicenseExpiry": "Data ważności",
-  "vehicleRegFieldFirstRegistrationDate": "Pierwsza rejestracja"
+  "vehicleRegFieldFirstRegistrationDate": "Pierwsza rejestracja",
+  "vehicleRegReviewSubtitle": "To są sugestie systemu wymagające Twojej weryfikacji — to nie jest oficjalna weryfikacja.",
+  "vehicleRegReviewErrSuperseded": "Dokument się zmienił, więc ta weryfikacja została zresetowana. Sprawdź nowo odczytane dane."
 }

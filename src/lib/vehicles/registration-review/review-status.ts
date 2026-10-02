@@ -83,10 +83,12 @@ export function deriveReviewState(extraction: ExtractionFacts, confirmation: Con
 
   // Analyze/retry when there is no usable extraction yet.
   const canAnalyze = extractionState === "NOT_ANALYZED" || extractionState === "FAILED";
-  // Confirm when an extraction exists (even NEEDS_REVIEW; manual entry allowed) and the claim is not
-  // a locked, current SUBMITTED one. A STALE claim requires fresh review (so confirming is allowed).
+  // Confirm whenever an extraction ROW exists — EXTRACTED/NEEDS_REVIEW (review suggestions) OR FAILED
+  // (scanned/unreadable → the provider enters every field MANUALLY, the document still required for
+  // admin verification). Only NOT_ANALYZED (no row yet) and a locked current SUBMITTED claim block
+  // it; a STALE claim requires fresh review (so confirming is allowed). FAILED also keeps Retry.
   const locked = confirmationState === "SUBMITTED";
-  const canConfirm = extractionState !== "NOT_ANALYZED" && extractionState !== "FAILED" && !locked;
+  const canConfirm = extractionState !== "NOT_ANALYZED" && !locked;
 
   return { extraction: extractionState, failureLabelKey, confirmation: confirmationState, canAnalyze, canConfirm, locked };
 }

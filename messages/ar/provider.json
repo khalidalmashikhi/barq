@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "معلومات المركبة",
   "vehicleRegGroupPrivate": "تفاصيل الملكية الخاصة",
   "vehicleRegGroupPrivateHint": "مرئية لك وللإدارة فقط — لا تظهر للعملاء أبداً.",
-  "vehicleRegExtractedPrefix": "المقروء من الوثيقة",
+  "vehicleRegExtractedPrefix": "اقتراح النظام",
   "vehicleRegSubmittedOn": "أُرسلت في",
   "vehicleRegAwaitingAdmin": "يجب أن تتحقق الإدارة من هذه البيانات قبل اعتماد المركبة. الإرسال لا يعتمد المركبة ولا يغيّر معلوماتها الحالية.",
   "vehicleRegStateNotAnalyzed": "لم تُحلَّل",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "عدد المحاور",
   "vehicleRegFieldLicenseValidFrom": "ساري من",
   "vehicleRegFieldLicenseExpiry": "تاريخ الانتهاء",
-  "vehicleRegFieldFirstRegistrationDate": "تاريخ أول تسجيل"
+  "vehicleRegFieldFirstRegistrationDate": "تاريخ أول تسجيل",
+  "vehicleRegReviewSubtitle": "هذه اقتراحات من النظام وتتطلب مراجعتك — وهي ليست تحققاً رسمياً.",
+  "vehicleRegReviewErrSuperseded": "تغيّرت الوثيقة، لذا أُعيد ضبط هذه المراجعة. يُرجى مراجعة البيانات المقروءة حديثاً."
 }

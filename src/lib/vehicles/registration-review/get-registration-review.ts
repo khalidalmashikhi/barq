@@ -14,7 +14,7 @@ import {
 import { mapExtractedByField } from "./extracted-mapping";
 import { columnsToValues } from "./confirmation-record";
 import { computeFieldDecisions, type FieldDecision } from "./diff";
-import { deriveReviewState, type ReviewState } from "./review-status";
+import { deriveReviewState, isConfirmationStale, type ReviewState } from "./review-status";
 
 // Phase 3C Slice 3A — the owner-scoped PRIVATE read model for the provider registration review.
 // requireApprovedProvider + a providerId-scoped asset query: a foreign/missing/invalid vehicle
@@ -83,14 +83,24 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
   const extraction = doc?.registrationExtraction ?? null;
   const confirmation = doc?.registrationConfirmations[0] ?? null;
 
-  const extracted = extraction ? mapExtractedByField(extraction.fields) : { values: {}, confidence: {}, warnings: {} };
-  const confirmedValues = confirmation ? columnsToValues(confirmation) : columnsToValues({});
-  const decisions = extraction && confirmation ? computeFieldDecisions(extracted.values, confirmedValues) : {};
+  const extractionFacts = extraction
+    ? { status: extraction.status, failureCode: extraction.failureCode, documentSha256: extraction.documentSha256, parserVersion: extraction.parserVersion }
+    : null;
+  const confirmationFacts = confirmation
+    ? { status: confirmation.status, boundDocumentSha256: confirmation.boundDocumentSha256, boundParserVersion: confirmation.boundParserVersion }
+    : null;
 
-  const reviewState = deriveReviewState(
-    extraction ? { status: extraction.status, failureCode: extraction.failureCode, documentSha256: extraction.documentSha256, parserVersion: extraction.parserVersion } : null,
-    confirmation ? { status: confirmation.status, boundDocumentSha256: confirmation.boundDocumentSha256, boundParserVersion: confirmation.boundParserVersion } : null,
-  );
+  // Fix 1 — a STALE active claim (bound to a replaced document / old parser) must NEVER surface its
+  // provider values/decisions as current. Prefill from the new extraction only; the next save
+  // supersedes the stale row server-side.
+  const stale = isConfirmationStale(confirmationFacts, extractionFacts);
+  const effectiveConfirmation = stale ? null : confirmation;
+
+  const extracted = extraction ? mapExtractedByField(extraction.fields) : { values: {}, confidence: {}, warnings: {} };
+  const confirmedValues = effectiveConfirmation ? columnsToValues(effectiveConfirmation) : columnsToValues({});
+  const decisions = extraction && effectiveConfirmation ? computeFieldDecisions(extracted.values, confirmedValues) : {};
+
+  const reviewState = deriveReviewState(extractionFacts, confirmationFacts);
 
   const fields: RegistrationReviewFieldView[] = CONFIRMATION_FIELD_KEYS.map((key) => {
     const spec = CONFIRMATION_FIELDS[key];

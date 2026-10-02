@@ -57,28 +57,33 @@ export async function writeRegistrationConfirmation(
       const extraction = doc.registrationExtraction;
       if (!extraction) return { ok: false, code: "EXTRACTION_NOT_READY" } as const;
 
-      let active = doc.registrationConfirmations[0] ?? null;
+      const active = doc.registrationConfirmations[0] ?? null;
       const stale = active
         ? active.boundDocumentSha256 !== extraction.documentSha256 || active.boundParserVersion !== extraction.parserVersion
         : false;
 
-      // A current (non-stale) SUBMITTED claim is locked — never silently rewritten.
-      if (active && active.status === "SUBMITTED" && !stale) return { ok: false, code: "LOCKED" } as const;
-
-      // A STALE SUBMITTED claim (document replaced) is SUPERSEDED and retained as history; a fresh
-      // DRAFT/SUBMIT is created for the new extraction. (A stale DRAFT is simply rebound below.)
-      if (active && active.status === "SUBMITTED" && stale) {
+      // Fix 1 — on a document-hash / parser-version change, ANY stale active claim (DRAFT or
+      // SUBMITTED) is marked SUPERSEDED AS-IS and preserved as immutable historical evidence. It is
+      // NEVER rebound and its provider values / decisions / declaration are NEVER carried forward.
+      // We do NOT write the submitted values here: the provider must re-review the NEW extraction
+      // (the reader then shows a fresh form prefilled only from the new suggestions; a re-submit
+      // creates a clean claim). This also closes the stale-tab race (a stale save can't resurrect or
+      // mutate the superseded row, nor inject old values into the new document).
+      if (active && stale) {
         const superseded = await tx.vehicleRegistrationConfirmation.updateMany({
-          where: { id: active.id, version: active.version, status: "SUBMITTED" },
+          where: { id: active.id, version: active.version, status: { not: "SUPERSEDED" } },
           data: { status: "SUPERSEDED" },
         });
         if (superseded.count === 0) return { ok: false, code: "CONFLICT" } as const;
         await recordAuditEvent(
-          { actorType: "PROVIDER", actorId: provider.id, action: "vehicle.registration_confirmation_superseded", entityType: "Vehicle", entityId: asset.id, previousValue: { status: "SUBMITTED" }, newValue: { status: "SUPERSEDED" } },
+          { actorType: "PROVIDER", actorId: provider.id, action: "vehicle.registration_confirmation_superseded", entityType: "Vehicle", entityId: asset.id, previousValue: { status: active.status }, newValue: { status: "SUPERSEDED" } },
           tx,
         );
-        active = null; // fall through to create a fresh claim
+        return { ok: false, code: "SUPERSEDED" } as const;
       }
+
+      // A current (non-stale) SUBMITTED claim is locked — never silently rewritten.
+      if (active && active.status === "SUBMITTED") return { ok: false, code: "LOCKED" } as const;
 
       const extractedValues = mapExtractedByField(extraction.fields).values;
       const decisions = computeFieldDecisions(extractedValues, parsed.values);

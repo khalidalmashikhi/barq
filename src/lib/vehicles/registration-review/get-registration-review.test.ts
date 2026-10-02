@@ -9,14 +9,14 @@ vi.mock("@/lib/db", () => ({ prisma: { asset: { findFirst: (...a: unknown[]) => 
 const { getRegistrationReview } = await import("./get-registration-review");
 
 const VEHICLE = "11111111-1111-1111-1111-111111111111";
-const fields = Object.fromEntries(
+const fields: Record<string, { rawValue: string | null; normalizedValue: string | number | null; confidence: string; warnings: string[] }> = Object.fromEntries(
   ["plateNumber", "plateType", "makeDescription", "model", "color", "usageClassification", "manufactureYear", "engineCapacity", "emptyWeight", "maximumLoad", "axleCount", "licensedPassengerCapacity", "vin", "engineNumber", "licenseValidFrom", "licenseExpiry", "firstRegistrationDate"].map(
-    (k) => [k, { rawValue: null, normalizedValue: null, confidence: "LOW", warnings: [] }],
+    (k) => [k, { rawValue: null, normalizedValue: null as string | number | null, confidence: "LOW", warnings: [] as string[] }],
   ),
 );
-fields.vin.normalizedValue = "JTEBU29J8K5012345";
-fields.vin.confidence = "HIGH";
-fields.makeDescription.normalizedValue = "Toyota";
+fields.vin!.normalizedValue = "JTEBU29J8K5012345";
+fields.vin!.confidence = "HIGH";
+fields.makeDescription!.normalizedValue = "Toyota";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -61,5 +61,24 @@ describe("getRegistrationReview", () => {
     expect(make?.decision).toEqual({ matches: false, source: "PROVIDER" }); // confirmed Honda vs extracted Toyota
     const bookable = r?.fields.find((f) => f.key === "bookablePassengerCapacity");
     expect(bookable?.decision).toEqual({ matches: false, source: "MANUAL" }); // no extraction suggestion
+  });
+
+  it("a STALE confirmation (document replaced) → reviewState STALE and its stale values are NOT shown as current", async () => {
+    assetFindFirst.mockResolvedValue({
+      id: VEHICLE,
+      documents: [{
+        id: "doc-1", status: "PENDING", originalFilename: "reg.pdf",
+        registrationExtraction: { id: "ext-2", status: "EXTRACTED", failureCode: null, documentSha256: "sha-NEW", parserVersion: "1.0.0", fields, lastAttemptedAt: new Date(), lastSucceededAt: new Date() },
+        registrationConfirmations: [{ status: "DRAFT", submittedAt: null, boundDocumentSha256: "sha-OLD", boundParserVersion: "1.0.0", vin: "OLDVALUE123456789", make: "StaleMake", model: null, modelYear: null, color: null, bookablePassengerCapacity: 99, licensedPassengerCapacity: null, registeredSeats: null, plateNumber: null, plateType: null, engineNumber: null, usageClassification: null, engineCapacity: null, emptyWeight: null, maximumLoad: null, axleCount: null, licenseValidFrom: null, licenseExpiry: null, firstRegistrationDate: null }],
+      }],
+    });
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r?.reviewState.confirmation).toBe("STALE");
+    // The stale provider values must NOT surface; VIN prefills from the NEW extraction suggestion.
+    const vin = r?.fields.find((f) => f.key === "vin");
+    expect(vin?.confirmedValue).toBeNull();
+    expect(vin?.extractedValue).toBe("JTEBU29J8K5012345");
+    const make = r?.fields.find((f) => f.key === "make");
+    expect(make?.confirmedValue).toBeNull(); // not "StaleMake"
   });
 });

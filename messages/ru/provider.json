@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Информация о транспортном средстве",
   "vehicleRegGroupPrivate": "Частные регистрационные данные",
   "vehicleRegGroupPrivateHint": "Видно только вам и администрации — никогда клиентам.",
-  "vehicleRegExtractedPrefix": "Из документа",
+  "vehicleRegExtractedPrefix": "Предложение системы",
   "vehicleRegSubmittedOn": "Отправлено",
   "vehicleRegAwaitingAdmin": "Администрация должна проверить эти данные до одобрения транспортного средства. Отправка не одобряет его и не меняет текущие данные.",
   "vehicleRegStateNotAnalyzed": "Не проанализировано",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Число осей",
   "vehicleRegFieldLicenseValidFrom": "Действует с",
   "vehicleRegFieldLicenseExpiry": "Дата окончания",
-  "vehicleRegFieldFirstRegistrationDate": "Первая регистрация"
+  "vehicleRegFieldFirstRegistrationDate": "Первая регистрация",
+  "vehicleRegReviewSubtitle": "Это предложения системы, требующие вашей проверки — это не официальная верификация.",
+  "vehicleRegReviewErrSuperseded": "Документ изменился, поэтому эта проверка сброшена. Проверьте заново прочитанные данные."
 }

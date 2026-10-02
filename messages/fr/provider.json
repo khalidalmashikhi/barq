@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Informations du véhicule",
   "vehicleRegGroupPrivate": "Détails privés de la carte grise",
   "vehicleRegGroupPrivateHint": "Visibles uniquement par vous et l’administration — jamais par les clients.",
-  "vehicleRegExtractedPrefix": "Lu sur le document",
+  "vehicleRegExtractedPrefix": "Suggestion du système",
   "vehicleRegSubmittedOn": "Soumis le",
   "vehicleRegAwaitingAdmin": "L’administration doit vérifier ces informations avant l’approbation du véhicule. La soumission n’approuve pas le véhicule et ne modifie pas ses informations actuelles.",
   "vehicleRegStateNotAnalyzed": "Non analysé",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Nombre d’essieux",
   "vehicleRegFieldLicenseValidFrom": "Valable à partir du",
   "vehicleRegFieldLicenseExpiry": "Date d’expiration",
-  "vehicleRegFieldFirstRegistrationDate": "Première immatriculation"
+  "vehicleRegFieldFirstRegistrationDate": "Première immatriculation",
+  "vehicleRegReviewSubtitle": "Ce sont des suggestions du système à vérifier — ce n’est pas une vérification officielle.",
+  "vehicleRegReviewErrSuperseded": "Le document a changé, cette vérification a été réinitialisée. Veuillez vérifier les informations nouvellement lues."
 }

@@ -27,10 +27,16 @@ describe("parseConfirmation — SUBMIT", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors).toContainEqual({ field: "declaration", code: "DECLARATION_REQUIRED" });
   });
-  it("flags a missing required field", () => {
+  it("flags a missing required field (vin)", () => {
     const r = parseConfirmation({ ...FULL, vin: "" }, "SUBMIT");
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors).toContainEqual({ field: "vin", code: "REQUIRED" });
+  });
+
+  it("color is now required at submit", () => {
+    const r = parseConfirmation({ ...FULL, color: "" }, "SUBMIT");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors).toContainEqual({ field: "color", code: "REQUIRED" });
   });
   it("enforces the capacity chain", () => {
     const r = parseConfirmation({ ...FULL, bookablePassengerCapacity: "14", licensedPassengerCapacity: "13" }, "SUBMIT");

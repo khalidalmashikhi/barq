@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { UnauthenticatedError } from "@/lib/auth";
 import { uploadVehicleDocument } from "@/lib/vehicles/documents/upload-vehicle-document";
+import { runRegistrationAnalysis } from "@/lib/vehicles/registration-review/run-registration-analysis";
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 
 // VEHICLE-LC2 — provider vehicle-document UPLOAD. Route handler (not a server
@@ -37,6 +38,17 @@ export async function POST(request: Request, ctx: { params: Promise<{ vehicleId:
         bytes: await file.arrayBuffer(),
         claimedExpiryDate: typeof claimedExpiryDate === "string" ? claimedExpiryDate : null,
       });
+      // Phase 3C Slice 3A (Fix 3) — auto-start native-PDF extraction AFTER the upload commits, as a
+      // SEPARATE owner-scoped operation (re-resolves provider + ownership, idempotent service). Its
+      // failure NEVER rolls back the authoritative upload; the detail page shows the extraction
+      // status + a Retry control. Only the registration document is extracted.
+      if (result.ok && type === "VEHICLE_REGISTRATION") {
+        try {
+          await runRegistrationAnalysis(vehicleId);
+        } catch {
+          /* upload is authoritative — extraction failure is surfaced on the page, never fatal here */
+        }
+      }
       return NextResponse.redirect(dest(result.ok ? "?docNotice=uploaded" : `?docError=${result.error}`), 303);
     } catch (error) {
       if (error instanceof UnauthenticatedError) return NextResponse.redirect(new URL(`/${locale}/login`, request.url), 303);

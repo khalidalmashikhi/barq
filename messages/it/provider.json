@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Informazioni veicolo",
   "vehicleRegGroupPrivate": "Dettagli privati del libretto",
   "vehicleRegGroupPrivateHint": "Visibili solo a te e all’amministrazione — mai ai clienti.",
-  "vehicleRegExtractedPrefix": "Letto dal documento",
+  "vehicleRegExtractedPrefix": "Suggerimento del sistema",
   "vehicleRegSubmittedOn": "Inviato il",
   "vehicleRegAwaitingAdmin": "L’amministrazione deve verificare questi dati prima dell’approvazione del veicolo. L’invio non approva il veicolo né modifica i suoi dati attuali.",
   "vehicleRegStateNotAnalyzed": "Non analizzato",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Numero di assi",
   "vehicleRegFieldLicenseValidFrom": "Valido dal",
   "vehicleRegFieldLicenseExpiry": "Data di scadenza",
-  "vehicleRegFieldFirstRegistrationDate": "Prima immatricolazione"
+  "vehicleRegFieldFirstRegistrationDate": "Prima immatricolazione",
+  "vehicleRegReviewSubtitle": "Questi sono suggerimenti del sistema e richiedono la tua revisione — non sono una verifica ufficiale.",
+  "vehicleRegReviewErrSuperseded": "Il documento è cambiato, quindi questa verifica è stata reimpostata. Rivedi i dati appena letti."
 }

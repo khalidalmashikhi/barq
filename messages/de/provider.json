@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Fahrzeuginformationen",
   "vehicleRegGroupPrivate": "Private Zulassungsdaten",
   "vehicleRegGroupPrivateHint": "Nur für Sie und die Verwaltung sichtbar – nie für Kunden.",
-  "vehicleRegExtractedPrefix": "Aus Dokument gelesen",
+  "vehicleRegExtractedPrefix": "Systemvorschlag",
   "vehicleRegSubmittedOn": "Eingereicht am",
   "vehicleRegAwaitingAdmin": "Die Verwaltung muss diese Angaben prüfen, bevor das Fahrzeug freigegeben wird. Das Einreichen gibt das Fahrzeug nicht frei und ändert seine aktuellen Daten nicht.",
   "vehicleRegStateNotAnalyzed": "Nicht analysiert",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Achsenzahl",
   "vehicleRegFieldLicenseValidFrom": "Gültig ab",
   "vehicleRegFieldLicenseExpiry": "Ablaufdatum",
-  "vehicleRegFieldFirstRegistrationDate": "Erstzulassung"
+  "vehicleRegFieldFirstRegistrationDate": "Erstzulassung",
+  "vehicleRegReviewSubtitle": "Dies sind Systemvorschläge und erfordern Ihre Prüfung — keine offizielle Verifizierung.",
+  "vehicleRegReviewErrSuperseded": "Das Dokument hat sich geändert, daher wurde diese Prüfung zurückgesetzt. Bitte prüfen Sie die neu gelesenen Daten."
 }

@@ -13,6 +13,7 @@ import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib
 // duplicate clicks are prevented while pending. On success it refreshes to show the new state.
 export function AnalyzeRegistrationButton({ vehicleId, retry }: { vehicleId: string; retry: boolean }) {
   const t = useTranslations("provider");
+  const td = t as unknown as (key: string) => string; // dynamic result-code key (parity-guaranteed)
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [errorCode, setErrorCode] = useState<RegistrationReviewCode | null>(null);
@@ -40,7 +41,7 @@ export function AnalyzeRegistrationButton({ vehicleId, retry }: { vehicleId: str
         <ScanLine size={15} strokeWidth={1.75} aria-hidden />
         {pending ? t("vehicleRegAnalyzing") : retry ? t("vehicleRegRetryButton") : t("vehicleRegAnalyzeButton")}
       </button>
-      {errorCode && <Alert variant="danger">{t(registrationReviewMessageKey(errorCode))}</Alert>}
+      {errorCode && <Alert variant="danger">{td(registrationReviewMessageKey(errorCode))}</Alert>}
     </div>
   );
 }

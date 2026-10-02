@@ -21,6 +21,7 @@ const EXTRACTION_STATE_LABEL: Record<RegistrationReviewView["reviewState"]["extr
 
 export async function RegistrationReviewSection({ vehicleId, review }: { vehicleId: string; review: RegistrationReviewView }) {
   const t = await getTranslations("provider");
+  const td = t as unknown as (key: string) => string; // dynamic state/failure-label keys (parity-guaranteed)
   const { reviewState } = review;
 
   // No registration document uploaded yet — point the provider to the documents section above.
@@ -28,6 +29,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
     return (
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-foreground">{t("vehicleRegReviewTitle")}</h2>
+        <p className="text-sm text-foreground/60">{t("vehicleRegReviewSubtitle")}</p>
         <Card hoverLift={false}>
           <p className="text-sm text-foreground/60">{t("vehicleRegNoDocument")}</p>
         </Card>
@@ -40,6 +42,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold text-foreground">{t("vehicleRegReviewTitle")}</h2>
+      <p className="text-sm text-foreground/60">{t("vehicleRegReviewSubtitle")}</p>
 
       <Card hoverLift={false}>
         <div className="flex flex-col gap-3">
@@ -52,12 +55,12 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleRegExtractionStatusLabel")}</span>
-            <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "danger" : "neutral"}>
-              {t(EXTRACTION_STATE_LABEL[reviewState.extraction])}
+            <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "danger" : "default"}>
+              {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
             </Badge>
           </div>
 
-          {reviewState.failureLabelKey && <Alert variant="warning">{t(reviewState.failureLabelKey)}</Alert>}
+          {reviewState.failureLabelKey && <Alert variant="warning">{td(reviewState.failureLabelKey)}</Alert>}
 
           {review.lastAttemptedAt && (
             <p className="text-xs text-foreground/50">
@@ -71,7 +74,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
       </Card>
 
       {reviewState.confirmation === "STALE" && <Alert variant="warning">{t("vehicleRegConfStale")}</Alert>}
-      {reviewState.confirmation === "SUPERSEDED" && <Alert variant="neutral">{t("vehicleRegConfSuperseded")}</Alert>}
+      {reviewState.confirmation === "SUPERSEDED" && <Alert variant="info">{t("vehicleRegConfSuperseded")}</Alert>}
 
       {reviewState.locked && review.confirmation ? (
         <Card hoverLift={false}>

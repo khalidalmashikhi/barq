@@ -33,7 +33,7 @@ vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: 
 const { writeRegistrationConfirmation } = await import("./write-confirmation");
 
 let admin: PrismaClient, db: PrismaClient;
-const FULL: Record<string, unknown> = { make: "Toyota", model: "Prado", modelYear: "2019", bookablePassengerCapacity: "13", licensedPassengerCapacity: "13", registeredSeats: "15", plateNumber: "A 12345", vin: "JTEBU29J8K5012345", licenseExpiry: "31/05/2027", declarationAccepted: "true" };
+const FULL: Record<string, unknown> = { make: "Toyota", model: "Prado", modelYear: "2019", color: "White", bookablePassengerCapacity: "13", licensedPassengerCapacity: "13", registeredSeats: "15", plateNumber: "A 12345", vin: "JTEBU29J8K5012345", licenseExpiry: "31/05/2027", declarationAccepted: "true" };
 
 async function seed(sha: string) {
   await db.$transaction(async (tx) => {
@@ -83,12 +83,17 @@ describe.skipIf(!RUN)("writeRegistrationConfirmation — real Postgres", () => {
     ).rejects.toThrow();
   });
 
-  it("replacing the document SUPERSEDES the old submitted claim and creates a fresh active one", async () => {
+  it("replacing the document SUPERSEDES the old claim (no carry-forward); a re-submit then creates a fresh active one", async () => {
     // Simulate a replaced document: the extraction now carries a new hash.
     await db.$executeRawUnsafe(`UPDATE "vehicle_registration_extractions" SET "documentSha256" = 'sha-2' WHERE id = $1::uuid`, EXT);
-    const r = await writeRegistrationConfirmation("SUBMIT", VEH, FULL);
-    expect(r).toEqual({ ok: true });
-    expect(await activeCount()).toBe(1); // the new claim
-    expect(await supersededCount()).toBe(1); // the old one retained as history
+    const r1 = await writeRegistrationConfirmation("SUBMIT", VEH, FULL);
+    expect(r1).toEqual({ ok: false, code: "SUPERSEDED" }); // stale claim retired; caller must re-review
+    expect(await activeCount()).toBe(0); // nothing rebound
+    expect(await supersededCount()).toBe(1); // old one retained as history
+    // Provider re-reviews the new extraction and submits → one fresh active claim.
+    const r2 = await writeRegistrationConfirmation("SUBMIT", VEH, FULL);
+    expect(r2).toEqual({ ok: true });
+    expect(await activeCount()).toBe(1);
+    expect(await supersededCount()).toBe(1);
   });
 });

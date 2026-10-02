@@ -22,13 +22,13 @@ const { writeRegistrationConfirmation } = await import("./write-confirmation");
 
 const VEHICLE = "11111111-1111-1111-1111-111111111111";
 // Extraction fields JSON (Slice-2 persisted shape) — only a couple matter for the diff.
-const extractionFields = Object.fromEntries(
+const extractionFields: Record<string, { rawValue: string | null; normalizedValue: string | number | null; confidence: string; warnings: string[] }> = Object.fromEntries(
   ["plateNumber", "plateType", "makeDescription", "model", "color", "usageClassification", "manufactureYear", "engineCapacity", "emptyWeight", "maximumLoad", "axleCount", "licensedPassengerCapacity", "vin", "engineNumber", "licenseValidFrom", "licenseExpiry", "firstRegistrationDate"].map(
-    (k) => [k, { rawValue: null, normalizedValue: null, confidence: "LOW", warnings: [] }],
+    (k) => [k, { rawValue: null, normalizedValue: null as string | number | null, confidence: "LOW", warnings: [] as string[] }],
   ),
 );
-extractionFields.vin.normalizedValue = "JTEBU29J8K5012345";
-extractionFields.makeDescription.normalizedValue = "Toyota";
+extractionFields.vin!.normalizedValue = "JTEBU29J8K5012345";
+extractionFields.makeDescription!.normalizedValue = "Toyota";
 
 const assetRow = (confirmations: unknown[] = []) => ({
   id: VEHICLE,
@@ -90,14 +90,23 @@ describe("writeRegistrationConfirmation", () => {
     expect(confCreate).not.toHaveBeenCalled();
   });
 
-  it("replaced document (stale SUBMITTED) → supersedes the old claim and creates a fresh one", async () => {
+  it("replaced document (stale SUBMITTED) → SUPERSEDED as-is, NO rebind/create, caller told to re-review", async () => {
     assetFindFirst.mockResolvedValue(assetRow([{ id: "conf-old", status: "SUBMITTED", version: 3, boundDocumentSha256: "sha-OLD", boundParserVersion: "1.0.0" }]));
     const res = await writeRegistrationConfirmation("DRAFT", VEHICLE, { make: "Toyota" });
-    expect(res).toEqual({ ok: true });
-    // supersede updateMany guarded on the old id+version+SUBMITTED, then a fresh create.
-    expect(confUpdateMany.mock.calls[0]?.[0]).toMatchObject({ where: { id: "conf-old", version: 3, status: "SUBMITTED" }, data: { status: "SUPERSEDED" } });
-    expect(confCreate).toHaveBeenCalledTimes(1);
+    expect(res).toEqual({ ok: false, code: "SUPERSEDED" });
+    expect(confUpdateMany.mock.calls[0]?.[0]).toMatchObject({ where: { id: "conf-old", version: 3, status: { not: "SUPERSEDED" } }, data: { status: "SUPERSEDED" } });
+    expect(confCreate).not.toHaveBeenCalled(); // values are NOT carried forward
     expect(auditMock.mock.calls.some((c) => (c[0] as { action: string }).action === "vehicle.registration_confirmation_superseded")).toBe(true);
+  });
+
+  it("replaced document (stale DRAFT) → SUPERSEDED as-is, provider values NEVER rebound/carried forward", async () => {
+    assetFindFirst.mockResolvedValue(assetRow([{ id: "conf-d", status: "DRAFT", version: 1, boundDocumentSha256: "sha-OLD", boundParserVersion: "1.0.0" }]));
+    const res = await writeRegistrationConfirmation("DRAFT", VEHICLE, { make: "Toyota", vin: "JTEBU29J8K5012345" });
+    expect(res).toEqual({ ok: false, code: "SUPERSEDED" });
+    expect(confUpdateMany.mock.calls[0]?.[0]).toMatchObject({ where: { id: "conf-d", version: 1 }, data: { status: "SUPERSEDED" } });
+    expect(confCreate).not.toHaveBeenCalled();
+    // The superseded updateMany writes ONLY status — no provider values touch the historical row.
+    expect(Object.keys((confUpdateMany.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data)).toEqual(["status"]);
   });
 
   it("active DRAFT → guarded updateMany(version); count 0 → CONFLICT", async () => {

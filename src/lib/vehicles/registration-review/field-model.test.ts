@@ -19,7 +19,7 @@ describe("field-model", () => {
     expect(PRIVATE_FIELD_KEYS).toContain("licensedPassengerCapacity");
   });
   it("required-for-submit includes the critical verification fields", () => {
-    for (const k of ["make", "model", "modelYear", "bookablePassengerCapacity", "licensedPassengerCapacity", "registeredSeats", "plateNumber", "vin", "licenseExpiry"]) {
+    for (const k of ["make", "model", "modelYear", "color", "bookablePassengerCapacity", "licensedPassengerCapacity", "registeredSeats", "plateNumber", "vin", "licenseExpiry"]) {
       expect(REQUIRED_FIELD_KEYS).toContain(k);
     }
   });

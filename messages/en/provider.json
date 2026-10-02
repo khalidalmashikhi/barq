@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Vehicle information",
   "vehicleRegGroupPrivate": "Private registration details",
   "vehicleRegGroupPrivateHint": "Visible only to you and the administration — never shown to customers.",
-  "vehicleRegExtractedPrefix": "Read from document",
+  "vehicleRegExtractedPrefix": "System suggestion",
   "vehicleRegSubmittedOn": "Submitted on",
   "vehicleRegAwaitingAdmin": "The administration must verify these details before the vehicle is approved. Submitting does not approve the vehicle or change its current information.",
   "vehicleRegStateNotAnalyzed": "Not analyzed",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Axle count",
   "vehicleRegFieldLicenseValidFrom": "Valid from",
   "vehicleRegFieldLicenseExpiry": "Expiry date",
-  "vehicleRegFieldFirstRegistrationDate": "First registration"
+  "vehicleRegFieldFirstRegistrationDate": "First registration",
+  "vehicleRegReviewSubtitle": "These are system suggestions and require your review — they are not an official verification.",
+  "vehicleRegReviewErrSuperseded": "The document changed, so this review was reset. Please review the newly read details."
 }

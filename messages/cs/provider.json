@@ -727,7 +727,7 @@
   "vehicleRegGroupCustomer": "Informace o vozidle",
   "vehicleRegGroupPrivate": "Soukromé registrační údaje",
   "vehicleRegGroupPrivateHint": "Viditelné jen pro vás a administraci — nikdy pro zákazníky.",
-  "vehicleRegExtractedPrefix": "Načteno z dokumentu",
+  "vehicleRegExtractedPrefix": "Návrh systému",
   "vehicleRegSubmittedOn": "Odesláno",
   "vehicleRegAwaitingAdmin": "Administrace musí tyto údaje ověřit před schválením vozidla. Odeslání vozidlo neschvaluje ani nemění jeho stávající údaje.",
   "vehicleRegStateNotAnalyzed": "Neanalyzováno",
@@ -793,5 +793,7 @@
   "vehicleRegFieldAxleCount": "Počet náprav",
   "vehicleRegFieldLicenseValidFrom": "Platné od",
   "vehicleRegFieldLicenseExpiry": "Datum vypršení",
-  "vehicleRegFieldFirstRegistrationDate": "První registrace"
+  "vehicleRegFieldFirstRegistrationDate": "První registrace",
+  "vehicleRegReviewSubtitle": "Toto jsou návrhy systému vyžadující vaši kontrolu — nejde o oficiální ověření.",
+  "vehicleRegReviewErrSuperseded": "Dokument se změnil, proto byla tato kontrola resetována. Zkontrolujte nově načtené údaje."
 }

@@ -13,12 +13,16 @@ describe("deriveReviewState", () => {
     const s = deriveReviewState(null, null);
     expect(s).toMatchObject({ extraction: "NOT_ANALYZED", confirmation: "NONE", canAnalyze: true, canConfirm: false });
   });
-  it("FAILED extraction → safe failure label + retryable, not confirmable", () => {
+  it("FAILED extraction → safe failure label, retryable AND manual-entry confirmable", () => {
     const s = deriveReviewState(extraction({ status: "FAILED", failureCode: "PDF_ENCRYPTED" }), null);
     expect(s.extraction).toBe("FAILED");
     expect(s.failureLabelKey).toBe("vehicleRegExtractFailEncrypted");
-    expect(s.canAnalyze).toBe(true);
-    expect(s.canConfirm).toBe(false);
+    expect(s.canAnalyze).toBe(true); // Retry still available
+    expect(s.canConfirm).toBe(true); // manual entry allowed for scanned/unreadable documents
+  });
+
+  it("NOT_ANALYZED is never confirmable (no extraction row to attach a claim to)", () => {
+    expect(deriveReviewState(null, null).canConfirm).toBe(false);
   });
   it("EXTRACTED + no confirmation → confirmable", () => {
     const s = deriveReviewState(extraction(), null);

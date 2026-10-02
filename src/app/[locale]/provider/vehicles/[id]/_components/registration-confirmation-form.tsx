@@ -42,6 +42,10 @@ function initialValue(f: FieldView): string {
 
 export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, locked }: Props) {
   const t = useTranslations("provider");
+  // Localized escape for DYNAMICALLY-BUILT message keys (field labels, confidence, result codes) —
+  // every such key is guaranteed to exist by the translation-completeness parity test. Literal keys
+  // keep next-intl's strict type-checking via `t(...)`.
+  const td = t as unknown as (key: string) => string;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, initialValue(f)])));
@@ -66,13 +70,16 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
       }
       setErrorCode(res.code);
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
+      // The document was replaced mid-edit: the stale claim was superseded server-side. Reload so the
+      // form reflects the fresh extraction (never the stale values).
+      if (res.code === "SUPERSEDED") router.refresh();
     });
   };
 
   const fieldErrorFor = (key: string): ConfirmationFieldError | undefined => fieldErrors.find((e) => e.field === key);
 
   const renderField = (f: FieldView) => {
-    const label = t(regFieldLabelKey(f.key));
+    const label = td(regFieldLabelKey(f.key));
     const err = fieldErrorFor(f.key);
     const isRevealed = revealed[f.key] === true;
     const inputType = f.kind === "int" ? "number" : f.kind === "date" ? "date" : "text";
@@ -94,7 +101,7 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
         {extractedDisplay !== null && (
           <p className="text-xs text-foreground/50">
             {t("vehicleRegExtractedPrefix")}: <span className="text-foreground/70">{extractedDisplay}</span>
-            {f.confidence && <span className="ms-2">· {t(`vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}`)}</span>}
+            {f.confidence && <span className="ms-2">· {td(`vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}`)}</span>}
           </p>
         )}
         {locked ? (
@@ -130,7 +137,7 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
 
   return (
     <div className="flex flex-col gap-4">
-      {errorCode && <Alert variant="danger">{t(registrationReviewMessageKey(errorCode))}</Alert>}
+      {errorCode && <Alert variant="danger">{td(registrationReviewMessageKey(errorCode))}</Alert>}
       {fieldErrors.some((e) => e.field === "capacity") && <Alert variant="danger">{t("vehicleRegCapacityError")}</Alert>}
 
       <Card hoverLift={false}>
