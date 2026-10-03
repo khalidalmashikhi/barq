@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "Транспорт с таким номерным знаком уже существует.",
   "vehicleOnboardErrStorage": "Хранилище документов сейчас недоступно. Повторите попытку позже.",
   "vehicleOnboardErrAuth": "Ваша сессия истекла. Войдите снова.",
-  "vehicleOnboardErrUnknown": "Что-то пошло не так. Повторите попытку."
+  "vehicleOnboardErrUnknown": "Что-то пошло не так. Повторите попытку.",
+  "vehicleSetupIncomplete": "Настройка не завершена",
+  "vehicleOnboardCancelConfirm": "Отменить этот незавершённый транспорт и загруженный документ?",
+  "vehicleOnboardCancelConfirmYes": "Отменить",
+  "vehicleOnboardKeepEditing": "Продолжить редактирование"
 }

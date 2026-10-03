@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({
@@ -7,6 +7,8 @@ vi.mock("@/lib/auth", () => ({
 }));
 const getProviderVehiclesMock = vi.fn();
 vi.mock("@/lib/vehicles/queries/get-provider-vehicles", () => ({ getProviderVehicles: (...a: unknown[]) => getProviderVehiclesMock(...a) }));
+const rentalAccessMock = vi.fn();
+vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({ resolveRentalWorkspaceViewAccess: (...a: unknown[]) => rentalAccessMock(...a) }));
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async () => (k: string) => k }));
 vi.mock("next-intl/server", () => ({ getLocale: async () => "en" }));
 vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props, redirect: vi.fn() }));
@@ -56,7 +58,11 @@ const vehicle = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-afterEach(() => getProviderVehiclesMock.mockReset());
+beforeEach(() => rentalAccessMock.mockResolvedValue({ ok: false, reason: "NO_RENTAL_ACCESS" }));
+afterEach(() => {
+  getProviderVehiclesMock.mockReset();
+  rentalAccessMock.mockReset();
+});
 
 describe("ProviderVehiclesPage", () => {
   it("renders a card per vehicle, each linking to its detail (multi-vehicle)", async () => {
@@ -74,10 +80,28 @@ describe("ProviderVehiclesPage", () => {
     expect(strings).toContain("OM 12345"); // private reg visible to owner
   });
 
-  it("renders safely when legacy make/model are null (deterministic fallback title)", async () => {
+  it("a null-make row renders as an incomplete onboarding shell (labeled 'setup incomplete', no crash)", async () => {
     getProviderVehiclesMock.mockResolvedValue([vehicle({ make: null, model: null, registrationNumber: null })]);
     const strings = collectStrings(await ProviderVehiclesPage());
-    expect(strings).toContain("vehicleUntitled"); // fallback key, no crash
+    expect(strings).toContain("vehicleSetupIncomplete"); // honest label + badge; never a normal completed vehicle
+    expect(strings).not.toContain("vehicleUntitled");
+  });
+
+  it("for a RENTAL provider, an incomplete shell links back to the onboarding wizard to resume safely", async () => {
+    rentalAccessMock.mockResolvedValue({ ok: true, providerId: "prov-1" });
+    getProviderVehiclesMock.mockResolvedValue([vehicle({ id: "shell-1", make: null, model: null, registrationNumber: null })]);
+    const el = await ProviderVehiclesPage();
+    const hrefs = collectHrefs(el);
+    expect(hrefs).toContain("/provider/vehicles/new/shell-1"); // resume the wizard, not the detail page
+    expect(collectStrings(el)).toContain("vehicleSetupIncomplete");
+  });
+
+  it("a COMPLETE vehicle is never mislabeled as incomplete and links to its detail", async () => {
+    rentalAccessMock.mockResolvedValue({ ok: true, providerId: "prov-1" });
+    getProviderVehiclesMock.mockResolvedValue([vehicle({ id: "veh-9" })]);
+    const el = await ProviderVehiclesPage();
+    expect(collectHrefs(el)).toContain("/provider/vehicles/veh-9");
+    expect(collectStrings(el)).not.toContain("vehicleSetupIncomplete");
   });
 
   it("shows a polished empty state with an Add CTA when there are no vehicles", async () => {

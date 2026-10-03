@@ -4,7 +4,7 @@
 // accuracy declaration. No I/O. Reuses the Slice-2 normalizers so provider input and extracted
 // text are normalized identically.
 
-import { MIN_VEHICLE_YEAR, MAX_VEHICLE_YEAR, MAX_VEHICLE_PASSENGER_CAPACITY } from "@/lib/tour-template/vehicle-types";
+import { MIN_VEHICLE_YEAR, MAX_VEHICLE_YEAR, MAX_VEHICLE_PASSENGER_CAPACITY } from "@/lib/vehicles/vehicle-type-codes";
 import { parsePositiveInt, parseYear, parseIsoDate, normalizeVin, normalizePlate, cleanValue } from "@/lib/vehicles/registration-extraction/normalize";
 import {
   CONFIRMATION_FIELD_KEYS,

@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "Un véhicule avec cette plaque existe déjà.",
   "vehicleOnboardErrStorage": "Le stockage des documents est indisponible pour le moment. Veuillez réessayer plus tard.",
   "vehicleOnboardErrAuth": "Votre session a expiré. Veuillez vous reconnecter.",
-  "vehicleOnboardErrUnknown": "Une erreur est survenue. Veuillez réessayer."
+  "vehicleOnboardErrUnknown": "Une erreur est survenue. Veuillez réessayer.",
+  "vehicleSetupIncomplete": "Configuration incomplète",
+  "vehicleOnboardCancelConfirm": "Supprimer ce véhicule inachevé et le document téléversé ?",
+  "vehicleOnboardCancelConfirmYes": "Supprimer",
+  "vehicleOnboardKeepEditing": "Continuer la modification"
 }

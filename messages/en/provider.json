@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "A vehicle with this plate number already exists.",
   "vehicleOnboardErrStorage": "Document storage isn't available right now. Please try again later.",
   "vehicleOnboardErrAuth": "Your session has expired. Please sign in again.",
-  "vehicleOnboardErrUnknown": "Something went wrong. Please try again."
+  "vehicleOnboardErrUnknown": "Something went wrong. Please try again.",
+  "vehicleSetupIncomplete": "Setup incomplete",
+  "vehicleOnboardCancelConfirm": "Discard this unfinished vehicle and its uploaded document?",
+  "vehicleOnboardCancelConfirmYes": "Discard",
+  "vehicleOnboardKeepEditing": "Keep editing"
 }

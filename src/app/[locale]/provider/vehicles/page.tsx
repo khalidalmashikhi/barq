@@ -4,6 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { Car, Plus, Users } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderVehicles } from "@/lib/vehicles/queries/get-provider-vehicles";
+import { resolveRentalWorkspaceViewAccess } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { getVehicleStatusBadgeVariant, getVehicleStatusTranslationKey } from "@/lib/vehicles/presentation/vehicle-status";
 import { buildVehicleTitle } from "@/lib/vehicles/vehicle-title";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
@@ -45,6 +46,12 @@ export default async function ProviderVehiclesPage() {
   // Localized type label per canonical code (reused registry; value stays the code).
   const typeLabel = new Map(vehicleTypeOptions(locale).map((o) => [o.code, o.label]));
 
+  // A vehicle with no confirmed make is an UNFINISHED document-first onboarding shell (Phase 3C
+  // Slice 3B) — never a completed vehicle. Only a rental provider can resume the onboarding wizard
+  // safely, so a shell links back to the wizard for them; everyone else keeps the detail link (a
+  // legacy null-make row is never routed into the rental-gated wizard).
+  const canResumeOnboarding = (await resolveRentalWorkspaceViewAccess()).ok;
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -81,7 +88,9 @@ export default async function ProviderVehiclesPage() {
       ) : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {vehicles.map((v) => {
-            const title = buildVehicleTitle(v.make, v.model) ?? t("vehicleUntitled");
+            const incomplete = v.make === null; // unfinished onboarding shell — no confirmed profile
+            const title = buildVehicleTitle(v.make, v.model) ?? t(incomplete ? "vehicleSetupIncomplete" : "vehicleUntitled");
+            const href = incomplete && canResumeOnboarding ? `/provider/vehicles/new/${v.id}` : `/provider/vehicles/${v.id}`;
             const facts = [
               v.modelYear ? String(v.modelYear) : null,
               v.vehicleType ? (typeLabel.get(v.vehicleType) ?? v.vehicleType) : null,
@@ -90,7 +99,7 @@ export default async function ProviderVehiclesPage() {
             return (
               <li key={v.id}>
                 <Link
-                  href={`/provider/vehicles/${v.id}`}
+                  href={href}
                   className="flex h-full flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-premium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -100,7 +109,11 @@ export default async function ProviderVehiclesPage() {
                       </span>
                       <h2 className="font-semibold leading-snug text-foreground">{title}</h2>
                     </div>
-                    <Badge variant={getVehicleStatusBadgeVariant(v.status)}>{t(getVehicleStatusTranslationKey(v.status))}</Badge>
+                    {incomplete ? (
+                      <Badge variant="warning">{t("vehicleSetupIncomplete")}</Badge>
+                    ) : (
+                      <Badge variant={getVehicleStatusBadgeVariant(v.status)}>{t(getVehicleStatusTranslationKey(v.status))}</Badge>
+                    )}
                   </div>
 
                   {facts.length > 0 && <p className="text-sm text-foreground/60">{facts.join(" · ")}</p>}

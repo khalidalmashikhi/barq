@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "توجد مركبة بنفس رقم اللوحة بالفعل.",
   "vehicleOnboardErrStorage": "خدمة تخزين الوثائق غير متاحة حاليًا. يرجى المحاولة لاحقًا.",
   "vehicleOnboardErrAuth": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
-  "vehicleOnboardErrUnknown": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+  "vehicleOnboardErrUnknown": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+  "vehicleSetupIncomplete": "الإعداد غير مكتمل",
+  "vehicleOnboardCancelConfirm": "هل تريد تجاهل هذه المركبة غير المكتملة والوثيقة المرفوعة؟",
+  "vehicleOnboardCancelConfirmYes": "تجاهل",
+  "vehicleOnboardKeepEditing": "متابعة التعديل"
 }

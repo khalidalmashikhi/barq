@@ -5,7 +5,7 @@
 //
 // The result is ALWAYS either a member of TOUR_VEHICLE_CODES or null — it never invents a code.
 
-import { TOUR_VEHICLE_CODES, isTourVehicleCode } from "@/lib/tour-template/vehicle-types";
+import { VEHICLE_TYPE_CODES, isVehicleTypeCode } from "@/lib/vehicles/vehicle-type-codes";
 
 // Ordered most-specific → least-specific so e.g. "4x4 SUV" resolves to FOUR_BY_FOUR, not SUV.
 const RULES: ReadonlyArray<{ code: string; pattern: RegExp }> = [
@@ -26,10 +26,10 @@ export function suggestVehicleType(text: string | null | undefined): string | nu
   const t = text.trim();
   if (t.length === 0) return null;
   for (const rule of RULES) {
-    if (rule.pattern.test(t) && isTourVehicleCode(rule.code)) return rule.code;
+    if (rule.pattern.test(t) && isVehicleTypeCode(rule.code)) return rule.code;
   }
   return null;
 }
 
 // Re-export for callers that render the full selectable list beside the suggestion.
-export { TOUR_VEHICLE_CODES };
+export { VEHICLE_TYPE_CODES };

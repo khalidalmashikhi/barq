@@ -1,19 +1,20 @@
 import { z } from "zod";
 import {
-  TOUR_VEHICLE_CODES,
+  VEHICLE_TYPE_CODES,
   MIN_VEHICLE_YEAR,
   MAX_VEHICLE_YEAR,
   MAX_VEHICLE_PASSENGER_CAPACITY,
-} from "@/lib/tour-template/vehicle-types";
+} from "@/lib/vehicles/vehicle-type-codes";
 
 // VEHICLE-1 — the single strict, server-authoritative input contract for a
 // provider-owned Vehicle. Every create/update goes through parseVehicleInput();
 // no route/UI validation is ever the authority.
 //
 // The canonical vehicle-type vocabulary + numeric bounds are REUSED from the
-// app-owned registry (src/lib/tour-template/vehicle-types) — a pure, dependency-
-// free module — so there is exactly ONE vehicle-type vocabulary in BARQ, never a
-// competing one. (Importing that constant touches no tour LOGIC.)
+// neutral app-owned registry (src/lib/vehicles/vehicle-type-codes) — a pure,
+// dependency-free PHYSICAL taxonomy — so there is exactly ONE vehicle-type
+// vocabulary in BARQ, never a competing one. Membership is physical type only and
+// confers NO commercial authorization.
 //
 // Text-safety mirrors the guiding-content.ts convention: trim, reject
 // empty-after-trim, bound length, and reject HTML-tag-like or control-character
@@ -65,9 +66,8 @@ const registrationNumber = z.preprocess((v) => {
   return normalized === "" ? null : normalized;
 }, z.string().min(1).max(32).refine((s) => !HTML_TAG.test(s), { message: "invalid" }).refine((s) => !hasDisallowedControlChar(s), { message: "invalid" }).nullable());
 
-// Re-export the shared vocabulary under a vehicle-domain name so call sites need
-// not reach into tour-template directly.
-export const VEHICLE_TYPE_CODES = TOUR_VEHICLE_CODES;
+// Re-export the shared vocabulary so existing call sites that import it from here keep working.
+export { VEHICLE_TYPE_CODES };
 export type VehicleTypeCode = (typeof VEHICLE_TYPE_CODES)[number];
 
 export const vehicleInputSchema = z
@@ -76,7 +76,7 @@ export const vehicleInputSchema = z
     model: plainText(100),
     modelYear: nullableInt(MIN_VEHICLE_YEAR, MAX_VEHICLE_YEAR),
     color: nullableText(50),
-    vehicleType: z.enum(TOUR_VEHICLE_CODES),
+    vehicleType: z.enum(VEHICLE_TYPE_CODES),
     // BOOKABLE customer passenger capacity (excludes driver + operating guide) — TOUR-
     // VEHICLE-CAP + Slice B locked semantic. NOT total physical seats. The wire/form key
     // stays `passengerCapacity` (external contract); the persistence field is

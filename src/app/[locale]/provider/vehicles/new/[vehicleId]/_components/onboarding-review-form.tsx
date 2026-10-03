@@ -57,6 +57,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const [errorCode, setErrorCode] = useState<OnboardingCode | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ConfirmationFieldError[]>([]);
   const [typeError, setTypeError] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const customer = useMemo(() => fields.filter((f) => f.group === "CUSTOMER"), [fields]);
   const privateFields = useMemo(() => fields.filter((f) => f.group === "PRIVATE"), [fields]);
@@ -220,10 +221,25 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           <button type="button" onClick={saveDraft} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {pending ? t("vehicleRegSaving") : t("vehicleOnboardSaveProgressButton")}
           </button>
-          <button type="button" onClick={cancel} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-            {t("vehicleOnboardCancelButton")}
-          </button>
+          {confirmingCancel ? null : (
+            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+              {t("vehicleOnboardCancelButton")}
+            </button>
+          )}
         </div>
+        {confirmingCancel && (
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4">
+            <p className="text-sm text-foreground">{t("vehicleOnboardCancelConfirm")}</p>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={cancel} disabled={pending} className="inline-flex min-h-11 items-center rounded-full bg-danger px-5 text-sm font-medium text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40">
+                {pending ? t("vehicleRegSaving") : t("vehicleOnboardCancelConfirmYes")}
+              </button>
+              <button type="button" onClick={() => setConfirmingCancel(false)} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                {t("vehicleOnboardKeepEditing")}
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

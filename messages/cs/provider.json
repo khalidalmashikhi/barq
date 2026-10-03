@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "Vozidlo s touto SPZ už existuje.",
   "vehicleOnboardErrStorage": "Úložiště dokumentů není momentálně dostupné. Zkuste to prosím později.",
   "vehicleOnboardErrAuth": "Vaše relace vypršela. Přihlaste se prosím znovu.",
-  "vehicleOnboardErrUnknown": "Něco se pokazilo. Zkuste to prosím znovu."
+  "vehicleOnboardErrUnknown": "Něco se pokazilo. Zkuste to prosím znovu.",
+  "vehicleSetupIncomplete": "Nastavení nedokončeno",
+  "vehicleOnboardCancelConfirm": "Zahodit toto nedokončené vozidlo a nahraný dokument?",
+  "vehicleOnboardCancelConfirmYes": "Zahodit",
+  "vehicleOnboardKeepEditing": "Pokračovat v úpravách"
 }

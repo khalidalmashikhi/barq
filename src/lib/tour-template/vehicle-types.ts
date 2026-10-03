@@ -1,42 +1,34 @@
-// Smart Tour-Guide Template — canonical VEHICLE-TYPE registry (app-owned).
+// Smart Tour-Guide Template — guided-tour view of the canonical vehicle-type registry.
 //
-// Pure (no server-only/prisma/next). The canonical `code` set and their server
-// semantics are owned by application code — FOUR_BY_FOUR in particular is
-// structurally meaningful (GUIDE_WITH_4X4 requires it). Admin may localize the
-// label, enable/disable, and reorder an option (see TourVehicleTypeOption), but
-// may NOT invent an arbitrary semantic code: a DB row whose `code` is not in this
-// set is ignored by the reader (fail-closed), never offered as a choice.
+// The registry itself is a GENERIC PHYSICAL taxonomy and now lives in the neutral, app-owned
+// `src/lib/vehicles/vehicle-type-codes.ts` (so the rental domain no longer depends, even by name,
+// on guided-tour code). This module RE-EXPORTS it under the historical `TOUR_*` names purely for
+// backward compatibility with existing guided-tour consumers (bootstrap, form, guiding-content,
+// get-tour-template-config, smart-tour-guide-section). No behavior change: same codes, same bounds,
+// same localized defaults, one source of truth. Admin may still localize/enable/reorder a label
+// (TourVehicleTypeOption); a DB row whose `code` is not in the set is ignored (fail-closed).
+//
+// Taxonomy is NOT authorization — see the note in vehicle-type-codes.ts. A code being valid for a
+// guided tour never grants standalone rental, and vice versa.
 
-import type { LocalizedText } from "./localized-text";
+import {
+  VEHICLE_TYPE_CODES,
+  VEHICLE_TYPE_DEFAULTS,
+  isVehicleTypeCode,
+  MIN_VEHICLE_YEAR as MIN_YEAR,
+  MAX_VEHICLE_YEAR as MAX_YEAR,
+  MAX_VEHICLE_PASSENGER_CAPACITY as MAX_CAP,
+  type VehicleTypeCode,
+  type VehicleTypeDefault,
+} from "@/lib/vehicles/vehicle-type-codes";
 
-export const TOUR_VEHICLE_CODES = ["SEDAN", "SUV", "FOUR_BY_FOUR", "VAN", "MINIBUS", "OTHER"] as const;
+export const TOUR_VEHICLE_CODES = VEHICLE_TYPE_CODES;
+export type TourVehicleCode = VehicleTypeCode;
+export const isTourVehicleCode = isVehicleTypeCode;
 
-export type TourVehicleCode = (typeof TOUR_VEHICLE_CODES)[number];
+export const MIN_VEHICLE_YEAR = MIN_YEAR;
+export const MAX_VEHICLE_YEAR = MAX_YEAR;
+export const MAX_VEHICLE_PASSENGER_CAPACITY = MAX_CAP;
 
-const VEHICLE_CODE_SET: ReadonlySet<string> = new Set(TOUR_VEHICLE_CODES);
-
-export function isTourVehicleCode(value: unknown): value is TourVehicleCode {
-  return typeof value === "string" && VEHICLE_CODE_SET.has(value);
-}
-
-// Bounds for the optional vehicle sub-fields (enforced by the guidingContent
-// contract). MAX_VEHICLE_YEAR is a static sane upper bound (a listing may name a
-// current-plus-one model year); intentionally not coupled to the wall clock.
-export const MIN_VEHICLE_YEAR = 1950;
-export const MAX_VEHICLE_YEAR = 2100;
-export const MAX_VEHICLE_PASSENGER_CAPACITY = 100;
-
-export type TourVehicleDefault = {
-  code: TourVehicleCode;
-  label: LocalizedText;
-  sortOrder: number;
-};
-
-export const TOUR_VEHICLE_DEFAULTS: readonly TourVehicleDefault[] = [
-  { code: "SEDAN", sortOrder: 0, label: { ar: "سيارة سيدان", en: "Sedan", de: "Limousine", it: "Berlina", pl: "Sedan", fr: "Berline", cs: "Sedan", ru: "Седан" } },
-  { code: "SUV", sortOrder: 1, label: { ar: "إس يو في (SUV)", en: "SUV", de: "SUV", it: "SUV", pl: "SUV", fr: "SUV", cs: "SUV", ru: "Внедорожник (SUV)" } },
-  { code: "FOUR_BY_FOUR", sortOrder: 2, label: { ar: "دفع رباعي (4x4)", en: "4x4", de: "4x4", it: "4x4", pl: "4x4", fr: "4x4", cs: "4x4", ru: "4x4" } },
-  { code: "VAN", sortOrder: 3, label: { ar: "فان", en: "Van", de: "Van", it: "Van", pl: "Van", fr: "Van", cs: "Van", ru: "Микроавтобус (Van)" } },
-  { code: "MINIBUS", sortOrder: 4, label: { ar: "حافلة صغيرة", en: "Minibus", de: "Minibus", it: "Minibus", pl: "Minibus", fr: "Minibus", cs: "Minibus", ru: "Минибус" } },
-  { code: "OTHER", sortOrder: 5, label: { ar: "أخرى", en: "Other", de: "Sonstige", it: "Altro", pl: "Inny", fr: "Autre", cs: "Jiné", ru: "Другое" } },
-];
+export type TourVehicleDefault = VehicleTypeDefault;
+export const TOUR_VEHICLE_DEFAULTS: readonly TourVehicleDefault[] = VEHICLE_TYPE_DEFAULTS;

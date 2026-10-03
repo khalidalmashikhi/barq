@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "Esiste già un veicolo con questa targa.",
   "vehicleOnboardErrStorage": "L'archiviazione dei documenti non è disponibile al momento. Riprova più tardi.",
   "vehicleOnboardErrAuth": "La tua sessione è scaduta. Accedi di nuovo.",
-  "vehicleOnboardErrUnknown": "Qualcosa è andato storto. Riprova."
+  "vehicleOnboardErrUnknown": "Qualcosa è andato storto. Riprova.",
+  "vehicleSetupIncomplete": "Configurazione incompleta",
+  "vehicleOnboardCancelConfirm": "Eliminare questo veicolo incompleto e il documento caricato?",
+  "vehicleOnboardCancelConfirmYes": "Elimina",
+  "vehicleOnboardKeepEditing": "Continua a modificare"
 }

@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "Pojazd o tym numerze rejestracyjnym już istnieje.",
   "vehicleOnboardErrStorage": "Magazyn dokumentów jest teraz niedostępny. Spróbuj ponownie później.",
   "vehicleOnboardErrAuth": "Twoja sesja wygasła. Zaloguj się ponownie.",
-  "vehicleOnboardErrUnknown": "Coś poszło nie tak. Spróbuj ponownie."
+  "vehicleOnboardErrUnknown": "Coś poszło nie tak. Spróbuj ponownie.",
+  "vehicleSetupIncomplete": "Konfiguracja niekompletna",
+  "vehicleOnboardCancelConfirm": "Odrzucić ten niedokończony pojazd i przesłany dokument?",
+  "vehicleOnboardCancelConfirmYes": "Odrzuć",
+  "vehicleOnboardKeepEditing": "Kontynuuj edycję"
 }

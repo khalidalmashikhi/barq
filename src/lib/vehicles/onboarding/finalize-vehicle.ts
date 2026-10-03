@@ -6,7 +6,7 @@ import { canViewRentalWorkspace } from "@/lib/offerings/rental/provider/rental-w
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import { isValidUuid } from "@/lib/uuid";
-import { isTourVehicleCode } from "@/lib/tour-template/vehicle-types";
+import { isVehicleTypeCode } from "@/lib/vehicles/vehicle-type-codes";
 import { parseConfirmation, type ConfirmationValues } from "@/lib/vehicles/registration-review/confirmation-input";
 import { mapExtractedByField } from "@/lib/vehicles/registration-review/extracted-mapping";
 import { computeFieldDecisions, correctedFieldCount } from "@/lib/vehicles/registration-review/diff";
@@ -81,7 +81,7 @@ export async function finalizeVehicleFromRegistration(vehicleId: string, rawInpu
   // AND the separately-chosen vehicle type, BEFORE opening a transaction.
   const parsed = parseConfirmation(rawInput, "SUBMIT");
   const vehicleTypeRaw = typeof rawInput.vehicleType === "string" ? rawInput.vehicleType : null;
-  const vehicleTypeOk = vehicleTypeRaw !== null && isTourVehicleCode(vehicleTypeRaw);
+  const vehicleTypeOk = vehicleTypeRaw !== null && isVehicleTypeCode(vehicleTypeRaw);
   if (!parsed.ok || !vehicleTypeOk) {
     const fieldErrors = parsed.ok ? [] : [...parsed.errors];
     if (!vehicleTypeOk) fieldErrors.push({ field: "vehicleType" as unknown as (typeof fieldErrors)[number]["field"], code: "REQUIRED" });

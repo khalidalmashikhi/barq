@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { suggestVehicleType } from "./vehicle-type-suggestion";
-import { isTourVehicleCode } from "@/lib/tour-template/vehicle-types";
+import { isVehicleTypeCode } from "@/lib/vehicles/vehicle-type-codes";
 
 describe("suggestVehicleType", () => {
   it("returns null for empty / nullish / whitespace input", () => {
@@ -37,7 +37,7 @@ describe("suggestVehicleType", () => {
   it("only ever returns a canonical code or null", () => {
     for (const text of ["4x4", "suv", "van", "minibus", "sedan", "random text", ""]) {
       const r = suggestVehicleType(text);
-      expect(r === null || isTourVehicleCode(r)).toBe(true);
+      expect(r === null || isVehicleTypeCode(r)).toBe(true);
     }
   });
 });

@@ -822,5 +822,9 @@
   "vehicleOnboardErrDuplicatePlate": "Ein Fahrzeug mit diesem Kennzeichen existiert bereits.",
   "vehicleOnboardErrStorage": "Der Dokumentenspeicher ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
   "vehicleOnboardErrAuth": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
-  "vehicleOnboardErrUnknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+  "vehicleOnboardErrUnknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+  "vehicleSetupIncomplete": "Einrichtung unvollständig",
+  "vehicleOnboardCancelConfirm": "Dieses unfertige Fahrzeug und das hochgeladene Dokument verwerfen?",
+  "vehicleOnboardCancelConfirmYes": "Verwerfen",
+  "vehicleOnboardKeepEditing": "Weiter bearbeiten"
 }
