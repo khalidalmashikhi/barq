@@ -19,11 +19,19 @@ vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: 
 const recordAuditEventMock = vi.fn();
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => recordAuditEventMock(...a) }));
 const uploadPrivateObjectMock = vi.fn();
-const removePrivateObjectMock = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/storage/storage", () => ({
   isDocumentStorageConfigured: () => true,
   uploadPrivateObject: (...a: unknown[]) => uploadPrivateObjectMock(...a),
-  removePrivateObject: (...a: unknown[]) => removePrivateObjectMock(...a),
+}));
+const enqueueCleanupMock = vi.fn();
+const attemptCleanupMock = vi.fn();
+const registerIntentMock = vi.fn();
+const releaseIntentMock = vi.fn();
+vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
+  enqueuePrivateObjectCleanup: (...a: unknown[]) => enqueueCleanupMock(...a),
+  attemptPrivateObjectCleanup: (...a: unknown[]) => attemptCleanupMock(...a),
+  registerUploadIntent: (...a: unknown[]) => registerIntentMock(...a),
+  releaseUploadIntent: (...a: unknown[]) => releaseIntentMock(...a),
 }));
 const validateMock = vi.fn();
 vi.mock("@/lib/provider/documents/document-constants", () => ({ validateDocumentUpload: (a: unknown) => validateMock(a) }));
@@ -49,6 +57,10 @@ function happy() {
   validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
   uploadPrivateObjectMock.mockResolvedValue(undefined);
   txUpdateManyMock.mockResolvedValue({ count: 1 });
+  enqueueCleanupMock.mockResolvedValue("cleanup-task-old");
+  attemptCleanupMock.mockResolvedValue("completed");
+  registerIntentMock.mockResolvedValue("intent-task-new");
+  releaseIntentMock.mockResolvedValue(true);
 }
 
 afterEach(() => {
@@ -66,7 +78,16 @@ describe("replaceVehicleDocument", () => {
     expect(docFindFirstMock).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "doc-1", assetId: "asset-1", asset: { providerId: "prov-1", assetType: "VEHICLE" } } }));
     // RC3: updateMany is bound to the seen objectKey.
     expect(txUpdateManyMock).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "doc-1", objectKey: ownedDoc().objectKey } }));
-    expect(removePrivateObjectMock).toHaveBeenCalledWith(ownedDoc().objectKey);
+    // Durable cleanup: the SUPERSEDED (old) object is enqueued in-tx, then an immediate attempt runs.
+    expect(enqueueCleanupMock.mock.calls[0]![1]).toMatchObject({ objectKey: ownedDoc().objectKey, purpose: "VEHICLE_DOCUMENT_REPLACEMENT" });
+    expect(attemptCleanupMock).toHaveBeenCalledOnce();
+    expect(attemptCleanupMock).toHaveBeenCalledWith("cleanup-task-old"); // ONLY the old object is deleted
+    // INTENT-FIRST for the NEW object: recorded before the write, released in the swap transaction.
+    const newKey = (uploadPrivateObjectMock.mock.calls[0]![0] as { objectKey: string }).objectKey;
+    expect(registerIntentMock).toHaveBeenCalledWith(newKey);
+    expect(registerIntentMock.mock.invocationCallOrder[0]!).toBeLessThan(uploadPrivateObjectMock.mock.invocationCallOrder[0]!);
+    expect(releaseIntentMock.mock.calls[0]![1]).toBe(newKey);
+    expect(newKey).not.toBe(ownedDoc().objectKey);
     const audit = recordAuditEventMock.mock.calls[0]![0];
     expect(audit).toMatchObject({ action: "vehicle.document_replaced", entityType: "Vehicle" });
     expect(JSON.stringify(audit)).not.toContain("asset-documents/");
@@ -124,8 +145,20 @@ describe("replaceVehicleDocument", () => {
     txUpdateManyMock.mockResolvedValue({ count: 0 });
     const result = await replaceVehicleDocument(VEHICLE, "doc-1", INPUT);
     expect(result).toEqual({ ok: false, error: "DOCUMENT_NOT_FOUND" });
-    expect(removePrivateObjectMock).toHaveBeenCalledOnce();
-    expect(removePrivateObjectMock).not.toHaveBeenCalledWith(ownedDoc().objectKey);
+    // The swap did NOT commit → the NEW object's still-recorded intent is attempted; the OLD (still
+    // active) object is never queued or deleted.
+    expect(attemptCleanupMock).toHaveBeenCalledOnce();
+    expect(attemptCleanupMock).toHaveBeenCalledWith("intent-task-new");
+    expect(enqueueCleanupMock).not.toHaveBeenCalled();
+    expect(releaseIntentMock).not.toHaveBeenCalled(); // the stale guard fires before the release
+  });
+
+  it("fails CLOSED without uploading when the upload intent cannot be recorded", async () => {
+    happy();
+    registerIntentMock.mockRejectedValue(new Error("db down"));
+    expect(await replaceVehicleDocument(VEHICLE, "doc-1", INPUT)).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+    expect(txUpdateManyMock).not.toHaveBeenCalled();
   });
 
   // VEHICLE-LC6 — provider claim + stale-trust clearing on replacement.

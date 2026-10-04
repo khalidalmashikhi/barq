@@ -7,7 +7,8 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
-import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject } from "@/lib/storage/storage";
+import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
+import { registerUploadIntent, releaseUploadIntent, attemptPrivateObjectCleanup } from "@/lib/storage/cleanup/private-object-cleanup";
 import { validateDocumentUpload } from "@/lib/provider/documents/document-constants";
 import { isValidAssetDocumentTypeKey } from "./asset-document-types";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
@@ -79,15 +80,31 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
 
   const objectKey = buildAssetDocumentObjectKey({ assetId, type: input.type, ext: validation.ext, unique: randomUUID() });
 
+  // INTENT-FIRST: durably record the server-generated key BEFORE writing the object, so a crash or a
+  // failed/unavailable database after the upload can never strand the private file — the cleanup
+  // worker removes it once the grace elapses. Fail closed (nothing uploaded) if it can't be recorded.
+  let intentTaskId: string;
+  try {
+    intentTaskId = await registerUploadIntent(objectKey);
+  } catch (error) {
+    logger.error("uploadVehicleDocument.intent_failed", { providerId: provider.id, message: error instanceof Error ? error.message : String(error) });
+    return { ok: false, error: "UNKNOWN_ERROR" };
+  }
+
   try {
     await uploadPrivateObject({ objectKey, body: input.bytes, contentType: validation.mimeType });
   } catch (error) {
+    // The object may be absent or partially written — resolve the intent now (absent == cleaned).
+    await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
     logger.error("uploadVehicleDocument.storage_failed", { providerId: provider.id, message: error instanceof Error ? error.message : String(error) });
     return { ok: false, error: "UPLOAD_FAILED" };
   }
 
   try {
     const created = await prisma.$transaction(async (tx) => {
+      // The object becomes legitimately referenced in THIS transaction → release its intent here, so
+      // "row persisted" and "no longer scheduled for deletion" commit or roll back together.
+      if (!(await releaseUploadIntent(tx, objectKey))) throw new Error("upload intent no longer releasable");
       const doc = await tx.assetDocument.create({
         data: {
           assetId,
@@ -117,8 +134,10 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
     });
     return { ok: true, documentId: created.id };
   } catch (error) {
-    // DB write failed after a successful upload — clean up the orphan object.
-    await removePrivateObject(objectKey).catch(() => {});
+    // DB write failed (or lost the (assetId,type) race) after a successful upload — the transaction
+    // rolled back, so the upload intent is STILL durably recorded. Attempt the deletion now; if that
+    // fails too (or the database is down), the worker retries it to completion.
+    await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return { ok: false, error: "ALREADY_EXISTS" }; // lost the (assetId, type) race
     }

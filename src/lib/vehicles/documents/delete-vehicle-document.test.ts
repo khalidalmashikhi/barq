@@ -18,8 +18,12 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 const recordAuditEventMock = vi.fn();
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => recordAuditEventMock(...a) }));
-const removePrivateObjectMock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/storage/storage", () => ({ removePrivateObject: (...a: unknown[]) => removePrivateObjectMock(...a) }));
+const enqueueCleanupMock = vi.fn().mockResolvedValue("cleanup-task-1");
+const attemptCleanupMock = vi.fn().mockResolvedValue("completed");
+vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
+  enqueuePrivateObjectCleanup: (...a: unknown[]) => enqueueCleanupMock(...a),
+  attemptPrivateObjectCleanup: (...a: unknown[]) => attemptCleanupMock(...a),
+}));
 
 const docFindFirstMock = vi.fn();
 const txDeleteManyMock = vi.fn();
@@ -48,7 +52,9 @@ describe("deleteVehicleDocument", () => {
     expect(docFindFirstMock).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "doc-1", assetId: "asset-1", asset: { providerId: "prov-1", assetType: "VEHICLE" } } }));
     expect(txDeleteManyMock).toHaveBeenCalledWith({ where: { id: "doc-1", objectKey: ownedDoc().objectKey } });
     expect(recordAuditEventMock.mock.calls[0]![0]).toMatchObject({ action: "vehicle.document_deleted", entityType: "Vehicle", entityId: "asset-1" });
-    expect(removePrivateObjectMock).toHaveBeenCalledWith(ownedDoc().objectKey);
+    // Durable cleanup: the removed object is enqueued in-tx, then an immediate deletion is attempted.
+    expect(enqueueCleanupMock.mock.calls[0]![1]).toMatchObject({ objectKey: ownedDoc().objectKey });
+    expect(attemptCleanupMock).toHaveBeenCalledWith("cleanup-task-1");
   });
 
   it("allows deleting a REJECTED doc", async () => {
@@ -102,5 +108,7 @@ describe("deleteVehicleDocument", () => {
     txDeleteManyMock.mockResolvedValue({ count: 0 });
     expect(await deleteVehicleDocument(VEHICLE, "doc-1")).toEqual({ ok: true });
     expect(recordAuditEventMock).not.toHaveBeenCalled();
+    expect(enqueueCleanupMock).not.toHaveBeenCalled(); // nothing deleted → nothing to clean
+    expect(attemptCleanupMock).not.toHaveBeenCalled();
   });
 });

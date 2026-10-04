@@ -3268,3 +3268,50 @@ model AuthRateLimit {
   @@index([expiresAt])
   @@map("auth_rate_limits")
 }
+
+/// Phase 3C Slice 3B (durable-cleanup correction) — a DURABLE, retryable record of a private
+/// storage object that must be deleted (e.g. the registration document of a cancelled onboarding
+/// shell, or the superseded object after a document replacement). Introduced because best-effort
+/// post-commit deletion + a log line does NOT guarantee eventual removal, and these objects may hold
+/// owner / plate / chassis / civil-ID / registration data that must not linger orphaned.
+///
+/// Additive + STANDALONE: NO FK to assets/documents (the document row is being deleted), holding only
+/// the MINIMUM server-controlled information required to retry — the server-generated objectKey and a
+/// coarse purpose. `objectKey` is UNIQUE so a repeated cancel/retry is idempotent (never a duplicate
+/// task) and a task only ever targets ONE specific key — a replacement's new object (a different key)
+/// can never be deleted by a stale task for the old one. `lastError` is a SANITIZED category code
+/// only — never a raw provider message, signed URL, or any extracted value. Driven by the
+/// CRON_SECRET-protected cleanup-private-objects cron, exactly like the booking-email outbox.
+model PrivateObjectCleanupTask {
+  id            String                     @id @default(uuid(7)) @db.Uuid
+  /// SERVER-DERIVED storage object key to delete — the only retry target (never client input).
+  objectKey     String
+  /// Coarse origin label (open-ended String, same convention as AuditLog.action), e.g.
+  /// "VEHICLE_REGISTRATION_ONBOARDING". Never a sensitive value.
+  purpose       String
+  status        PrivateObjectCleanupStatus @default(PENDING)
+  /// Bounded-retry accounting; attemptCount is incremented at CLAIM time (guarded) so two workers
+  /// can't both process one row.
+  attemptCount  Int                        @default(0)
+  /// Backoff schedule: a PENDING task is due when nextAttemptAt <= now.
+  nextAttemptAt DateTime                   @default(now()) @db.Timestamptz(6)
+  lastAttemptAt DateTime?                  @db.Timestamptz(6)
+  /// SANITIZED error category only (e.g. "TRANSIENT", "MALFORMED_TARGET") — never a raw message/URL.
+  lastError     String?
+  completedAt   DateTime?                  @db.Timestamptz(6)
+  createdAt     DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime                   @updatedAt @db.Timestamptz(6)
+
+  /// Idempotency + stale-safety: at most ONE task per object key.
+  @@unique([objectKey])
+  /// Worker scan: due PENDING / stale-PROCESSING, oldest-due first.
+  @@index([status, nextAttemptAt])
+  @@map("private_object_cleanup_tasks")
+}
+
+enum PrivateObjectCleanupStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

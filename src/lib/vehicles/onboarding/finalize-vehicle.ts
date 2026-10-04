@@ -91,6 +91,10 @@ export async function finalizeVehicleFromRegistration(vehicleId: string, rawInpu
 
   try {
     return await prisma.$transaction(async (tx) => {
+      // Serialize against cancel (deleteDraftVehicle takes the same row lock): whichever commits
+      // first wins and the other re-reads the truth — a cancel can never delete a shell this
+      // transaction is finalizing, and a finalize can never resurrect a cancelled one.
+      await tx.$queryRaw`SELECT "id" FROM "assets" WHERE "id" = ${vehicleId}::uuid FOR UPDATE`;
       const asset = await tx.asset.findFirst({
         where: { id: vehicleId, providerId: provider.id, assetType: "VEHICLE" },
         select: {

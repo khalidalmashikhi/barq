@@ -5,7 +5,7 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
-import { removePrivateObject } from "@/lib/storage/storage";
+import { enqueuePrivateObjectCleanup, attemptPrivateObjectCleanup } from "@/lib/storage/cleanup/private-object-cleanup";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
 import type { AssetDocumentErrorCode } from "./asset-document-errors";
 
@@ -42,11 +42,12 @@ export async function deleteVehicleDocument(vehicleId: string, documentId: strin
   if (!isAssetVerificationEditable(doc.asset.verificationStatus)) return { ok: false, error: "LOCKED" };
   if (doc.status === "APPROVED") return { ok: false, error: "LOCKED" }; // APPROVED delete deferred
 
+  let cleanupTaskId: string | null;
   try {
-    await prisma.$transaction(async (tx) => {
+    cleanupTaskId = await prisma.$transaction(async (tx) => {
       // Bound to the seen object so a concurrent replace/delete can't double-act.
       const deleted = await tx.assetDocument.deleteMany({ where: { id: doc.id, objectKey: doc.objectKey } });
-      if (deleted.count === 0) return; // already gone / raced — treat as success
+      if (deleted.count === 0) return null; // already gone / raced — treat as success, nothing to clean
       await recordAuditEvent(
         {
           actorType: "PROVIDER",
@@ -58,16 +59,20 @@ export async function deleteVehicleDocument(vehicleId: string, documentId: strin
         },
         tx,
       );
+      // Durably record the removed object for cleanup in the SAME tx as the delete + audit.
+      return enqueuePrivateObjectCleanup(tx, { objectKey: doc.objectKey, purpose: "VEHICLE_DOCUMENT_DELETED" });
     });
   } catch (error) {
     logger.error("deleteVehicleDocument.db_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 
-  // Committed — best-effort remove the private object.
-  await removePrivateObject(doc.objectKey).catch((error) => {
-    logger.error("deleteVehicleDocument.cleanup_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
-  });
+  // Committed — immediate removal attempt; a failure stays durable for the cron to retry.
+  if (cleanupTaskId) {
+    await attemptPrivateObjectCleanup(cleanupTaskId).catch((error) => {
+      logger.warn("deleteVehicleDocument.cleanup_threw", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+    });
+  }
 
   return { ok: true };
 }

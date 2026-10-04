@@ -24,11 +24,17 @@ vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unkn
 
 const isConfiguredMock = vi.fn(() => true);
 const uploadPrivateObjectMock = vi.fn();
-const removePrivateObjectMock = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/storage/storage", () => ({
   isDocumentStorageConfigured: () => isConfiguredMock(),
   uploadPrivateObject: (...a: unknown[]) => uploadPrivateObjectMock(...a),
-  removePrivateObject: (...a: unknown[]) => removePrivateObjectMock(...a),
+}));
+const registerIntentMock = vi.fn();
+const releaseIntentMock = vi.fn();
+const attemptCleanupMock = vi.fn();
+vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
+  registerUploadIntent: (...a: unknown[]) => registerIntentMock(...a),
+  releaseUploadIntent: (...a: unknown[]) => releaseIntentMock(...a),
+  attemptPrivateObjectCleanup: (...a: unknown[]) => attemptCleanupMock(...a),
 }));
 
 const validateMock = vi.fn();
@@ -57,6 +63,9 @@ function happy() {
   validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
   uploadPrivateObjectMock.mockResolvedValue(undefined);
   txDocCreateMock.mockResolvedValue({ id: "doc-1" });
+  registerIntentMock.mockResolvedValue("intent-task-1");
+  releaseIntentMock.mockResolvedValue(true);
+  attemptCleanupMock.mockResolvedValue("completed");
 }
 
 afterEach(() => {
@@ -148,20 +157,57 @@ describe("uploadVehicleDocument", () => {
     expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
   });
 
-  it("cleans up the orphaned object when the DB write fails", async () => {
+  it("INTENT-FIRST: the server-generated key is durably recorded BEFORE the object is written, and released in the row's transaction", async () => {
+    happy();
+    const result = await uploadVehicleDocument("asset-1", INPUT);
+    expect(result).toEqual({ ok: true, documentId: "doc-1" });
+    const intentKey = registerIntentMock.mock.calls[0]![0] as string;
+    const uploadedKey = (uploadPrivateObjectMock.mock.calls[0]![0] as { objectKey: string }).objectKey;
+    expect(intentKey).toBe(uploadedKey); // same server-generated key
+    expect(registerIntentMock.mock.invocationCallOrder[0]!).toBeLessThan(uploadPrivateObjectMock.mock.invocationCallOrder[0]!);
+    expect(releaseIntentMock.mock.calls[0]![1]).toBe(uploadedKey);
+    expect(attemptCleanupMock).not.toHaveBeenCalled(); // nothing to clean on success
+  });
+
+  it("fails CLOSED without uploading when the intent cannot be recorded", async () => {
+    happy();
+    registerIntentMock.mockRejectedValue(new Error("db down"));
+    const result = await uploadVehicleDocument("asset-1", INPUT);
+    expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+  });
+
+  it("storage write failure → resolves the intent (possibly-partial object) and returns UPLOAD_FAILED", async () => {
+    happy();
+    uploadPrivateObjectMock.mockRejectedValue(new Error("storage down"));
+    const result = await uploadVehicleDocument("asset-1", INPUT);
+    expect(result).toEqual({ ok: false, error: "UPLOAD_FAILED" });
+    expect(attemptCleanupMock).toHaveBeenCalledWith("intent-task-1");
+  });
+
+  it("DB write failure after a successful upload → the still-recorded intent is attempted (durable, retried by the worker)", async () => {
     happy();
     txDocCreateMock.mockRejectedValue(new Error("db down"));
     const result = await uploadVehicleDocument("asset-1", INPUT);
     expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
-    expect(removePrivateObjectMock).toHaveBeenCalledOnce();
+    expect(attemptCleanupMock).toHaveBeenCalledOnce();
+    expect(attemptCleanupMock).toHaveBeenCalledWith("intent-task-1");
   });
 
-  it("maps a lost (assetId,type) unique race (P2002) to ALREADY_EXISTS + cleanup", async () => {
+  it("an intent the worker already took cannot be released → the row is NOT persisted", async () => {
+    happy();
+    releaseIntentMock.mockResolvedValue(false);
+    const result = await uploadVehicleDocument("asset-1", INPUT);
+    expect(result).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(txDocCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a lost (assetId,type) unique race (P2002) to ALREADY_EXISTS + durable cleanup of the loser's object", async () => {
     happy();
     txDocCreateMock.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "5.22.0" }));
     const result = await uploadVehicleDocument("asset-1", INPUT);
     expect(result).toEqual({ ok: false, error: "ALREADY_EXISTS" });
-    expect(removePrivateObjectMock).toHaveBeenCalledOnce();
+    expect(attemptCleanupMock).toHaveBeenCalledWith("intent-task-1");
   });
 
   it("maps a not-approved provider to PROVIDER_NOT_APPROVED", async () => {

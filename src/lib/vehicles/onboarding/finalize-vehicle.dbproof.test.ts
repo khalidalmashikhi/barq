@@ -46,6 +46,10 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({ canViewRentalWorkspace: async () => true }));
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => auditMock(...a) }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+// Hermetic storage: the cancel-convergence tests exercise the durable cleanup path, which attempts a
+// real removePrivateObject after commit. Stub it so no network is touched; the real cleanup DOMAIN +
+// real Postgres still run (the table is exercised by the dedicated cleanup dbproof).
+vi.mock("@/lib/storage/storage", () => ({ removePrivateObject: async () => undefined, StorageNotConfiguredError: class extends Error {} }));
 
 const { finalizeVehicleFromRegistration } = await import("./finalize-vehicle");
 const { deleteDraftVehicle } = await import("./delete-draft-vehicle");
@@ -132,12 +136,15 @@ describe.skipIf(!RUN)("finalizeVehicleFromRegistration — real Postgres", () =>
     expect(loser.ok ? loser.alreadyCreated === true : loser.code === "CONFLICT").toBe(true);
   });
 
-  it("active DRAFT: two concurrent finalizes — version CAS lets exactly one win (stale version cannot overwrite)", async () => {
+  it("active DRAFT: two concurrent finalizes — exactly one authoritative DRAFT→SUBMITTED transition (the other replays or conflicts)", async () => {
     const veh = randomUUID();
     await seedShell(veh, { draftBoundSha: "sha-1" });
     const [a, b] = await Promise.all([finalizeVehicleFromRegistration(veh, fullWith("A 22222")), finalizeVehicleFromRegistration(veh, fullWith("A 22222"))]);
-    expect([a, b].filter((r) => r.ok).length).toBe(1);
-    expect([a, b].filter((r) => !r.ok && r.code === "CONFLICT").length).toBe(1);
+    // The asset row lock now serializes finalizes, so the second normally re-reads the SUBMITTED
+    // claim and replays idempotently; the version CAS remains as defense in depth (→ CONFLICT).
+    expect([a, b].filter((r) => r.ok && r.alreadyCreated === false).length).toBe(1);
+    const loser = [a, b].find((r) => !(r.ok && r.alreadyCreated === false))!;
+    expect(loser.ok ? loser.alreadyCreated === true : loser.code === "CONFLICT").toBe(true);
     expect(await submittedCount(veh)).toBe(1);
     expect(await vehicleMake(veh)).toBe("Toyota");
     expect(successAudits()).toBe(1);

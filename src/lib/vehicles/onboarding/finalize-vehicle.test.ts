@@ -29,6 +29,7 @@ const confCreate = vi.fn();
 const confUpdateMany = vi.fn();
 const vehicleUpdate = vi.fn();
 const txClient = {
+  $queryRaw: async () => [], // the asset row lock (SELECT … FOR UPDATE)
   asset: { findFirst: (...a: unknown[]) => assetFindFirst(...a) },
   vehicleRegistrationConfirmation: { create: (...a: unknown[]) => confCreate(...a), updateMany: (...a: unknown[]) => confUpdateMany(...a) },
   vehicle: { update: (...a: unknown[]) => vehicleUpdate(...a) },

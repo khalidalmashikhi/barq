@@ -6,7 +6,8 @@ import { requireApprovedProvider, UnauthenticatedError, ForbiddenError } from "@
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
-import { isDocumentStorageConfigured, uploadPrivateObject, removePrivateObject } from "@/lib/storage/storage";
+import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
+import { enqueuePrivateObjectCleanup, attemptPrivateObjectCleanup, registerUploadIntent, releaseUploadIntent } from "@/lib/storage/cleanup/private-object-cleanup";
 import { validateDocumentUpload } from "@/lib/provider/documents/document-constants";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
@@ -89,15 +90,27 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
 
   const newKey = buildAssetDocumentObjectKey({ assetId: doc.assetId, type: doc.type, ext: validation.ext, unique: randomUUID() });
 
+  // INTENT-FIRST (same contract as uploadVehicleDocument): record the NEW key durably before writing
+  // it, so a crash / failed swap / unavailable database can never strand the new private object.
+  let intentTaskId: string;
+  try {
+    intentTaskId = await registerUploadIntent(newKey);
+  } catch (error) {
+    logger.error("replaceVehicleDocument.intent_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+    return { ok: false, error: "UNKNOWN_ERROR" };
+  }
+
   try {
     await uploadPrivateObject({ objectKey: newKey, body: input.bytes, contentType: validation.mimeType });
   } catch (error) {
+    await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
     logger.error("replaceVehicleDocument.storage_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
     return { ok: false, error: "UPLOAD_FAILED" };
   }
 
+  let oldCleanupTaskId: string;
   try {
-    await prisma.$transaction(async (tx) => {
+    oldCleanupTaskId = await prisma.$transaction(async (tx) => {
       const updated = await tx.assetDocument.updateMany({
         where: { id: doc.id, objectKey: doc.objectKey }, // bound to the seen object (RC3)
         data: {
@@ -118,6 +131,8 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
         },
       });
       if (updated.count === 0) throw new StaleReplacement();
+      // The NEW object is now the active row → release its upload intent in this same transaction.
+      if (!(await releaseUploadIntent(tx, newKey))) throw new Error("upload intent no longer releasable");
       await recordAuditEvent(
         {
           actorType: "PROVIDER",
@@ -130,17 +145,23 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
         },
         tx,
       );
+      // Durably record the SUPERSEDED (old) object for cleanup — in the SAME tx as the swap, so a
+      // commit guarantees the eventual deletion. This targets only doc.objectKey; the NEW object
+      // (newKey, now the active row) can never be deleted by this task.
+      return enqueuePrivateObjectCleanup(tx, { objectKey: doc.objectKey, purpose: "VEHICLE_DOCUMENT_REPLACEMENT" });
     });
   } catch (error) {
-    await removePrivateObject(newKey).catch(() => {}); // no orphan on stale/failure
+    // The swap did NOT commit (rolled back) → the NEW object's intent is still durably recorded and
+    // the OLD object was never queued. Attempt the new object's deletion now; the worker retries.
+    await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
     if (error instanceof StaleReplacement) return { ok: false, error: "DOCUMENT_NOT_FOUND" };
     logger.error("replaceVehicleDocument.db_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 
-  // Committed — best-effort remove the OLD object (its failure never undoes the swap).
-  await removePrivateObject(doc.objectKey).catch((error) => {
-    logger.error("replaceVehicleDocument.old_cleanup_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+  // Committed — attempt immediate removal of the OLD object; a failure stays durable for the cron.
+  await attemptPrivateObjectCleanup(oldCleanupTaskId).catch((error) => {
+    logger.warn("replaceVehicleDocument.old_cleanup_threw", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
   });
 
   return { ok: true };
