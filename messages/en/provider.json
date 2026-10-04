@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "Add a vehicle from its registration",
   "vehicleOnboardUploadSubtitle": "Adding a vehicle starts with its registration document. Upload it and we'll read what we can for you to review — nothing is final until you confirm.",
   "vehicleOnboardFileLabel": "Registration document",
-  "vehicleOnboardFileHint": "Supported: PDF, JPG/JPEG or PNG, up to 4 MB. A clear PDF is read automatically; a photo or scan is saved and you enter the details yourself.",
+  "vehicleOnboardFileHint": "Supported: PDF, JPG/JPEG or PNG. Photos are resized automatically before upload; a PDF can be up to 4 MB. A clear PDF is read automatically; a photo or scan is saved and you enter the details yourself.",
   "vehicleOnboardUploadButton": "Upload and continue",
   "vehicleOnboardUploadFailed": "The document couldn't be uploaded. Please try again.",
   "vehicleOnboardUploadEmptyFile": "Please choose a registration document to upload.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "Keep editing",
   "vehicleOnboardPrivacyNote": "Your registration document is private. Only you and the BARQ verification team can see it — it is never shown to customers.",
   "vehicleOnboardTakePhoto": "Take a photo",
-  "vehicleOnboardChooseFile": "Choose a file",
+  "vehicleOnboardChooseFile": "Choose a photo or file",
   "vehicleOnboardSelectedFileLabel": "Selected file",
   "vehicleOnboardNoFileSelected": "No document selected yet.",
   "vehicleOnboardUploading": "Uploading…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "This vehicle's setup isn't finished. Review and confirm its registration details first.",
   "vehicleErrorRegistrationDocumentRequired": "A vehicle is added by uploading its registration document first.",
   "vehicleOnboardRegisteredSeatsHint": "The total number of seats stated on the registration document.",
-  "vehicleOnboardBookableHint": "The most customer passengers you will carry. It can be lower than the registered seats — for example 15 registered seats and 13 bookable passengers."
+  "vehicleOnboardBookableHint": "The most customer passengers you will carry. It can be lower than the registered seats — for example 15 registered seats and 13 bookable passengers.",
+  "vehicleOnboardProcessingImage": "Preparing the photo…",
+  "vehicleOnboardErrNetwork": "The connection was interrupted. Check your internet and try again — your document won't be added twice.",
+  "vehicleOnboardResumedNotice": "This document was already uploaded. You're continuing the same vehicle setup.",
+  "vehicleDocErrorHeicUnsupported": "This photo is in Apple's HEIC format, which can't be read here. Take the photo using “Take a photo”, or choose a JPG, PNG or PDF instead.",
+  "vehicleDocErrorImageTooLarge": "This image is too large to process. Take a new photo of the document or choose a smaller JPG or PNG.",
+  "vehicleDocErrorImageCorrupt": "This image couldn't be opened — the file may be damaged. Take a new photo or choose another file.",
+  "vehicleDocErrorPdfEncrypted": "This PDF is password-protected. Upload a copy without a password, or a photo of the document.",
+  "vehicleDocErrorPdfCorrupt": "This PDF couldn't be opened — the file may be damaged. Export it again or upload a photo of the document.",
+  "vehicleDocErrorPdfTooManyPages": "This PDF has too many pages. Upload only the registration document (up to 8 pages)."
 }

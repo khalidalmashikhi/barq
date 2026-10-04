@@ -33,8 +33,10 @@ vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
   registerUploadIntent: (...a: unknown[]) => registerIntentMock(...a),
   releaseUploadIntent: (...a: unknown[]) => releaseIntentMock(...a),
 }));
-const validateMock = vi.fn();
-vi.mock("@/lib/provider/documents/document-constants", () => ({ validateDocumentUpload: (a: unknown) => validateMock(a) }));
+// The single preparation authority (validation + normalization) is covered by prepare-document.test.ts
+// with the REAL decoder; here it is a seam.
+const prepareMock = vi.fn();
+vi.mock("./prepare-document", () => ({ prepareDocumentForStorage: (a: unknown) => prepareMock(a) }));
 
 const docFindFirstMock = vi.fn();
 const txUpdateManyMock = vi.fn();
@@ -54,7 +56,7 @@ const ownedDoc = (over: Record<string, unknown> = {}) => ({ id: "doc-1", type: "
 function happy() {
   requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
   docFindFirstMock.mockResolvedValue(ownedDoc());
-  validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
+  prepareMock.mockResolvedValue({ ok: true, bytes: new ArrayBuffer(1024), mimeType: "application/pdf", ext: "pdf", normalized: false });
   uploadPrivateObjectMock.mockResolvedValue(undefined);
   txUpdateManyMock.mockResolvedValue({ count: 1 });
   enqueueCleanupMock.mockResolvedValue("cleanup-task-old");
@@ -65,7 +67,7 @@ function happy() {
 
 afterEach(() => {
   vi.clearAllMocks();
-  validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
+  prepareMock.mockResolvedValue({ ok: true, bytes: new ArrayBuffer(1024), mimeType: "application/pdf", ext: "pdf", normalized: false });
 });
 
 describe("replaceVehicleDocument", () => {
@@ -105,7 +107,7 @@ describe("replaceVehicleDocument", () => {
 
   it("PATH-BINDING: a provider's own vehicle-B document via vehicle-A URL is uniform DOCUMENT_NOT_FOUND", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
-    validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
+    prepareMock.mockResolvedValue({ ok: true, bytes: new ArrayBuffer(1024), mimeType: "application/pdf", ext: "pdf", normalized: false });
     // The DB only returns the row when where.assetId matches the doc's real assetId (asset-1).
     docFindFirstMock.mockImplementation((args: { where?: { assetId?: string } }) => Promise.resolve(args?.where?.assetId === "asset-1" ? ownedDoc() : null));
     // Caller owns both vehicles but names the WRONG one (asset-2) in the URL for a doc on asset-1.

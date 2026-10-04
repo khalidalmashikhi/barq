@@ -103,10 +103,18 @@ describe("OnboardingReviewPage", () => {
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
     const upload = findAll(el, (e) => e.type === RegistrationUploadForm);
     expect(upload).toHaveLength(1);
-    expect(upload[0]!.props).toMatchObject({ action: `/api/provider/vehicles/${VEH}/documents`, hiddenFields: { type: "VEHICLE_REGISTRATION" } });
+    expect(upload[0]!.props).toMatchObject({ action: `/api/provider/vehicles/${VEH}/documents`, hiddenFields: { type: "VEHICLE_REGISTRATION" }, successHref: `/provider/vehicles/new/${VEH}` });
+    // Attaching to an EXISTING setup creates nothing new, so it carries no onboarding request key.
+    expect(upload[0]!.props.requestKey).toBeUndefined();
     const text = strings(el);
     expect(text).toContain("vehicleOnboardMissingDocument");
     expect(text).toContain("vehicleDocErrorTooLarge");
+  });
+
+  it("a replayed upload (?resumed=1) is told it is continuing the SAME setup; a normal visit is not", async () => {
+    expect(strings(await OnboardingReviewPage(call({ resumed: "1" })))).toContain("vehicleOnboardResumedNotice");
+    expect(strings(await OnboardingReviewPage(call()))).not.toContain("vehicleOnboardResumedNotice");
+    expect(strings(await OnboardingReviewPage(call({ resumed: "yes" })))).not.toContain("vehicleOnboardResumedNotice");
   });
 
   it("an already-confirmed vehicle leaves the wizard for its detail page", async () => {

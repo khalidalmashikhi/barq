@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "Fahrzeug aus dem Fahrzeugschein hinzufügen",
   "vehicleOnboardUploadSubtitle": "Das Hinzufügen eines Fahrzeugs beginnt mit dem Fahrzeugschein. Laden Sie ihn hoch, wir lesen die verfügbaren Angaben zur Prüfung aus — nichts ist endgültig, bis Sie bestätigen.",
   "vehicleOnboardFileLabel": "Fahrzeugschein",
-  "vehicleOnboardFileHint": "Unterstützt: PDF, JPG/JPEG oder PNG, bis 4 MB. Ein klares PDF wird automatisch gelesen; ein Foto oder Scan wird gespeichert und Sie geben die Angaben selbst ein.",
+  "vehicleOnboardFileHint": "Unterstützt: PDF, JPG/JPEG oder PNG. Fotos werden vor dem Hochladen automatisch verkleinert; ein PDF darf bis zu 4 MB groß sein. Ein klares PDF wird automatisch gelesen; ein Foto oder Scan wird gespeichert und Sie geben die Angaben selbst ein.",
   "vehicleOnboardUploadButton": "Hochladen und fortfahren",
   "vehicleOnboardUploadFailed": "Das Dokument konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
   "vehicleOnboardUploadEmptyFile": "Bitte wählen Sie einen Fahrzeugschein zum Hochladen aus.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "Weiter bearbeiten",
   "vehicleOnboardPrivacyNote": "Ihr Fahrzeugschein ist privat. Nur Sie und das BARQ-Verifizierungsteam können ihn sehen — er wird Kunden niemals angezeigt.",
   "vehicleOnboardTakePhoto": "Foto aufnehmen",
-  "vehicleOnboardChooseFile": "Datei auswählen",
+  "vehicleOnboardChooseFile": "Foto oder Datei auswählen",
   "vehicleOnboardSelectedFileLabel": "Ausgewählte Datei",
   "vehicleOnboardNoFileSelected": "Noch kein Dokument ausgewählt.",
   "vehicleOnboardUploading": "Wird hochgeladen…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "Die Einrichtung dieses Fahrzeugs ist nicht abgeschlossen. Prüfen und bestätigen Sie zuerst die Angaben aus dem Fahrzeugschein.",
   "vehicleErrorRegistrationDocumentRequired": "Ein Fahrzeug wird hinzugefügt, indem zuerst der Fahrzeugschein hochgeladen wird.",
   "vehicleOnboardRegisteredSeatsHint": "Die im Fahrzeugschein angegebene Gesamtzahl der Sitzplätze.",
-  "vehicleOnboardBookableHint": "Die höchste Zahl an Kundenpassagieren, die Sie befördern. Sie kann niedriger sein als die eingetragenen Sitzplätze — zum Beispiel 15 eingetragene Sitze und 13 buchbare Passagiere."
+  "vehicleOnboardBookableHint": "Die höchste Zahl an Kundenpassagieren, die Sie befördern. Sie kann niedriger sein als die eingetragenen Sitzplätze — zum Beispiel 15 eingetragene Sitze und 13 buchbare Passagiere.",
+  "vehicleOnboardProcessingImage": "Foto wird vorbereitet…",
+  "vehicleOnboardErrNetwork": "Die Verbindung wurde unterbrochen. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut — Ihr Dokument wird nicht doppelt hinzugefügt.",
+  "vehicleOnboardResumedNotice": "Dieses Dokument wurde bereits hochgeladen. Sie setzen dieselbe Fahrzeugeinrichtung fort.",
+  "vehicleDocErrorHeicUnsupported": "Dieses Foto liegt im HEIC-Format von Apple vor, das hier nicht gelesen werden kann. Nehmen Sie das Foto über „Foto aufnehmen“ auf oder wählen Sie stattdessen JPG, PNG oder PDF.",
+  "vehicleDocErrorImageTooLarge": "Dieses Bild ist zu groß für die Verarbeitung. Nehmen Sie ein neues Foto des Dokuments auf oder wählen Sie ein kleineres JPG oder PNG.",
+  "vehicleDocErrorImageCorrupt": "Dieses Bild konnte nicht geöffnet werden — die Datei ist möglicherweise beschädigt. Nehmen Sie ein neues Foto auf oder wählen Sie eine andere Datei.",
+  "vehicleDocErrorPdfEncrypted": "Dieses PDF ist passwortgeschützt. Laden Sie eine Kopie ohne Passwort oder ein Foto des Dokuments hoch.",
+  "vehicleDocErrorPdfCorrupt": "Dieses PDF konnte nicht geöffnet werden — die Datei ist möglicherweise beschädigt. Exportieren Sie es erneut oder laden Sie ein Foto des Dokuments hoch.",
+  "vehicleDocErrorPdfTooManyPages": "Dieses PDF hat zu viele Seiten. Laden Sie nur den Fahrzeugschein hoch (bis zu 8 Seiten)."
 }

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { buildSyntheticPdf } from "@/lib/vehicles/documents/synthetic-test-documents";
 
 // Phase 3C Slice 3B (durable-cleanup correction) — REAL-Postgres proof of the private-object cleanup
 // outbox, with FAKE storage responses (no network, no real document). Gated behind
@@ -66,8 +67,9 @@ const fullWith = (plate: string): Record<string, unknown> => ({
   bookablePassengerCapacity: "13", licensedPassengerCapacity: "13", registeredSeats: "15",
   plateNumber: plate, vin: "JTEBU29J8K5012345", licenseExpiry: "31/05/2027", vehicleType: "SUV", declarationAccepted: "true",
 });
-// Synthetic PDF bytes (valid %PDF- signature, fictional content) — never a real document.
-const SYNTHETIC_PDF = new TextEncoder().encode("%PDF-1.4\n% synthetic fixture\n%%EOF\n").buffer as ArrayBuffer;
+// A real, parseable synthetic PDF (fictional content) — never a real document. It must be
+// structurally valid: a replaced registration document now passes the bounded-parser check.
+const SYNTHETIC_PDF = buildSyntheticPdf([["TEST DOCUMENT - synthetic fixture"]]);
 
 let admin: PrismaClient, db: PrismaClient;
 

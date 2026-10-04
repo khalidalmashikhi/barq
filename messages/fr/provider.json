@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "Ajouter un véhicule à partir de sa carte grise",
   "vehicleOnboardUploadSubtitle": "L'ajout d'un véhicule commence par sa carte grise. Téléversez-la et nous lirons les informations disponibles pour que vous les vérifiiez — rien n'est définitif tant que vous n'avez pas confirmé.",
   "vehicleOnboardFileLabel": "Carte grise",
-  "vehicleOnboardFileHint": "Formats acceptés : PDF, JPG/JPEG ou PNG, jusqu'à 4 Mo. Un PDF net est lu automatiquement ; une photo ou un scan est enregistré et vous saisissez les informations vous-même.",
+  "vehicleOnboardFileHint": "Formats acceptés : PDF, JPG/JPEG ou PNG. Les photos sont redimensionnées automatiquement avant l'envoi ; un PDF peut faire jusqu'à 4 Mo. Un PDF net est lu automatiquement ; une photo ou un scan est enregistré et vous saisissez les informations vous-même.",
   "vehicleOnboardUploadButton": "Téléverser et continuer",
   "vehicleOnboardUploadFailed": "Le document n'a pas pu être téléversé. Veuillez réessayer.",
   "vehicleOnboardUploadEmptyFile": "Veuillez choisir une carte grise à téléverser.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "Continuer la modification",
   "vehicleOnboardPrivacyNote": "Votre carte grise est privée. Seuls vous et l'équipe de vérification de BARQ pouvez la voir — elle n'est jamais montrée aux clients.",
   "vehicleOnboardTakePhoto": "Prendre une photo",
-  "vehicleOnboardChooseFile": "Choisir un fichier",
+  "vehicleOnboardChooseFile": "Choisir une photo ou un fichier",
   "vehicleOnboardSelectedFileLabel": "Fichier sélectionné",
   "vehicleOnboardNoFileSelected": "Aucun document sélectionné pour l'instant.",
   "vehicleOnboardUploading": "Téléversement…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "La configuration de ce véhicule n'est pas terminée. Vérifiez et confirmez d'abord les informations de la carte grise.",
   "vehicleErrorRegistrationDocumentRequired": "Un véhicule s'ajoute en téléversant d'abord sa carte grise.",
   "vehicleOnboardRegisteredSeatsHint": "Le nombre total de places indiqué sur la carte grise.",
-  "vehicleOnboardBookableHint": "Le nombre maximal de passagers clients que vous transporterez. Il peut être inférieur aux places enregistrées — par exemple 15 places enregistrées et 13 passagers réservables."
+  "vehicleOnboardBookableHint": "Le nombre maximal de passagers clients que vous transporterez. Il peut être inférieur aux places enregistrées — par exemple 15 places enregistrées et 13 passagers réservables.",
+  "vehicleOnboardProcessingImage": "Préparation de la photo…",
+  "vehicleOnboardErrNetwork": "La connexion a été interrompue. Vérifiez votre connexion et réessayez — votre document ne sera pas ajouté deux fois.",
+  "vehicleOnboardResumedNotice": "Ce document a déjà été téléversé. Vous poursuivez la même configuration de véhicule.",
+  "vehicleDocErrorHeicUnsupported": "Cette photo est au format HEIC d'Apple, qui ne peut pas être lu ici. Prenez la photo avec « Prendre une photo », ou choisissez un fichier JPG, PNG ou PDF.",
+  "vehicleDocErrorImageTooLarge": "Cette image est trop grande pour être traitée. Prenez une nouvelle photo du document ou choisissez un JPG ou PNG plus petit.",
+  "vehicleDocErrorImageCorrupt": "Impossible d'ouvrir cette image — le fichier est peut-être endommagé. Prenez une nouvelle photo ou choisissez un autre fichier.",
+  "vehicleDocErrorPdfEncrypted": "Ce PDF est protégé par un mot de passe. Téléversez une copie sans mot de passe, ou une photo du document.",
+  "vehicleDocErrorPdfCorrupt": "Impossible d'ouvrir ce PDF — le fichier est peut-être endommagé. Exportez-le à nouveau ou téléversez une photo du document.",
+  "vehicleDocErrorPdfTooManyPages": "Ce PDF comporte trop de pages. Téléversez uniquement la carte grise (8 pages maximum)."
 }

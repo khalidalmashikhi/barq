@@ -8,7 +8,8 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
 import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
 import { enqueuePrivateObjectCleanup, attemptPrivateObjectCleanup, registerUploadIntent, releaseUploadIntent } from "@/lib/storage/cleanup/private-object-cleanup";
-import { validateDocumentUpload } from "@/lib/provider/documents/document-constants";
+import { prepareDocumentForStorage } from "./prepare-document";
+import { safeErrorCategory } from "./safe-error-category";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
 import { isRequiredDocumentRemediable } from "./document-remediation";
@@ -84,11 +85,16 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
   const claim = parseClaimedExpiryDate(doc.type, input.claimedExpiryDate);
   if (!claim.ok) return { ok: false, error: "INVALID_INPUT" };
 
-  const validation = validateDocumentUpload({ declaredMimeType: input.declaredMimeType, sizeBytes: input.bytes.byteLength, head: new Uint8Array(input.bytes) });
-  if (!validation.ok) return { ok: false, error: validation.error as AssetDocumentErrorCode };
+  // Same single preparation authority as upload (see prepare-document.ts).
+  const prepared = await prepareDocumentForStorage({
+    declaredMimeType: input.declaredMimeType,
+    bytes: input.bytes,
+    pdfPolicy: doc.type === "VEHICLE_REGISTRATION" ? "REGISTRATION" : "NONE",
+  });
+  if (!prepared.ok) return { ok: false, error: prepared.error };
   if (!isDocumentStorageConfigured()) return { ok: false, error: "STORAGE_NOT_CONFIGURED" };
 
-  const newKey = buildAssetDocumentObjectKey({ assetId: doc.assetId, type: doc.type, ext: validation.ext, unique: randomUUID() });
+  const newKey = buildAssetDocumentObjectKey({ assetId: doc.assetId, type: doc.type, ext: prepared.ext, unique: randomUUID() });
 
   // INTENT-FIRST (same contract as uploadVehicleDocument): record the NEW key durably before writing
   // it, so a crash / failed swap / unavailable database can never strand the new private object.
@@ -96,15 +102,15 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
   try {
     intentTaskId = await registerUploadIntent(newKey);
   } catch (error) {
-    logger.error("replaceVehicleDocument.intent_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+    logger.error("replaceVehicleDocument.intent_failed", { documentId: doc.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 
   try {
-    await uploadPrivateObject({ objectKey: newKey, body: input.bytes, contentType: validation.mimeType });
+    await uploadPrivateObject({ objectKey: newKey, body: prepared.bytes, contentType: prepared.mimeType });
   } catch (error) {
     await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
-    logger.error("replaceVehicleDocument.storage_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+    logger.error("replaceVehicleDocument.storage_failed", { documentId: doc.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UPLOAD_FAILED" };
   }
 
@@ -120,8 +126,8 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
           reviewedAt: null,
           reviewedByAdminId: null,
           originalFilename: sanitizeOriginalFilename(input.originalFilename),
-          mimeType: validation.mimeType,
-          sizeBytes: input.bytes.byteLength,
+          mimeType: prepared.mimeType,
+          sizeBytes: prepared.bytes.byteLength,
           // VEHICLE-LC6 stale-trust safety: a replacement carries only the NEW advisory
           // claim, and the OLD trusted expiry is CLEARED — the replacement has no
           // authoritative expiry until an admin re-confirms it at approval. (Selectability
@@ -155,13 +161,13 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
     // the OLD object was never queued. Attempt the new object's deletion now; the worker retries.
     await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
     if (error instanceof StaleReplacement) return { ok: false, error: "DOCUMENT_NOT_FOUND" };
-    logger.error("replaceVehicleDocument.db_failed", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+    logger.error("replaceVehicleDocument.db_failed", { documentId: doc.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 
   // Committed — attempt immediate removal of the OLD object; a failure stays durable for the cron.
   await attemptPrivateObjectCleanup(oldCleanupTaskId).catch((error) => {
-    logger.warn("replaceVehicleDocument.old_cleanup_threw", { documentId: doc.id, message: error instanceof Error ? error.message : String(error) });
+    logger.warn("replaceVehicleDocument.old_cleanup_threw", { documentId: doc.id, error: safeErrorCategory(error) });
   });
 
   return { ok: true };

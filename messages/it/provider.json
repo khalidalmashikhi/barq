@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "Aggiungi un veicolo dal libretto di circolazione",
   "vehicleOnboardUploadSubtitle": "L'aggiunta di un veicolo inizia dal libretto di circolazione. Caricalo e leggeremo i dati disponibili per la tua revisione — nulla è definitivo finché non confermi.",
   "vehicleOnboardFileLabel": "Libretto di circolazione",
-  "vehicleOnboardFileHint": "Formati supportati: PDF, JPG/JPEG o PNG, fino a 4 MB. Un PDF nitido viene letto automaticamente; una foto o una scansione viene salvata e inserisci tu i dati.",
+  "vehicleOnboardFileHint": "Formati supportati: PDF, JPG/JPEG o PNG. Le foto vengono ridimensionate automaticamente prima del caricamento; un PDF può arrivare a 4 MB. Un PDF nitido viene letto automaticamente; una foto o una scansione viene salvata e inserisci tu i dati.",
   "vehicleOnboardUploadButton": "Carica e continua",
   "vehicleOnboardUploadFailed": "Impossibile caricare il documento. Riprova.",
   "vehicleOnboardUploadEmptyFile": "Scegli un libretto di circolazione da caricare.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "Continua a modificare",
   "vehicleOnboardPrivacyNote": "Il libretto di circolazione è privato. Possono vederlo solo tu e il team di verifica di BARQ — non viene mai mostrato ai clienti.",
   "vehicleOnboardTakePhoto": "Scatta una foto",
-  "vehicleOnboardChooseFile": "Scegli un file",
+  "vehicleOnboardChooseFile": "Scegli una foto o un file",
   "vehicleOnboardSelectedFileLabel": "File selezionato",
   "vehicleOnboardNoFileSelected": "Nessun documento selezionato.",
   "vehicleOnboardUploading": "Caricamento…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "La configurazione di questo veicolo non è terminata. Controlla e conferma prima i dati del libretto.",
   "vehicleErrorRegistrationDocumentRequired": "Un veicolo si aggiunge caricando prima il libretto di circolazione.",
   "vehicleOnboardRegisteredSeatsHint": "Il numero totale di posti indicato sul libretto di circolazione.",
-  "vehicleOnboardBookableHint": "Il numero massimo di passeggeri clienti che trasporterai. Può essere inferiore ai posti registrati — ad esempio 15 posti registrati e 13 passeggeri prenotabili."
+  "vehicleOnboardBookableHint": "Il numero massimo di passeggeri clienti che trasporterai. Può essere inferiore ai posti registrati — ad esempio 15 posti registrati e 13 passeggeri prenotabili.",
+  "vehicleOnboardProcessingImage": "Preparazione della foto…",
+  "vehicleOnboardErrNetwork": "La connessione si è interrotta. Controlla la rete e riprova — il documento non verrà aggiunto due volte.",
+  "vehicleOnboardResumedNotice": "Questo documento è già stato caricato. Stai continuando la stessa configurazione del veicolo.",
+  "vehicleDocErrorHeicUnsupported": "Questa foto è nel formato HEIC di Apple, che qui non può essere letto. Scatta la foto con «Scatta una foto» oppure scegli un JPG, PNG o PDF.",
+  "vehicleDocErrorImageTooLarge": "Questa immagine è troppo grande per essere elaborata. Scatta una nuova foto del documento o scegli un JPG o PNG più piccolo.",
+  "vehicleDocErrorImageCorrupt": "Impossibile aprire questa immagine — il file potrebbe essere danneggiato. Scatta una nuova foto o scegli un altro file.",
+  "vehicleDocErrorPdfEncrypted": "Questo PDF è protetto da password. Carica una copia senza password o una foto del documento.",
+  "vehicleDocErrorPdfCorrupt": "Impossibile aprire questo PDF — il file potrebbe essere danneggiato. Esportalo di nuovo o carica una foto del documento.",
+  "vehicleDocErrorPdfTooManyPages": "Questo PDF ha troppe pagine. Carica solo il libretto di circolazione (fino a 8 pagine)."
 }

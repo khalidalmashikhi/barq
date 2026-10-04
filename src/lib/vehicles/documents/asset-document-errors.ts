@@ -23,6 +23,21 @@ export const ASSET_DOCUMENT_ERROR_CODES = [
   "TOO_LARGE",
   "UNSUPPORTED_TYPE",
   "SIGNATURE_MISMATCH",
+  // Phase 3C Slice 3B — document preparation outcomes (prepare-document.ts). All are the
+  // uploader's file, never an internal fault; each has its own localized, actionable message.
+  // An Apple HEIC/HEIF photo: the server image stack cannot decode it (detected by signature).
+  "HEIC_UNSUPPORTED",
+  // The image's pixel dimensions exceed the decode limit (decompression-bomb guard), or it cannot
+  // be brought under the normalized storage target.
+  "IMAGE_TOO_LARGE",
+  // The bytes carry a valid image signature but cannot be decoded (corrupt / truncated).
+  "IMAGE_CORRUPT",
+  // A password-protected / encrypted PDF (nobody could later review it).
+  "PDF_ENCRYPTED",
+  // A PDF that cannot be parsed, or one with a suspicious trailing payload.
+  "PDF_CORRUPT",
+  // A registration PDF with more pages than the registration page limit.
+  "PDF_TOO_MANY_PAGES",
   // Submission readiness failed (required docs missing/rejected).
   "NOT_READY",
   // Verification is not in a submittable state (e.g. already SUBMITTED/APPROVED).
@@ -51,6 +66,12 @@ const ASSET_DOCUMENT_ERROR_TRANSLATION_KEYS = {
   TOO_LARGE: "vehicleDocErrorTooLarge",
   UNSUPPORTED_TYPE: "vehicleDocErrorUnsupportedType",
   SIGNATURE_MISMATCH: "vehicleDocErrorSignatureMismatch",
+  HEIC_UNSUPPORTED: "vehicleDocErrorHeicUnsupported",
+  IMAGE_TOO_LARGE: "vehicleDocErrorImageTooLarge",
+  IMAGE_CORRUPT: "vehicleDocErrorImageCorrupt",
+  PDF_ENCRYPTED: "vehicleDocErrorPdfEncrypted",
+  PDF_CORRUPT: "vehicleDocErrorPdfCorrupt",
+  PDF_TOO_MANY_PAGES: "vehicleDocErrorPdfTooManyPages",
   NOT_READY: "vehicleVerifyErrorNotReady",
   INVALID_STATE: "vehicleVerifyErrorInvalidState",
   UNKNOWN_ERROR: "vehicleErrorUnknown",

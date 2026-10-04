@@ -37,8 +37,10 @@ vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
   attemptPrivateObjectCleanup: (...a: unknown[]) => attemptCleanupMock(...a),
 }));
 
-const validateMock = vi.fn();
-vi.mock("@/lib/provider/documents/document-constants", () => ({ validateDocumentUpload: (a: unknown) => validateMock(a) }));
+// The single preparation authority (validation + normalization) is covered by prepare-document.test.ts
+// with the REAL decoder; here it is a seam.
+const prepareMock = vi.fn();
+vi.mock("./prepare-document", () => ({ prepareDocumentForStorage: (a: unknown) => prepareMock(a) }));
 
 const assetFindFirstMock = vi.fn();
 const docFindUniqueMock = vi.fn();
@@ -60,7 +62,7 @@ function happy() {
   assetFindFirstMock.mockResolvedValue({ id: "asset-1", verificationStatus: "DRAFT" });
   docFindUniqueMock.mockResolvedValue(null);
   isConfiguredMock.mockReturnValue(true);
-  validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
+  prepareMock.mockResolvedValue({ ok: true, bytes: new ArrayBuffer(1024), mimeType: "application/pdf", ext: "pdf", normalized: false });
   uploadPrivateObjectMock.mockResolvedValue(undefined);
   txDocCreateMock.mockResolvedValue({ id: "doc-1" });
   registerIntentMock.mockResolvedValue("intent-task-1");
@@ -71,7 +73,7 @@ function happy() {
 afterEach(() => {
   vi.clearAllMocks();
   isConfiguredMock.mockReturnValue(true);
-  validateMock.mockReturnValue({ ok: true, format: "pdf", ext: "pdf", mimeType: "application/pdf" });
+  prepareMock.mockResolvedValue({ ok: true, bytes: new ArrayBuffer(1024), mimeType: "application/pdf", ext: "pdf", normalized: false });
 });
 
 describe("uploadVehicleDocument", () => {
@@ -135,11 +137,44 @@ describe("uploadVehicleDocument", () => {
 
   it("propagates a file-validation failure without touching storage", async () => {
     happy();
-    validateMock.mockReturnValue({ ok: false, error: "TOO_LARGE" });
+    prepareMock.mockResolvedValue({ ok: false, error: "TOO_LARGE" });
     const result = await uploadVehicleDocument("asset-1", INPUT);
     expect(result).toEqual({ ok: false, error: "TOO_LARGE" });
     expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
   });
+
+  it("stores the PREPARED (normalized) bytes, type and extension — never the request's own", async () => {
+    happy();
+    const normalized = new ArrayBuffer(777);
+    prepareMock.mockResolvedValue({ ok: true, bytes: normalized, mimeType: "image/jpeg", ext: "jpg", normalized: true });
+    const result = await uploadVehicleDocument("asset-1", { ...INPUT, originalFilename: "card.png", declaredMimeType: "image/png" });
+    expect(result).toEqual({ ok: true, documentId: "doc-1" });
+    const stored = uploadPrivateObjectMock.mock.calls[0]![0] as { objectKey: string; body: ArrayBuffer; contentType: string };
+    expect(stored.body).toBe(normalized);
+    expect(stored.contentType).toBe("image/jpeg");
+    expect(stored.objectKey.endsWith(".jpg")).toBe(true);
+    expect(txDocCreateMock.mock.calls[0]![0].data).toMatchObject({ mimeType: "image/jpeg", sizeBytes: 777 });
+  });
+
+  it("a registration document gets the structural PDF check; other types do not", async () => {
+    happy();
+    await uploadVehicleDocument("asset-1", INPUT);
+    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ pdfPolicy: "REGISTRATION" });
+    prepareMock.mockClear();
+    await uploadVehicleDocument("asset-1", { ...INPUT, type: "VEHICLE_INSURANCE" });
+    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ pdfPolicy: "NONE" });
+  });
+
+  it.each(["HEIC_UNSUPPORTED", "IMAGE_TOO_LARGE", "IMAGE_CORRUPT", "PDF_ENCRYPTED", "PDF_CORRUPT", "PDF_TOO_MANY_PAGES", "SIGNATURE_MISMATCH", "UNSUPPORTED_TYPE"])(
+    "propagates %s from preparation and stores nothing",
+    async (code) => {
+      happy();
+      prepareMock.mockResolvedValue({ ok: false, error: code });
+      expect(await uploadVehicleDocument("asset-1", INPUT)).toEqual({ ok: false, error: code });
+      expect(registerIntentMock).not.toHaveBeenCalled();
+      expect(uploadPrivateObjectMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns STORAGE_NOT_CONFIGURED when the private bucket is absent", async () => {
     happy();

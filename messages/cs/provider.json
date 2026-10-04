@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "Přidat vozidlo z technického průkazu",
   "vehicleOnboardUploadSubtitle": "Přidání vozidla začíná technickým průkazem. Nahrajte jej a dostupné údaje načteme k vaší kontrole — nic není konečné, dokud nepotvrdíte.",
   "vehicleOnboardFileLabel": "Technický průkaz",
-  "vehicleOnboardFileHint": "Podporováno: PDF, JPG/JPEG nebo PNG, do 4 MB. Čitelné PDF se načte automaticky; fotografie nebo sken se uloží a údaje zadáte sami.",
+  "vehicleOnboardFileHint": "Podporováno: PDF, JPG/JPEG nebo PNG. Fotografie se před nahráním automaticky zmenší; PDF může mít až 4 MB. Čitelné PDF se načte automaticky; fotografie nebo sken se uloží a údaje zadáte sami.",
   "vehicleOnboardUploadButton": "Nahrát a pokračovat",
   "vehicleOnboardUploadFailed": "Dokument se nepodařilo nahrát. Zkuste to prosím znovu.",
   "vehicleOnboardUploadEmptyFile": "Vyberte prosím technický průkaz k nahrání.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "Pokračovat v úpravách",
   "vehicleOnboardPrivacyNote": "Váš technický průkaz je soukromý. Vidíte jej pouze vy a ověřovací tým BARQ — zákazníkům se nikdy nezobrazuje.",
   "vehicleOnboardTakePhoto": "Vyfotit",
-  "vehicleOnboardChooseFile": "Vybrat soubor",
+  "vehicleOnboardChooseFile": "Vybrat fotografii nebo soubor",
   "vehicleOnboardSelectedFileLabel": "Vybraný soubor",
   "vehicleOnboardNoFileSelected": "Zatím nebyl vybrán žádný dokument.",
   "vehicleOnboardUploading": "Nahrávání…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "Nastavení tohoto vozidla není dokončeno. Nejprve zkontrolujte a potvrďte údaje z technického průkazu.",
   "vehicleErrorRegistrationDocumentRequired": "Vozidlo se přidává tak, že nejprve nahrajete jeho technický průkaz.",
   "vehicleOnboardRegisteredSeatsHint": "Celkový počet míst uvedený v technickém průkazu.",
-  "vehicleOnboardBookableHint": "Nejvyšší počet cestujících zákazníků, které povezete. Může být nižší než počet registrovaných míst — například 15 registrovaných míst a 13 rezervovatelných cestujících."
+  "vehicleOnboardBookableHint": "Nejvyšší počet cestujících zákazníků, které povezete. Může být nižší než počet registrovaných míst — například 15 registrovaných míst a 13 rezervovatelných cestujících.",
+  "vehicleOnboardProcessingImage": "Příprava fotografie…",
+  "vehicleOnboardErrNetwork": "Připojení bylo přerušeno. Zkontrolujte internet a zkuste to znovu — dokument se nepřidá dvakrát.",
+  "vehicleOnboardResumedNotice": "Tento dokument už byl nahrán. Pokračujete ve stejném nastavení vozidla.",
+  "vehicleDocErrorHeicUnsupported": "Tato fotografie je ve formátu HEIC od Applu, který zde nelze načíst. Pořiďte fotografii tlačítkem „Vyfotit“, nebo vyberte soubor JPG, PNG či PDF.",
+  "vehicleDocErrorImageTooLarge": "Tento obrázek je příliš velký na zpracování. Pořiďte novou fotografii dokumentu nebo vyberte menší JPG či PNG.",
+  "vehicleDocErrorImageCorrupt": "Tento obrázek se nepodařilo otevřít — soubor může být poškozený. Pořiďte novou fotografii nebo vyberte jiný soubor.",
+  "vehicleDocErrorPdfEncrypted": "Toto PDF je chráněno heslem. Nahrajte kopii bez hesla nebo fotografii dokumentu.",
+  "vehicleDocErrorPdfCorrupt": "Toto PDF se nepodařilo otevřít — soubor může být poškozený. Exportujte jej znovu nebo nahrajte fotografii dokumentu.",
+  "vehicleDocErrorPdfTooManyPages": "Toto PDF má příliš mnoho stran. Nahrajte pouze technický průkaz (nejvýše 8 stran)."
 }

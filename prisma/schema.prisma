@@ -879,6 +879,15 @@ model Asset {
   verificationReviewedByAdminId String?                 @db.Uuid
   verificationReviewedByAdmin   Admin?                  @relation("AssetVerificationReviewedBy", fields: [verificationReviewedByAdminId], references: [id])
   verificationReason            String?
+  /// Phase 3C Slice 3B — SERVER-SIDE UPLOAD IDEMPOTENCY for document-first vehicle onboarding.
+  /// The opaque, random request key the upload form was issued; set ONLY on an asset created by
+  /// that flow. `@@unique([providerId, onboardingRequestKey])` is the DB race arbiter (same
+  /// owner-scoped pattern as booking_idempotency_keys): two concurrent uploads carrying the same
+  /// key commit exactly ONE asset — the loser hits the constraint and is answered with the
+  /// winner's setup. Scoped by provider, so a key can never reach another provider's asset.
+  /// Additive + nullable; NULL for every existing/legacy asset (a Postgres unique index permits
+  /// many NULLs), never backfilled. Never returned by any DTO and never logged.
+  onboardingRequestKey          String?
   createdAt                     DateTime                @default(now()) @db.Timestamptz(6)
   updatedAt                     DateTime                @updatedAt @db.Timestamptz(6)
 
@@ -891,6 +900,7 @@ model Asset {
   /// Phase 3C Slice 3A — private provider confirmation claims for this asset's registration docs.
   registrationConfirmations VehicleRegistrationConfirmation[]
 
+  @@unique([providerId, onboardingRequestKey])
   @@index([providerId])
   @@index([status])
   @@index([assetType])

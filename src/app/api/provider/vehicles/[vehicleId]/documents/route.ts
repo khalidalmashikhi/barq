@@ -24,11 +24,16 @@ export async function POST(request: Request, ctx: { params: Promise<{ vehicleId:
     const formData = await request.formData();
     const locale = resolveLocale(formData.get("locale"));
     const dest = (q: string) => new URL(`/${locale}/provider/vehicles/${vehicleId}${q}`, request.url);
+    // JSON when asked for (the fetch-based upload form: progress, on-screen errors, retry);
+    // otherwise the progressive-form 303 redirect. Same behavior either way.
+    const wantsJson = (request.headers.get("accept") ?? "").includes("application/json");
+    const failed = (code: string) =>
+      wantsJson ? NextResponse.json({ ok: false, error: code }, { status: 400 }) : NextResponse.redirect(dest(`?docError=${code}`), 303);
     try {
       const type = formData.get("type");
       const file = formData.get("file");
-      if (typeof type !== "string") return NextResponse.redirect(dest("?docError=INVALID_INPUT"), 303);
-      if (!(file instanceof File) || file.size === 0) return NextResponse.redirect(dest("?docError=EMPTY_FILE"), 303);
+      if (typeof type !== "string") return failed("INVALID_INPUT");
+      if (!(file instanceof File) || file.size === 0) return failed("EMPTY_FILE");
 
       const claimedExpiryDate = formData.get("claimedExpiryDate");
       const result = await uploadVehicleDocument(vehicleId, {
@@ -49,9 +54,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ vehicleId:
           /* upload is authoritative — extraction failure is surfaced on the page, never fatal here */
         }
       }
-      return NextResponse.redirect(dest(result.ok ? "?docNotice=uploaded" : `?docError=${result.error}`), 303);
+      if (!result.ok) return failed(result.error);
+      return wantsJson ? NextResponse.json({ ok: true }) : NextResponse.redirect(dest("?docNotice=uploaded"), 303);
     } catch (error) {
-      if (error instanceof UnauthenticatedError) return NextResponse.redirect(new URL(`/${locale}/login`, request.url), 303);
+      if (error instanceof UnauthenticatedError) {
+        return wantsJson
+          ? NextResponse.json({ ok: false, error: "UNAUTHENTICATED" }, { status: 401 })
+          : NextResponse.redirect(new URL(`/${locale}/login`, request.url), 303);
+      }
       throw error;
     }
   });

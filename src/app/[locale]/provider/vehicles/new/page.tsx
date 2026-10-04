@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
@@ -62,7 +63,9 @@ export default async function NewVehiclePage({ searchParams }: Props) {
       {uploadErrorMessage && <Alert variant="danger">{uploadErrorMessage}</Alert>}
 
       <Card hoverLift={false}>
-        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} cancelHref="/provider/vehicles" />
+        {/* A fresh random request key is issued with every render of this form; the server makes it
+            unique per provider, so repeated submissions of this form can create only one setup. */}
+        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} cancelHref="/provider/vehicles" />
       </Card>
     </div>
   );

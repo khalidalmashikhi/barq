@@ -9,7 +9,8 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
 import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
 import { registerUploadIntent, releaseUploadIntent, attemptPrivateObjectCleanup } from "@/lib/storage/cleanup/private-object-cleanup";
-import { validateDocumentUpload } from "@/lib/provider/documents/document-constants";
+import { prepareDocumentForStorage } from "./prepare-document";
+import { safeErrorCategory } from "./safe-error-category";
 import { isValidAssetDocumentTypeKey } from "./asset-document-types";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
@@ -62,12 +63,15 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
   if (!asset) return { ok: false, error: "VEHICLE_NOT_FOUND" };
   if (!isAssetVerificationEditable(asset.verificationStatus)) return { ok: false, error: "LOCKED" };
 
-  const validation = validateDocumentUpload({
+  // One server-side authority for what may be stored: signature + size + (for images) decode
+  // limits, orientation, re-encode with all metadata removed; a registration PDF is also checked
+  // for encryption/corruption/page count. See prepare-document.ts.
+  const prepared = await prepareDocumentForStorage({
     declaredMimeType: input.declaredMimeType,
-    sizeBytes: input.bytes.byteLength,
-    head: new Uint8Array(input.bytes),
+    bytes: input.bytes,
+    pdfPolicy: input.type === "VEHICLE_REGISTRATION" ? "REGISTRATION" : "NONE",
   });
-  if (!validation.ok) return { ok: false, error: validation.error as AssetDocumentErrorCode };
+  if (!prepared.ok) return { ok: false, error: prepared.error };
 
   if (!isDocumentStorageConfigured()) return { ok: false, error: "STORAGE_NOT_CONFIGURED" };
 
@@ -78,7 +82,7 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
   });
   if (existing) return { ok: false, error: "ALREADY_EXISTS" };
 
-  const objectKey = buildAssetDocumentObjectKey({ assetId, type: input.type, ext: validation.ext, unique: randomUUID() });
+  const objectKey = buildAssetDocumentObjectKey({ assetId, type: input.type, ext: prepared.ext, unique: randomUUID() });
 
   // INTENT-FIRST: durably record the server-generated key BEFORE writing the object, so a crash or a
   // failed/unavailable database after the upload can never strand the private file — the cleanup
@@ -87,16 +91,16 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
   try {
     intentTaskId = await registerUploadIntent(objectKey);
   } catch (error) {
-    logger.error("uploadVehicleDocument.intent_failed", { providerId: provider.id, message: error instanceof Error ? error.message : String(error) });
+    logger.error("uploadVehicleDocument.intent_failed", { providerId: provider.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 
   try {
-    await uploadPrivateObject({ objectKey, body: input.bytes, contentType: validation.mimeType });
+    await uploadPrivateObject({ objectKey, body: prepared.bytes, contentType: prepared.mimeType });
   } catch (error) {
     // The object may be absent or partially written — resolve the intent now (absent == cleaned).
     await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
-    logger.error("uploadVehicleDocument.storage_failed", { providerId: provider.id, message: error instanceof Error ? error.message : String(error) });
+    logger.error("uploadVehicleDocument.storage_failed", { providerId: provider.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UPLOAD_FAILED" };
   }
 
@@ -111,8 +115,8 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
           type: input.type,
           objectKey,
           originalFilename: sanitizeOriginalFilename(input.originalFilename),
-          mimeType: validation.mimeType,
-          sizeBytes: input.bytes.byteLength,
+          mimeType: prepared.mimeType,
+          sizeBytes: prepared.bytes.byteLength,
           status: "PENDING",
           // Advisory provider claim only; expiresAt (trusted) stays null until an admin confirms it.
           claimedExpiryDate: claim.value,
@@ -141,7 +145,7 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return { ok: false, error: "ALREADY_EXISTS" }; // lost the (assetId, type) race
     }
-    logger.error("uploadVehicleDocument.db_failed", { providerId: provider.id, message: error instanceof Error ? error.message : String(error) });
+    logger.error("uploadVehicleDocument.db_failed", { providerId: provider.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
 }

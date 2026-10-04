@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "إضافة مركبة من وثيقة التسجيل",
   "vehicleOnboardUploadSubtitle": "تبدأ إضافة المركبة بوثيقة تسجيلها (الملكية). ارفع الوثيقة وسنقرأ ما أمكن من بياناتها لتراجعها — ولا يُعتمد شيء قبل تأكيدك.",
   "vehicleOnboardFileLabel": "وثيقة التسجيل (الملكية)",
-  "vehicleOnboardFileHint": "الأنواع المدعومة: PDF أو JPG/JPEG أو PNG، بحجم أقصى 4 ميغابايت. تُقرأ ملفات PDF الواضحة تلقائيًا؛ أما الصورة أو المسح الضوئي فتُحفظ وتُدخل بياناتها بنفسك.",
+  "vehicleOnboardFileHint": "الأنواع المدعومة: PDF أو JPG/JPEG أو PNG. يتم تصغير الصور تلقائيًا قبل الرفع؛ وحجم ملف PDF حتى 4 ميغابايت. تُقرأ ملفات PDF الواضحة تلقائيًا؛ أما الصورة أو المسح الضوئي فتُحفظ وتُدخل بياناتها بنفسك.",
   "vehicleOnboardUploadButton": "رفع ومتابعة",
   "vehicleOnboardUploadFailed": "تعذّر رفع الوثيقة. يرجى المحاولة مرة أخرى.",
   "vehicleOnboardUploadEmptyFile": "يرجى اختيار وثيقة تسجيل لرفعها.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "متابعة التعديل",
   "vehicleOnboardPrivacyNote": "وثيقة التسجيل خاصة. لا يطّلع عليها سواك وفريق التحقق في برق — ولا تُعرض للعملاء أبدًا.",
   "vehicleOnboardTakePhoto": "التقاط صورة",
-  "vehicleOnboardChooseFile": "اختيار ملف",
+  "vehicleOnboardChooseFile": "اختيار صورة أو ملف",
   "vehicleOnboardSelectedFileLabel": "الملف المحدد",
   "vehicleOnboardNoFileSelected": "لم يتم اختيار وثيقة بعد.",
   "vehicleOnboardUploading": "جارٍ الرفع…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "إعداد هذه المركبة غير مكتمل. يرجى مراجعة بيانات التسجيل وتأكيدها أولًا.",
   "vehicleErrorRegistrationDocumentRequired": "تُضاف المركبة برفع وثيقة تسجيلها أولًا.",
   "vehicleOnboardRegisteredSeatsHint": "إجمالي عدد المقاعد المذكور في وثيقة التسجيل.",
-  "vehicleOnboardBookableHint": "أقصى عدد من ركاب العملاء الذين ستنقلهم. يمكن أن يكون أقل من المقاعد المسجّلة — مثلًا 15 مقعدًا مسجّلًا و13 راكبًا للحجز."
+  "vehicleOnboardBookableHint": "أقصى عدد من ركاب العملاء الذين ستنقلهم. يمكن أن يكون أقل من المقاعد المسجّلة — مثلًا 15 مقعدًا مسجّلًا و13 راكبًا للحجز.",
+  "vehicleOnboardProcessingImage": "جارٍ تجهيز الصورة…",
+  "vehicleOnboardErrNetwork": "انقطع الاتصال. تحقّق من الإنترنت ثم حاول مرة أخرى — لن تُضاف وثيقتك مرتين.",
+  "vehicleOnboardResumedNotice": "تم رفع هذه الوثيقة من قبل. أنت تتابع إعداد المركبة نفسها.",
+  "vehicleDocErrorHeicUnsupported": "هذه الصورة بصيغة HEIC الخاصة بأبل ولا يمكن قراءتها هنا. التقط الصورة باستخدام «التقاط صورة»، أو اختر ملف JPG أو PNG أو PDF.",
+  "vehicleDocErrorImageTooLarge": "هذه الصورة أكبر من أن تُعالَج. التقط صورة جديدة للوثيقة أو اختر صورة JPG أو PNG أصغر.",
+  "vehicleDocErrorImageCorrupt": "تعذّر فتح هذه الصورة — قد يكون الملف تالفًا. التقط صورة جديدة أو اختر ملفًا آخر.",
+  "vehicleDocErrorPdfEncrypted": "ملف PDF هذا محمي بكلمة مرور. ارفع نسخة بدون كلمة مرور، أو صورة للوثيقة.",
+  "vehicleDocErrorPdfCorrupt": "تعذّر فتح ملف PDF هذا — قد يكون الملف تالفًا. أعد تصديره أو ارفع صورة للوثيقة.",
+  "vehicleDocErrorPdfTooManyPages": "عدد صفحات ملف PDF كبير جدًا. ارفع وثيقة التسجيل فقط (حتى 8 صفحات)."
 }

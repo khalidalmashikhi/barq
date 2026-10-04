@@ -68,6 +68,8 @@ describe("NewVehiclePage — document-first for every eligible provider", () => 
     expect(upload).toHaveLength(1);
     expect(upload[0]!.props).toMatchObject({ action: "/api/provider/vehicles/onboarding/upload", locale: "ar", cancelHref: "/provider/vehicles" });
     expect(rentalPredicateMock).not.toHaveBeenCalled();
+    // A well-formed server-issued idempotency key travels with the form.
+    expect(upload[0]!.props.requestKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 
     // Title + document-first explanation; vertical-neutral (no rental wording keys).
     const text = strings(el);
@@ -82,6 +84,12 @@ describe("NewVehiclePage — document-first for every eligible provider", () => 
     expect(legacyInputs).toHaveLength(0);
     // No inline server action (function-valued form action) exists on this page at all.
     expect(findAll(el, (e) => e.type === "form" && typeof e.props.action === "function")).toHaveLength(0);
+  });
+
+  it("every render issues a DIFFERENT request key (two visits are two independent setups)", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u" }, provider: { id: "p", status: "APPROVED" } });
+    const keyOf = async () => findAll(await NewVehiclePage(props()), (e) => e.type === RegistrationUploadForm)[0]!.props.requestKey;
+    expect(await keyOf()).not.toBe(await keyOf());
   });
 
   it("a provider without vehicle-create authority (not approved) gets notFound — no creation surface", async () => {

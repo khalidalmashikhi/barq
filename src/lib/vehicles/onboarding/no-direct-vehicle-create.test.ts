@@ -33,17 +33,17 @@ describe("no direct vehicle-create path remains reachable", () => {
 
   it("the only code that inserts a Vehicle row is the direct primitive (unreachable) and the onboarding shell", () => {
     const writers = sourceFiles(SRC).filter((rel) => /\.vehicle\.create\s*\(/.test(code(rel)));
-    expect(writers.sort()).toEqual(["lib/vehicles/create-vehicle.ts", "lib/vehicles/onboarding/create-draft-shell.ts"]);
+    expect(writers.sort()).toEqual(["lib/vehicles/create-vehicle.ts", "lib/vehicles/onboarding/start-vehicle-onboarding.ts"]);
   });
 
   it("the onboarding shell is created with NO business values (nothing to bypass review with)", () => {
-    expect(code("lib/vehicles/onboarding/create-draft-shell.ts")).toMatch(/tx\.vehicle\.create\(\{ data: \{ assetId: asset\.id \} \}\)/);
+    expect(code("lib/vehicles/onboarding/start-vehicle-onboarding.ts")).toMatch(/tx\.vehicle\.create\(\{ data: \{ assetId \} \}\)/);
   });
 });
 
 describe("vehicle registration is independent of rental access and verticals", () => {
   const REGISTRATION_SOURCES = [
-    "lib/vehicles/onboarding/create-draft-shell.ts",
+    "lib/vehicles/onboarding/start-vehicle-onboarding.ts",
     "lib/vehicles/onboarding/finalize-vehicle.ts",
     "lib/vehicles/onboarding/delete-draft-vehicle.ts",
     "lib/vehicles/onboarding/vehicle-create-access.ts",
@@ -60,6 +60,11 @@ describe("vehicle registration is independent of rental access and verticals", (
 
   it.each(REGISTRATION_SOURCES)("%s never reads or writes a vertical, category grant or offering", (rel) => {
     expect(code(rel)).not.toMatch(/providerVertical|ProviderVertical|providerCategory|rentalOffering|guidedTourVehicleOffering|tourServiceVehicle/);
+  });
+
+  it("the onboarding request key is only ever written by the onboarding start (nothing else can set or move it)", () => {
+    const writers = sourceFiles(SRC).filter((rel) => /onboardingRequestKey\s*:/.test(code(rel)));
+    expect(writers).toEqual(["lib/vehicles/onboarding/start-vehicle-onboarding.ts"]);
   });
 
   it("the rental workspace gate itself is untouched: it still requires the RENTAL_COMPANY authorization, not a vehicle", () => {

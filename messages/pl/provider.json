@@ -799,7 +799,7 @@
   "vehicleOnboardUploadTitle": "Dodaj pojazd z dowodu rejestracyjnego",
   "vehicleOnboardUploadSubtitle": "Dodawanie pojazdu zaczyna się od dowodu rejestracyjnego. Prześlij go, a odczytamy dostępne dane do Twojej weryfikacji — nic nie jest ostateczne, dopóki nie potwierdzisz.",
   "vehicleOnboardFileLabel": "Dowód rejestracyjny",
-  "vehicleOnboardFileHint": "Obsługiwane: PDF, JPG/JPEG lub PNG, do 4 MB. Wyraźny plik PDF jest odczytywany automatycznie; zdjęcie lub skan zostaje zapisany, a dane wpisujesz samodzielnie.",
+  "vehicleOnboardFileHint": "Obsługiwane: PDF, JPG/JPEG lub PNG. Zdjęcia są automatycznie zmniejszane przed przesłaniem; plik PDF może mieć do 4 MB. Wyraźny plik PDF jest odczytywany automatycznie; zdjęcie lub skan zostaje zapisany, a dane wpisujesz samodzielnie.",
   "vehicleOnboardUploadButton": "Prześlij i kontynuuj",
   "vehicleOnboardUploadFailed": "Nie udało się przesłać dokumentu. Spróbuj ponownie.",
   "vehicleOnboardUploadEmptyFile": "Wybierz dowód rejestracyjny do przesłania.",
@@ -829,7 +829,7 @@
   "vehicleOnboardKeepEditing": "Kontynuuj edycję",
   "vehicleOnboardPrivacyNote": "Twój dowód rejestracyjny jest prywatny. Widzisz go tylko Ty i zespół weryfikacyjny BARQ — nigdy nie jest pokazywany klientom.",
   "vehicleOnboardTakePhoto": "Zrób zdjęcie",
-  "vehicleOnboardChooseFile": "Wybierz plik",
+  "vehicleOnboardChooseFile": "Wybierz zdjęcie lub plik",
   "vehicleOnboardSelectedFileLabel": "Wybrany plik",
   "vehicleOnboardNoFileSelected": "Nie wybrano jeszcze dokumentu.",
   "vehicleOnboardUploading": "Przesyłanie…",
@@ -837,5 +837,14 @@
   "vehicleErrorSetupIncomplete": "Konfiguracja tego pojazdu nie została ukończona. Najpierw sprawdź i potwierdź dane z dowodu rejestracyjnego.",
   "vehicleErrorRegistrationDocumentRequired": "Pojazd dodaje się, najpierw przesyłając jego dowód rejestracyjny.",
   "vehicleOnboardRegisteredSeatsHint": "Łączna liczba miejsc podana w dowodzie rejestracyjnym.",
-  "vehicleOnboardBookableHint": "Największa liczba pasażerów-klientów, których przewieziesz. Może być mniejsza niż liczba zarejestrowanych miejsc — na przykład 15 zarejestrowanych miejsc i 13 pasażerów do rezerwacji."
+  "vehicleOnboardBookableHint": "Największa liczba pasażerów-klientów, których przewieziesz. Może być mniejsza niż liczba zarejestrowanych miejsc — na przykład 15 zarejestrowanych miejsc i 13 pasażerów do rezerwacji.",
+  "vehicleOnboardProcessingImage": "Przygotowywanie zdjęcia…",
+  "vehicleOnboardErrNetwork": "Połączenie zostało przerwane. Sprawdź internet i spróbuj ponownie — dokument nie zostanie dodany dwa razy.",
+  "vehicleOnboardResumedNotice": "Ten dokument został już przesłany. Kontynuujesz tę samą konfigurację pojazdu.",
+  "vehicleDocErrorHeicUnsupported": "To zdjęcie jest w formacie HEIC firmy Apple, którego nie można tu odczytać. Zrób zdjęcie przyciskiem „Zrób zdjęcie” albo wybierz plik JPG, PNG lub PDF.",
+  "vehicleDocErrorImageTooLarge": "Ten obraz jest zbyt duży, aby go przetworzyć. Zrób nowe zdjęcie dokumentu lub wybierz mniejszy plik JPG lub PNG.",
+  "vehicleDocErrorImageCorrupt": "Nie udało się otworzyć tego obrazu — plik może być uszkodzony. Zrób nowe zdjęcie lub wybierz inny plik.",
+  "vehicleDocErrorPdfEncrypted": "Ten plik PDF jest chroniony hasłem. Prześlij kopię bez hasła lub zdjęcie dokumentu.",
+  "vehicleDocErrorPdfCorrupt": "Nie udało się otworzyć tego pliku PDF — plik może być uszkodzony. Wyeksportuj go ponownie lub prześlij zdjęcie dokumentu.",
+  "vehicleDocErrorPdfTooManyPages": "Ten plik PDF ma zbyt wiele stron. Prześlij tylko dowód rejestracyjny (do 8 stron)."
 }

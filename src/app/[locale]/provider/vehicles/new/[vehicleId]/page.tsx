@@ -33,11 +33,11 @@ const EXTRACTION_STATE_LABEL: Record<"NOT_ANALYZED" | "EXTRACTED" | "NEEDS_REVIE
   FAILED: "vehicleRegStateFailed",
 };
 
-type Props = { params: Promise<{ vehicleId: string }>; searchParams: Promise<{ docError?: string }> };
+type Props = { params: Promise<{ vehicleId: string }>; searchParams: Promise<{ docError?: string; resumed?: string }> };
 
 export default async function OnboardingReviewPage({ params, searchParams }: Props) {
   const { vehicleId } = await params;
-  const { docError } = await searchParams;
+  const { docError, resumed } = await searchParams;
   const locale = (await getLocale()) as Locale;
   const t = await getServerTranslator("provider");
   const td = t as unknown as (key: string) => string;
@@ -88,6 +88,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
             action={`/api/provider/vehicles/${vehicleId}/documents`}
             locale={locale}
             hiddenFields={{ type: "VEHICLE_REGISTRATION" }}
+            successHref={`/provider/vehicles/new/${vehicleId}`}
             cancelHref="/provider/vehicles"
           />
         </Card>
@@ -111,6 +112,9 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-40 pt-6 sm:px-6 sm:pt-8">
       {header}
+
+      {/* A repeated/replayed upload request was answered with this existing setup (idempotency). */}
+      {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}
 
       <Card hoverLift={false}>
         <div className="flex flex-col gap-3">
