@@ -124,6 +124,19 @@ describe("writeRegistrationConfirmation", () => {
     expect(await writeRegistrationConfirmation("DRAFT", VEHICLE, { make: "X" })).toEqual({ ok: false, code: "EXTRACTION_NOT_READY" });
   });
 
+  it("the document is BEING READ (live OCR lease) → EXTRACTION_NOT_READY for both DRAFT and SUBMIT; nothing is written", async () => {
+    const reading = { id: "ext-1", documentSha256: "sha-current", parserVersion: "1.0.0", fields: null, status: "PROCESSING", processingExpiresAt: new Date(Date.now() + 60_000) };
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [{ id: "doc-1", registrationExtraction: reading, registrationConfirmations: [] }] });
+    expect(await writeRegistrationConfirmation("DRAFT", VEHICLE, { make: "X" })).toEqual({ ok: false, code: "EXTRACTION_NOT_READY" });
+    expect(confCreate).not.toHaveBeenCalled();
+  });
+
+  it("a reading whose lease has EXPIRED (the attempt died) no longer blocks manual entry", async () => {
+    const abandoned = { id: "ext-1", documentSha256: "sha-current", parserVersion: "1.0.0", fields: null, status: "PROCESSING", processingExpiresAt: new Date(Date.now() - 1_000) };
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [{ id: "doc-1", registrationExtraction: abandoned, registrationConfirmations: [] }] });
+    expect(await writeRegistrationConfirmation("DRAFT", VEHICLE, { make: "X" })).toEqual({ ok: true });
+  });
+
   it("concurrent create (P2002) → CONFLICT", async () => {
     confCreate.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("u", { code: "P2002", clientVersion: "5.22.0" }));
     expect(await writeRegistrationConfirmation("DRAFT", VEHICLE, { make: "X" })).toEqual({ ok: false, code: "CONFLICT" });

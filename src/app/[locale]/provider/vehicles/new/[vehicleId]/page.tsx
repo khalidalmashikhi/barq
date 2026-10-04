@@ -13,12 +13,19 @@ import { resolveVehicleCreateAccess } from "@/lib/vehicles/onboarding/vehicle-cr
 import { suggestVehicleType } from "@/lib/vehicles/onboarding/vehicle-type-suggestion";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
+import { isRegistrationOcrOperational } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { AnalyzeRegistrationButton } from "@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button";
 import { RegistrationUploadForm } from "../_components/registration-upload-form";
 import { OnboardingReviewForm, type FieldView } from "./_components/onboarding-review-form";
+import { ExtractionProgress } from "./_components/extraction-progress";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2: review the extracted (or
 // manually-entered) registration details and explicitly confirm to finish the vehicle.
+//
+// The details may come from the document's native text, from OCR of a photo/scan, or from the
+// provider. Whatever the source, they are SUGGESTIONS shown for review: the form marks what was read
+// automatically and what needs checking, and nothing is saved to the vehicle until the provider
+// confirms. A failed or unavailable reading keeps the document and leaves retry + manual entry.
 //
 // AUTHORITY: the general vehicle-create rule (an APPROVED provider) + ownership — never the rental
 // workspace or any vertical. A foreign/missing vehicle is non-enumerating (notFound). Once the claim
@@ -26,7 +33,8 @@ import { OnboardingReviewForm, type FieldView } from "./_components/onboarding-r
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-const EXTRACTION_STATE_LABEL: Record<"NOT_ANALYZED" | "EXTRACTED" | "NEEDS_REVIEW" | "FAILED", string> = {
+const EXTRACTION_STATE_LABEL: Record<"NOT_ANALYZED" | "PROCESSING" | "EXTRACTED" | "NEEDS_REVIEW" | "FAILED", string> = {
+  PROCESSING: "vehicleRegStateProcessing",
   NOT_ANALYZED: "vehicleRegStateNotAnalyzed",
   EXTRACTED: "vehicleRegStateExtracted",
   NEEDS_REVIEW: "vehicleRegStateNeedsReview",
@@ -90,6 +98,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
             hiddenFields={{ type: "VEHICLE_REGISTRATION" }}
             successHref={`/provider/vehicles/new/${vehicleId}`}
             cancelHref="/provider/vehicles"
+            ocrAvailable={isRegistrationOcrOperational()}
           />
         </Card>
       </div>
@@ -97,10 +106,17 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   }
 
   const { reviewState } = review;
-  // Automatic reading is only available for native-text PDFs. Anything else (a photo, a scan) is
-  // retained privately and reviewed manually — we never claim it was read.
+  // No usable reading (not analyzed, failed, or OCR unavailable): the document is retained privately
+  // and the provider enters the details — we never claim it was read.
   const isManual = reviewState.extraction !== "EXTRACTED" && reviewState.extraction !== "NEEDS_REVIEW";
+  const isReading = reviewState.extraction === "PROCESSING";
   const viewHref = `/api/provider/vehicles/${vehicleId}/documents/${review.documentId}/view`;
+  // An image document is previewed inline through the SAME owner-checked, short-lived signed view
+  // route (never a public URL, never the storage key). A PDF keeps the "view" link only.
+  const isImageDocument = typeof review.documentMimeType === "string" && review.documentMimeType.startsWith("image/");
+  // What the form should say above the fields: the precise failure reason when there is one, the
+  // OCR caution when the values were read from a photo/scan, otherwise the generic manual notice.
+  const noticeKey = isManual ? (reviewState.failureLabelKey ?? "vehicleOnboardManualNotice") : review.extractionSource === "OCR" ? "vehicleOnboardOcrNotice" : null;
 
   // Confident type suggestion from the extracted make/model/usage text (always overridable).
   const hintText = review.fields
@@ -130,18 +146,36 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
               {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
             </Badge>
           </div>
+          {isImageDocument && (
+            // eslint-disable-next-line @next/next/no-img-element -- a private, signed, short-lived document view; it must not go through the public image optimizer
+            <img
+              src={viewHref}
+              alt={t("vehicleOnboardPreviewAlt")}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="max-h-72 w-full rounded-xl border border-border bg-accent/10 object-contain"
+            />
+          )}
           {/* Re-run the automatic read (owner-scoped, idempotent) — e.g. after a transient failure. */}
           {reviewState.canAnalyze && <AnalyzeRegistrationButton vehicleId={vehicleId} retry={reviewState.extraction === "FAILED"} />}
         </div>
       </Card>
 
-      <OnboardingReviewForm
-        vehicleId={vehicleId}
-        fields={review.fields as FieldView[]}
-        vehicleTypeOptions={vehicleTypeOptions(locale)}
-        suggestedVehicleType={suggestedVehicleType}
-        isManual={isManual}
-      />
+      {isReading ? (
+        // Another request is reading the document right now: wait for it (bounded) instead of
+        // opening an empty form whose suggestions are about to arrive.
+        <ExtractionProgress />
+      ) : (
+        <OnboardingReviewForm
+          vehicleId={vehicleId}
+          fields={review.fields as FieldView[]}
+          vehicleTypeOptions={vehicleTypeOptions(locale)}
+          suggestedVehicleType={suggestedVehicleType}
+          noticeKey={noticeKey}
+          noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { isVehicleTypeCode } from "@/lib/vehicles/vehicle-type-codes";
 import { publicDescriptionSchema } from "@/lib/vehicles/vehicle-input";
 import { parseConfirmation, type ConfirmationValues } from "@/lib/vehicles/registration-review/confirmation-input";
 import { mapExtractedByField } from "@/lib/vehicles/registration-review/extracted-mapping";
+import { isExtractionInProgress } from "@/lib/vehicles/registration-extraction/processing-lease";
 import { computeFieldDecisions, correctedFieldCount } from "@/lib/vehicles/registration-review/diff";
 import { confirmationColumns, serializeFieldDecisions, columnsToValues } from "@/lib/vehicles/registration-review/confirmation-record";
 import { CONFIRMATION_FIELD_KEYS } from "@/lib/vehicles/registration-review/field-model";
@@ -112,7 +113,7 @@ export async function finalizeVehicleFromRegistration(vehicleId: string, rawInpu
             where: { type: "VEHICLE_REGISTRATION" },
             select: {
               id: true,
-              registrationExtraction: { select: { id: true, documentSha256: true, parserVersion: true, fields: true } },
+              registrationExtraction: { select: { id: true, documentSha256: true, parserVersion: true, fields: true, status: true, processingExpiresAt: true } },
               registrationConfirmations: {
                 where: { status: { not: "SUPERSEDED" } },
                 select: { id: true, status: true, version: true, boundDocumentSha256: true, boundParserVersion: true, ...confirmationColumnSelect },
@@ -126,6 +127,9 @@ export async function finalizeVehicleFromRegistration(vehicleId: string, rawInpu
       if (!doc) return { ok: false, code: "DOCUMENT_NOT_FOUND" } as const;
       const extraction = doc.registrationExtraction;
       if (!extraction) return { ok: false, code: "EXTRACTION_NOT_READY" } as const;
+      // The document is being read right now (an OCR call is in flight): its suggestions are about
+      // to arrive, so nothing is confirmed against a half-finished extraction. Bounded by the lease.
+      if (isExtractionInProgress(extraction)) return { ok: false, code: "EXTRACTION_NOT_READY" } as const;
 
       const active = doc.registrationConfirmations[0] ?? null;
       const stale = active

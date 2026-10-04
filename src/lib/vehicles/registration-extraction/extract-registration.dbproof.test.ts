@@ -37,7 +37,7 @@ const PROV = randomUUID(), VEH = randomUUID(), DOC = randomUUID();
 const BYTES = new TextEncoder().encode("concurrency-proof-bytes").buffer;
 const REG_TEXT = ["رقم اللوحة: A 12345", "نوع المركبة: Toyota", "الموديل: Prado", "عدد الركاب: 7", "سنة الصنع: 2019", "رقم الهيكل: JTEBU29J8K5012345", "تاريخ الانتهاء: 31/05/2027"].join("\n");
 
-const okDeps = (client: PrismaClient) => ({ db: client, isStorageConfigured: () => true, downloadPrivateObject: async () => BYTES, extractPdfText: async () => ({ ok: true as const, pageCount: 1, text: REG_TEXT }) });
+const okDeps = (client: PrismaClient) => ({ db: client, isStorageConfigured: () => true, downloadPrivateObject: async () => BYTES, extractPdfText: async () => ({ ok: true as const, pageCount: 1, text: REG_TEXT }), getReader: () => null });
 const failDeps = (client: PrismaClient) => ({ ...okDeps(client), extractPdfText: async () => ({ ok: false as const, code: "PARSER_TIMEOUT" as const }) });
 
 async function seedDoc(client: PrismaClient) {

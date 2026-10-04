@@ -31,12 +31,17 @@ vi.mock("next/navigation", () => ({ notFound: () => notFoundMock() }));
 const getRegistrationReviewMock = vi.fn();
 vi.mock("@/lib/vehicles/registration-review/get-registration-review", () => ({ getRegistrationReview: (...a: unknown[]) => getRegistrationReviewMock(...a) }));
 vi.mock("./_components/onboarding-review-form", () => ({ OnboardingReviewForm: function OnboardingReviewForm() { return null; } }));
+vi.mock("./_components/extraction-progress", () => ({ ExtractionProgress: function ExtractionProgress() { return null; } }));
+const ocrOperationalMock = vi.fn(() => false);
+vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader", () => ({ isRegistrationOcrOperational: () => ocrOperationalMock() }));
 vi.mock("../_components/registration-upload-form", () => ({ RegistrationUploadForm: function RegistrationUploadForm() { return null; } }));
 vi.mock("@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button", () => ({ AnalyzeRegistrationButton: function AnalyzeRegistrationButton() { return null; } }));
 
 const { default: OnboardingReviewPage } = await import("./page");
 const { OnboardingReviewForm } = await import("./_components/onboarding-review-form");
 const { RegistrationUploadForm } = await import("../_components/registration-upload-form");
+const { ExtractionProgress } = await import("./_components/extraction-progress");
+const { AnalyzeRegistrationButton } = await import("@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button");
 
 type AnyEl = { type: unknown; props: Record<string, unknown> };
 function findAll(el: unknown, pred: (e: AnyEl) => boolean, acc: AnyEl[] = []): AnyEl[] {
@@ -57,12 +62,14 @@ function strings(el: unknown, acc: string[] = []): string[] {
 
 const VEH = "11111111-1111-1111-1111-111111111111";
 const call = (sp: Record<string, string> = {}) => ({ params: Promise.resolve({ vehicleId: VEH }), searchParams: Promise.resolve(sp) });
-const field = (key: string, extractedValue: string | number | null) => ({ key, group: "CUSTOMER", kind: "text", sensitive: false, required: true, extractedValue, confidence: extractedValue === null ? null : "HIGH", confirmedValue: null, decision: null });
+const field = (key: string, extractedValue: string | number | null) => ({ key, group: "CUSTOMER", kind: "text", sensitive: false, required: true, extractedValue, confidence: extractedValue === null ? null : "HIGH", confirmedValue: null, decision: null, source: extractedValue === null ? "UNRESOLVED" : "NATIVE_PDF_TEXT", needsReview: extractedValue === null });
 const review = (over: Record<string, unknown> = {}) => ({
   vehicleId: VEH,
   documentId: "doc-1",
   documentStatus: "PENDING",
   documentFilename: "reg.pdf",
+  documentMimeType: "application/pdf",
+  extractionSource: "NATIVE_PDF_TEXT",
   reviewState: { extraction: "EXTRACTED", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null },
   lastAttemptedAt: null,
   lastSucceededAt: null,
@@ -82,18 +89,19 @@ describe("OnboardingReviewPage", () => {
     const el = await OnboardingReviewPage(call());
     const forms = findAll(el, (e) => e.type === OnboardingReviewForm);
     expect(forms).toHaveLength(1);
-    expect(forms[0]!.props).toMatchObject({ vehicleId: VEH, isManual: false, suggestedVehicleType: "FOUR_BY_FOUR" });
+    expect(forms[0]!.props).toMatchObject({ vehicleId: VEH, noticeKey: null, suggestedVehicleType: "FOUR_BY_FOUR" }); // read from native text: no manual/OCR notice
     expect((forms[0]!.props.fields as unknown[]).length).toBe(3);
     expect(rentalPredicateMock).not.toHaveBeenCalled();
   });
 
   it("image / scanned PDF (extraction FAILED) → honest MANUAL review: no suggestion is invented", async () => {
     getRegistrationReviewMock.mockResolvedValue(
-      review({ reviewState: { extraction: "FAILED", confirmation: "NONE", canAnalyze: true, canConfirm: true, locked: false, failureLabelKey: "vehicleRegFailNoText" }, fields: [field("make", null), field("model", null)] }),
+      review({ extractionSource: null, reviewState: { extraction: "FAILED", confirmation: "NONE", canAnalyze: true, canConfirm: true, locked: false, failureLabelKey: "vehicleRegFailNoText" }, fields: [field("make", null), field("model", null)] }),
     );
     const el = await OnboardingReviewPage(call());
     const form = findAll(el, (e) => e.type === OnboardingReviewForm)[0]!;
-    expect(form.props).toMatchObject({ isManual: true, suggestedVehicleType: null });
+    // The precise (localized) failure reason is what the provider sees — and manual entry is open.
+    expect(form.props).toMatchObject({ noticeKey: "vehicleRegFailNoText", noticeVariant: "warning", suggestedVehicleType: null });
     expect((form.props.fields as { extractedValue: unknown }[]).every((f) => f.extractedValue === null)).toBe(true);
   });
 
@@ -115,6 +123,69 @@ describe("OnboardingReviewPage", () => {
     expect(strings(await OnboardingReviewPage(call({ resumed: "1" })))).toContain("vehicleOnboardResumedNotice");
     expect(strings(await OnboardingReviewPage(call()))).not.toContain("vehicleOnboardResumedNotice");
     expect(strings(await OnboardingReviewPage(call({ resumed: "yes" })))).not.toContain("vehicleOnboardResumedNotice");
+  });
+
+  it("a PHOTO read by OCR → the review form with the OCR caution, and an inline preview served by the owner-checked view route", async () => {
+    getRegistrationReviewMock.mockResolvedValue(
+      review({
+        documentMimeType: "image/jpeg",
+        extractionSource: "OCR",
+        reviewState: { extraction: "NEEDS_REVIEW", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null },
+        fields: [{ ...field("make", "Toyota"), source: "OCR", needsReview: true, confidence: "MEDIUM" }],
+      }),
+    );
+    const el = await OnboardingReviewPage(call());
+    const form = findAll(el, (e) => e.type === OnboardingReviewForm)[0]!;
+    expect(form.props).toMatchObject({ noticeKey: "vehicleOnboardOcrNotice", noticeVariant: "info" });
+    const fields = form.props.fields as { source: string; needsReview: boolean }[];
+    expect(fields[0]).toMatchObject({ source: "OCR", needsReview: true }); // the form is told what was read automatically
+    const previews = findAll(el, (e) => e.type === "img");
+    expect(previews).toHaveLength(1);
+    expect(previews[0]!.props).toMatchObject({ src: `/api/provider/vehicles/${VEH}/documents/doc-1/view`, alt: "vehicleOnboardPreviewAlt", referrerPolicy: "no-referrer" });
+    expect(String(previews[0]!.props.src)).not.toMatch(/asset-documents|supabase|https?:/); // never a storage key or a public URL
+  });
+
+  it("a PDF document shows the view link only — no inline image", async () => {
+    const el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === "img")).toHaveLength(0);
+    expect(findAll(el, (e) => e.type === "a" && e.props.href === `/api/provider/vehicles/${VEH}/documents/doc-1/view`)).toHaveLength(1);
+  });
+
+  it("while the document is BEING READ: a progress notice, NO form and NO analyze button (never a second reading, never a half-filled form)", async () => {
+    getRegistrationReviewMock.mockResolvedValue(
+      review({ documentMimeType: "image/jpeg", extractionSource: null, reviewState: { extraction: "PROCESSING", confirmation: "NONE", canAnalyze: false, canConfirm: false, locked: false, failureLabelKey: null }, fields: [field("make", null)] }),
+    );
+    const el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(1);
+    expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
+    expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
+    expect(strings(el)).toContain("vehicleRegStateProcessing");
+  });
+
+  it.each([
+    ["OCR unavailable", "vehicleRegExtractFailOcrUnavailable"],
+    ["OCR timed out", "vehicleRegExtractFailOcrTimeout"],
+    ["nothing readable", "vehicleRegExtractFailOcrUnreadable"],
+  ])("extraction failure (%s): the document is kept, the reason is shown, RETRY and MANUAL ENTRY are both offered", async (_label, labelKey) => {
+    getRegistrationReviewMock.mockResolvedValue(
+      review({ documentMimeType: "image/jpeg", extractionSource: null, reviewState: { extraction: "FAILED", confirmation: "NONE", canAnalyze: true, canConfirm: true, locked: false, failureLabelKey: labelKey }, fields: [field("make", null)] }),
+    );
+    const el = await OnboardingReviewPage(call());
+    const form = findAll(el, (e) => e.type === OnboardingReviewForm);
+    expect(form).toHaveLength(1); // manual entry on the SAME shell
+    expect(form[0]!.props).toMatchObject({ vehicleId: VEH, noticeKey: labelKey, noticeVariant: "warning" });
+    const retry = findAll(el, (e) => e.type === AnalyzeRegistrationButton);
+    expect(retry).toHaveLength(1);
+    expect(retry[0]!.props).toMatchObject({ vehicleId: VEH, retry: true });
+    expect(findAll(el, (e) => e.type === "img")).toHaveLength(1); // the uploaded document is still there
+  });
+
+  it("no reading yet (never analyzed) → the generic manual notice", async () => {
+    getRegistrationReviewMock.mockResolvedValue(
+      review({ extractionSource: null, reviewState: { extraction: "NOT_ANALYZED", confirmation: "NONE", canAnalyze: true, canConfirm: false, locked: false, failureLabelKey: null }, fields: [field("make", null)] }),
+    );
+    const form = findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)[0]!;
+    expect(form.props).toMatchObject({ noticeKey: "vehicleOnboardManualNotice", noticeVariant: "info" });
   });
 
   it("an already-confirmed vehicle leaves the wizard for its detail page", async () => {

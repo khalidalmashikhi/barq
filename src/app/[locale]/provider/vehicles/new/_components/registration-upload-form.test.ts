@@ -164,11 +164,23 @@ describe("upload copy — complete and honest in all 8 languages", () => {
     for (const key of [...FORM_KEYS, ...ERROR_KEYS]) expect(m[key], `${locale}:${key}`).toEqual(expect.stringMatching(/\S/));
   });
 
-  it.each(LOCALES)("%s: the format hint names PDF, JPG and PNG, states the real PDF limit, and does not promise HEIC", (locale) => {
-    const hint = messages(locale).vehicleOnboardFileHint!;
-    for (const word of ["PDF", "JPG", "PNG"]) expect(hint).toContain(word);
-    expect(hint).toContain(String(MAX_UPLOAD_BYTES / (1024 * 1024))); // "4"
-    expect(hint).not.toMatch(/HEIC|HEIF/i);
+  it.each(LOCALES)("%s: BOTH format hints name PDF, JPG and PNG, state the real PDF limit, and do not promise HEIC", (locale) => {
+    for (const key of ["vehicleOnboardFileHint", "vehicleOnboardFileHintOcr"]) {
+      const hint = messages(locale)[key]!;
+      for (const word of ["PDF", "JPG", "PNG"]) expect(hint, key).toContain(word);
+      expect(hint, key).toContain(String(MAX_UPLOAD_BYTES / (1024 * 1024))); // "4"
+      expect(hint, key).not.toMatch(/HEIC|HEIF/i);
+    }
+  });
+
+  it("the hint shown depends ONLY on whether automatic reading is operational here — the form never claims more than the server can do", () => {
+    expect(CODE).toMatch(/ocrAvailable = false/); // off unless the server says otherwise
+    expect(CODE).toMatch(/\{ocrAvailable \? t\("vehicleOnboardFileHintOcr"\) : t\("vehicleOnboardFileHint"\)\}/);
+    // The two hints say different things: the default one tells the provider a photo is entered manually.
+    const en = messages("en");
+    expect(en.vehicleOnboardFileHint).toMatch(/you enter the details yourself/);
+    expect(en.vehicleOnboardFileHintOcr).toMatch(/you always review and confirm/);
+    expect(en.vehicleOnboardFileHintOcr).not.toBe(en.vehicleOnboardFileHint);
   });
 
   it.each(LOCALES)("%s: the HEIC message names the format and offers supported alternatives", (locale) => {
@@ -183,10 +195,9 @@ describe("upload copy — complete and honest in all 8 languages", () => {
     expect(m.vehicleDocErrorPdfTooManyPages).toContain(String(MAX_REGISTRATION_PDF_PAGES));
   });
 
-  it.each(LOCALES)("%s: no upload string claims photos are read automatically (there is no OCR)", (locale) => {
+  it.each(LOCALES)("%s: no upload string uses internal jargon or names a vendor (the provider is told what happens, not how)", (locale) => {
     const m = messages(locale);
-    // The manual-review notice must exist and must not be contradicted by an "OCR"/"AI reads" claim.
-    for (const key of [...FORM_KEYS, ...ERROR_KEYS]) expect(m[key]).not.toMatch(/\bOCR\b|\bAI\b/);
+    for (const key of [...FORM_KEYS, ...ERROR_KEYS, "vehicleOnboardFileHintOcr"]) expect(m[key], key).not.toMatch(/\bOCR\b|\bAI\b|Claude|Anthropic/);
   });
 
   it("the Arabic brand spelling stays correct", () => {

@@ -53,6 +53,9 @@ type Props = {
   successHref?: string;
   /** Where the safe cancel/back control leads. */
   cancelHref: string;
+  /** Photos and scans can be read automatically in this environment (an OCR engine is configured).
+   *  Only changes the wording of the hint — never what the server does. */
+  ocrAvailable?: boolean;
 };
 
 const ACCEPT_FILE = "application/pdf,image/jpeg,image/png";
@@ -62,7 +65,7 @@ const CHOICE_CLASS =
 
 type Phase = "idle" | "processing" | "uploading" | "done";
 
-export function RegistrationUploadForm({ action, locale, requestKey, keyScope, hiddenFields, successHref, cancelHref }: Props) {
+export function RegistrationUploadForm({ action, locale, requestKey, keyScope, hiddenFields, successHref, cancelHref, ocrAvailable = false }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string) => string; // error keys resolved from a server code (parity-guaranteed)
   const router = useRouter();
@@ -257,7 +260,7 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
             <span className="text-foreground/50">{t("vehicleOnboardNoFileSelected")}</span>
           )}
         </p>
-        <p className="text-xs text-foreground/60">{t("vehicleOnboardFileHint")}</p>
+        <p className="text-xs text-foreground/60">{ocrAvailable ? t("vehicleOnboardFileHintOcr") : t("vehicleOnboardFileHint")}</p>
       </div>
 
       <p className="flex items-start gap-2 text-xs text-foreground/70">

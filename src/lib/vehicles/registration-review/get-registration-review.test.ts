@@ -82,3 +82,69 @@ describe("getRegistrationReview", () => {
     expect(make?.confirmedValue).toBeNull(); // not "StaleMake"
   });
 });
+
+describe("getRegistrationReview — per-field source and 'needs review'", () => {
+  const blank = { vin: null, make: null, model: null, modelYear: null, color: null, bookablePassengerCapacity: null, licensedPassengerCapacity: null, registeredSeats: null, plateNumber: null, plateType: null, engineNumber: null, usageClassification: null, engineCapacity: null, emptyWeight: null, maximumLoad: null, axleCount: null, licenseValidFrom: null, licenseExpiry: null, firstRegistrationDate: null };
+  const ocrFields = JSON.parse(JSON.stringify(fields)) as typeof fields;
+  ocrFields.makeDescription = { rawValue: "Toyota", normalizedValue: "Toyota", confidence: "MEDIUM", warnings: [] };
+  ocrFields.model = { rawValue: "Prad0", normalizedValue: "Prad0", confidence: "LOW", warnings: ["OCR_UNCLEAR"] };
+  ocrFields.manufactureYear = { rawValue: "2019", normalizedValue: 2019, confidence: "LOW", warnings: ["CONFLICT"] };
+  ocrFields.vin = { rawValue: null, normalizedValue: null, confidence: "LOW", warnings: ["MISSING"] };
+  const doc = (extraction: Record<string, unknown>, confirmations: unknown[] = [], mimeType = "image/jpeg") => ({
+    id: VEHICLE,
+    documents: [{ id: "doc-1", status: "PENDING", originalFilename: "photo.jpg", mimeType, registrationExtraction: { id: "ext-1", failureCode: null, documentSha256: "sha-1", parserVersion: "1.0.0", processingExpiresAt: null, lastAttemptedAt: new Date(), lastSucceededAt: new Date(), ...extraction }, registrationConfirmations: confirmations }],
+  });
+  const field = (r: Awaited<ReturnType<typeof getRegistrationReview>>, key: string) => r!.fields.find((f) => f.key === key)!;
+
+  it("an OCR result: every read value is sourced OCR and flagged; a missing REQUIRED field is UNRESOLVED and flagged; an optional missing one is not", async () => {
+    assetFindFirst.mockResolvedValue(doc({ status: "NEEDS_REVIEW", source: "OCR", fields: ocrFields }));
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r).toMatchObject({ extractionSource: "OCR", documentMimeType: "image/jpeg" });
+    expect(field(r, "make")).toMatchObject({ source: "OCR", needsReview: true, confidence: "MEDIUM" });
+    expect(field(r, "model")).toMatchObject({ source: "OCR", needsReview: true, confidence: "LOW" });
+    expect(field(r, "modelYear")).toMatchObject({ source: "OCR", needsReview: true });
+    expect(field(r, "vin")).toMatchObject({ source: "UNRESOLVED", needsReview: true, extractedValue: null }); // required
+    expect(field(r, "engineNumber")).toMatchObject({ source: "UNRESOLVED", needsReview: false }); // optional
+    // Never suggested from any document: the provider decides capacity and seats.
+    expect(field(r, "bookablePassengerCapacity")).toMatchObject({ source: "UNRESOLVED", extractedValue: null, needsReview: true });
+    expect(field(r, "registeredSeats")).toMatchObject({ source: "UNRESOLVED", extractedValue: null });
+  });
+
+  it("a NATIVE-TEXT result: a HIGH-confidence value is from the document and NOT flagged; a lower one is", async () => {
+    assetFindFirst.mockResolvedValue(doc({ status: "EXTRACTED", source: "NATIVE_PDF_TEXT", fields }, [], "application/pdf"));
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r).toMatchObject({ extractionSource: "NATIVE_PDF_TEXT", documentMimeType: "application/pdf" });
+    expect(field(r, "vin")).toMatchObject({ source: "NATIVE_PDF_TEXT", needsReview: false, confidence: "HIGH" });
+    expect(field(r, "make")).toMatchObject({ source: "NATIVE_PDF_TEXT", needsReview: true, confidence: "LOW" });
+  });
+
+  it("a value the provider CORRECTED or ENTERED is theirs — sourced PROVIDER and no longer flagged; one they left as read stays document-sourced", async () => {
+    assetFindFirst.mockResolvedValue(
+      doc({ status: "NEEDS_REVIEW", source: "OCR", fields: ocrFields }, [{ ...blank, status: "DRAFT", submittedAt: null, boundDocumentSha256: "sha-1", boundParserVersion: "1.0.0", make: "Toyota", model: "Prado", vin: "TESTV1N0000000001" }]),
+    );
+    const r = await getRegistrationReview(VEHICLE);
+    expect(field(r, "model")).toMatchObject({ source: "PROVIDER", needsReview: false, confirmedValue: "Prado", extractedValue: "Prad0" }); // corrected
+    expect(field(r, "vin")).toMatchObject({ source: "PROVIDER", needsReview: false, confirmedValue: "TESTV1N0000000001" }); // entered (nothing was read)
+    expect(field(r, "make")).toMatchObject({ source: "OCR", confirmedValue: "Toyota" }); // kept as read → still an OCR value
+  });
+
+  it("no usable reading (FAILED / being read) → no source is claimed for any field", async () => {
+    assetFindFirst.mockResolvedValue(doc({ status: "FAILED", failureCode: "OCR_TIMEOUT", source: "OCR", fields: null }));
+    const failed = await getRegistrationReview(VEHICLE);
+    expect(failed!.extractionSource).toBeNull();
+    expect(failed!.fields.every((f) => f.source === "UNRESOLVED" && f.extractedValue === null)).toBe(true);
+
+    assetFindFirst.mockResolvedValue(doc({ status: "PROCESSING", source: "OCR", fields: null, processingExpiresAt: new Date(Date.now() + 60_000) }));
+    const reading = await getRegistrationReview(VEHICLE);
+    expect(reading!.reviewState).toMatchObject({ extraction: "PROCESSING", canConfirm: false, canAnalyze: false });
+    expect(reading!.extractionSource).toBeNull();
+  });
+
+  it("the view never carries the storage key, the document checksum, the OCR engine id or any raw text", async () => {
+    assetFindFirst.mockResolvedValue(doc({ status: "NEEDS_REVIEW", source: "OCR", ocrEngine: "claude-vision/x/p1", fields: ocrFields }));
+    const raw = JSON.stringify(await getRegistrationReview(VEHICLE));
+    for (const needle of ["sha-1", "objectKey", "asset-documents", "claude-vision", "ocrEngine", "rawValue", "processingToken"]) expect(raw).not.toContain(needle);
+    const select = JSON.stringify(assetFindFirst.mock.calls.at(-1)![0].select);
+    expect(select).not.toMatch(/objectKey|processingToken|ocrEngine/);
+  });
+});

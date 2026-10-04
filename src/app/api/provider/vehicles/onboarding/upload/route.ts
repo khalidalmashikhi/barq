@@ -17,15 +17,18 @@ import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 // same setup — and a key whose setup was cancelled is answered "cancelled" and can never create
 // another. Nothing here relies on the button.
 //
-// After a successful start, native-PDF text extraction is attempted (non-fatal; photos and scans go
-// to honest manual review — there is no OCR). No Vehicle values are written here; that happens only
-// at the provider's confirmed finalize.
+// After a successful start the document is read (non-fatal): native PDF text first, and — only for a
+// photo or scanned PDF, and only when an OCR engine is configured — one OCR call. A replay never
+// repeats that call (the stored result is reused; a reading still in flight is simply reported).
+// With no engine configured, photos and scans go to honest manual review. No Vehicle values are
+// written here; that happens only at the provider's confirmed finalize.
 //
 // Two response styles, same behavior: JSON when the caller asks for it (the upload form uses fetch
 // so it can show progress, keep errors on screen and retry with the same key), otherwise the
 // progressive-form 303 redirect.
 
-export const maxDuration = 30;
+// Room for the upload plus ONE bounded OCR call (25 s timeout) for a photo or scanned PDF.
+export const maxDuration = 60;
 
 const LOCALES = ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"] as const;
 function resolveLocale(v: FormDataEntryValue | null): string {

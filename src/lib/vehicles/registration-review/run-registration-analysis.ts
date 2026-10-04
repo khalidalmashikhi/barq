@@ -11,7 +11,9 @@ import type { RegistrationAnalysisResult } from "./registration-review-result";
 // VEHICLE_REGISTRATION document are re-read under that provider id before the (idempotent,
 // concurrency-safe) extraction service is invoked. Throws on auth (the action wrapper maps it);
 // returns a coded result for domain outcomes. NEVER parses inside an upload transaction and NEVER
-// mutates the Vehicle.
+// mutates the Vehicle. For a photo or scanned PDF the service may call the configured OCR engine —
+// at most once per document: a repeat for the same bytes is answered from the stored result, and a
+// request that arrives while one is in flight is told PROCESSING.
 
 export async function runRegistrationAnalysis(vehicleId: string): Promise<RegistrationAnalysisResult> {
   if (!isValidUuid(vehicleId)) return { ok: false, code: "VEHICLE_NOT_FOUND" };
@@ -38,5 +40,6 @@ export async function runRegistrationAnalysis(vehicleId: string): Promise<Regist
         return { ok: false, code: "EXTRACTION_FAILED" };
     }
   }
+  // PROCESSING = another request is already reading this document; nothing was repeated here.
   return { ok: true, status: res.status, failureLabelKey: res.status === "FAILED" ? extractionFailureLabelKey(res.failureCode) : null };
 }

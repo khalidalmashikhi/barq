@@ -230,6 +230,14 @@ describe("finalizeVehicleFromRegistration", () => {
     expect(await finalizeVehicleFromRegistration(VEHICLE, FULL)).toEqual({ ok: false, code: "EXTRACTION_NOT_READY" });
   });
 
+  it("the document is BEING READ (live OCR lease) → EXTRACTION_NOT_READY: a vehicle is never finalized against a half-finished extraction", async () => {
+    const reading = { id: "ext-1", documentSha256: "sha-current", parserVersion: "1.0.0", fields: null, status: "PROCESSING", processingExpiresAt: new Date(Date.now() + 60_000) };
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, vehicle: { assetId: VEHICLE, make: null, vehicleType: null }, documents: [{ id: "doc-1", registrationExtraction: reading, registrationConfirmations: [] }] });
+    expect(await finalizeVehicleFromRegistration(VEHICLE, FULL)).toEqual({ ok: false, code: "EXTRACTION_NOT_READY" });
+    expect(confCreate).not.toHaveBeenCalled();
+    expect(vehicleUpdate).not.toHaveBeenCalled();
+  });
+
   it("no registration document → DOCUMENT_NOT_FOUND", async () => {
     assetFindFirst.mockResolvedValue({ id: VEHICLE, vehicle: { assetId: VEHICLE, make: null, vehicleType: null }, documents: [] });
     expect(await finalizeVehicleFromRegistration(VEHICLE, FULL)).toEqual({ ok: false, code: "DOCUMENT_NOT_FOUND" });

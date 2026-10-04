@@ -280,7 +280,7 @@ describe.skipIf(!RUN)("private-object cleanup — real Postgres, fake storage", 
         expect(rows[0]!.status).toBe("COMPLETED"); // nothing left pending
       }
     }
-  });
+  }, 60_000); // six rounds, each parsing a real PDF — slow when several database suites run at once
 
   it("(13) a cleanup run changes no Booking / reservation / offering / service / pricing / vertical rows", async () => {
     const key = "k/noside-" + randomUUID();

@@ -21,6 +21,10 @@ import { deriveReviewState, isConfirmationStale, type ReviewState } from "./revi
 // returns null → the page renders notFound() (non-enumerating). Returns only allowlisted private
 // fields; never a storage object key, never raw PDF text, never owner/insurance PII.
 
+/** Where the value shown for a field comes from — so document-derived values are never confused
+ *  with what the provider typed. UNRESOLVED = nothing was read and nothing has been entered. */
+export type RegistrationFieldValueSource = "NATIVE_PDF_TEXT" | "OCR" | "PROVIDER" | "UNRESOLVED";
+
 export type RegistrationReviewFieldView = {
   key: ConfirmationFieldKey;
   group: ConfirmationFieldGroup;
@@ -31,6 +35,11 @@ export type RegistrationReviewFieldView = {
   confidence: RegistrationFieldConfidence | null;
   confirmedValue: string | number | null;
   decision: FieldDecision | null;
+  /** Source of the value the form starts with. */
+  source: RegistrationFieldValueSource;
+  /** The provider must look at this field: required but unresolved, or read with less than HIGH
+   *  confidence (every OCR value), or flagged by a warning (conflict / unclear). */
+  needsReview: boolean;
 };
 
 export type RegistrationReviewView = {
@@ -38,6 +47,10 @@ export type RegistrationReviewView = {
   documentId: string | null;
   documentStatus: AssetDocumentStatus | null;
   documentFilename: string | null;
+  /** Stored type of the document — lets the review step show an inline preview for an image. */
+  documentMimeType: string | null;
+  /** How the current suggestions were produced (null when there are none). */
+  extractionSource: "NATIVE_PDF_TEXT" | "OCR" | null;
   reviewState: ReviewState;
   lastAttemptedAt: Date | null;
   lastSucceededAt: Date | null;
@@ -66,8 +79,9 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
           id: true,
           status: true,
           originalFilename: true,
+          mimeType: true,
           registrationExtraction: {
-            select: { id: true, status: true, failureCode: true, documentSha256: true, parserVersion: true, fields: true, lastAttemptedAt: true, lastSucceededAt: true },
+            select: { id: true, status: true, failureCode: true, documentSha256: true, parserVersion: true, source: true, processingExpiresAt: true, fields: true, lastAttemptedAt: true, lastSucceededAt: true },
           },
           registrationConfirmations: {
             where: { status: { not: "SUPERSEDED" } },
@@ -84,7 +98,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
   const confirmation = doc?.registrationConfirmations[0] ?? null;
 
   const extractionFacts = extraction
-    ? { status: extraction.status, failureCode: extraction.failureCode, documentSha256: extraction.documentSha256, parserVersion: extraction.parserVersion }
+    ? { status: extraction.status, failureCode: extraction.failureCode, documentSha256: extraction.documentSha256, parserVersion: extraction.parserVersion, processingExpiresAt: extraction.processingExpiresAt }
     : null;
   const confirmationFacts = confirmation
     ? { status: confirmation.status, boundDocumentSha256: confirmation.boundDocumentSha256, boundParserVersion: confirmation.boundParserVersion }
@@ -102,18 +116,38 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
 
   const reviewState = deriveReviewState(extractionFacts, confirmationFacts);
 
+  const hasSuggestions = !!extraction && (extraction.status === "EXTRACTED" || extraction.status === "NEEDS_REVIEW");
+  const extractionSource: "NATIVE_PDF_TEXT" | "OCR" | null = hasSuggestions ? (extraction.source === "OCR" ? "OCR" : "NATIVE_PDF_TEXT") : null;
+
   const fields: RegistrationReviewFieldView[] = CONFIRMATION_FIELD_KEYS.map((key) => {
     const spec = CONFIRMATION_FIELDS[key];
+    const extractedValue = extracted.values[key] ?? null;
+    const confidence = extracted.confidence[key] ?? null;
+    const confirmedValue = confirmedValues[key];
+    const decision = decisions[key] ?? null;
+    const warnings = extracted.warnings[key] ?? [];
+    // The value the form starts with is the provider's own once they have entered or corrected it;
+    // otherwise it is the document-derived suggestion; otherwise nothing.
+    const providerOwned = confirmedValue !== null && (decision === null || !decision.matches || decision.source !== "EXTRACTED");
+    const source: RegistrationFieldValueSource = providerOwned ? "PROVIDER" : extractedValue !== null && extractionSource ? extractionSource : confirmedValue !== null ? "PROVIDER" : "UNRESOLVED";
+    const needsReview =
+      source === "PROVIDER"
+        ? false
+        : source === "UNRESOLVED"
+          ? spec.required
+          : confidence !== "HIGH" || warnings.includes("CONFLICT") || warnings.includes("OCR_UNCLEAR");
     return {
       key,
       group: spec.group,
       kind: spec.kind,
       sensitive: spec.sensitive,
       required: spec.required,
-      extractedValue: extracted.values[key] ?? null,
-      confidence: extracted.confidence[key] ?? null,
-      confirmedValue: confirmedValues[key],
-      decision: decisions[key] ?? null,
+      extractedValue,
+      confidence,
+      confirmedValue,
+      decision,
+      source,
+      needsReview,
     };
   });
 
@@ -122,6 +156,8 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     documentId: doc?.id ?? null,
     documentStatus: doc?.status ?? null,
     documentFilename: doc?.originalFilename ?? null,
+    documentMimeType: doc?.mimeType ?? null,
+    extractionSource,
     reviewState,
     lastAttemptedAt: extraction?.lastAttemptedAt ?? null,
     lastSucceededAt: extraction?.lastSucceededAt ?? null,

@@ -30,14 +30,27 @@ export type FieldView = {
   confidence: "HIGH" | "MEDIUM" | "LOW" | null;
   confirmedValue: string | number | null;
   decision: { matches: boolean; source: "EXTRACTED" | "PROVIDER" | "MANUAL" } | null;
+  /** Where the starting value came from (document text, OCR, the provider, or nothing). */
+  source: "NATIVE_PDF_TEXT" | "OCR" | "PROVIDER" | "UNRESOLVED";
+  /** Read without certainty, flagged, or required but missing — the provider must look at it. */
+  needsReview: boolean;
 };
+
+const SOURCE_LABEL_KEY = {
+  NATIVE_PDF_TEXT: "vehicleRegSourceDocument",
+  OCR: "vehicleRegSourceOcr",
+  PROVIDER: "vehicleRegSourceProvider",
+  UNRESOLVED: "vehicleRegSourceUnresolved",
+} as const;
 
 type Props = {
   vehicleId: string;
   fields: FieldView[];
   vehicleTypeOptions: VehicleTypeOption[];
   suggestedVehicleType: string | null;
-  isManual: boolean;
+  /** Localized notice shown above the fields (manual entry / failure reason / OCR caution), or null. */
+  noticeKey: string | null;
+  noticeVariant: "info" | "warning";
 };
 
 // scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
@@ -55,7 +68,7 @@ function initialValue(f: FieldView): string {
   return v === null || v === undefined ? "" : String(v);
 }
 
-export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, isManual }: Props) {
+export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, noticeKey, noticeVariant }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string) => string; // dynamic field-label/confidence/result keys (parity-guaranteed)
   const router = useRouter();
@@ -70,6 +83,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const [publicDescription, setPublicDescription] = useState("");
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
+  const anyNeedsReview = useMemo(() => fields.some((f) => f.needsReview), [fields]);
   const customer = useMemo(() => fields.filter((f) => f.group === "CUSTOMER"), [fields]);
   const privateFields = useMemo(() => fields.filter((f) => f.group === "PRIVATE"), [fields]);
 
@@ -131,6 +145,11 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     const isRevealed = revealed[f.key] === true;
     const inputType = f.kind === "int" ? "number" : f.kind === "date" ? "date" : "text";
     const extractedDisplay = f.extractedValue === null ? null : f.sensitive && !isRevealed ? maskSensitiveValue(String(f.extractedValue)) : String(f.extractedValue);
+    // Once the provider changes a value it is theirs: the "check this" flag and the document
+    // source label describe the STARTING value only.
+    const edited = (values[f.key] ?? "") !== initialValue(f);
+    const source = edited ? "PROVIDER" : f.source;
+    const flagged = f.needsReview && !edited;
 
     return (
       <div key={f.key} className="flex flex-col gap-1.5 py-3 border-t border-border first:border-t-0">
@@ -145,6 +164,10 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </span>
           )}
         </div>
+        <p className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="text-foreground/50">{t(SOURCE_LABEL_KEY[source])}</span>
+          {flagged && <span className="rounded-full bg-accent/20 px-2 py-0.5 font-medium text-accent-foreground">{t("vehicleOnboardNeedsReviewBadge")}</span>}
+        </p>
         {FIELD_HINT_KEY[f.key] && <p className="text-xs text-foreground/60">{t(FIELD_HINT_KEY[f.key]!)}</p>}
         {extractedDisplay !== null && (
           <p className="text-xs text-foreground/50">
@@ -185,7 +208,8 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
 
   return (
     <div className="flex flex-col gap-4">
-      {isManual && <Alert variant="info">{t("vehicleOnboardManualNotice")}</Alert>}
+      {noticeKey && <Alert variant={noticeVariant}>{td(noticeKey)}</Alert>}
+      {anyNeedsReview && <p className="text-xs text-foreground/70">{t("vehicleOnboardNeedsReviewHint")}</p>}
       {errorCode && <Alert variant="danger">{td(onboardingMessageKey(errorCode))}</Alert>}
       {fieldErrors.some((e) => e.field === "capacity") && <Alert variant="danger">{t("vehicleRegCapacityError")}</Alert>}
 

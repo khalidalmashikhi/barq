@@ -31,6 +31,8 @@ const notFoundMock = vi.fn(() => {
 });
 vi.mock("next/navigation", () => ({ notFound: () => notFoundMock() }));
 vi.mock("./_components/registration-upload-form", () => ({ RegistrationUploadForm: function RegistrationUploadForm() { return null; } }));
+const ocrOperationalMock = vi.fn(() => false);
+vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader", () => ({ isRegistrationOcrOperational: () => ocrOperationalMock() }));
 
 const { default: NewVehiclePage } = await import("./page");
 const { RegistrationUploadForm } = await import("./_components/registration-upload-form");
@@ -110,6 +112,15 @@ describe("NewVehiclePage — document-first for every eligible provider", () => 
     requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u" }, provider: { id: "p", status: "APPROVED" } });
     expect(strings(await NewVehiclePage(props({ uploadError: "ONBOARDING_CANCELLED" })))).toContain("vehicleOnboardErrCancelled");
     expect(strings(await NewVehiclePage(props({ uploadError: "ONBOARDING_IN_PROGRESS" })))).toContain("vehicleOnboardErrInProgress");
+  });
+
+  it("tells the upload form honestly whether photos and scans can be read automatically here", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u" }, provider: { id: "p", status: "APPROVED" } });
+    const propsOf = async () => findAll(await NewVehiclePage(props()), (e) => e.type === RegistrationUploadForm)[0]!.props;
+    ocrOperationalMock.mockReturnValue(false);
+    expect((await propsOf()).ocrAvailable).toBe(false);
+    ocrOperationalMock.mockReturnValue(true);
+    expect((await propsOf()).ocrAvailable).toBe(true);
   });
 
   it("a provider without vehicle-create authority (not approved) gets notFound — no creation surface", async () => {

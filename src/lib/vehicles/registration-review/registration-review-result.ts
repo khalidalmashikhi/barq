@@ -22,7 +22,7 @@ export type RegistrationReviewResult =
   | { ok: false; code: RegistrationReviewCode; fieldErrors?: ConfirmationFieldError[] };
 
 export type RegistrationAnalysisResult =
-  | { ok: true; status: "EXTRACTED" | "NEEDS_REVIEW" | "FAILED"; failureLabelKey: string | null }
+  | { ok: true; status: "EXTRACTED" | "NEEDS_REVIEW" | "FAILED" | "PROCESSING"; failureLabelKey: string | null }
   | { ok: false; code: RegistrationReviewCode };
 
 const MESSAGE_KEY: Record<RegistrationReviewCode, string> = {

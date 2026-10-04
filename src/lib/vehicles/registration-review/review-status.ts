@@ -2,13 +2,16 @@
 // (localized labels resolved in the component) and the supersession/staleness rule. No internal
 // error codes or stack traces ever reach the UI — only these stable state strings + safe labels.
 
-import type { RegistrationExtractionFailureCode } from "@/lib/vehicles/registration-extraction/codes";
+import type { RegistrationExtractionFailureCode, RegistrationRecordStatus } from "@/lib/vehicles/registration-extraction/codes";
+import { isExtractionInProgress } from "@/lib/vehicles/registration-extraction/processing-lease";
 
 export type ExtractionFacts = {
-  status: "EXTRACTED" | "NEEDS_REVIEW" | "FAILED";
+  status: RegistrationRecordStatus;
   failureCode: string | null;
   documentSha256: string;
   parserVersion: string;
+  /** Lease of the attempt reading the document (only meaningful while status is PROCESSING). */
+  processingExpiresAt?: Date | null;
 } | null;
 
 export type ConfirmationFacts = {
@@ -19,6 +22,8 @@ export type ConfirmationFacts = {
 
 export type ExtractionUiState =
   | "NOT_ANALYZED"
+  /** The document is being read right now (an OCR call is in flight). Never a final state. */
+  | "PROCESSING"
   | "EXTRACTED"
   | "NEEDS_REVIEW"
   | "FAILED";
@@ -38,6 +43,12 @@ export const EXTRACTION_FAILURE_LABEL_KEY: Record<RegistrationExtractionFailureC
   TEXT_LIMIT_EXCEEDED: "vehicleRegExtractFailContentLimit",
   PDF_TRAILING_DATA: "vehicleRegExtractFailUnsupported",
   EXTRACTION_FAILED: "vehicleRegExtractFailGeneric",
+  // OCR outcomes — each keeps the document and offers retry + manual entry.
+  OCR_NOT_CONFIGURED: "vehicleRegExtractFailOcrUnavailable",
+  OCR_TIMEOUT: "vehicleRegExtractFailOcrTimeout",
+  OCR_PROVIDER_ERROR: "vehicleRegExtractFailOcrUnavailable",
+  OCR_MALFORMED_RESPONSE: "vehicleRegExtractFailGeneric",
+  OCR_UNREADABLE: "vehicleRegExtractFailOcrUnreadable",
 };
 
 export function extractionFailureLabelKey(code: string | null): string {
@@ -70,9 +81,17 @@ export type ReviewState = {
   locked: boolean;
 };
 
-export function deriveReviewState(extraction: ExtractionFacts, confirmation: ConfirmationFacts): ReviewState {
-  const extractionState: ExtractionUiState = !extraction ? "NOT_ANALYZED" : extraction.status;
-  const failureLabelKey = extraction && extraction.status === "FAILED" ? extractionFailureLabelKey(extraction.failureCode) : null;
+export function deriveReviewState(extraction: ExtractionFacts, confirmation: ConfirmationFacts, now: Date = new Date()): ReviewState {
+  // PROCESSING is "being read" only while its lease is live. An expired lease means the attempt
+  // died: it is shown as a retryable failure (and manual entry is allowed), never as a spinner.
+  const reading = !!extraction && isExtractionInProgress({ status: extraction.status, processingExpiresAt: extraction.processingExpiresAt ?? null }, now);
+  const abandoned = !!extraction && extraction.status === "PROCESSING" && !reading;
+  const extractionState: ExtractionUiState = !extraction ? "NOT_ANALYZED" : reading ? "PROCESSING" : extraction.status === "PROCESSING" ? "FAILED" : extraction.status;
+  const failureLabelKey = abandoned
+    ? extractionFailureLabelKey("OCR_TIMEOUT")
+    : extraction && extraction.status === "FAILED"
+      ? extractionFailureLabelKey(extraction.failureCode)
+      : null;
 
   const stale = isConfirmationStale(confirmation, extraction);
   let confirmationState: ConfirmationUiState;
@@ -87,8 +106,10 @@ export function deriveReviewState(extraction: ExtractionFacts, confirmation: Con
   // (scanned/unreadable → the provider enters every field MANUALLY, the document still required for
   // admin verification). Only NOT_ANALYZED (no row yet) and a locked current SUBMITTED claim block
   // it; a STALE claim requires fresh review (so confirming is allowed). FAILED also keeps Retry.
+  // While the document is being read the provider waits (the suggestions are about to arrive) —
+  // bounded by the lease; after that the form opens regardless.
   const locked = confirmationState === "SUBMITTED";
-  const canConfirm = extractionState !== "NOT_ANALYZED" && !locked;
+  const canConfirm = extractionState !== "NOT_ANALYZED" && extractionState !== "PROCESSING" && !locked;
 
   return { extraction: extractionState, failureLabelKey, confirmation: confirmationState, canAnalyze, canConfirm, locked };
 }

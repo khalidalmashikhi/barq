@@ -11,8 +11,27 @@ export const REGISTRATION_PARSER_VERSION = "1.0.0";
 export const REGISTRATION_DOCUMENT_KIND = "OMAN_VEHICLE_REGISTRATION" as const;
 export type RegistrationDocumentKind = typeof REGISTRATION_DOCUMENT_KIND;
 
-/** This slice extracts ONLY from a native PDF text layer — never OCR (Tier 2, not built). */
+/** Tier 1 — deterministic extraction from a native PDF text layer. Always tried first. */
 export const REGISTRATION_EXTRACTION_SOURCE = "NATIVE_PDF_TEXT" as const;
+
+/** Tier 2 — the document (a photo, or a scanned/image-only PDF) was read by the configured OCR
+ *  engine. An OCR value is ALWAYS a suggestion for the provider to review: it is never given HIGH
+ *  confidence and never verifies anything. */
+export const REGISTRATION_OCR_SOURCE = "OCR" as const;
+
+export type RegistrationExtractionSource = typeof REGISTRATION_EXTRACTION_SOURCE | typeof REGISTRATION_OCR_SOURCE;
+
+/** How long ONE attempt may hold a PROCESSING extraction (an OCR call in flight). Longer than the
+ *  OCR timeout plus persistence, so a live attempt never loses its lease; an attempt that died
+ *  stops blocking a retry after this long. */
+export const REGISTRATION_OCR_LEASE_MS = 90_000;
+
+/** Hard upper bound on one external OCR call before it is aborted (OCR_TIMEOUT, retryable). */
+export const REGISTRATION_OCR_TIMEOUT_MS = 25_000;
+
+/** Bounds on what an OCR engine may hand back per field (defence against a runaway response). */
+export const MAX_OCR_CANDIDATES_PER_FIELD = 4;
+export const MAX_OCR_CANDIDATE_CHARS = 120;
 
 /** Conservative page-count ceiling — an Omani registration is 1–2 pages; anything far
  *  larger is rejected (`PDF_PAGE_LIMIT`) rather than parsed, bounding memory/time. */

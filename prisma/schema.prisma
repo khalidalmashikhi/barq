@@ -325,6 +325,10 @@ enum VehicleRegistrationExtractionStatus {
   EXTRACTED
   NEEDS_REVIEW
   FAILED
+  /// Phase 3C OCR — one attempt is reading the document (an external OCR call may be in
+  /// flight). Never a final outcome: it is held by a lease (processingToken/-ExpiresAt) and is
+  /// either completed by that attempt or taken over once the lease has expired.
+  PROCESSING
 }
 
 /// Deliberately open to future values beyond VEHICLE — per Asset's
@@ -977,8 +981,18 @@ model VehicleRegistrationExtraction {
   /// SHA-256 (hex) of the exact parsed bytes — idempotency + audit provenance. Not public.
   documentSha256                     String
   parserVersion                      String
-  /// Always "NATIVE_PDF_TEXT" in this slice (never OCR).
+  /// How the candidate was produced: "NATIVE_PDF_TEXT" (deterministic local text extraction)
+  /// or "OCR" (an image / scanned PDF read by the configured OCR engine — always a suggestion
+  /// the provider must review, never a verified value).
   source                             String
+  /// Phase 3C OCR — operational metadata only: which OCR engine/version produced an "OCR"
+  /// result (e.g. "claude-vision/<model>/p1"). NULL for native text. Never a document value.
+  ocrEngine                          String?
+  /// Phase 3C OCR — the LEASE of the single attempt allowed to complete a PROCESSING row.
+  /// Completion is a guarded update on this token, so a late OCR answer for a cancelled,
+  /// replaced or taken-over document is discarded instead of being written.
+  processingToken                    String?                             @db.Uuid
+  processingExpiresAt                DateTime?                           @db.Timestamptz(6)
   status                             VehicleRegistrationExtractionStatus
   /// Safe, stable failure code when status = FAILED (never a raw library exception).
   failureCode                        String?
@@ -1013,6 +1027,8 @@ model VehicleRegistrationExtraction {
 
   @@index([assetId])
   @@index([status])
+  /// Phase 3C OCR — provider-scoped reuse of an existing OCR result for identical bytes.
+  @@index([documentSha256])
   @@map("vehicle_registration_extractions")
 }
 

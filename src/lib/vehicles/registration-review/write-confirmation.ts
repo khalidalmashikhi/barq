@@ -7,6 +7,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import { parseConfirmation } from "./confirmation-input";
 import { mapExtractedByField } from "./extracted-mapping";
+import { isExtractionInProgress } from "@/lib/vehicles/registration-extraction/processing-lease";
 import { computeFieldDecisions, correctedFieldCount } from "./diff";
 import { confirmationColumns, serializeFieldDecisions } from "./confirmation-record";
 import type { RegistrationReviewResult } from "./registration-review-result";
@@ -42,7 +43,7 @@ export async function writeRegistrationConfirmation(
             where: { type: "VEHICLE_REGISTRATION" },
             select: {
               id: true,
-              registrationExtraction: { select: { id: true, documentSha256: true, parserVersion: true, fields: true } },
+              registrationExtraction: { select: { id: true, documentSha256: true, parserVersion: true, fields: true, status: true, processingExpiresAt: true } },
               registrationConfirmations: {
                 where: { status: { not: "SUPERSEDED" } },
                 select: { id: true, status: true, version: true, boundDocumentSha256: true, boundParserVersion: true },
@@ -56,6 +57,9 @@ export async function writeRegistrationConfirmation(
       if (!doc) return { ok: false, code: "DOCUMENT_NOT_FOUND" } as const;
       const extraction = doc.registrationExtraction;
       if (!extraction) return { ok: false, code: "EXTRACTION_NOT_READY" } as const;
+      // The document is being read right now (an OCR call is in flight): its suggestions are about
+      // to arrive, so nothing is confirmed against a half-finished extraction. Bounded by the lease.
+      if (isExtractionInProgress(extraction)) return { ok: false, code: "EXTRACTION_NOT_READY" } as const;
 
       const active = doc.registrationConfirmations[0] ?? null;
       const stale = active

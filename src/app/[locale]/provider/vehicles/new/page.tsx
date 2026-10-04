@@ -10,6 +10,7 @@ import { Alert } from "@/components/ui/alert";
 import { resolveVehicleCreateAccess } from "@/lib/vehicles/onboarding/vehicle-create-access";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
 import { isOnboardingRequestErrorCode, getOnboardingRequestErrorTranslationKey } from "@/lib/vehicles/onboarding/onboarding-request-errors";
+import { isRegistrationOcrOperational } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { RegistrationUploadForm } from "./_components/registration-upload-form";
 
 // Add Vehicle — DOCUMENT-FIRST for every provider who may register a vehicle (Phase 3C Slice 3B).
@@ -71,7 +72,7 @@ export default async function NewVehiclePage({ searchParams }: Props) {
             one key create only one setup. The rendered key is the no-JavaScript fallback; the
             hydrated form keeps ONE key per attempt in the tab's session storage, scoped to this
             provider by an opaque tag (a hash — the provider id itself is not sent to the browser). */}
-        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} keyScope={keyScope} cancelHref="/provider/vehicles" />
+        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} keyScope={keyScope} cancelHref="/provider/vehicles" ocrAvailable={isRegistrationOcrOperational()} />
       </Card>
     </div>
   );

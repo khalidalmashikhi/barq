@@ -25,6 +25,14 @@ vi.mock("@/lib/file-safety/normalize-private-image", () => ({ normalizePrivateIm
 vi.mock("@/lib/vehicles/documents/prepare-vehicle-document", () => ({ prepareVehicleDocumentForStorage: tripwire("the vehicle-document policy") }));
 vi.mock("@/lib/vehicles/registration-extraction/registration-pdf-policy", () => ({ checkRegistrationPdfStructure: tripwire("the vehicle-registration PDF rule") }));
 vi.mock("@/lib/vehicles/registration-extraction/pdf-text", () => ({ extractPdfText: tripwire("the vehicle-registration PDF parser") }));
+// Vehicle-registration OCR: a provider-verification document (identity, licence, …) must NEVER be
+// sent to the OCR engine or run through the registration extraction service.
+vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader", () => ({
+  getRegistrationDocumentReader: tripwire("the vehicle-registration OCR engine"),
+  isRegistrationOcrOperational: tripwire("the vehicle-registration OCR engine"),
+}));
+vi.mock("@/lib/vehicles/registration-extraction/ocr/claude-vision-reader", () => ({ createClaudeVisionRegistrationReader: tripwire("the vehicle-registration OCR engine") }));
+vi.mock("@/lib/vehicles/registration-extraction/extract-registration-service", () => ({ runVehicleRegistrationExtraction: tripwire("the vehicle-registration extraction service") }));
 
 const { requireProviderMock, ForbiddenError, UnauthenticatedError } = vi.hoisted(() => ({
   requireProviderMock: vi.fn(),
@@ -199,7 +207,11 @@ describe("ProviderDocument — its contract is its own", () => {
 
   it("the provider-document error vocabulary contains none of the vehicle-document outcomes", () => {
     const codes = readFileSync(path.join(process.cwd(), "src/lib/provider/documents/provider-document-error-codes.ts"), "utf8");
-    for (const vehicleOnly of ["HEIC_UNSUPPORTED", "IMAGE_TOO_LARGE", "IMAGE_CORRUPT", "PDF_ENCRYPTED", "PDF_CORRUPT", "PDF_TOO_MANY_PAGES", "ONBOARDING_CANCELLED", "ONBOARDING_IN_PROGRESS"]) {
+    for (const vehicleOnly of [
+      "HEIC_UNSUPPORTED", "IMAGE_TOO_LARGE", "IMAGE_CORRUPT", "PDF_ENCRYPTED", "PDF_CORRUPT", "PDF_TOO_MANY_PAGES", "ONBOARDING_CANCELLED", "ONBOARDING_IN_PROGRESS",
+      // vehicle-registration OCR / extraction outcomes
+      "OCR_NOT_CONFIGURED", "OCR_TIMEOUT", "OCR_PROVIDER_ERROR", "OCR_MALFORMED_RESPONSE", "OCR_UNREADABLE", "NO_TEXT_LAYER", "UNSUPPORTED_LAYOUT", "EXTRACTION_FAILED",
+    ]) {
       expect(codes).not.toContain(vehicleOnly);
     }
   });
@@ -223,8 +235,29 @@ describe("ProviderDocument — its contract is its own", () => {
     }
   });
 
+  it.each(sources)("%s never references the OCR configuration, the OCR vendor or the registration extraction tables", (rel) => {
+    const text = readFileSync(path.join(ROOT, rel), "utf8");
+    expect(text).not.toMatch(/REGISTRATION_OCR|ANTHROPIC|api\.anthropic\.com|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|RegistrationDocumentReader/);
+  });
+
+  it("uploading or replacing a provider document makes NO outbound request at all (no OCR, no vendor call)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      throw new Error("a provider-verification document must never be sent to an external service");
+    });
+    try {
+      for (const type of PROVIDER_DOCUMENT_TYPE_KEYS) {
+        expect(await uploadProviderDocument({ type, originalFilename: "scan.jpg", declaredMimeType: "image/jpeg", bytes: ab(await exifImage("jpeg")) })).toEqual({ ok: true, documentId: "doc-1" });
+      }
+      findUniqueMock.mockResolvedValue({ id: "doc-1", providerId: "prov-1", type: "IDENTITY_PROOF", status: "PENDING", objectKey: OLD_KEY, provider: { status: "DRAFT", providerType: "COMPANY" } });
+      expect(await replaceProviderDocument({ documentId: "doc-1", expectedVersionToken: documentVersionToken(OLD_KEY), originalFilename: "new.pdf", declaredMimeType: "application/pdf", bytes: longPdf() })).toMatchObject({ ok: true });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it.each(sources)("%s imports nothing from the vehicle domain, the image normalizer, sharp or the PDF engine", (rel) => {
     const imports = (readFileSync(path.join(ROOT, rel), "utf8").match(/from\s+["'][^"']+["']|import\(\s*["'][^"']+["']\s*\)/g) ?? []).join("\n");
-    expect(imports).not.toMatch(/@\/lib\/vehicles\b|\/vehicles\/|file-safety|["']sharp["']|unpdf|registration-extraction|prepare-vehicle-document|onboarding/);
+    expect(imports).not.toMatch(/@\/lib\/vehicles\b|\/vehicles\/|file-safety|["']sharp["']|unpdf|registration-extraction|prepare-vehicle-document|onboarding|\/ocr\/|claude|anthropic/i);
   });
 });

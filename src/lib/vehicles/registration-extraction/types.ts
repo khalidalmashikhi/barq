@@ -1,7 +1,7 @@
 // Phase 3C — Vehicle Registration Extraction, Slice 2. The pure parsing contract.
 // Deterministic, allowlisted, and free of any owner/insurance PII by construction.
 
-import type { RegistrationDocumentKind } from "./constants";
+import type { RegistrationDocumentKind, RegistrationExtractionSource } from "./constants";
 import type { RegistrationFieldConfidence, RegistrationExtractionStatus } from "./codes";
 
 /** A single extracted field. `rawValue` is preserved ONLY for allowlisted operational
@@ -78,9 +78,17 @@ export const CRITICAL_REGISTRATION_FIELDS = [
 export type VehicleRegistrationExtractionResult = {
   parserVersion: string;
   documentKind: RegistrationDocumentKind;
-  source: "NATIVE_PDF_TEXT";
+  source: RegistrationExtractionSource;
   fields: VehicleRegistrationFields;
   overallStatus: RegistrationExtractionStatus;
   /** Document-level warning codes (e.g. "NO_SUPPORTED_FIELDS", "DISCARDED_PII_LABELS_PRESENT"). */
   warnings: string[];
 };
+
+/** One piece of text detected for a field, before normalization. `unclear` is set by an OCR engine
+ *  when it could not read the value with certainty (it then counts as LOW confidence). */
+export type RegistrationCandidate = { text: string; unclear?: boolean };
+
+/** Detected text per allowlisted field — the ONLY shape an OCR engine may contribute. There is no
+ *  key for owner / civil number / address / insurance, so such data cannot be carried through. */
+export type RegistrationCandidates = Partial<Record<RegistrationFieldKey, RegistrationCandidate[]>>;

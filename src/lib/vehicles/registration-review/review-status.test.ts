@@ -54,3 +54,34 @@ describe("isConfirmationStale / failure labels", () => {
     expect(extractionFailureLabelKey(null)).toBe("vehicleRegExtractFailGeneric");
   });
 });
+
+describe("PROCESSING — the document is being read (OCR in flight)", () => {
+  const NOW = new Date("2026-10-05T10:00:00Z");
+  const reading = (expiresInMs: number) => ({ status: "PROCESSING" as const, failureCode: null, documentSha256: "sha-1", parserVersion: "1.0.0", processingExpiresAt: new Date(NOW.getTime() + expiresInMs) });
+
+  it("a LIVE lease → PROCESSING: wait — no analyze (no second reading), no confirm (suggestions are about to arrive)", () => {
+    const s = deriveReviewState(reading(30_000), null, NOW);
+    expect(s).toMatchObject({ extraction: "PROCESSING", failureLabelKey: null, canAnalyze: false, canConfirm: false, locked: false });
+  });
+
+  it("an EXPIRED lease (the attempt died) → shown as a retryable failure with manual entry open — never an endless spinner", () => {
+    const s = deriveReviewState(reading(-1), null, NOW);
+    expect(s).toMatchObject({ extraction: "FAILED", failureLabelKey: "vehicleRegExtractFailOcrTimeout", canAnalyze: true, canConfirm: true });
+  });
+
+  it("PROCESSING without a lease timestamp is treated as abandoned (fail open for the provider, never stuck)", () => {
+    const s = deriveReviewState({ status: "PROCESSING", failureCode: null, documentSha256: "sha-1", parserVersion: "1.0.0", processingExpiresAt: null }, null, NOW);
+    expect(s).toMatchObject({ extraction: "FAILED", canAnalyze: true, canConfirm: true });
+  });
+
+  it.each([
+    ["OCR_NOT_CONFIGURED", "vehicleRegExtractFailOcrUnavailable"],
+    ["OCR_PROVIDER_ERROR", "vehicleRegExtractFailOcrUnavailable"],
+    ["OCR_TIMEOUT", "vehicleRegExtractFailOcrTimeout"],
+    ["OCR_UNREADABLE", "vehicleRegExtractFailOcrUnreadable"],
+    ["OCR_MALFORMED_RESPONSE", "vehicleRegExtractFailGeneric"],
+  ])("OCR failure %s → a safe localized label (%s), retry + manual entry both available", (code, label) => {
+    const s = deriveReviewState({ status: "FAILED", failureCode: code, documentSha256: "sha-1", parserVersion: "1.0.0" }, null, NOW);
+    expect(s).toMatchObject({ extraction: "FAILED", failureLabelKey: label, canAnalyze: true, canConfirm: true });
+  });
+});

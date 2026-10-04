@@ -69,6 +69,20 @@ export const envSchema = z
     // Resend sender, e.g. "BARQ <noreply@your-domain>". No secrets are committed —
     // .env.example ships empty placeholders.
     RESEND_API_KEY: z.string().optional(),
+    // REGISTRATION OCR (Phase 3C) — which engine reads a PHOTO or SCANNED vehicle-registration
+    // document. Native-text PDFs never need it (they are read locally). INERT by default
+    // ("disabled": no document is sent anywhere and photos/scans stay on the manual path).
+    // "claude" sends the stored registration document to the Anthropic API and therefore requires
+    // ANTHROPIC_API_KEY (the .superRefine() below) — a server-only secret, never exposed to the
+    // browser, never committed (.env.example ships an empty placeholder). Enabling it is an
+    // explicit data-processing decision for documents that carry owner details.
+    // REGISTRATION_OCR_MODEL optionally overrides the reader's default model.
+    REGISTRATION_OCR_PROVIDER: z.enum(["disabled", "claude"]).optional().default("disabled"),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    REGISTRATION_OCR_MODEL: z
+      .string()
+      .regex(/^claude-[a-z0-9][a-z0-9.-]{2,60}$/, "must be a Claude model id, e.g. claude-sonnet-5-5")
+      .optional(),
     EMAIL_FROM: z.string().optional(),
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
@@ -185,6 +199,16 @@ export const envSchema = z
     // BOOKING NOTIFICATION DELIVERY — BOOKING_EMAIL_PROVIDER=resend requires the same Resend
     // credentials, all-or-nothing, independently of the OTP switch (a deployment may send booking
     // mail via Resend with OTP disabled, or vice-versa).
+    // Registration OCR: selecting the Claude reader without its credential is a misconfiguration
+    // (at runtime the reader factory also fails closed, so nothing would be sent — but the
+    // deployment should say so at startup rather than silently fall back to manual entry).
+    if (env.REGISTRATION_OCR_PROVIDER === "claude" && !env.ANTHROPIC_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ANTHROPIC_API_KEY"],
+        message: "required when REGISTRATION_OCR_PROVIDER=claude",
+      });
+    }
     if (env.BOOKING_EMAIL_PROVIDER === "resend") {
       if (!env.RESEND_API_KEY) {
         ctx.addIssue({

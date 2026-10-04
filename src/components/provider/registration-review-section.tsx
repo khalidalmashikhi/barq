@@ -14,6 +14,7 @@ import { RegistrationConfirmationForm, type FieldView } from "@/app/[locale]/pro
 
 const EXTRACTION_STATE_LABEL: Record<RegistrationReviewView["reviewState"]["extraction"], string> = {
   NOT_ANALYZED: "vehicleRegStateNotAnalyzed",
+  PROCESSING: "vehicleRegStateProcessing",
   EXTRACTED: "vehicleRegStateExtracted",
   NEEDS_REVIEW: "vehicleRegStateNeedsReview",
   FAILED: "vehicleRegStateFailed",

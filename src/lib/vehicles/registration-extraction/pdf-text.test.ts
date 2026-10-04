@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// The REAL PDF engine is loaded here; its first load is slow when the whole suite runs in parallel.
+vi.setConfig({ testTimeout: 30_000 });
 
 const { extractPdfText } = await import("./pdf-text");
 type Deps = Parameters<typeof extractPdfText>[2];

@@ -16,7 +16,7 @@ const REG_TEXT = ["رقم اللوحة: A 12345", "نوع المركبة: Toyota
 const BYTES = new TextEncoder().encode("fake-pdf-bytes").buffer;
 const SHA = createHash("sha256").update(Buffer.from(BYTES)).digest("hex");
 const VERSION = "1.0.0";
-const goodDoc = { id: "doc-1", type: "VEHICLE_REGISTRATION", objectKey: "asset-documents/asset-1/reg/x.pdf", assetId: "asset-1", asset: { assetType: "VEHICLE" } };
+const goodDoc = { id: "doc-1", type: "VEHICLE_REGISTRATION", objectKey: "asset-documents/asset-1/reg/x.pdf", mimeType: "application/pdf", assetId: "asset-1", asset: { assetType: "VEHICLE", providerId: "prov-1" } };
 
 // Mocks shared across tests.
 const assetDocFindUnique = vi.fn();
@@ -33,7 +33,8 @@ const db = {
 
 const extractOk = vi.fn(async () => ({ ok: true as const, pageCount: 1, text: REG_TEXT }));
 const download = vi.fn(async () => BYTES);
-const deps = () => ({ db, extractPdfText: extractOk, downloadPrivateObject: download, isStorageConfigured: () => true });
+// Native-text path: no OCR engine is involved (the OCR tier has its own suite, ocr-extraction.test.ts).
+const deps = () => ({ db, extractPdfText: extractOk, downloadPrivateObject: download, isStorageConfigured: () => true, getReader: () => null });
 
 const P2002 = new Prisma.PrismaClientKnownRequestError("unique", { code: "P2002", clientVersion: "5.22.0" });
 

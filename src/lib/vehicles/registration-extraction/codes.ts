@@ -16,6 +16,13 @@ export const REGISTRATION_EXTRACTION_FAILURE_CODES = [
   "TEXT_LIMIT_EXCEEDED", // extracted text item/char bound exceeded (resource-exhaustion mitigation)
   "PDF_TRAILING_DATA", // suspicious non-whitespace payload after the final %%EOF (possible polyglot)
   "EXTRACTION_FAILED", // any unexpected error (mapped, never a raw exception)
+  // ---- OCR (photos and scanned PDFs). Every one leaves the document stored and the provider able
+  // ---- to retry or enter the details manually.
+  "OCR_NOT_CONFIGURED", // no OCR engine is configured in this environment (fail closed)
+  "OCR_TIMEOUT", // the OCR call exceeded its time bound and was aborted (retryable)
+  "OCR_PROVIDER_ERROR", // the OCR engine was unreachable or answered with an error (retryable)
+  "OCR_MALFORMED_RESPONSE", // the OCR engine's answer did not match the expected shape (never persisted)
+  "OCR_UNREADABLE", // the engine answered, but no registration field could be read from the document
 ] as const;
 
 export type RegistrationExtractionFailureCode = (typeof REGISTRATION_EXTRACTION_FAILURE_CODES)[number];
@@ -27,6 +34,11 @@ export function isRegistrationExtractionFailureCode(v: unknown): v is Registrati
 /** Overall outcome of an extraction attempt (persisted as the record status). */
 export const REGISTRATION_EXTRACTION_STATUSES = ["EXTRACTED", "NEEDS_REVIEW", "FAILED"] as const;
 export type RegistrationExtractionStatus = (typeof REGISTRATION_EXTRACTION_STATUSES)[number];
+
+/** The persisted record status: a final outcome, or PROCESSING while one attempt holds the lease
+ *  (an OCR call may be in flight). PROCESSING is never returned by the pure parser. */
+export const REGISTRATION_RECORD_STATUSES = [...REGISTRATION_EXTRACTION_STATUSES, "PROCESSING"] as const;
+export type RegistrationRecordStatus = (typeof REGISTRATION_RECORD_STATUSES)[number];
 
 /** Per-field, rule-based (NOT ML) confidence. */
 export const REGISTRATION_FIELD_CONFIDENCES = ["HIGH", "MEDIUM", "LOW"] as const;
