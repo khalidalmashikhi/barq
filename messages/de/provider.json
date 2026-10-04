@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "Dieses Bild konnte nicht geöffnet werden — die Datei ist möglicherweise beschädigt. Nehmen Sie ein neues Foto auf oder wählen Sie eine andere Datei.",
   "vehicleDocErrorPdfEncrypted": "Dieses PDF ist passwortgeschützt. Laden Sie eine Kopie ohne Passwort oder ein Foto des Dokuments hoch.",
   "vehicleDocErrorPdfCorrupt": "Dieses PDF konnte nicht geöffnet werden — die Datei ist möglicherweise beschädigt. Exportieren Sie es erneut oder laden Sie ein Foto des Dokuments hoch.",
-  "vehicleDocErrorPdfTooManyPages": "Dieses PDF hat zu viele Seiten. Laden Sie nur den Fahrzeugschein hoch (bis zu 8 Seiten)."
+  "vehicleDocErrorPdfTooManyPages": "Dieses PDF hat zu viele Seiten. Laden Sie nur den Fahrzeugschein hoch (bis zu 8 Seiten).",
+  "vehicleOnboardErrCancelled": "Diese Fahrzeugeinrichtung wurde abgebrochen, daher kann dieser Upload nicht fortgesetzt werden. Starten Sie eine neue Einrichtung, um das Fahrzeug hinzuzufügen.",
+  "vehicleOnboardErrInProgress": "Ihr Dokument wird noch verarbeitet. Warten Sie einen Moment und versuchen Sie es erneut – es wird nicht doppelt hinzugefügt.",
+  "vehicleOnboardStartNew": "Neue Einrichtung starten"
 }

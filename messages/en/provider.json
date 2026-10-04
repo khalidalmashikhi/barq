@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "This image couldn't be opened — the file may be damaged. Take a new photo or choose another file.",
   "vehicleDocErrorPdfEncrypted": "This PDF is password-protected. Upload a copy without a password, or a photo of the document.",
   "vehicleDocErrorPdfCorrupt": "This PDF couldn't be opened — the file may be damaged. Export it again or upload a photo of the document.",
-  "vehicleDocErrorPdfTooManyPages": "This PDF has too many pages. Upload only the registration document (up to 8 pages)."
+  "vehicleDocErrorPdfTooManyPages": "This PDF has too many pages. Upload only the registration document (up to 8 pages).",
+  "vehicleOnboardErrCancelled": "This vehicle setup was cancelled, so this upload can't continue. Start a new setup to add the vehicle.",
+  "vehicleOnboardErrInProgress": "Your document is still being processed. Wait a moment, then try again — it won't be added twice.",
+  "vehicleOnboardStartNew": "Start a new setup"
 }

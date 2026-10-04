@@ -38,7 +38,9 @@ const DOC_KEY = "asset-documents/asset-1/vehicle_registration/x.pdf";
 // In-tx raw statements: the row lock (SELECT … FOR UPDATE) and the document DELETE … RETURNING.
 const txQueryRaw = vi.fn((strings: TemplateStringsArray) => Promise.resolve(strings.join("").includes("DELETE") ? [{ objectKey: DOC_KEY }] : [{ id: "locked" }]));
 const txAssetFindFirst = vi.fn();
+const requestUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
 const txClient = {
+  vehicleOnboardingRequest: { updateMany: (...a: unknown[]) => requestUpdateMany(...a) },
   $queryRaw: (strings: TemplateStringsArray, ...v: unknown[]) => txQueryRaw(strings, ...(v as [])),
   vehicleRegistrationConfirmation: { deleteMany: (...a: unknown[]) => confDeleteMany(...a) },
   vehicleRegistrationExtraction: { deleteMany: (...a: unknown[]) => extDeleteMany(...a) },
@@ -70,6 +72,7 @@ beforeEach(() => {
   assetDelete.mockResolvedValue({ id: "asset-1" });
   enqueueCleanupMock.mockResolvedValue("cleanup-task-1");
   attemptCleanupMock.mockResolvedValue("completed");
+  requestUpdateMany.mockResolvedValue({ count: 1 });
   requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u-1" }, provider: { id: "prov-1", status: "APPROVED" } });
   assetFindFirst.mockResolvedValue(shell());
   txAssetFindFirst.mockResolvedValue(shell()); // authoritative in-tx re-check: still a blank shell
@@ -89,6 +92,24 @@ describe("deleteDraftVehicle", () => {
     expect(attemptCleanupMock).toHaveBeenCalledWith("cleanup-task-1");
     // The asset row is locked FIRST, before any check or delete.
     expect(txQueryRaw.mock.calls[0]![0].join("")).toContain("FOR UPDATE");
+  });
+
+  it("IDEMPOTENCY TOMBSTONE: the request that created the shell is marked CANCELLED in the SAME transaction, BEFORE the asset is deleted — and is never deleted itself", async () => {
+    expect(await deleteDraftVehicle(VEHICLE)).toEqual({ ok: true });
+    expect(requestUpdateMany).toHaveBeenCalledTimes(1);
+    const arg = requestUpdateMany.mock.calls[0]![0] as { where: unknown; data: Record<string, unknown> };
+    expect(arg.where).toEqual({ assetId: VEHICLE });
+    expect(arg.data).toMatchObject({ status: "CANCELLED", leaseToken: null, leaseExpiresAt: null });
+    expect(arg.data.cancelledAt).toBeInstanceOf(Date);
+    expect((arg.data.expiresAt as Date).getTime()).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000); // retained, not released
+    expect(requestUpdateMany.mock.invocationCallOrder[0]!).toBeLessThan(assetDelete.mock.invocationCallOrder[0]!);
+    expect(Object.keys(txClient.vehicleOnboardingRequest)).toEqual(["updateMany"]); // no delete path exists
+  });
+
+  it("a refused cancellation leaves the request untouched", async () => {
+    txAssetFindFirst.mockResolvedValue(shell({ registrationConfirmations: [{ id: "c" }] }));
+    expect(await deleteDraftVehicle(VEHICLE)).toEqual({ ok: false, code: "NOT_DELETABLE" });
+    expect(requestUpdateMany).not.toHaveBeenCalled();
   });
 
   it("RACE — finalize committed first (in-tx re-check sees a SUBMITTED claim) → NOT_DELETABLE, nothing deleted or queued", async () => {

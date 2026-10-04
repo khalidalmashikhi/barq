@@ -9,7 +9,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
 import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
 import { registerUploadIntent, releaseUploadIntent, attemptPrivateObjectCleanup } from "@/lib/storage/cleanup/private-object-cleanup";
-import { prepareDocumentForStorage } from "./prepare-document";
+import { prepareVehicleDocumentForStorage } from "./prepare-vehicle-document";
 import { safeErrorCategory } from "./safe-error-category";
 import { isValidAssetDocumentTypeKey } from "./asset-document-types";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
@@ -65,11 +65,11 @@ export async function uploadVehicleDocument(assetId: string, input: UploadVehicl
 
   // One server-side authority for what may be stored: signature + size + (for images) decode
   // limits, orientation, re-encode with all metadata removed; a registration PDF is also checked
-  // for encryption/corruption/page count. See prepare-document.ts.
-  const prepared = await prepareDocumentForStorage({
+  // for encryption/corruption/page count. See prepare-vehicle-document.ts.
+  const prepared = await prepareVehicleDocumentForStorage({
     declaredMimeType: input.declaredMimeType,
     bytes: input.bytes,
-    pdfPolicy: input.type === "VEHICLE_REGISTRATION" ? "REGISTRATION" : "NONE",
+    documentType: input.type,
   });
   if (!prepared.ok) return { ok: false, error: prepared.error };
 

@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "Tento obrázek se nepodařilo otevřít — soubor může být poškozený. Pořiďte novou fotografii nebo vyberte jiný soubor.",
   "vehicleDocErrorPdfEncrypted": "Toto PDF je chráněno heslem. Nahrajte kopii bez hesla nebo fotografii dokumentu.",
   "vehicleDocErrorPdfCorrupt": "Toto PDF se nepodařilo otevřít — soubor může být poškozený. Exportujte jej znovu nebo nahrajte fotografii dokumentu.",
-  "vehicleDocErrorPdfTooManyPages": "Toto PDF má příliš mnoho stran. Nahrajte pouze technický průkaz (nejvýše 8 stran)."
+  "vehicleDocErrorPdfTooManyPages": "Toto PDF má příliš mnoho stran. Nahrajte pouze technický průkaz (nejvýše 8 stran).",
+  "vehicleOnboardErrCancelled": "Toto nastavení vozidla bylo zrušeno, takže v nahrávání nelze pokračovat. Chcete-li vozidlo přidat, začněte nové nastavení.",
+  "vehicleOnboardErrInProgress": "Váš dokument se stále zpracovává. Chvíli počkejte a zkuste to znovu — nebude přidán dvakrát.",
+  "vehicleOnboardStartNew": "Začít nové nastavení"
 }

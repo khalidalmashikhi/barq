@@ -33,10 +33,10 @@ vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
   registerUploadIntent: (...a: unknown[]) => registerIntentMock(...a),
   releaseUploadIntent: (...a: unknown[]) => releaseIntentMock(...a),
 }));
-// The single preparation authority (validation + normalization) is covered by prepare-document.test.ts
+// The single preparation authority (validation + normalization) is covered by prepare-vehicle-document.test.ts
 // with the REAL decoder; here it is a seam.
 const prepareMock = vi.fn();
-vi.mock("./prepare-document", () => ({ prepareDocumentForStorage: (a: unknown) => prepareMock(a) }));
+vi.mock("./prepare-vehicle-document", () => ({ prepareVehicleDocumentForStorage: (a: unknown) => prepareMock(a) }));
 
 const docFindFirstMock = vi.fn();
 const txUpdateManyMock = vi.fn();

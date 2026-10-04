@@ -5,6 +5,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import { isValidUuid } from "@/lib/uuid";
 import { enqueuePrivateObjectCleanup, attemptPrivateObjectCleanup } from "@/lib/storage/cleanup/private-object-cleanup";
+import { tombstoneOnboardingRequestForAsset } from "./onboarding-request";
 import type { DeleteDraftResult } from "./onboarding-result";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Cancels an UNFINISHED onboarding shell
@@ -22,7 +23,8 @@ import type { DeleteDraftResult } from "./onboarding-result";
 // document object (server-derived keys), so a storage-delete failure can never strand the file: it
 // is retried to completion by the cleanup cron. An immediate deletion is attempted after commit;
 // only a failure persists for retry. Graph deletion + audit + cleanup enqueue commit or roll back
-// together.
+// together — and so does the CANCELLED tombstone on the onboarding request that created the shell
+// (the request row survives the asset; see onboarding-request.ts).
 
 class ShellGone extends Error {}
 class ShellNotDeletable extends Error {}
@@ -76,6 +78,11 @@ export async function deleteDraftVehicle(vehicleId: string): Promise<DeleteDraft
         { actorType: "PROVIDER", actorId: provider.id, action: "vehicle.onboarding_draft_deleted", entityType: "Vehicle", entityId: asset.id, previousValue: { status: fresh.status, verificationStatus: fresh.verificationStatus } },
         tx,
       );
+      // IDEMPOTENCY TOMBSTONE: the onboarding request that produced this setup is marked CANCELLED
+      // in THIS transaction and is NOT deleted with the asset (its FK is SET NULL). A delayed or
+      // replayed upload carrying that request's key is therefore answered "cancelled" and can never
+      // create a new shell or resurrect this one.
+      await tombstoneOnboardingRequestForAsset(tx, asset.id);
       // FK-safe order: children first, then the Vehicle, then the base Asset.
       await tx.vehicleRegistrationConfirmation.deleteMany({ where: { assetId: asset.id } });
       await tx.vehicleRegistrationExtraction.deleteMany({ where: { assetId: asset.id } });

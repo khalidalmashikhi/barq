@@ -37,10 +37,10 @@ vi.mock("@/lib/storage/cleanup/private-object-cleanup", () => ({
   attemptPrivateObjectCleanup: (...a: unknown[]) => attemptCleanupMock(...a),
 }));
 
-// The single preparation authority (validation + normalization) is covered by prepare-document.test.ts
+// The single preparation authority (validation + normalization) is covered by prepare-vehicle-document.test.ts
 // with the REAL decoder; here it is a seam.
 const prepareMock = vi.fn();
-vi.mock("./prepare-document", () => ({ prepareDocumentForStorage: (a: unknown) => prepareMock(a) }));
+vi.mock("./prepare-vehicle-document", () => ({ prepareVehicleDocumentForStorage: (a: unknown) => prepareMock(a) }));
 
 const assetFindFirstMock = vi.fn();
 const docFindUniqueMock = vi.fn();
@@ -156,13 +156,13 @@ describe("uploadVehicleDocument", () => {
     expect(txDocCreateMock.mock.calls[0]![0].data).toMatchObject({ mimeType: "image/jpeg", sizeBytes: 777 });
   });
 
-  it("a registration document gets the structural PDF check; other types do not", async () => {
+  it("the vehicle document TYPE is passed to the policy (it alone decides the registration-only rule)", async () => {
     happy();
     await uploadVehicleDocument("asset-1", INPUT);
-    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ pdfPolicy: "REGISTRATION" });
+    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ documentType: "VEHICLE_REGISTRATION" });
     prepareMock.mockClear();
     await uploadVehicleDocument("asset-1", { ...INPUT, type: "VEHICLE_INSURANCE" });
-    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ pdfPolicy: "NONE" });
+    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ documentType: "VEHICLE_INSURANCE" });
   });
 
   it.each(["HEIC_UNSUPPORTED", "IMAGE_TOO_LARGE", "IMAGE_CORRUPT", "PDF_ENCRYPTED", "PDF_CORRUPT", "PDF_TOO_MANY_PAGES", "SIGNATURE_MISMATCH", "UNSUPPORTED_TYPE"])(

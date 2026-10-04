@@ -86,10 +86,30 @@ describe("NewVehiclePage — document-first for every eligible provider", () => 
     expect(findAll(el, (e) => e.type === "form" && typeof e.props.action === "function")).toHaveLength(0);
   });
 
-  it("every render issues a DIFFERENT request key (two visits are two independent setups)", async () => {
+  it("every render issues a DIFFERENT fallback key (used only without JavaScript; the hydrated form keeps one key per attempt)", async () => {
     requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u" }, provider: { id: "p", status: "APPROVED" } });
     const keyOf = async () => findAll(await NewVehiclePage(props()), (e) => e.type === RegistrationUploadForm)[0]!.props.requestKey;
     expect(await keyOf()).not.toBe(await keyOf());
+  });
+
+  it("scopes the browser's key to the signed-in provider by an OPAQUE tag: stable per provider, different between providers, never the provider id", async () => {
+    const scopeFor = async (id: string) => {
+      requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u" }, provider: { id, status: "APPROVED" } });
+      return findAll(await NewVehiclePage(props()), (e) => e.type === RegistrationUploadForm)[0]!.props.keyScope as string;
+    };
+    const A = "0198aaaa-bbbb-7ccc-8ddd-eeeeeeeeeeee", B = "0198ffff-bbbb-7ccc-8ddd-eeeeeeeeeeee";
+    const a1 = await scopeFor(A), a2 = await scopeFor(A), b = await scopeFor(B);
+    expect(a1).toMatch(/^[0-9a-f]{32}$/);
+    expect(a2).toBe(a1); // a reload sees the same scope → the stored key is reused
+    expect(b).not.toBe(a1); // another provider in the same browser never inherits it
+    expect(a1).not.toContain(A.replace(/-/g, "").slice(0, 12)); // a hash, not the id
+    expect(JSON.stringify(a1)).not.toContain(A);
+  });
+
+  it("a cancelled request reported through the no-JavaScript redirect is explained, not shown as a generic failure", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u" }, provider: { id: "p", status: "APPROVED" } });
+    expect(strings(await NewVehiclePage(props({ uploadError: "ONBOARDING_CANCELLED" })))).toContain("vehicleOnboardErrCancelled");
+    expect(strings(await NewVehiclePage(props({ uploadError: "ONBOARDING_IN_PROGRESS" })))).toContain("vehicleOnboardErrInProgress");
   });
 
   it("a provider without vehicle-create authority (not approved) gets notFound — no creation surface", async () => {

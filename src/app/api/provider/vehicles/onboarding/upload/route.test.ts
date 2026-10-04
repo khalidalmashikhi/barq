@@ -86,6 +86,14 @@ describe("POST /api/provider/vehicles/onboarding/upload — progressive form (30
     expect(res.headers.get("location")).toContain("/ar/provider/vehicles/new?uploadError=HEIC_UNSUPPORTED");
   });
 
+  it("a CANCELLED request (tombstone) → redirect with the terminal code; nothing is analyzed", async () => {
+    start.mockResolvedValue({ ok: false, error: "ONBOARDING_CANCELLED" });
+    const res = await POST(req(withFile("ar")));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/ar/provider/vehicles/new?uploadError=ONBOARDING_CANCELLED");
+    expect(analyze).not.toHaveBeenCalled();
+  });
+
   it("extraction failure is non-fatal — the upload still succeeds and advances to review", async () => {
     analyze.mockRejectedValue(new Error("parser boom"));
     const res = await POST(req(withFile("ar")));
@@ -122,6 +130,7 @@ describe("POST /api/provider/vehicles/onboarding/upload — JSON (fetch form)", 
     ["EMPTY_FILE", 400], ["TOO_LARGE", 400], ["UNSUPPORTED_TYPE", 400], ["SIGNATURE_MISMATCH", 400], ["HEIC_UNSUPPORTED", 400],
     ["IMAGE_TOO_LARGE", 400], ["IMAGE_CORRUPT", 400], ["PDF_ENCRYPTED", 400], ["PDF_CORRUPT", 400], ["PDF_TOO_MANY_PAGES", 400], ["INVALID_INPUT", 400],
     ["PROVIDER_NOT_APPROVED", 403], ["NO_PROVIDER_PROFILE", 403],
+    ["ONBOARDING_CANCELLED", 409], ["ONBOARDING_IN_PROGRESS", 409],
     ["STORAGE_NOT_CONFIGURED", 503], ["UPLOAD_FAILED", 503],
     ["UNKNOWN_ERROR", 500],
   ])("failure %s → { ok:false, error } with status %i (a safe code, never a raw database error)", async (code, status) => {

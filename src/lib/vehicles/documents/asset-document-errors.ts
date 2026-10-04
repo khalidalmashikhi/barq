@@ -23,7 +23,7 @@ export const ASSET_DOCUMENT_ERROR_CODES = [
   "TOO_LARGE",
   "UNSUPPORTED_TYPE",
   "SIGNATURE_MISMATCH",
-  // Phase 3C Slice 3B — document preparation outcomes (prepare-document.ts). All are the
+  // Phase 3C Slice 3B — document preparation outcomes (prepare-vehicle-document.ts). All are the
   // uploader's file, never an internal fault; each has its own localized, actionable message.
   // An Apple HEIC/HEIF photo: the server image stack cannot decode it (detected by signature).
   "HEIC_UNSUPPORTED",

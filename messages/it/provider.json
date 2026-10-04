@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "Impossibile aprire questa immagine — il file potrebbe essere danneggiato. Scatta una nuova foto o scegli un altro file.",
   "vehicleDocErrorPdfEncrypted": "Questo PDF è protetto da password. Carica una copia senza password o una foto del documento.",
   "vehicleDocErrorPdfCorrupt": "Impossibile aprire questo PDF — il file potrebbe essere danneggiato. Esportalo di nuovo o carica una foto del documento.",
-  "vehicleDocErrorPdfTooManyPages": "Questo PDF ha troppe pagine. Carica solo il libretto di circolazione (fino a 8 pagine)."
+  "vehicleDocErrorPdfTooManyPages": "Questo PDF ha troppe pagine. Carica solo il libretto di circolazione (fino a 8 pagine).",
+  "vehicleOnboardErrCancelled": "Questa configurazione del veicolo è stata annullata, quindi il caricamento non può continuare. Avvia una nuova configurazione per aggiungere il veicolo.",
+  "vehicleOnboardErrInProgress": "Il documento è ancora in elaborazione. Attendi un momento e riprova: non verrà aggiunto due volte.",
+  "vehicleOnboardStartNew": "Avvia una nuova configurazione"
 }

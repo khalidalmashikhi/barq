@@ -17,8 +17,18 @@ vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async 
 vi.mock("next-intl/server", () => ({ getLocale: async () => "en" }));
 vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props, redirect: vi.fn() }));
 vi.mock("next/navigation", () => ({ notFound: vi.fn() }));
+// The "Add vehicle" entry point is a client link that starts a NEW onboarding attempt (it drops the
+// tab's previous request key). Stubbed so the tree can be inspected without a DOM.
+vi.mock("./_components/add-vehicle-link", () => ({ AddVehicleLink: function AddVehicleLink() { return null; } }));
 
 const { default: ProviderVehiclesPage } = await import("./page");
+const { AddVehicleLink } = await import("./_components/add-vehicle-link");
+function countAddLinks(el: unknown): number {
+  if (!el || typeof el !== "object") return 0;
+  if (Array.isArray(el)) return el.reduce((sum: number, c) => sum + countAddLinks(c), 0);
+  const e = el as { type: unknown; props?: Record<string, unknown> };
+  return (e.type === AddVehicleLink ? 1 : 0) + Object.values(e.props ?? {}).reduce((sum: number, v) => sum + countAddLinks(v), 0);
+}
 
 type AnyEl = { type: unknown; props: Record<string, unknown> };
 function collectHrefs(el: unknown, acc: string[] = []): string[] {
@@ -67,10 +77,12 @@ afterEach(() => getProviderVehiclesMock.mockReset());
 describe("ProviderVehiclesPage", () => {
   it("renders a card per vehicle, each linking to its detail (multi-vehicle)", async () => {
     getProviderVehiclesMock.mockResolvedValue([vehicle({ id: "veh-1" }), vehicle({ id: "veh-2", make: "Nissan", model: "Patrol" })]);
-    const hrefs = collectHrefs(await ProviderVehiclesPage());
+    const el = await ProviderVehiclesPage();
+    const hrefs = collectHrefs(el);
     expect(hrefs).toContain("/provider/vehicles/veh-1");
     expect(hrefs).toContain("/provider/vehicles/veh-2");
-    expect(hrefs).toContain("/provider/vehicles/new"); // Add CTA
+    expect(countAddLinks(el)).toBe(1); // Add CTA — the explicit "new vehicle" entry point
+    expect(hrefs).not.toContain("/provider/vehicles/new"); // never a plain link that would silently reuse an old request key
   });
 
   it("uses make + model as the card title and shows the private registration number", async () => {
@@ -103,6 +115,7 @@ describe("ProviderVehiclesPage", () => {
     const el = await ProviderVehiclesPage();
     const messages = findProp(el, "message");
     expect(messages).toContain("noVehiclesLabel");
-    expect(collectHrefs(el)).toContain("/provider/vehicles/new");
+    expect(countAddLinks(el)).toBe(2); // header CTA + empty-state CTA, both the explicit entry point
+    expect(collectHrefs(el)).not.toContain("/provider/vehicles/new");
   });
 });

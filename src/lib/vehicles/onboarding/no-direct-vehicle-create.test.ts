@@ -44,6 +44,11 @@ describe("no direct vehicle-create path remains reachable", () => {
 describe("vehicle registration is independent of rental access and verticals", () => {
   const REGISTRATION_SOURCES = [
     "lib/vehicles/onboarding/start-vehicle-onboarding.ts",
+    "lib/vehicles/onboarding/onboarding-request.ts",
+    "lib/vehicles/onboarding/cancel-onboarding-request.ts",
+    "lib/vehicles/onboarding/onboarding-request-key-store.ts",
+    "app/[locale]/provider/vehicles/new/upload-actions.ts",
+    "app/[locale]/provider/vehicles/_components/add-vehicle-link.tsx",
     "lib/vehicles/onboarding/finalize-vehicle.ts",
     "lib/vehicles/onboarding/delete-draft-vehicle.ts",
     "lib/vehicles/onboarding/vehicle-create-access.ts",
@@ -62,9 +67,33 @@ describe("vehicle registration is independent of rental access and verticals", (
     expect(code(rel)).not.toMatch(/providerVertical|ProviderVertical|providerCategory|rentalOffering|guidedTourVehicleOffering|tourServiceVehicle/);
   });
 
-  it("the onboarding request key is only ever written by the onboarding start (nothing else can set or move it)", () => {
-    const writers = sourceFiles(SRC).filter((rel) => /onboardingRequestKey\s*:/.test(code(rel)));
-    expect(writers).toEqual(["lib/vehicles/onboarding/start-vehicle-onboarding.ts"]);
+  it("idempotency lives in the durable request record — the Asset carries no idempotency data", () => {
+    const schema = readFileSync(path.join(ROOT, "prisma/schema.prisma"), "utf8");
+    const from = schema.indexOf("model Asset {");
+    const asset = schema.slice(from, schema.indexOf("@@map(\"assets\")", from));
+    expect(from).toBeGreaterThan(0);
+    expect(asset).not.toMatch(/onboardingRequestKey|idempotencyKey/);
+    expect(asset).toMatch(/onboardingRequest\s+VehicleOnboardingRequest\?/); // back-relation only
+    expect(code("lib/vehicles/onboarding/start-vehicle-onboarding.ts")).not.toMatch(/onboardingRequestKey/);
+  });
+
+  it("the request table is written ONLY by its own module and the cancel-by-key operation", () => {
+    const writers = sourceFiles(SRC).filter((rel) => /vehicleOnboardingRequest\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/.test(code(rel)));
+    expect(writers.sort()).toEqual(["lib/vehicles/onboarding/cancel-onboarding-request.ts", "lib/vehicles/onboarding/onboarding-request.ts"]);
+  });
+
+  it("a request row is NEVER deleted when a setup is cancelled — only the bounded retention purge removes rows", () => {
+    const deleters = sourceFiles(SRC).filter((rel) => /vehicleOnboardingRequest\.(delete|deleteMany)\s*\(/.test(code(rel)));
+    expect(deleters).toEqual(["lib/vehicles/onboarding/onboarding-request.ts"]);
+    const mod = code("lib/vehicles/onboarding/onboarding-request.ts");
+    expect((mod.match(/vehicleOnboardingRequest\.deleteMany\(/g) ?? []).length).toBe(1); // the purge, and nothing else
+    expect(code("lib/vehicles/onboarding/delete-draft-vehicle.ts")).toMatch(/tombstoneOnboardingRequestForAsset\(tx, asset\.id\)/);
+    expect(code("lib/vehicles/onboarding/delete-draft-vehicle.ts")).not.toMatch(/vehicleOnboardingRequest\./);
+  });
+
+  it("the request record (and its key) is read by NO DTO, public reader, page or API serializer", () => {
+    const readers = sourceFiles(SRC).filter((rel) => /vehicleOnboardingRequest|idempotencyKey:\s*requestKey|onboardingRequest:/.test(code(rel)));
+    expect(readers.sort()).toEqual(["lib/vehicles/onboarding/cancel-onboarding-request.ts", "lib/vehicles/onboarding/onboarding-request.ts"]);
   });
 
   it("the rental workspace gate itself is untouched: it still requires the RENTAL_COMPANY authorization, not a vehicle", () => {

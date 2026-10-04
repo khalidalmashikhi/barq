@@ -704,6 +704,8 @@ model Provider {
   drivers                   Driver[]
   guides                    Guide[]
   assets                    Asset[]
+  /// Phase 3C Slice 3B — durable document-first onboarding requests (idempotency tombstones).
+  vehicleOnboardingRequests VehicleOnboardingRequest[]
   services                  Service[]
   commissions               Commission[]
   wallet                    Wallet?
@@ -879,15 +881,6 @@ model Asset {
   verificationReviewedByAdminId String?                 @db.Uuid
   verificationReviewedByAdmin   Admin?                  @relation("AssetVerificationReviewedBy", fields: [verificationReviewedByAdminId], references: [id])
   verificationReason            String?
-  /// Phase 3C Slice 3B — SERVER-SIDE UPLOAD IDEMPOTENCY for document-first vehicle onboarding.
-  /// The opaque, random request key the upload form was issued; set ONLY on an asset created by
-  /// that flow. `@@unique([providerId, onboardingRequestKey])` is the DB race arbiter (same
-  /// owner-scoped pattern as booking_idempotency_keys): two concurrent uploads carrying the same
-  /// key commit exactly ONE asset — the loser hits the constraint and is answered with the
-  /// winner's setup. Scoped by provider, so a key can never reach another provider's asset.
-  /// Additive + nullable; NULL for every existing/legacy asset (a Postgres unique index permits
-  /// many NULLs), never backfilled. Never returned by any DTO and never logged.
-  onboardingRequestKey          String?
   createdAt                     DateTime                @default(now()) @db.Timestamptz(6)
   updatedAt                     DateTime                @updatedAt @db.Timestamptz(6)
 
@@ -899,8 +892,11 @@ model Asset {
   registrationExtractions   VehicleRegistrationExtraction[]
   /// Phase 3C Slice 3A — private provider confirmation claims for this asset's registration docs.
   registrationConfirmations VehicleRegistrationConfirmation[]
+  /// Phase 3C Slice 3B — the document-first onboarding request that created this asset, if any.
+  /// Back-relation only (the FK lives on the request row and is SET NULL when the asset is deleted,
+  /// so the request survives as an idempotency tombstone).
+  onboardingRequest         VehicleOnboardingRequest?
 
-  @@unique([providerId, onboardingRequestKey])
   @@index([providerId])
   @@index([status])
   @@index([assetType])
@@ -3324,4 +3320,62 @@ enum PrivateObjectCleanupStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+/// Phase 3C Slice 3B — the DURABLE idempotency authority for document-first vehicle onboarding.
+///
+/// One row per (provider, request key). It is created BEFORE anything else when an upload arrives
+/// and it OUTLIVES the vehicle setup it produced: cancelling a setup deletes the Asset graph but
+/// leaves this row as a CANCELLED tombstone, so a delayed or replayed request carrying the same key
+/// can never create a second shell or resurrect a cancelled one. (An idempotency key stored on the
+/// Asset itself would die with the Asset — that design was rejected before it was ever deployed.)
+///
+/// `@@unique([providerId, idempotencyKey])` is the race arbiter — same owner-scoped pattern as
+/// booking_idempotency_keys. The key is scoped to the authenticated provider, so the same key under
+/// another provider is that provider's own, unrelated request.
+///
+/// LIFECYCLE
+///   PENDING   — claimed; the document is being processed/stored, or an attempt failed and the
+///               request is retryable. `leaseToken`/`leaseExpiresAt` identify the ONE attempt that
+///               may complete it: a live attempt keeps others waiting, a released or expired lease
+///               lets a retry take over, and completion is a guarded transition on the lease.
+///   COMPLETED — exactly one shell + registration document exists; `assetId` is the result every
+///               replay returns.
+///   CANCELLED — terminal. Either the setup was cancelled (the Asset is gone; `assetId` is NULL) or
+///               the request was cancelled before it produced anything. Never leaves this state.
+///
+/// PRIVATE: never returned by any DTO or API; the key is never logged, audited or placed in a URL.
+/// `expiresAt` is a RETENTION bound for the bounded purge (set far beyond the lifetime of the
+/// browser's copy of the key), not a business deadline.
+model VehicleOnboardingRequest {
+  id             String                         @id @default(uuid(7)) @db.Uuid
+  providerId     String                         @db.Uuid
+  provider       Provider                       @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  /// Opaque random key issued with the upload form (format-validated, never trusted further).
+  idempotencyKey String
+  status         VehicleOnboardingRequestStatus @default(PENDING)
+  /// The setup this request produced. SET NULL when that Asset is deleted — the row itself stays.
+  assetId        String?                        @unique @db.Uuid
+  asset          Asset?                         @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  /// The single in-flight attempt allowed to complete a PENDING request (NULL = released).
+  leaseToken     String?                        @db.Uuid
+  leaseExpiresAt DateTime?                      @db.Timestamptz(6)
+  completedAt    DateTime?                      @db.Timestamptz(6)
+  cancelledAt    DateTime?                      @db.Timestamptz(6)
+  /// Retention bound: the row may be purged once this has passed (and it is not being worked on).
+  expiresAt      DateTime                       @db.Timestamptz(6)
+  createdAt      DateTime                       @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                       @updatedAt @db.Timestamptz(6)
+
+  /// The idempotency arbiter: one request per provider per key.
+  @@unique([providerId, idempotencyKey])
+  /// Bounded purge scan: oldest-expired first.
+  @@index([expiresAt])
+  @@map("vehicle_onboarding_requests")
+}
+
+enum VehicleOnboardingRequestStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
 }

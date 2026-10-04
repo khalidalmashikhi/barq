@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
+import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/onboarding/onboarding-request-key-store";
 
 // Logout button — Engineering Sprint 3 (Phone OTP UI), refactored by
 // the Visual Identity Sprint to use the shared Button component.
@@ -44,6 +45,9 @@ export function LogoutButton({
   async function handleLogout() {
     setLoading(true);
     try {
+      // Phase 3C Slice 3B: drop the tab's unresolved vehicle-onboarding request key with the
+      // session (it is provider-scoped anyway — another account could never reuse it).
+      clearOnboardingRequestKey(safeSessionStorage());
       await authClient.signOut();
       router.push("/");
       router.refresh();

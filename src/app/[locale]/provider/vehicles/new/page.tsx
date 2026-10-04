@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { resolveVehicleCreateAccess } from "@/lib/vehicles/onboarding/vehicle-create-access";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
+import { isOnboardingRequestErrorCode, getOnboardingRequestErrorTranslationKey } from "@/lib/vehicles/onboarding/onboarding-request-errors";
 import { RegistrationUploadForm } from "./_components/registration-upload-form";
 
 // Add Vehicle — DOCUMENT-FIRST for every provider who may register a vehicle (Phase 3C Slice 3B).
@@ -45,8 +46,11 @@ export default async function NewVehiclePage({ searchParams }: Props) {
   const uploadErrorMessage = uploadError
     ? isAssetDocumentErrorCode(uploadError)
       ? t(getAssetDocumentErrorTranslationKey(uploadError))
-      : t("vehicleOnboardUploadFailed")
+      : isOnboardingRequestErrorCode(uploadError)
+        ? t(getOnboardingRequestErrorTranslationKey(uploadError))
+        : t("vehicleOnboardUploadFailed")
     : null;
+  const keyScope = createHash("sha256").update(`barq:vehicle-onboarding:${access.providerId}`).digest("hex").slice(0, 32);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-32 pt-6 sm:px-6 sm:pt-8">
@@ -63,9 +67,11 @@ export default async function NewVehiclePage({ searchParams }: Props) {
       {uploadErrorMessage && <Alert variant="danger">{uploadErrorMessage}</Alert>}
 
       <Card hoverLift={false}>
-        {/* A fresh random request key is issued with every render of this form; the server makes it
-            unique per provider, so repeated submissions of this form can create only one setup. */}
-        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} cancelHref="/provider/vehicles" />
+        {/* The server records every request key durably (per provider), so repeated submissions with
+            one key create only one setup. The rendered key is the no-JavaScript fallback; the
+            hydrated form keeps ONE key per attempt in the tab's session storage, scoped to this
+            provider by an opaque tag (a hash — the provider id itself is not sent to the browser). */}
+        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} keyScope={keyScope} cancelHref="/provider/vehicles" />
       </Card>
     </div>
   );

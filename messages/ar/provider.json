@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "تعذّر فتح هذه الصورة — قد يكون الملف تالفًا. التقط صورة جديدة أو اختر ملفًا آخر.",
   "vehicleDocErrorPdfEncrypted": "ملف PDF هذا محمي بكلمة مرور. ارفع نسخة بدون كلمة مرور، أو صورة للوثيقة.",
   "vehicleDocErrorPdfCorrupt": "تعذّر فتح ملف PDF هذا — قد يكون الملف تالفًا. أعد تصديره أو ارفع صورة للوثيقة.",
-  "vehicleDocErrorPdfTooManyPages": "عدد صفحات ملف PDF كبير جدًا. ارفع وثيقة التسجيل فقط (حتى 8 صفحات)."
+  "vehicleDocErrorPdfTooManyPages": "عدد صفحات ملف PDF كبير جدًا. ارفع وثيقة التسجيل فقط (حتى 8 صفحات).",
+  "vehicleOnboardErrCancelled": "تم إلغاء إعداد هذه المركبة، لذا لا يمكن متابعة هذا الرفع. ابدأ إعدادًا جديدًا لإضافة المركبة.",
+  "vehicleOnboardErrInProgress": "ما زالت وثيقتك قيد المعالجة. انتظر قليلًا ثم حاول مرة أخرى — لن تُضاف مرتين.",
+  "vehicleOnboardStartNew": "بدء إعداد جديد"
 }

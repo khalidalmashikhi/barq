@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link, redirect } from "@/i18n/navigation";
+import { AddVehicleLink } from "./_components/add-vehicle-link";
 import { Car, Plus, Users } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderVehicles } from "@/lib/vehicles/queries/get-provider-vehicles";
@@ -57,13 +58,10 @@ export default async function ProviderVehiclesPage() {
           <h1 className="text-2xl font-semibold text-foreground">{t("vehiclesTitle")}</h1>
           <p className="mt-1 text-sm text-foreground/70">{t("vehiclesSubtitle")}</p>
         </div>
-        <Link
-          href="/provider/vehicles/new"
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
+        <AddVehicleLink className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           <Plus size={16} strokeWidth={2} aria-hidden />
           {t("addVehicleButton")}
-        </Link>
+        </AddVehicleLink>
       </div>
 
       {vehicles.length === 0 ? (
@@ -74,13 +72,10 @@ export default async function ProviderVehiclesPage() {
           gap="gap-3"
           padding="py-16"
           action={
-            <Link
-              href="/provider/vehicles/new"
-              className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
+            <AddVehicleLink className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
               <Plus size={16} strokeWidth={2} aria-hidden />
               {t("addVehicleButton")}
-            </Link>
+            </AddVehicleLink>
           }
         />
       ) : (

@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { regFieldLabelKey, maskSensitiveValue, type ConfirmationFieldKey } from "@/lib/vehicles/registration-review/field-model";
 import { onboardingMessageKey, type OnboardingCode, type OnboardingFieldError } from "@/lib/vehicles/onboarding/onboarding-result";
 import type { VehicleTypeOption } from "@/lib/vehicles/vehicle-type-options";
+import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/onboarding/onboarding-request-key-store";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2/3 (review & confirm),
@@ -111,6 +112,9 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     startTransition(async () => {
       const res = await cancelOnboardingAction(vehicleId);
       if (res.ok) {
+        // The setup is gone and the server keeps a CANCELLED tombstone for its request; drop the
+        // browser's copy of the key so the next "add vehicle" starts a new request.
+        clearOnboardingRequestKey(safeSessionStorage());
         router.push("/provider/vehicles");
         router.refresh();
         return;

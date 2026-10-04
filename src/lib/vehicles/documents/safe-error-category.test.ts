@@ -9,9 +9,13 @@ const SECRET_KEY = "asset-documents/0198aaaa-bbbb-7ccc-8ddd-eeeeeeeeeeee/vehicle
 describe("the vehicle-document upload paths never log a raw error message", () => {
   it.each([
     "src/lib/vehicles/onboarding/start-vehicle-onboarding.ts",
+    "src/lib/vehicles/onboarding/cancel-onboarding-request.ts",
+    "src/lib/vehicles/onboarding/onboarding-request.ts",
     "src/lib/vehicles/documents/upload-vehicle-document.ts",
     "src/lib/vehicles/documents/replace-vehicle-document.ts",
-    "src/lib/vehicles/documents/prepare-document.ts",
+    "src/lib/vehicles/documents/prepare-vehicle-document.ts",
+    "src/lib/file-safety/normalize-private-image.ts",
+    "src/lib/vehicles/registration-extraction/registration-pdf-policy.ts",
     "src/app/api/provider/vehicles/onboarding/upload/route.ts",
   ])("%s", (rel) => {
     const code = readFileSync(path.join(process.cwd(), rel), "utf8").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");

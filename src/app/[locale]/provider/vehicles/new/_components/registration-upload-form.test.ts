@@ -50,17 +50,65 @@ describe("RegistrationUploadForm — pickers", () => {
 });
 
 describe("RegistrationUploadForm — submission", () => {
-  it("sends the server-issued request key with every attempt, and asks for a JSON answer", () => {
+  const fn = (name: string) => new RegExp(`const ${name} = [^\\n]*\\{\\n([\\s\\S]*?)\\n  \\};`).exec(CODE)![1]!;
+
+  it("sends the request key with every attempt, and asks for a JSON answer", () => {
     expect(CODE).toMatch(/body\.set\("requestKey", keyRef\.current\)/);
     expect(CODE).toMatch(/accept: "application\/json"/);
-    // …and the same key is in the plain form for the no-JavaScript path.
-    expect(CODE).toMatch(/<input type="hidden" name="requestKey" value=\{requestKey\} \/>/);
+    // …and the ACTIVE key is in the plain form too (the server-rendered one until hydration).
+    expect(CODE).toMatch(/\{activeKey && <input type="hidden" name="requestKey" value=\{activeKey\} \/>\}/);
   });
 
-  it("a failed attempt can be retried with the SAME key (the guard is released; the key is not regenerated)", () => {
-    const fail = /const fail = \(code: string\) => \{([\s\S]*?)\n  \};/.exec(CODE)![1]!;
-    expect(fail).toMatch(/busyRef\.current = false/);
-    expect(fail).not.toMatch(/keyRef\.current =/);
+  it("the key comes from the tab's provider-scoped store and is NEVER replaced by rendering, retrying or restoring the page", () => {
+    // Adopt-or-create on mount and on a restored page: resolve(), which never replaces a usable key.
+    expect(CODE).toMatch(/resolveOnboardingRequestKey\(safeSessionStorage\(\), \{ scope: keyScope, generate: generateOnboardingRequestKey \}\)/);
+    // A NEW key is produced in exactly one place: the explicit "start a new setup" action.
+    expect((CODE.match(/rotateOnboardingRequestKey\(/g) ?? []).length).toBe(1);
+    expect(fn("startNewSetup")).toMatch(/rotateOnboardingRequestKey\(/);
+    for (const name of ["fail", "onSubmit", "onCancel", "pick"]) expect(fn(name)).not.toMatch(/rotateOnboardingRequestKey|generateOnboardingRequestKey|keyRef\.current =/);
+    // The form itself never mints keys ad hoc.
+    expect(CODE).not.toMatch(/crypto\.randomUUID|Math\.random/);
+  });
+
+  it("a failed attempt can be retried with the SAME key (the guard is released; the key is untouched)", () => {
+    expect(fn("fail")).toMatch(/busyRef\.current = false/);
+    expect(fn("fail")).not.toMatch(/clearOnboardingRequestKey|keyRef/);
+  });
+
+  it("records that an attempt started BEFORE the request leaves (its answer may never arrive)", () => {
+    const submit = fn("onSubmit");
+    expect(submit.indexOf("markOnboardingKeyAttempted(")).toBeGreaterThan(0);
+    expect(submit.indexOf("markOnboardingKeyAttempted(")).toBeLessThan(submit.indexOf("await fetch("));
+  });
+
+  it("the browser forgets its key only when the attempt is RESOLVED (created or resumed), before navigating", () => {
+    const submit = fn("onSubmit");
+    const cleared = submit.indexOf("clearOnboardingRequestKey(safeSessionStorage())");
+    expect(cleared).toBeGreaterThan(submit.indexOf("if (payload?.ok)"));
+    expect(cleared).toBeLessThan(submit.indexOf("router.push(payload.redirectTo"));
+    expect((submit.match(/clearOnboardingRequestKey\(/g) ?? []).length).toBe(1); // never on a failure path
+  });
+
+  it("a key the server reports CANCELLED is terminal: submitting is blocked until the provider explicitly starts a new setup", () => {
+    expect(fn("fail")).toMatch(/if \(code === "ONBOARDING_CANCELLED"\) setRequestCancelled\(true\)/);
+    expect(fn("onSubmit")).toMatch(/if \(!file \|\| busyRef\.current \|\| requestCancelled\) return/);
+    expect(CODE).toMatch(/disabled=\{!file \|\| busy \|\| requestCancelled \|\| leaving\}/);
+    expect(CODE).toMatch(/\{requestCancelled && \(\s*<button\s+type="button"\s+onClick=\{startNewSetup\}/);
+    expect(CODE).toMatch(/t\("vehicleOnboardStartNew"\)/);
+  });
+
+  it("leaving after an attempt of unknown outcome cancels the request ON THE SERVER by key; the key is kept if that could not be confirmed", () => {
+    const cancel = fn("onCancel");
+    expect(cancel).toMatch(/!attemptedRef\.current/); // nothing sent → plain navigation, nothing to cancel
+    expect(cancel).toMatch(/abortRef\.current\?\.abort\(\)/);
+    expect(cancel).toMatch(/await cancelOnboardingRequestAction\(keyRef\.current\)/);
+    expect(cancel).toMatch(/if \(result\.ok\) clearOnboardingRequestKey\(safeSessionStorage\(\)\)/);
+    expect(cancel.indexOf("cancelOnboardingRequestAction(")).toBeLessThan(cancel.indexOf("router.push(cancelHref)"));
+  });
+
+  it("attaching a document to an EXISTING setup manages no request key at all", () => {
+    expect(CODE).toMatch(/const managed = Boolean\(requestKey && keyScope\)/);
+    expect(fn("onCancel")).toMatch(/if \(!managed\) return/);
   });
 
   it("shows distinct progress for preparing the photo and for uploading", () => {
@@ -78,9 +126,27 @@ describe("RegistrationUploadForm — submission", () => {
     expect(CODE.indexOf("ref={errorRef}")).toBeLessThan(CODE.indexOf('type="submit"'));
   });
 
-  it("does not persist or log the key, and never puts it in a URL", () => {
-    expect(CODE).not.toMatch(/localStorage|sessionStorage|console\./);
-    expect(CODE).not.toMatch(/\?requestKey|requestKey=\$\{/);
+  it("the key is kept ONLY in the tab's session storage (through the store) — never localStorage, a cookie, a URL, a log or analytics", () => {
+    const STORE = readFileSync(path.join(ROOT, "src/lib/vehicles/onboarding/onboarding-request-key-store.ts"), "utf8")
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("//"))
+      .join("\n");
+    for (const source of [CODE, STORE]) {
+      expect(source).not.toMatch(/localStorage|document\.cookie|console\.|gtag|analytics|dataLayer|sendBeacon/);
+      expect(source).not.toMatch(/\?requestKey|requestKey=\$\{|searchParams|location\.(href|search|hash)/);
+    }
+    expect(CODE).not.toMatch(/sessionStorage/); // the form never touches storage directly
+    expect(STORE).toMatch(/window\.sessionStorage/);
+  });
+
+  it("the explicit 'Add vehicle' entry point, a confirmed cancellation and sign-out each drop the browser's key", () => {
+    const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
+    expect(read("src/app/[locale]/provider/vehicles/_components/add-vehicle-link.tsx")).toMatch(/onClick=\{\(\) => clearOnboardingRequestKey\(safeSessionStorage\(\)\)\}/);
+    const review = read("src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/onboarding-review-form.tsx");
+    expect(review.indexOf("clearOnboardingRequestKey(safeSessionStorage())")).toBeGreaterThan(review.indexOf("await cancelOnboardingAction(vehicleId)"));
+    const logout = read("src/components/auth/logout-button.tsx");
+    expect(logout.indexOf("clearOnboardingRequestKey(safeSessionStorage())")).toBeLessThan(logout.indexOf("await authClient.signOut()"));
+    expect(logout.indexOf("clearOnboardingRequestKey(safeSessionStorage())")).toBeGreaterThan(0);
   });
 });
 
@@ -89,6 +155,7 @@ describe("upload copy — complete and honest in all 8 languages", () => {
     "vehicleOnboardFileLabel", "vehicleOnboardTakePhoto", "vehicleOnboardChooseFile", "vehicleOnboardSelectedFileLabel", "vehicleOnboardNoFileSelected",
     "vehicleOnboardFileHint", "vehicleOnboardPrivacyNote", "vehicleOnboardUploadButton", "vehicleOnboardProcessingImage", "vehicleOnboardUploading",
     "vehicleOnboardErrNetwork", "vehicleOnboardUploadFailed", "vehicleOnboardResumedNotice", "vehicleOnboardManualNotice", "vehicleCancelLabel",
+    "vehicleOnboardErrCancelled", "vehicleOnboardErrInProgress", "vehicleOnboardStartNew",
   ];
   const ERROR_KEYS = ASSET_DOCUMENT_ERROR_CODES.map(getAssetDocumentErrorTranslationKey);
 

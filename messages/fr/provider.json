@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "Impossible d'ouvrir cette image — le fichier est peut-être endommagé. Prenez une nouvelle photo ou choisissez un autre fichier.",
   "vehicleDocErrorPdfEncrypted": "Ce PDF est protégé par un mot de passe. Téléversez une copie sans mot de passe, ou une photo du document.",
   "vehicleDocErrorPdfCorrupt": "Impossible d'ouvrir ce PDF — le fichier est peut-être endommagé. Exportez-le à nouveau ou téléversez une photo du document.",
-  "vehicleDocErrorPdfTooManyPages": "Ce PDF comporte trop de pages. Téléversez uniquement la carte grise (8 pages maximum)."
+  "vehicleDocErrorPdfTooManyPages": "Ce PDF comporte trop de pages. Téléversez uniquement la carte grise (8 pages maximum).",
+  "vehicleOnboardErrCancelled": "Cette configuration de véhicule a été annulée ; ce téléversement ne peut donc pas continuer. Démarrez une nouvelle configuration pour ajouter le véhicule.",
+  "vehicleOnboardErrInProgress": "Votre document est encore en cours de traitement. Patientez un instant puis réessayez — il ne sera pas ajouté deux fois.",
+  "vehicleOnboardStartNew": "Démarrer une nouvelle configuration"
 }

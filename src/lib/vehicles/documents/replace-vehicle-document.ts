@@ -8,7 +8,7 @@ import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { isValidUuid } from "@/lib/uuid";
 import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
 import { enqueuePrivateObjectCleanup, attemptPrivateObjectCleanup, registerUploadIntent, releaseUploadIntent } from "@/lib/storage/cleanup/private-object-cleanup";
-import { prepareDocumentForStorage } from "./prepare-document";
+import { prepareVehicleDocumentForStorage } from "./prepare-vehicle-document";
 import { safeErrorCategory } from "./safe-error-category";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "./asset-document-object-key";
 import { isAssetVerificationEditable } from "./asset-verification-lifecycle";
@@ -85,11 +85,11 @@ export async function replaceVehicleDocument(vehicleId: string, documentId: stri
   const claim = parseClaimedExpiryDate(doc.type, input.claimedExpiryDate);
   if (!claim.ok) return { ok: false, error: "INVALID_INPUT" };
 
-  // Same single preparation authority as upload (see prepare-document.ts).
-  const prepared = await prepareDocumentForStorage({
+  // Same single preparation authority as upload (see prepare-vehicle-document.ts).
+  const prepared = await prepareVehicleDocumentForStorage({
     declaredMimeType: input.declaredMimeType,
     bytes: input.bytes,
-    pdfPolicy: doc.type === "VEHICLE_REGISTRATION" ? "REGISTRATION" : "NONE",
+    documentType: doc.type,
   });
   if (!prepared.ok) return { ok: false, error: prepared.error };
   if (!isDocumentStorageConfigured()) return { ok: false, error: "STORAGE_NOT_CONFIGURED" };

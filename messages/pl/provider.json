@@ -846,5 +846,8 @@
   "vehicleDocErrorImageCorrupt": "Nie udało się otworzyć tego obrazu — plik może być uszkodzony. Zrób nowe zdjęcie lub wybierz inny plik.",
   "vehicleDocErrorPdfEncrypted": "Ten plik PDF jest chroniony hasłem. Prześlij kopię bez hasła lub zdjęcie dokumentu.",
   "vehicleDocErrorPdfCorrupt": "Nie udało się otworzyć tego pliku PDF — plik może być uszkodzony. Wyeksportuj go ponownie lub prześlij zdjęcie dokumentu.",
-  "vehicleDocErrorPdfTooManyPages": "Ten plik PDF ma zbyt wiele stron. Prześlij tylko dowód rejestracyjny (do 8 stron)."
+  "vehicleDocErrorPdfTooManyPages": "Ten plik PDF ma zbyt wiele stron. Prześlij tylko dowód rejestracyjny (do 8 stron).",
+  "vehicleOnboardErrCancelled": "Ta konfiguracja pojazdu została anulowana, więc nie można kontynuować tego przesyłania. Rozpocznij nową konfigurację, aby dodać pojazd.",
+  "vehicleOnboardErrInProgress": "Dokument jest nadal przetwarzany. Poczekaj chwilę i spróbuj ponownie — nie zostanie dodany dwukrotnie.",
+  "vehicleOnboardStartNew": "Rozpocznij nową konfigurację"
 }

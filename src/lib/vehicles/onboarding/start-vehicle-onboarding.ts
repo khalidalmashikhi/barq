@@ -1,6 +1,5 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider, ForbiddenError } from "@/lib/auth";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
@@ -10,27 +9,46 @@ import { isValidIdempotencyKey } from "@/lib/booking/idempotency";
 import { isDocumentStorageConfigured, uploadPrivateObject } from "@/lib/storage/storage";
 import { registerUploadIntent, releaseUploadIntent, attemptPrivateObjectCleanup } from "@/lib/storage/cleanup/private-object-cleanup";
 import { buildAssetDocumentObjectKey, sanitizeOriginalFilename } from "@/lib/vehicles/documents/asset-document-object-key";
-import { prepareDocumentForStorage } from "@/lib/vehicles/documents/prepare-document";
+import { prepareVehicleDocumentForStorage } from "@/lib/vehicles/documents/prepare-vehicle-document";
 import { safeErrorCategory } from "@/lib/vehicles/documents/safe-error-category";
 import type { AssetDocumentErrorCode } from "@/lib/vehicles/documents/asset-document-errors";
+import {
+  claimOnboardingRequest,
+  releaseOnboardingLease,
+  completeOnboardingRequest,
+  readOnboardingOutcome,
+  OnboardingLeaseLostError,
+  type OnboardingClaim,
+  type ClaimOptions,
+} from "./onboarding-request";
+import type { OnboardingRequestErrorCode } from "./onboarding-request-errors";
 
 // Phase 3C Slice 3B — START a document-first vehicle onboarding: the registration document is
-// uploaded and, in ONE transaction, a blank non-public shell (Asset REGISTERED / verification DRAFT +
-// an all-NULL Vehicle) and its registration AssetDocument come into existence together.
+// uploaded and a blank non-public shell (Asset REGISTERED / verification DRAFT + an all-NULL
+// Vehicle) and its registration AssetDocument come into existence together.
 //
-// SERVER-SIDE IDEMPOTENCY. The request carries an opaque random key issued with the upload form.
-// It is bound to the authenticated provider and stored on the asset; `(providerId,
-// onboardingRequestKey)` is UNIQUE, so the database — not the button, not React state — decides:
+// SERVER-SIDE, DURABLE IDEMPOTENCY. The request carries an opaque random key issued with the upload
+// form. It is bound to the authenticated provider and recorded in VehicleOnboardingRequest — a row
+// that is claimed BEFORE any work and that OUTLIVES the setup it produces (see onboarding-request.ts):
 //
-//   • a replay of a key whose setup already exists returns THAT setup and touches nothing: the
-//     file in the replayed request is never stored, so a key cannot replace a document, overwrite a
-//     confirmed vehicle, or create a second shell;
-//   • two concurrent requests with the same key both prepare and upload, but only one transaction
-//     commits (the other fails the unique constraint). The loser's object is still covered by its
-//     upload INTENT and is durably cleaned up; it is then answered with the winner's setup;
-//   • the key is scoped by provider, so the same key from another provider is simply that
-//     provider's own, separate setup — it can never reach or reveal the first one;
-//   • two different keys are two different vehicles.
+//   1. claim the request (exactly one attempt owns a PENDING request at a time);
+//   2. validate + normalize the document;
+//   3. record the upload intent, then store the private object;
+//   4. ONE transaction: create the shell + document, release the intent, mark the request
+//      COMPLETED (guarded on this attempt's lease) and write the audit;
+//
+//   • a replay of a COMPLETED request returns THAT setup and touches nothing — the replayed file is
+//     never processed or stored, so a key cannot replace a document, overwrite a confirmed vehicle
+//     or create a second shell;
+//   • a replay of a CANCELLED request is answered ONBOARDING_CANCELLED — cancelling a setup leaves
+//     the request as a tombstone, so its key can never create or resurrect anything;
+//   • a second request while the first is still working WAITS for it and gets the same result
+//     (no second upload); if it does not finish in time the answer is ONBOARDING_IN_PROGRESS;
+//   • a handled failure releases the request, so the same key can be retried (e.g. another file);
+//   • an attempt that lost its lease, or whose request was cancelled meanwhile, commits nothing —
+//     its already-stored object is removed through the durable upload intent;
+//   • the key is scoped by provider: the same key from another provider is that provider's own,
+//     unrelated request.
 //
 // The success audit is written inside the committing transaction, so it exists exactly once.
 // Authority is the general vehicle rule only (an APPROVED provider) — never the rental workspace or
@@ -44,25 +62,21 @@ export type StartOnboardingInput = {
   bytes: ArrayBuffer;
 };
 
+export type StartOnboardingErrorCode = AssetDocumentErrorCode | OnboardingRequestErrorCode;
+
 export type StartOnboardingResult =
   | { ok: true; vehicleId: string; replayed: boolean }
-  | { ok: false; error: AssetDocumentErrorCode };
+  | { ok: false; error: StartOnboardingErrorCode };
 
 const DOCUMENT_TYPE = "VEHICLE_REGISTRATION";
 
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+/** The answer for a request this attempt does not (or no longer) own. */
+function answerFor(claim: Exclude<OnboardingClaim, { kind: "OWNER" }>): StartOnboardingResult {
+  if (claim.kind === "COMPLETED") return { ok: true, vehicleId: claim.vehicleId, replayed: true };
+  return { ok: false, error: claim.kind === "CANCELLED" ? "ONBOARDING_CANCELLED" : "ONBOARDING_IN_PROGRESS" };
 }
 
-async function findExistingSetup(providerId: string, requestKey: string): Promise<string | null> {
-  const existing = await prisma.asset.findFirst({
-    where: { providerId, onboardingRequestKey: requestKey, assetType: "VEHICLE" },
-    select: { id: true },
-  });
-  return existing?.id ?? null;
-}
-
-export async function startVehicleOnboarding(input: StartOnboardingInput): Promise<StartOnboardingResult> {
+export async function startVehicleOnboarding(input: StartOnboardingInput, options: { claim?: ClaimOptions } = {}): Promise<StartOnboardingResult> {
   // The key is REQUIRED and must be well-formed (same rule as every other BARQ idempotency key).
   if (!isValidIdempotencyKey(input.requestKey)) return { ok: false, error: "INVALID_INPUT" };
   const requestKey = input.requestKey;
@@ -77,46 +91,57 @@ export async function startVehicleOnboarding(input: StartOnboardingInput): Promi
     throw error; // UnauthenticatedError → route adapter maps to sign-in
   }
 
-  // REPLAY (fast path): this provider already has a setup for this key → return it, do nothing else.
-  const replay = await findExistingSetup(provider.id, requestKey);
-  if (replay) return { ok: true, vehicleId: replay, replayed: true };
-
-  // Validate + normalize the document BEFORE anything is stored (oversized/renamed/corrupt/HEIC/
-  // encrypted files stop here; an image is re-encoded with its metadata removed).
-  const prepared = await prepareDocumentForStorage({ declaredMimeType: input.declaredMimeType, bytes: input.bytes, pdfPolicy: "REGISTRATION" });
-  if (!prepared.ok) return { ok: false, error: prepared.error };
-
-  if (!isDocumentStorageConfigured()) return { ok: false, error: "STORAGE_NOT_CONFIGURED" };
-
-  // The asset id is minted up front (UUID v7) because the private storage key is derived from it
-  // and the object must be written before the transaction that creates the asset.
-  const assetId = uuidv7();
-  const objectKey = buildAssetDocumentObjectKey({ assetId, type: DOCUMENT_TYPE, ext: prepared.ext, unique: randomUUID() });
-
-  // INTENT-FIRST: record the server-generated key durably, then write the object.
-  let intentTaskId: string;
+  // 1. CLAIM — the durable request decides before any file work or storage write happens.
+  let claim: OnboardingClaim;
   try {
-    intentTaskId = await registerUploadIntent(objectKey);
+    claim = await claimOnboardingRequest(provider.id, requestKey, options.claim);
   } catch (error) {
-    logger.error("vehicleOnboarding.intent_failed", { providerId: provider.id, error: safeErrorCategory(error) });
+    logger.error("vehicleOnboarding.claim_failed", { providerId: provider.id, error: safeErrorCategory(error) });
     return { ok: false, error: "UNKNOWN_ERROR" };
   }
+  if (claim.kind !== "OWNER") return answerFor(claim);
+  const { requestId, leaseToken } = claim;
 
-  try {
-    await uploadPrivateObject({ objectKey, body: prepared.bytes, contentType: prepared.mimeType });
-  } catch (error) {
-    await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
-    logger.error("vehicleOnboarding.storage_failed", { providerId: provider.id, error: safeErrorCategory(error) });
-    return { ok: false, error: "UPLOAD_FAILED" };
-  }
+  // From here this attempt OWNS the PENDING request. Any handled failure gives it back so the same
+  // key stays retryable; if even that fails, the lease simply expires.
+  const giveBack = async (error: StartOnboardingErrorCode): Promise<StartOnboardingResult> => {
+    await releaseOnboardingLease(requestId, leaseToken).catch(() => {});
+    return { ok: false, error };
+  };
 
+  let intentTaskId: string | null = null;
   try {
+    // 2. Validate + normalize BEFORE anything is stored (oversized/renamed/corrupt/HEIC/encrypted
+    //    files stop here; an image is re-encoded with its metadata removed).
+    const prepared = await prepareVehicleDocumentForStorage({ documentType: DOCUMENT_TYPE, declaredMimeType: input.declaredMimeType, bytes: input.bytes });
+    if (!prepared.ok) return await giveBack(prepared.error);
+
+    if (!isDocumentStorageConfigured()) return await giveBack("STORAGE_NOT_CONFIGURED");
+
+    // The asset id is minted up front (UUID v7) because the private storage key is derived from it
+    // and the object must be written before the transaction that creates the asset.
+    const assetId = uuidv7();
+    const objectKey = buildAssetDocumentObjectKey({ assetId, type: DOCUMENT_TYPE, ext: prepared.ext, unique: randomUUID() });
+
+    // 3. INTENT-FIRST: record the server-generated key durably, then write the object.
+    try {
+      intentTaskId = await registerUploadIntent(objectKey);
+    } catch (error) {
+      logger.error("vehicleOnboarding.intent_failed", { providerId: provider.id, error: safeErrorCategory(error) });
+      return await giveBack("UNKNOWN_ERROR");
+    }
+
+    try {
+      await uploadPrivateObject({ objectKey, body: prepared.bytes, contentType: prepared.mimeType });
+    } catch (error) {
+      await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
+      logger.error("vehicleOnboarding.storage_failed", { providerId: provider.id, error: safeErrorCategory(error) });
+      return await giveBack("UPLOAD_FAILED");
+    }
+
+    // 4. ONE transaction: shell + document + intent release + request completion + audit.
     await prisma.$transaction(async (tx) => {
-      // The unique (providerId, onboardingRequestKey) index arbitrates here: a concurrent request
-      // with the same key that committed first makes THIS insert fail, rolling everything back.
-      await tx.asset.create({
-        data: { id: assetId, providerId: provider.id, assetType: "VEHICLE", status: "REGISTERED", onboardingRequestKey: requestKey },
-      });
+      await tx.asset.create({ data: { id: assetId, providerId: provider.id, assetType: "VEHICLE", status: "REGISTERED" } });
       // All business fields NULL — no placeholders; values arrive only at the confirmed finalize.
       await tx.vehicle.create({ data: { assetId } });
       // The object is now legitimately referenced → release its upload intent in this transaction.
@@ -132,6 +157,9 @@ export async function startVehicleOnboarding(input: StartOnboardingInput): Promi
           status: "PENDING",
         },
       });
+      // Guarded: only the attempt still holding the PENDING request may link a setup to it. If the
+      // request was cancelled or taken over meanwhile this throws and the whole graph rolls back.
+      await completeOnboardingRequest(tx, { requestId, leaseToken, assetId });
       await recordAuditEvent(
         {
           actorType: "PROVIDER",
@@ -147,16 +175,17 @@ export async function startVehicleOnboarding(input: StartOnboardingInput): Promi
     });
     return { ok: true, vehicleId: assetId, replayed: false };
   } catch (error) {
-    // Nothing committed: the upload intent still exists, so the object is deleted now or — if that
-    // fails, or the database is unavailable — by the cleanup worker. It can never be stranded.
-    await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
+    // Nothing committed. If an object was stored, its upload intent still exists, so it is deleted
+    // now or — if that fails, or the database is unavailable — by the cleanup worker.
+    if (intentTaskId) await attemptPrivateObjectCleanup(intentTaskId).catch(() => {});
 
-    if (isUniqueViolation(error)) {
-      // Lost the same-key race: answer with the setup the winner created (never a raw DB error).
-      const winner = await findExistingSetup(provider.id, requestKey).catch(() => null);
-      if (winner) return { ok: true, vehicleId: winner, replayed: true };
+    if (error instanceof OnboardingLeaseLostError) {
+      // The request moved on without this attempt (cancelled, or completed by a takeover): answer
+      // with ITS outcome — never a raw database error, and never by creating anything.
+      const outcome = await readOnboardingOutcome(requestId).catch((): OnboardingClaim => ({ kind: "IN_PROGRESS" }));
+      return answerFor(outcome.kind === "OWNER" ? { kind: "IN_PROGRESS" } : outcome);
     }
     logger.error("vehicleOnboarding.start_failed", { providerId: provider.id, error: safeErrorCategory(error) });
-    return { ok: false, error: "UNKNOWN_ERROR" };
+    return await giveBack("UNKNOWN_ERROR");
   }
 }
