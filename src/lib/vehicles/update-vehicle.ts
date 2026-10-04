@@ -10,6 +10,7 @@ import {
   capacityChangeRequiresReverification,
   CAPACITY_REVERIFICATION_TRIGGER_STATUSES,
 } from "./capacity-reverification";
+import { isVehicleSetupIncomplete } from "./onboarding/vehicle-setup-state";
 import type { VehicleActionErrorCode } from "./vehicle-errors";
 
 // VEHICLE-1 — update a provider-owned Vehicle. A provider may mutate ONLY its own
@@ -84,6 +85,11 @@ export async function updateVehicle(assetId: string, rawInput: unknown): Promise
       if (!asset || !asset.vehicle) return "VEHICLE_NOT_FOUND" as const;
 
       const before = asset.vehicle;
+
+      // Phase 3C Slice 3B — an unfinished document-first onboarding shell (no confirmed profile)
+      // must be completed through the review + confirm step, never filled in through this edit
+      // path: that would create a "finished" vehicle without the provider's reviewed confirmation.
+      if (isVehicleSetupIncomplete(before)) return "SETUP_INCOMPLETE" as const;
 
       await tx.vehicle.update({
         where: { assetId },

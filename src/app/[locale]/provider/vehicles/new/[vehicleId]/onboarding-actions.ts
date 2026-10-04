@@ -10,8 +10,9 @@ import type { FinalizeResult, DeleteDraftResult } from "@/lib/vehicles/onboardin
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Server Actions for the onboarding wizard
 // step 2 (review & confirm). Thin adapters over the session-derived, owner-scoped domain functions
-// (RENTAL_COMPANY-gated). Auth errors become coded results — a non-approved / non-rental provider
-// gets the non-enumerating VEHICLE_NOT_FOUND, never a thrown error at the client.
+// (gated by the general vehicle authority — an approved provider — never by the rental workspace).
+// Auth errors become coded results — a non-approved provider gets the non-enumerating
+// VEHICLE_NOT_FOUND, never a thrown error at the client.
 
 function revalidateStep(): void {
   revalidatePath("/[locale]/provider/vehicles/new/[vehicleId]", "page");

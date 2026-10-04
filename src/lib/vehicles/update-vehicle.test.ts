@@ -66,6 +66,16 @@ describe("updateVehicle — ownership enforcement", () => {
     expect(vehicleUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("Slice 3B — an UNFINISHED document-first shell (no confirmed profile) cannot be filled in through update: SETUP_INCOMPLETE, no write, no audit", async () => {
+    requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+    assetFindFirstMock.mockResolvedValue({ id: "asset-1", verificationStatus: "DRAFT", vehicle: { make: null, model: null, modelYear: null, color: null, vehicleType: null, bookablePassengerCapacity: null, registeredSeats: null, publicDescription: null, registrationNumber: null } });
+
+    const result = await updateVehicle("asset-1", VALID);
+    expect(result).toEqual({ ok: false, error: "SETUP_INCOMPLETE" });
+    expect(vehicleUpdateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid input (unknown key) without writing", async () => {
     requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
     const result = await updateVehicle("asset-1", { ...VALID, assetType: "VEHICLE" });

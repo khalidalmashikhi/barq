@@ -6,6 +6,7 @@ import { getProviderVehicle } from "@/lib/vehicles/queries/get-provider-vehicle"
 import { updateVehicle } from "@/lib/vehicles/update-vehicle";
 import { formDataToVehicleInput } from "@/lib/vehicles/vehicle-form";
 import { isVehicleActionErrorCode, getVehicleErrorTranslationKey } from "@/lib/vehicles/vehicle-errors";
+import { isVehicleSetupIncomplete } from "@/lib/vehicles/onboarding/vehicle-setup-state";
 import { VehicleFormFields } from "@/components/provider/vehicle-form-fields";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -34,6 +35,13 @@ export default async function EditVehiclePage({ params, searchParams }: Props) {
   const vehicle = await getProviderVehicle(id);
   if (!vehicle) {
     notFound();
+  }
+
+  // Phase 3C Slice 3B — a vehicle whose document-first setup is unfinished is never editable through
+  // this direct form (updateVehicle refuses it too): it is completed via the review + confirm step.
+  if (isVehicleSetupIncomplete(vehicle)) {
+    redirect({ href: `/provider/vehicles/new/${id}`, locale });
+    return null;
   }
 
   const errorMessage = error && isVehicleActionErrorCode(error) ? t(getVehicleErrorTranslationKey(error)) : null;

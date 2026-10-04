@@ -2,17 +2,17 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider, ForbiddenError } from "@/lib/auth";
-import { canViewRentalWorkspace } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import { isValidUuid } from "@/lib/uuid";
 import { isVehicleTypeCode } from "@/lib/vehicles/vehicle-type-codes";
+import { publicDescriptionSchema } from "@/lib/vehicles/vehicle-input";
 import { parseConfirmation, type ConfirmationValues } from "@/lib/vehicles/registration-review/confirmation-input";
 import { mapExtractedByField } from "@/lib/vehicles/registration-review/extracted-mapping";
 import { computeFieldDecisions, correctedFieldCount } from "@/lib/vehicles/registration-review/diff";
 import { confirmationColumns, serializeFieldDecisions, columnsToValues } from "@/lib/vehicles/registration-review/confirmation-record";
 import { CONFIRMATION_FIELD_KEYS } from "@/lib/vehicles/registration-review/field-model";
-import type { FinalizeResult } from "./onboarding-result";
+import type { FinalizeResult, OnboardingFieldError } from "./onboarding-result";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. The SINGLE transactional writer that
 // turns a reviewed DRAFT shell into a real DRAFT Vehicle: it validates the provider's confirmed
@@ -27,9 +27,11 @@ import type { FinalizeResult } from "./onboarding-result";
 // (idempotent) and report alreadyCreated. A document replaced since review supersedes the claim
 // and forces re-review (never writes a Vehicle from stale suggestions).
 //
-// Owner-scoped, session-derived, RENTAL_COMPANY-gated (a tourist-guide provider cannot create a
-// rental vehicle here). Sensitive values (plate/VIN/engine) go to the PRIVATE Vehicle columns
-// only; the audit payload carries counts, never values.
+// Owner-scoped, session-derived, and gated ONLY by the general vehicle authority (an APPROVED
+// provider) — never by the rental workspace or any vertical. Registering a vehicle grants no
+// commercial permission: this function writes nothing but the Vehicle row + its confirmation claim,
+// so a tourist guide who registers a vehicle gains no rental access. Sensitive values
+// (plate/VIN/engine) go to PRIVATE columns only; the audit payload carries counts, never values.
 
 // Select every stored confirmation column so a LOCKED claim can be re-applied idempotently.
 const confirmationColumnSelect = Object.fromEntries(CONFIRMATION_FIELD_KEYS.map((k) => [k, true])) as Record<string, true>;
@@ -45,8 +47,9 @@ function isDuplicatePlate(e: Prisma.PrismaClientKnownRequestError): boolean {
 }
 
 // Map confirmed values + the chosen vehicle-type CODE onto the Vehicle columns. plateNumber is the
-// private registrationNumber. claimedFourByFour / publicDescription are NOT set here (4x4 stays an
-// admin-confirmed capability; the wizard writes no marketing copy).
+// private registrationNumber. The provider's ADVISORY 4x4 declaration and optional description are
+// written separately, only by the authoritative first application (never on an idempotent replay);
+// the TRUSTED fourByFourVerified flag is admin-only and is never touched here.
 function vehicleUpdateData(values: ConfirmationValues, vehicleType: string) {
   const str = (x: string | number | null) => (typeof x === "string" ? x : null);
   const num = (x: string | number | null) => (typeof x === "number" ? x : null);
@@ -72,22 +75,27 @@ export async function finalizeVehicleFromRegistration(vehicleId: string, rawInpu
     barqUser = auth.barqUser;
     provider = auth.provider;
   } catch (error) {
-    if (error instanceof ForbiddenError) return { ok: false, code: "NOT_RENTAL_PROVIDER" };
+    if (error instanceof ForbiddenError) return { ok: false, code: "PROVIDER_NOT_APPROVED" };
     throw error; // UnauthenticatedError → route adapter.
   }
-  if (!(await canViewRentalWorkspace(provider))) return { ok: false, code: "NOT_RENTAL_PROVIDER" };
 
   // Validate the confirmed claim (SUBMIT mode: all required fields + capacity chain + declaration)
   // AND the separately-chosen vehicle type, BEFORE opening a transaction.
   const parsed = parseConfirmation(rawInput, "SUBMIT");
   const vehicleTypeRaw = typeof rawInput.vehicleType === "string" ? rawInput.vehicleType : null;
   const vehicleTypeOk = vehicleTypeRaw !== null && isVehicleTypeCode(vehicleTypeRaw);
-  if (!parsed.ok || !vehicleTypeOk) {
-    const fieldErrors = parsed.ok ? [] : [...parsed.errors];
-    if (!vehicleTypeOk) fieldErrors.push({ field: "vehicleType" as unknown as (typeof fieldErrors)[number]["field"], code: "REQUIRED" });
+  // Wizard-only inputs: the optional customer-facing description (same rule as the edit form) and
+  // the provider's ADVISORY 4x4 declaration (true when declared, otherwise null = not declared).
+  const description = publicDescriptionSchema.safeParse(rawInput.publicDescription ?? null);
+  const claimedFourByFour = rawInput.claimedFourByFour === true || rawInput.claimedFourByFour === "true" || rawInput.claimedFourByFour === "on" ? true : null;
+  if (!parsed.ok || !vehicleTypeOk || !description.success) {
+    const fieldErrors: OnboardingFieldError[] = parsed.ok ? [] : [...parsed.errors];
+    if (!vehicleTypeOk) fieldErrors.push({ field: "vehicleType", code: "REQUIRED" });
+    if (!description.success) fieldErrors.push({ field: "publicDescription", code: "INVALID" });
     return { ok: false, code: "INVALID_INPUT", fieldErrors };
   }
   const vehicleType = vehicleTypeRaw;
+  const publicDescription = description.data;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -178,7 +186,7 @@ export async function finalizeVehicleFromRegistration(vehicleId: string, rawInpu
 
       // Apply the confirmed values to the DRAFT Vehicle in the SAME transaction. A duplicate plate
       // trips registrationNumber's unique index → DUPLICATE_REGISTRATION (whole tx rolls back).
-      await tx.vehicle.update({ where: { assetId: asset.id }, data: vehicleUpdateData(parsed.values, vehicleType) });
+      await tx.vehicle.update({ where: { assetId: asset.id }, data: { ...vehicleUpdateData(parsed.values, vehicleType), claimedFourByFour, publicDescription } });
 
       await recordAuditEvent(
         {

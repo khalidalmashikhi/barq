@@ -7,8 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { regFieldLabelKey, maskSensitiveValue, type ConfirmationFieldKey } from "@/lib/vehicles/registration-review/field-model";
-import type { ConfirmationFieldError } from "@/lib/vehicles/registration-review/confirmation-input";
-import { onboardingMessageKey, type OnboardingCode } from "@/lib/vehicles/onboarding/onboarding-result";
+import { onboardingMessageKey, type OnboardingCode, type OnboardingFieldError } from "@/lib/vehicles/onboarding/onboarding-result";
 import type { VehicleTypeOption } from "@/lib/vehicles/vehicle-type-options";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
@@ -40,6 +39,16 @@ type Props = {
   isManual: boolean;
 };
 
+// scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
+const INPUT_CLASS =
+  "min-h-11 w-full scroll-mb-40 scroll-mt-24 rounded-lg border border-border bg-background px-3 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+
+// The two capacity facts are easy to confuse — each gets its own plain-language hint.
+const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, "vehicleOnboardRegisteredSeatsHint" | "vehicleOnboardBookableHint">> = {
+  registeredSeats: "vehicleOnboardRegisteredSeatsHint",
+  bookablePassengerCapacity: "vehicleOnboardBookableHint",
+};
+
 function initialValue(f: FieldView): string {
   const v = f.confirmedValue ?? f.extractedValue;
   return v === null || v === undefined ? "" : String(v);
@@ -55,19 +64,19 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [declaration, setDeclaration] = useState(false);
   const [errorCode, setErrorCode] = useState<OnboardingCode | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<ConfirmationFieldError[]>([]);
-  const [typeError, setTypeError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<OnboardingFieldError[]>([]);
+  const [claimedFourByFour, setClaimedFourByFour] = useState(false);
+  const [publicDescription, setPublicDescription] = useState("");
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const customer = useMemo(() => fields.filter((f) => f.group === "CUSTOMER"), [fields]);
   const privateFields = useMemo(() => fields.filter((f) => f.group === "PRIVATE"), [fields]);
 
-  const payload = () => ({ ...values, vehicleType, declarationAccepted: declaration });
+  const payload = () => ({ ...values, vehicleType, claimedFourByFour, publicDescription, declarationAccepted: declaration });
 
   const saveDraft = () => {
     setErrorCode(null);
     setFieldErrors([]);
-    setTypeError(false);
     startTransition(async () => {
       const res = await saveOnboardingDraftAction(vehicleId, { ...values });
       if (res.ok) {
@@ -83,7 +92,6 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const finalize = () => {
     setErrorCode(null);
     setFieldErrors([]);
-    setTypeError(false);
     startTransition(async () => {
       const res = await finalizeVehicleAction(vehicleId, payload());
       if (res.ok) {
@@ -93,10 +101,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         return;
       }
       setErrorCode(res.code);
-      if (res.fieldErrors) {
-        setFieldErrors(res.fieldErrors);
-        if (res.fieldErrors.some((e) => e.field === ("vehicleType" as unknown as ConfirmationFieldError["field"]))) setTypeError(true);
-      }
+      if (res.fieldErrors) setFieldErrors(res.fieldErrors);
       if (res.code === "SUPERSEDED") router.refresh();
     });
   };
@@ -136,10 +141,13 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </span>
           )}
         </div>
+        {FIELD_HINT_KEY[f.key] && <p className="text-xs text-foreground/60">{t(FIELD_HINT_KEY[f.key]!)}</p>}
         {extractedDisplay !== null && (
           <p className="text-xs text-foreground/50">
-            {t("vehicleRegExtractedPrefix")}: <span className="text-foreground/70">{extractedDisplay}</span>
-            {f.confidence && <span className="ms-2">· {td(`vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}`)}</span>}
+            {t("vehicleRegExtractedPrefix")}: <bdi className="text-foreground/70">{extractedDisplay}</bdi>
+            {f.confidence && (
+              <span className={`ms-2 ${f.confidence === "HIGH" ? "" : "font-medium text-accent-foreground"}`}>· {td(`vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}`)}</span>
+            )}
           </p>
         )}
         {f.sensitive && !isRevealed ? (
@@ -157,7 +165,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               value={values[f.key] ?? ""}
               onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
               disabled={pending}
-              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className={INPUT_CLASS}
             />
             {f.sensitive && (
               <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 items-center gap-1 text-xs text-foreground/60 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
@@ -189,7 +197,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             value={vehicleType}
             onChange={(e) => setVehicleType(e.target.value)}
             disabled={pending}
-            className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className={INPUT_CLASS}
           >
             <option value="">{t("vehicleTypeSelectPlaceholder")}</option>
             {vehicleTypeOptions.map((o) => (
@@ -198,7 +206,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               </option>
             ))}
           </select>
-          {typeError && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
+          {fieldErrorFor("vehicleType") && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
         </div>
         <div className="flex flex-col">{customer.map(renderField)}</div>
       </Card>
@@ -207,6 +215,35 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         <h3 className="mb-1 text-sm font-semibold text-foreground">{t("vehicleRegGroupPrivate")}</h3>
         <p className="mb-2 text-xs text-foreground/50">{t("vehicleRegGroupPrivateHint")}</p>
         <div className="flex flex-col">{privateFields.map(renderField)}</div>
+      </Card>
+
+      <Card hoverLift={false}>
+        <div className="flex flex-col gap-4">
+          {vehicleType === "FOUR_BY_FOUR" && (
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={claimedFourByFour} onChange={(e) => setClaimedFourByFour(e.target.checked)} disabled={pending} className="mt-1 min-h-5 min-w-5" />
+              <span className="flex flex-col">
+                <span className="text-sm text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
+                <span className="text-xs text-foreground/60">{t("vehicleClaimedFourByFourHint")}</span>
+              </span>
+            </label>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="of-publicDescription" className="text-xs font-medium uppercase tracking-wide text-foreground/60">
+              {t("vehiclePublicDescriptionLabel")}
+            </label>
+            <textarea
+              id="of-publicDescription"
+              rows={3}
+              maxLength={500}
+              value={publicDescription}
+              onChange={(e) => setPublicDescription(e.target.value)}
+              disabled={pending}
+              className={`${INPUT_CLASS} py-2`}
+            />
+            {fieldErrorFor("publicDescription") && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
+          </div>
+        </div>
       </Card>
 
       <Card hoverLift={false}>

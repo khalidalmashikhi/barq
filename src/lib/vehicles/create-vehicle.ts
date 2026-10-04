@@ -9,6 +9,11 @@ import type { VehicleActionErrorCode } from "./vehicle-errors";
 
 // VEHICLE-1 — create a provider-owned Vehicle (Asset + Vehicle, one transaction).
 //
+// NOT ROUTABLE (Phase 3C Slice 3B): new vehicles are created ONLY through the document-first
+// onboarding flow (src/lib/vehicles/onboarding/*). No page, server action or API route may call this
+// primitive — a structural test (no-direct-vehicle-create.test.ts) fails if one does. It is retained
+// as the tested VEHICLE-1 domain contract, not as an entry point.
+//
 // Server-authoritative: providerId is derived from the session (never client
 // input), assetType is fixed to VEHICLE, and a new Asset starts REGISTERED (the
 // existing AssetStatus default). This primitive touches NO ProviderCategory, NO

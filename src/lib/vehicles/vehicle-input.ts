@@ -66,6 +66,11 @@ const registrationNumber = z.preprocess((v) => {
   return normalized === "" ? null : normalized;
 }, z.string().min(1).max(32).refine((s) => !HTML_TAG.test(s), { message: "invalid" }).refine((s) => !hasDisallowedControlChar(s), { message: "invalid" }).nullable());
 
+// The single validation rule for the optional customer-facing description (trimmed, <= 500 chars,
+// no markup / control characters; blank → null). Exported so the document-first onboarding finalize
+// validates the provider description with EXACTLY the same rule as the edit form.
+export const publicDescriptionSchema = nullableText(500);
+
 // Re-export the shared vocabulary so existing call sites that import it from here keep working.
 export { VEHICLE_TYPE_CODES };
 export type VehicleTypeCode = (typeof VEHICLE_TYPE_CODES)[number];
@@ -88,7 +93,7 @@ export const vehicleInputSchema = z
     // requires bookable capacity <= registered seats (you cannot let more customers book
     // than the vehicle is registered to seat).
     registeredSeats: nullableInt(1, MAX_VEHICLE_PASSENGER_CAPACITY),
-    publicDescription: nullableText(500),
+    publicDescription: publicDescriptionSchema,
     registrationNumber,
     // TOUR-VEHICLE-CAP — the PROVIDER's advisory 4x4 declaration only. The trusted
     // capability (Vehicle.fourByFourVerified) is admin-only and is NEVER accepted here.

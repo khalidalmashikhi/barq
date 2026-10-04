@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Link } from "@/i18n/navigation";
+import { Link, redirect } from "@/i18n/navigation";
 import { ArrowRight, Pencil } from "lucide-react";
 import { getProviderVehicle } from "@/lib/vehicles/queries/get-provider-vehicle";
 import { getVehicleStatusBadgeVariant, getVehicleStatusTranslationKey } from "@/lib/vehicles/presentation/vehicle-status";
@@ -9,6 +9,7 @@ import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@
 import { VehicleVerificationSection } from "@/components/provider/vehicle-verification-section";
 import { RegistrationReviewSection } from "@/components/provider/registration-review-section";
 import { getRegistrationReview } from "@/lib/vehicles/registration-review/get-registration-review";
+import { isVehicleSetupIncomplete } from "@/lib/vehicles/onboarding/vehicle-setup-state";
 import { buildVehicleTitle } from "@/lib/vehicles/vehicle-title";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { Card } from "@/components/ui/card";
@@ -54,6 +55,15 @@ export default async function VehicleDetailPage({
   const vehicle = await getProviderVehicle(id);
   if (!vehicle) {
     notFound();
+  }
+
+  // Phase 3C Slice 3B — an unfinished document-first setup has no confirmed profile to show or
+  // manage here: its only next step is the review + confirm step. (A document-route error is carried
+  // along so the review step can show it.)
+  if (isVehicleSetupIncomplete(vehicle)) {
+    const carriedError = first(sp.docError);
+    redirect({ href: `/provider/vehicles/new/${id}${carriedError ? `?docError=${encodeURIComponent(carriedError)}` : ""}`, locale });
+    return null;
   }
 
   const verification = await getVehicleVerificationData(id);

@@ -88,63 +88,26 @@ describe("GET /api/v1/me/provider/vehicles", () => {
   });
 });
 
-describe("POST /api/v1/me/provider/vehicles", () => {
-  it("201 creates and returns the private DTO", async () => {
+describe("POST /api/v1/me/provider/vehicles — direct creation is CLOSED (document-first)", () => {
+  it("409 REGISTRATION_DOCUMENT_REQUIRED for a fully valid payload — nothing is created", async () => {
     requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "p1" } });
-    createVehicleMock.mockResolvedValue({ ok: true, vehicleId: "veh-1" });
-    getProviderVehicleMock.mockResolvedValue(dtoRow);
-    const res = await POST(postReq({ make: "Toyota", model: "Land Cruiser", vehicleType: "FOUR_BY_FOUR", passengerCapacity: 6 }));
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.id).toBe("veh-1");
-    expect(body.registrationNumber).toBe("OM 12345"); // private DTO may carry it
-  });
-
-  it("forwards ONLY the allowlisted fields — client cannot supply providerId/assetType/status", async () => {
-    requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "p1" } });
-    createVehicleMock.mockResolvedValue({ ok: true, vehicleId: "veh-1" });
-    getProviderVehicleMock.mockResolvedValue(dtoRow);
-    await POST(
-      postReq({
-        make: "Toyota",
-        model: "Hilux",
-        vehicleType: "SUV",
-        passengerCapacity: 5,
-        providerId: "attacker",
-        assetType: "SOMETHING",
-        status: "ACTIVE",
-        id: "forged",
-      }),
-    );
-    const arg = createVehicleMock.mock.calls[0]![0] as Record<string, unknown>;
-    expect(Object.keys(arg).sort()).toEqual(
-      ["claimedFourByFour", "color", "make", "model", "modelYear", "passengerCapacity", "registeredSeats", "publicDescription", "registrationNumber", "vehicleType"].sort(),
-    );
-    expect(arg.providerId).toBeUndefined();
-    expect(arg.assetType).toBeUndefined();
-    expect(arg.status).toBeUndefined();
-    expect(arg.id).toBeUndefined();
-  });
-
-  it("409 DUPLICATE_REGISTRATION for a duplicate plate (never reveals the owner)", async () => {
-    requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "p1" } });
-    createVehicleMock.mockResolvedValue({ ok: false, error: "DUPLICATE_REGISTRATION" });
-    const res = await POST(postReq({ make: "Toyota", model: "Hilux", vehicleType: "SUV", passengerCapacity: 5, registrationNumber: "OM 1" }));
+    const res = await POST(postReq({ make: "Toyota", model: "Land Cruiser", vehicleType: "FOUR_BY_FOUR", passengerCapacity: 6, registrationNumber: "OM 1" }));
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.error.code).toBe("DUPLICATE_REGISTRATION");
-    expect(JSON.stringify(body)).not.toContain("p1"); // no provider id leaked
+    expect(body.error.code).toBe("REGISTRATION_DOCUMENT_REQUIRED");
+    expect(createVehicleMock).not.toHaveBeenCalled(); // the direct-create primitive is unreachable
+    expect(getProviderVehicleMock).not.toHaveBeenCalled();
   });
 
-  it("400 INVALID_INPUT for a bad payload", async () => {
+  it("the refusal does not depend on the payload (an empty body is refused the same way)", async () => {
     requireProviderMock.mockResolvedValue({ barqUser: { id: "u1" }, provider: { id: "p1" } });
-    createVehicleMock.mockResolvedValue({ ok: false, error: "INVALID_INPUT" });
-    const res = await POST(postReq({ make: "" }));
-    expect(res.status).toBe(400);
-    expect((await res.json()).error.code).toBe("INVALID_INPUT");
+    const res = await POST(postReq({}));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("REGISTRATION_DOCUMENT_REQUIRED");
+    expect(createVehicleMock).not.toHaveBeenCalled();
   });
 
-  it("401 when unauthenticated (mutation pre-auth blocks before the action runs)", async () => {
+  it("401 when unauthenticated (authentication is still checked first)", async () => {
     requireProviderMock.mockRejectedValue(new UnauthenticatedError());
     const res = await POST(postReq({ make: "Toyota", model: "Hilux", vehicleType: "SUV", passengerCapacity: 5 }));
     expect(res.status).toBe(401);

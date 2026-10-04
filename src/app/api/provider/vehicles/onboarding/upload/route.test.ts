@@ -66,11 +66,11 @@ describe("POST /api/provider/vehicles/onboarding/upload", () => {
     expect(res.headers.get("location")).toContain("/ar/provider/vehicles/new?uploadError=FILE_TOO_LARGE");
   });
 
-  it("non-rental / shell refused → redirect with code, upload never attempted", async () => {
-    createShell.mockResolvedValue({ ok: false, code: "NOT_RENTAL_PROVIDER" });
+  it("non-approved provider / shell refused → redirect with code, upload never attempted", async () => {
+    createShell.mockResolvedValue({ ok: false, code: "PROVIDER_NOT_APPROVED" });
     const res = await POST(req(withFile("ar")));
     expect(uploadDoc).not.toHaveBeenCalled();
-    expect(res.headers.get("location")).toContain("uploadError=NOT_RENTAL_PROVIDER");
+    expect(res.headers.get("location")).toContain("uploadError=PROVIDER_NOT_APPROVED");
   });
 
   it("extraction failure is non-fatal — the upload still succeeds and advances to review", async () => {

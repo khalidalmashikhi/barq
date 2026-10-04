@@ -15,9 +15,14 @@ vi.mock("@/lib/auth", () => ({
   ForbiddenError,
   UnauthenticatedError,
 }));
-const canViewRentalWorkspaceMock = vi.fn();
+// The rental-workspace predicate must play NO part in vehicle registration: if any onboarding code
+// ever consults it again, this mock throws and the suite fails.
+const rentalPredicateMock = vi.fn(() => {
+  throw new Error("vehicle registration must never consult the rental workspace predicate");
+});
 vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
-  canViewRentalWorkspace: (...a: unknown[]) => canViewRentalWorkspaceMock(...a),
+  canViewRentalWorkspace: () => rentalPredicateMock(),
+  resolveRentalWorkspaceViewAccess: () => rentalPredicateMock(),
 }));
 const auditMock = vi.fn();
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => auditMock(...a) }));
@@ -34,7 +39,6 @@ const { createDraftVehicleShell } = await import("./create-draft-shell");
 beforeEach(() => {
   vi.clearAllMocks();
   requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u-1" }, provider: { id: "prov-1", status: "APPROVED" } });
-  canViewRentalWorkspaceMock.mockResolvedValue(true);
   assetCreate.mockResolvedValue({ id: "asset-1" });
   vehicleCreate.mockResolvedValue({ assetId: "asset-1" });
 });
@@ -50,16 +54,16 @@ describe("createDraftVehicleShell", () => {
     expect(audit.action).toBe("vehicle.onboarding_draft_created");
   });
 
-  it("non-rental provider → NOT_RENTAL_PROVIDER, no transaction", async () => {
-    canViewRentalWorkspaceMock.mockResolvedValue(false);
+  it("an approved provider WITHOUT any rental vertical (e.g. a tourist guide) can start a vehicle — the rental predicate is never consulted", async () => {
     const res = await createDraftVehicleShell();
-    expect(res).toEqual({ ok: false, code: "NOT_RENTAL_PROVIDER" });
-    expect(transaction).not.toHaveBeenCalled();
+    expect(res).toEqual({ ok: true, vehicleId: "asset-1" });
+    expect(rentalPredicateMock).not.toHaveBeenCalled();
   });
 
-  it("non-approved provider (ForbiddenError) → NOT_RENTAL_PROVIDER", async () => {
+  it("non-approved provider (ForbiddenError) → PROVIDER_NOT_APPROVED, nothing created", async () => {
     requireApprovedProviderMock.mockRejectedValue(new ForbiddenError("no", "PROVIDER_NOT_APPROVED"));
-    expect(await createDraftVehicleShell()).toEqual({ ok: false, code: "NOT_RENTAL_PROVIDER" });
+    expect(await createDraftVehicleShell()).toEqual({ ok: false, code: "PROVIDER_NOT_APPROVED" });
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it("unauthenticated propagates (route adapter maps it)", async () => {

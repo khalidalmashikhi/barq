@@ -12,7 +12,8 @@ import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 // so a multipart upload up to the document cap bypasses the 1 MB action-body limit (same as the
 // detail-page document route).
 //
-// Order (fail-safe): create the RENTAL_COMPANY-gated DRAFT shell → upload the registration document
+// Order (fail-safe): create the DRAFT shell (general vehicle authority: an approved provider —
+// never the rental workspace or a vertical) → upload the registration document
 // to it → auto-start native-PDF extraction (non-fatal; images/scanned PDFs fall through to the
 // wizard's manual-entry path, NO OCR). If the upload fails the just-created empty shell is removed
 // so no orphan DRAFT lingers. On success we 303-redirect to step 2 (review & confirm). No Vehicle

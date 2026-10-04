@@ -1,7 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider, ForbiddenError } from "@/lib/auth";
-import { canViewRentalWorkspace } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import type { CreateShellResult } from "./onboarding-result";
@@ -17,9 +16,12 @@ import type { CreateShellResult } from "./onboarding-result";
 // keeps a DRAFT/REGISTERED vehicle out of every customer/offering surface. The confirmed values
 // are written to THIS row only at finalize (finalize-vehicle.ts); nothing public is created here.
 //
-// Server-authoritative + gated: providerId is session-derived, and the capability is restricted to
-// the RENTAL_COMPANY vertical (canViewRentalWorkspace) — a tourist-guide provider cannot create a
-// rental vehicle through this wizard. Unauthenticated propagates to the route adapter.
+// Server-authoritative: providerId is session-derived and the ONLY authority is the general
+// vehicle-create rule — an APPROVED provider (requireApprovedProvider), exactly what vehicle creation
+// has always required. It deliberately does NOT consult the rental workspace or any vertical:
+// registering a vehicle and being allowed to RENT it are different concerns. A tourist guide may
+// register a vehicle for guided-tour use; that grants no rental access (rental stays gated by the
+// RENTAL_COMPANY vertical in its own domain). Unauthenticated propagates to the route adapter.
 
 export async function createDraftVehicleShell(): Promise<CreateShellResult> {
   let provider;
@@ -27,11 +29,9 @@ export async function createDraftVehicleShell(): Promise<CreateShellResult> {
     const auth = await requireApprovedProvider();
     provider = auth.provider;
   } catch (error) {
-    if (error instanceof ForbiddenError) return { ok: false, code: "NOT_RENTAL_PROVIDER" };
+    if (error instanceof ForbiddenError) return { ok: false, code: "PROVIDER_NOT_APPROVED" };
     throw error; // UnauthenticatedError → route adapter maps to sign-in.
   }
-
-  if (!(await canViewRentalWorkspace(provider))) return { ok: false, code: "NOT_RENTAL_PROVIDER" };
 
   try {
     const vehicleId = await prisma.$transaction(async (tx) => {

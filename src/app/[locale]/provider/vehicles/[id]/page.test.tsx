@@ -8,7 +8,8 @@ vi.mock("@/lib/vehicles/documents/get-asset-verification-data", () => ({ getVehi
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async () => (k: string) => k }));
 // The verification section uses getTranslations from next-intl/server.
 vi.mock("next-intl/server", () => ({ getLocale: async () => "en", getTranslations: async () => (k: string) => k }));
-vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props }));
+const redirectMock = vi.fn();
+vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props, redirect: (...a: unknown[]) => redirectMock(...a) }));
 const notFoundMock = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
@@ -149,6 +150,30 @@ describe("VehicleDetailPage", () => {
     getVerificationMock.mockResolvedValue(editableVerification);
     const el = await VehicleDetailPage(call("veh-1", { docError: "__nope__" }));
     expect(allStrings(el)).not.toContain("__nope__");
+  });
+
+  it("Slice 3B — an UNFINISHED setup never renders the detail/manage surface: it redirects to the review step", async () => {
+    redirectMock.mockClear();
+    getProviderVehicleMock.mockResolvedValue({ ...vehicle, make: null, model: null });
+    const el = await VehicleDetailPage(call("veh-1"));
+    expect(el).toBeNull();
+    expect(redirectMock).toHaveBeenCalledWith(expect.objectContaining({ href: "/provider/vehicles/new/veh-1" }));
+    expect(getVerificationMock).not.toHaveBeenCalled(); // nothing of the manage surface is even loaded
+  });
+
+  it("Slice 3B — a document-route error is carried to the review step for an unfinished setup", async () => {
+    redirectMock.mockClear();
+    getProviderVehicleMock.mockResolvedValue({ ...vehicle, make: null, model: null });
+    await VehicleDetailPage(call("veh-1", { docError: "TOO_LARGE" }));
+    expect(redirectMock).toHaveBeenCalledWith(expect.objectContaining({ href: "/provider/vehicles/new/veh-1?docError=TOO_LARGE" }));
+  });
+
+  it("a COMPLETE vehicle is never redirected", async () => {
+    redirectMock.mockClear();
+    getProviderVehicleMock.mockResolvedValue(vehicle);
+    getVerificationMock.mockResolvedValue(null);
+    await VehicleDetailPage(call("veh-1"));
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("calls notFound() for a foreign/missing vehicle (never enumerable)", async () => {

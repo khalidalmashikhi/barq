@@ -12,6 +12,12 @@ export const VEHICLE_ACTION_ERROR_CODES = [
   // The vehicle does not exist OR is not owned by the caller — one code, so a
   // provider can never probe another provider's vehicle ids.
   "VEHICLE_NOT_FOUND",
+  // Phase 3C Slice 3B — the vehicle is an unfinished document-first onboarding shell: it must be
+  // completed through the registration review + confirm step before it can be edited.
+  "SETUP_INCOMPLETE",
+  // Phase 3C Slice 3B — a new vehicle can only be created by uploading its registration document
+  // first (the onboarding wizard); there is no direct-create path.
+  "REGISTRATION_DOCUMENT_REQUIRED",
   "UNKNOWN_ERROR",
 ] as const;
 
@@ -30,6 +36,8 @@ const VEHICLE_ERROR_TRANSLATION_KEYS = {
   PROVIDER_NOT_APPROVED: "vehicleErrorProviderNotApproved",
   DUPLICATE_REGISTRATION: "vehicleErrorDuplicateRegistration",
   VEHICLE_NOT_FOUND: "vehicleErrorNotFound",
+  SETUP_INCOMPLETE: "vehicleErrorSetupIncomplete",
+  REGISTRATION_DOCUMENT_REQUIRED: "vehicleErrorRegistrationDocumentRequired",
   UNKNOWN_ERROR: "vehicleErrorUnknown",
 } as const satisfies Record<VehicleActionErrorCode, string>;
 

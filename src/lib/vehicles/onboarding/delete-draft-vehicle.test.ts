@@ -9,9 +9,14 @@ vi.mock("@/lib/auth", () => ({
   ForbiddenError,
   UnauthenticatedError,
 }));
-const canViewRentalWorkspaceMock = vi.fn();
+// The rental-workspace predicate must play NO part in vehicle registration: if any onboarding code
+// ever consults it again, this mock throws and the suite fails.
+const rentalPredicateMock = vi.fn(() => {
+  throw new Error("vehicle registration must never consult the rental workspace predicate");
+});
 vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
-  canViewRentalWorkspace: (...a: unknown[]) => canViewRentalWorkspaceMock(...a),
+  canViewRentalWorkspace: () => rentalPredicateMock(),
+  resolveRentalWorkspaceViewAccess: () => rentalPredicateMock(),
 }));
 const auditMock = vi.fn();
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => auditMock(...a) }));
@@ -66,7 +71,6 @@ beforeEach(() => {
   enqueueCleanupMock.mockResolvedValue("cleanup-task-1");
   attemptCleanupMock.mockResolvedValue("completed");
   requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "u-1" }, provider: { id: "prov-1", status: "APPROVED" } });
-  canViewRentalWorkspaceMock.mockResolvedValue(true);
   assetFindFirst.mockResolvedValue(shell());
   txAssetFindFirst.mockResolvedValue(shell()); // authoritative in-tx re-check: still a blank shell
 });
@@ -108,9 +112,14 @@ describe("deleteDraftVehicle", () => {
     expect(attemptCleanupMock).not.toHaveBeenCalled(); // nothing committed → nothing may be deleted
   });
 
-  it("non-rental provider → NOT_RENTAL_PROVIDER, no lookup", async () => {
-    canViewRentalWorkspaceMock.mockResolvedValue(false);
-    expect(await deleteDraftVehicle(VEHICLE)).toEqual({ ok: false, code: "NOT_RENTAL_PROVIDER" });
+  it("works for any approved provider — the rental predicate is never consulted", async () => {
+    expect(await deleteDraftVehicle(VEHICLE)).toEqual({ ok: true });
+    expect(rentalPredicateMock).not.toHaveBeenCalled();
+  });
+
+  it("non-approved provider (ForbiddenError) → PROVIDER_NOT_APPROVED, no lookup", async () => {
+    requireApprovedProviderMock.mockRejectedValue(new ForbiddenError("no"));
+    expect(await deleteDraftVehicle(VEHICLE)).toEqual({ ok: false, code: "PROVIDER_NOT_APPROVED" });
     expect(assetFindFirst).not.toHaveBeenCalled();
   });
 

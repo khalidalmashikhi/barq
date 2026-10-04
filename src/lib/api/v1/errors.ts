@@ -121,6 +121,12 @@ export type ApiErrorCode =
   | "PRICE_CHANGED"
   | "HOLD_EXPIRED"
   | "HOLD_NOT_CONFIRMABLE"
+  // Phase 3C Slice 3B — document-first vehicle registration. REGISTRATION_DOCUMENT_REQUIRED (409): a
+  // vehicle cannot be created directly; creation starts by uploading its registration document.
+  // VEHICLE_SETUP_INCOMPLETE (409): the vehicle is an unfinished onboarding shell and cannot be
+  // edited until its registration details are reviewed and confirmed.
+  | "REGISTRATION_DOCUMENT_REQUIRED"
+  | "VEHICLE_SETUP_INCOMPLETE"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
@@ -183,6 +189,9 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   PRICE_CHANGED: 409,
   HOLD_EXPIRED: 409,
   HOLD_NOT_CONFIRMABLE: 409,
+  // Well-formed requests that conflict with the document-first registration flow's current state.
+  REGISTRATION_DOCUMENT_REQUIRED: 409,
+  VEHICLE_SETUP_INCOMPLETE: 409,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 };
@@ -349,6 +358,14 @@ const MESSAGES: Record<ApiErrorCode, { en: string } & Partial<Record<Locale, str
   HOLD_NOT_CONFIRMABLE: {
     en: "This hold can no longer be confirmed.",
     ar: "لا يمكن تأكيد هذا الحجز المؤقت بعد الآن.",
+  },
+  REGISTRATION_DOCUMENT_REQUIRED: {
+    en: "A vehicle is added by uploading its registration document first. Please add the vehicle from the provider workspace.",
+    ar: "تُضاف المركبة برفع وثيقة تسجيلها أولًا. الرجاء إضافة المركبة من مساحة عمل مزوّد الخدمة.",
+  },
+  VEHICLE_SETUP_INCOMPLETE: {
+    en: "This vehicle's setup is not finished. Review and confirm its registration details first.",
+    ar: "إعداد هذه المركبة غير مكتمل. الرجاء مراجعة بيانات التسجيل وتأكيدها أولًا.",
   },
   RATE_LIMITED: {
     en: "You're making requests too quickly. Please wait a moment and try again.",

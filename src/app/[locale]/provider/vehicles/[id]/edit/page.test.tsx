@@ -7,7 +7,8 @@ vi.mock("@/lib/vehicles/queries/get-provider-vehicle", () => ({ getProviderVehic
 vi.mock("@/lib/vehicles/update-vehicle", () => ({ updateVehicle: vi.fn() }));
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async () => (k: string) => k }));
 vi.mock("next-intl/server", () => ({ getLocale: async () => "en" }));
-vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props, redirect: vi.fn() }));
+const redirectMock = vi.fn();
+vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props, redirect: (...a: unknown[]) => redirectMock(...a) }));
 const notFoundMock = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
@@ -72,6 +73,14 @@ describe("EditVehiclePage", () => {
     const el = await EditVehiclePage(props("veh-1"));
     const statusInput = find(el, (e) => (e.type === "input" || e.type === "select") && ["status", "providerId", "assetType"].includes(e.props?.name as string));
     expect(statusInput).toBeNull();
+  });
+
+  it("Slice 3B — an UNFINISHED setup is never editable through the direct form: redirects to the review step, renders no form", async () => {
+    redirectMock.mockClear();
+    getProviderVehicleMock.mockResolvedValue({ ...vehicle, make: null, model: null });
+    const el = await EditVehiclePage(props("veh-1"));
+    expect(el).toBeNull();
+    expect(redirectMock).toHaveBeenCalledWith(expect.objectContaining({ href: "/provider/vehicles/new/veh-1" }));
   });
 
   it("calls notFound() for a foreign/missing vehicle", async () => {

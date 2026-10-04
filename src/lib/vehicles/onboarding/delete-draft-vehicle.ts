@@ -1,7 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider, ForbiddenError } from "@/lib/auth";
-import { canViewRentalWorkspace } from "@/lib/offerings/rental/provider/rental-workspace-access";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { logger } from "@/lib/logger";
 import { isValidUuid } from "@/lib/uuid";
@@ -16,7 +15,8 @@ import type { DeleteDraftResult } from "./onboarding-result";
 // locks a SUBMITTED claim (the Vehicle now carries confirmed values) it is a real managed vehicle
 // and this path refuses (NOT_DELETABLE); discarding it then is a different, deliberate action.
 //
-// Owner-scoped, session-derived, RENTAL_COMPANY-gated. The DB rows are removed in one transaction
+// Owner-scoped, session-derived, approved-provider-gated (the general vehicle authority — never the
+// rental workspace predicate). The DB rows are removed in one transaction
 // in FK-safe order (Vehicle→Asset is RESTRICT, so the Vehicle and all children go before the
 // Asset). In that SAME transaction a DURABLE PrivateObjectCleanupTask is recorded for each private
 // document object (server-derived keys), so a storage-delete failure can never strand the file: it
@@ -35,10 +35,9 @@ export async function deleteDraftVehicle(vehicleId: string): Promise<DeleteDraft
     const auth = await requireApprovedProvider();
     provider = auth.provider;
   } catch (error) {
-    if (error instanceof ForbiddenError) return { ok: false, code: "NOT_RENTAL_PROVIDER" };
+    if (error instanceof ForbiddenError) return { ok: false, code: "PROVIDER_NOT_APPROVED" };
     throw error;
   }
-  if (!(await canViewRentalWorkspace(provider))) return { ok: false, code: "NOT_RENTAL_PROVIDER" };
 
   const asset = await prisma.asset.findFirst({
     where: { id: vehicleId, providerId: provider.id, assetType: "VEHICLE" },

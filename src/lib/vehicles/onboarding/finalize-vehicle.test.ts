@@ -16,9 +16,14 @@ vi.mock("@/lib/auth", () => ({
   ForbiddenError,
   UnauthenticatedError,
 }));
-const canViewRentalWorkspaceMock = vi.fn();
+// The rental-workspace predicate must play NO part in vehicle registration: if any onboarding code
+// ever consults it again, this mock throws and the suite fails.
+const rentalPredicateMock = vi.fn(() => {
+  throw new Error("vehicle registration must never consult the rental workspace predicate");
+});
 vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
-  canViewRentalWorkspace: (...a: unknown[]) => canViewRentalWorkspaceMock(...a),
+  canViewRentalWorkspace: () => rentalPredicateMock(),
+  resolveRentalWorkspaceViewAccess: () => rentalPredicateMock(),
 }));
 const auditMock = vi.fn();
 vi.mock("@/lib/audit/record-audit-event", () => ({ recordAuditEvent: (...a: unknown[]) => auditMock(...a) }));
@@ -85,7 +90,6 @@ const lockedColumns = {
 beforeEach(() => {
   vi.clearAllMocks();
   requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "22222222-2222-2222-2222-222222222222" }, provider: { id: "prov-1", status: "APPROVED" } });
-  canViewRentalWorkspaceMock.mockResolvedValue(true);
   assetFindFirst.mockResolvedValue(assetRow([]));
   confCreate.mockResolvedValue({ id: "conf-1" });
   confUpdateMany.mockResolvedValue({ count: 1 });
@@ -93,10 +97,43 @@ beforeEach(() => {
 });
 
 describe("finalizeVehicleFromRegistration", () => {
-  it("non-rental provider → NOT_RENTAL_PROVIDER, no transaction", async () => {
-    canViewRentalWorkspaceMock.mockResolvedValue(false);
-    expect(await finalizeVehicleFromRegistration(VEHICLE, FULL)).toEqual({ ok: false, code: "NOT_RENTAL_PROVIDER" });
+  it("an approved provider WITHOUT any rental vertical (e.g. a tourist guide) can finalize — the rental predicate is never consulted", async () => {
+    const res = await finalizeVehicleFromRegistration(VEHICLE, FULL);
+    expect(res).toEqual({ ok: true, vehicleId: VEHICLE, alreadyCreated: false });
+    expect(rentalPredicateMock).not.toHaveBeenCalled();
+  });
+
+  it("non-approved provider (ForbiddenError) → PROVIDER_NOT_APPROVED, no transaction", async () => {
+    requireApprovedProviderMock.mockRejectedValue(new ForbiddenError("no", "PROVIDER_NOT_APPROVED"));
+    expect(await finalizeVehicleFromRegistration(VEHICLE, FULL)).toEqual({ ok: false, code: "PROVIDER_NOT_APPROVED" });
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("writes the provider's ADVISORY 4x4 declaration + description, and never the trusted fourByFourVerified", async () => {
+    await finalizeVehicleFromRegistration(VEHICLE, { ...FULL, vehicleType: "FOUR_BY_FOUR", claimedFourByFour: true, publicDescription: "  Clean and comfortable  " });
+    const vData = (vehicleUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data;
+    expect(vData).toMatchObject({ vehicleType: "FOUR_BY_FOUR", claimedFourByFour: true, publicDescription: "Clean and comfortable" });
+    expect(vData).not.toHaveProperty("fourByFourVerified");
+  });
+
+  it("no 4x4 declaration / blank description → stored as null (never invented)", async () => {
+    await finalizeVehicleFromRegistration(VEHICLE, { ...FULL, publicDescription: "   " });
+    const vData = (vehicleUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data;
+    expect(vData.claimedFourByFour).toBeNull();
+    expect(vData.publicDescription).toBeNull();
+  });
+
+  it("a description containing markup → INVALID_INPUT with a publicDescription field error, no transaction", async () => {
+    const res = await finalizeVehicleFromRegistration(VEHICLE, { ...FULL, publicDescription: "<script>x</script>" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.fieldErrors?.some((e) => e.field === "publicDescription")).toBe(true);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("registering a vehicle writes ONLY the Vehicle + its confirmation claim (no vertical / category / offering write is even possible)", async () => {
+    await finalizeVehicleFromRegistration(VEHICLE, FULL);
+    // The transaction client exposes only these models; touching anything else would throw.
+    expect(Object.keys(txClient).sort()).toEqual(["$queryRaw", "asset", "vehicle", "vehicleRegistrationConfirmation"]);
   });
 
   it("invalid confirmation (declaration not accepted) → INVALID_INPUT, no transaction", async () => {
@@ -113,7 +150,7 @@ describe("finalizeVehicleFromRegistration", () => {
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.code).toBe("INVALID_INPUT");
-      expect(res.fieldErrors?.some((e) => (e.field as string) === "vehicleType")).toBe(true);
+      expect(res.fieldErrors?.some((e) => e.field === "vehicleType")).toBe(true);
     }
     expect(transaction).not.toHaveBeenCalled();
   });

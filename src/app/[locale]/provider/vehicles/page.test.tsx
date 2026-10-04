@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({
@@ -7,8 +7,12 @@ vi.mock("@/lib/auth", () => ({
 }));
 const getProviderVehiclesMock = vi.fn();
 vi.mock("@/lib/vehicles/queries/get-provider-vehicles", () => ({ getProviderVehicles: (...a: unknown[]) => getProviderVehiclesMock(...a) }));
-const rentalAccessMock = vi.fn();
-vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({ resolveRentalWorkspaceViewAccess: (...a: unknown[]) => rentalAccessMock(...a) }));
+// The vehicle list must not depend on the rental workspace predicate at all: any use throws.
+vi.mock("@/lib/offerings/rental/provider/rental-workspace-access", () => ({
+  resolveRentalWorkspaceViewAccess: () => {
+    throw new Error("the vehicle list must never consult the rental workspace predicate");
+  },
+}));
 vi.mock("@/lib/i18n/get-server-translator", () => ({ getServerTranslator: async () => (k: string) => k }));
 vi.mock("next-intl/server", () => ({ getLocale: async () => "en" }));
 vi.mock("@/i18n/navigation", () => ({ Link: (props: Record<string, unknown>) => props, redirect: vi.fn() }));
@@ -58,11 +62,7 @@ const vehicle = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-beforeEach(() => rentalAccessMock.mockResolvedValue({ ok: false, reason: "NO_RENTAL_ACCESS" }));
-afterEach(() => {
-  getProviderVehiclesMock.mockReset();
-  rentalAccessMock.mockReset();
-});
+afterEach(() => getProviderVehiclesMock.mockReset());
 
 describe("ProviderVehiclesPage", () => {
   it("renders a card per vehicle, each linking to its detail (multi-vehicle)", async () => {
@@ -80,24 +80,18 @@ describe("ProviderVehiclesPage", () => {
     expect(strings).toContain("OM 12345"); // private reg visible to owner
   });
 
-  it("a null-make row renders as an incomplete onboarding shell (labeled 'setup incomplete', no crash)", async () => {
-    getProviderVehiclesMock.mockResolvedValue([vehicle({ make: null, model: null, registrationNumber: null })]);
-    const strings = collectStrings(await ProviderVehiclesPage());
-    expect(strings).toContain("vehicleSetupIncomplete"); // honest label + badge; never a normal completed vehicle
-    expect(strings).not.toContain("vehicleUntitled");
-  });
-
-  it("for a RENTAL provider, an incomplete shell links back to the onboarding wizard to resume safely", async () => {
-    rentalAccessMock.mockResolvedValue({ ok: true, providerId: "prov-1" });
+  it("an unfinished setup is labeled 'setup incomplete' and links back to the review step for ANY provider (no rental predicate)", async () => {
     getProviderVehiclesMock.mockResolvedValue([vehicle({ id: "shell-1", make: null, model: null, registrationNumber: null })]);
     const el = await ProviderVehiclesPage();
+    const strings = collectStrings(el);
+    expect(strings).toContain("vehicleSetupIncomplete"); // the badge — never presented as a normal completed vehicle
+    expect(strings).not.toContain("vehicleStatusRegistered"); // the operational status badge is replaced
     const hrefs = collectHrefs(el);
-    expect(hrefs).toContain("/provider/vehicles/new/shell-1"); // resume the wizard, not the detail page
-    expect(collectStrings(el)).toContain("vehicleSetupIncomplete");
+    expect(hrefs).toContain("/provider/vehicles/new/shell-1"); // resume the document-first review
+    expect(hrefs).not.toContain("/provider/vehicles/shell-1"); // never the direct detail/edit surface
   });
 
   it("a COMPLETE vehicle is never mislabeled as incomplete and links to its detail", async () => {
-    rentalAccessMock.mockResolvedValue({ ok: true, providerId: "prov-1" });
     getProviderVehiclesMock.mockResolvedValue([vehicle({ id: "veh-9" })]);
     const el = await ProviderVehiclesPage();
     expect(collectHrefs(el)).toContain("/provider/vehicles/veh-9");

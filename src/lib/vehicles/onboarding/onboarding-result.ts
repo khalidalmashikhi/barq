@@ -5,7 +5,7 @@
 import type { ConfirmationFieldError } from "@/lib/vehicles/registration-review/confirmation-input";
 
 export type OnboardingCode =
-  | "NOT_RENTAL_PROVIDER"
+  | "PROVIDER_NOT_APPROVED"
   | "VEHICLE_NOT_FOUND"
   | "DOCUMENT_NOT_FOUND"
   | "EXTRACTION_NOT_READY"
@@ -20,13 +20,16 @@ export type OnboardingCode =
   | "UNKNOWN_ERROR";
 
 export type CreateShellResult = { ok: true; vehicleId: string } | { ok: false; code: OnboardingCode };
+// Field-level errors for the review form: the confirmation fields plus the wizard-only inputs.
+export type OnboardingFieldError = { field: ConfirmationFieldError["field"] | "vehicleType" | "publicDescription"; code: string };
+
 export type FinalizeResult =
   | { ok: true; vehicleId: string; alreadyCreated: boolean }
-  | { ok: false; code: OnboardingCode; fieldErrors?: ConfirmationFieldError[] };
+  | { ok: false; code: OnboardingCode; fieldErrors?: OnboardingFieldError[] };
 export type DeleteDraftResult = { ok: true } | { ok: false; code: OnboardingCode };
 
 const MESSAGE_KEY: Record<OnboardingCode, string> = {
-  NOT_RENTAL_PROVIDER: "vehicleOnboardErrNoAccess",
+  PROVIDER_NOT_APPROVED: "vehicleOnboardErrNoAccess",
   VEHICLE_NOT_FOUND: "vehicleOnboardErrNotFound",
   DOCUMENT_NOT_FOUND: "vehicleOnboardErrNotFound", // non-enumerating: same as vehicle-not-found
   EXTRACTION_NOT_READY: "vehicleOnboardErrNotReady",

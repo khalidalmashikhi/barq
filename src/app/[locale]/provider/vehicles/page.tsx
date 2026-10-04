@@ -4,7 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { Car, Plus, Users } from "lucide-react";
 import { UnauthenticatedError, ForbiddenError } from "@/lib/auth";
 import { getProviderVehicles } from "@/lib/vehicles/queries/get-provider-vehicles";
-import { resolveRentalWorkspaceViewAccess } from "@/lib/offerings/rental/provider/rental-workspace-access";
+import { isVehicleSetupIncomplete } from "@/lib/vehicles/onboarding/vehicle-setup-state";
 import { getVehicleStatusBadgeVariant, getVehicleStatusTranslationKey } from "@/lib/vehicles/presentation/vehicle-status";
 import { buildVehicleTitle } from "@/lib/vehicles/vehicle-title";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
@@ -46,11 +46,9 @@ export default async function ProviderVehiclesPage() {
   // Localized type label per canonical code (reused registry; value stays the code).
   const typeLabel = new Map(vehicleTypeOptions(locale).map((o) => [o.code, o.label]));
 
-  // A vehicle with no confirmed make is an UNFINISHED document-first onboarding shell (Phase 3C
-  // Slice 3B) — never a completed vehicle. Only a rental provider can resume the onboarding wizard
-  // safely, so a shell links back to the wizard for them; everyone else keeps the detail link (a
-  // legacy null-make row is never routed into the rental-gated wizard).
-  const canResumeOnboarding = (await resolveRentalWorkspaceViewAccess()).ok;
+  // A vehicle with no confirmed profile is an UNFINISHED document-first setup (Phase 3C Slice 3B) —
+  // never presented as a completed vehicle. It links back to the review step so ANY provider who may
+  // register a vehicle can resume it (the wizard is not tied to the rental workspace or a vertical).
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">
@@ -88,9 +86,9 @@ export default async function ProviderVehiclesPage() {
       ) : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {vehicles.map((v) => {
-            const incomplete = v.make === null; // unfinished onboarding shell — no confirmed profile
-            const title = buildVehicleTitle(v.make, v.model) ?? t(incomplete ? "vehicleSetupIncomplete" : "vehicleUntitled");
-            const href = incomplete && canResumeOnboarding ? `/provider/vehicles/new/${v.id}` : `/provider/vehicles/${v.id}`;
+            const incomplete = isVehicleSetupIncomplete(v);
+            const title = buildVehicleTitle(v.make, v.model) ?? t("vehicleUntitled");
+            const href = incomplete ? `/provider/vehicles/new/${v.id}` : `/provider/vehicles/${v.id}`;
             const facts = [
               v.modelYear ? String(v.modelYear) : null,
               v.vehicleType ? (typeLabel.get(v.vehicleType) ?? v.vehicleType) : null,
