@@ -2,7 +2,8 @@ import "server-only";
 import { z } from "zod";
 import { REGISTRATION_LABELS } from "../labels";
 import { REGISTRATION_FIELD_KEYS, type RegistrationCandidates, type RegistrationFieldKey } from "../types";
-import { MAX_OCR_CANDIDATES_PER_FIELD, MAX_OCR_CANDIDATE_CHARS, REGISTRATION_OCR_TIMEOUT_MS } from "../constants";
+import { MAX_OCR_CANDIDATES_PER_FIELD, MAX_OCR_CANDIDATE_CHARS, MAX_OCR_INPUT_BYTES, REGISTRATION_OCR_TIMEOUT_MS } from "../constants";
+import { DEFAULT_REGISTRATION_OCR_MODEL, type RegistrationOcrInferenceGeo } from "./ocr-model-allowlist";
 import type { RegistrationDocumentReader, RegistrationReadResult, RegistrationReadableMimeType } from "./registration-document-reader";
 
 // Phase 3C (registration OCR) — the ONLY provider-specific code: a reader that asks a Claude vision
@@ -10,8 +11,20 @@ import type { RegistrationDocumentReader, RegistrationReadResult, RegistrationRe
 // registration card. Everything about the vendor lives in this file; nothing else in the codebase
 // knows which engine is behind RegistrationDocumentReader.
 //
-// WHAT IS SENT: the stored document (the normalized, metadata-free JPEG, or the PDF) and a fixed
-// instruction. Nothing else — no provider id, vehicle id, filename, request key or account data.
+// WHAT IS SENT: the COMPLETE stored document (the normalized, metadata-free JPEG, or the PDF) and a
+// fixed instruction. Nothing else — no provider id, vehicle id, filename, request key or account
+// data. Said plainly: the image carries whatever is printed on the card, including the owner's name
+// and civil number; the instruction asks the model not to REPORT those, but it cannot un-send them.
+// That is why the caller may only invoke this reader with the provider's recorded consent for THIS
+// document (see ocr-consent.ts and the extraction service) and why the geography is pinned below.
+//
+// WHERE IT RUNS: `inference_geo` is sent EXPLICITLY on every request (the deployment must choose
+// "us" or "global"; there is no implicit default here) and the geography the vendor REPORTS back
+// (`usage.inference_geo`) is checked before the answer is even looked at. A different or missing
+// value is OCR_GEO_MISMATCH: the answer is discarded unread and nothing is retried on another
+// geography. Storage at rest and endpoint processing are governed by the vendor's workspace
+// geography (US — the only one the vendor offers at the time of writing); see the operational gate.
+//
 // WHAT COMES BACK: the model is instructed to answer through one tool whose schema has only the
 // allowlisted field keys, each a short list of {text, unclear}. (A specific tool cannot be FORCED
 // on the current model generation, so the tool choice is "auto" and an answer that does not
@@ -23,17 +36,23 @@ import type { RegistrationDocumentReader, RegistrationReadResult, RegistrationRe
 // The document is untrusted input: text printed on it cannot change the tool schema, and whatever
 // the model returns is still only a suggestion the provider must review and confirm.
 //
+// COST BOUNDS: one request per read, no automatic retry, a fixed low effort, a fixed output
+// ceiling, and an input ceiling checked before anything is sent.
+//
 // The API key is read from the server environment by the factory and passed in; it is sent only
 // in the request header, never logged, never returned, never exposed to the browser. This module
-// writes no logs at all.
+// writes no logs at all and never reads an error body.
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const TOOL_NAME = "record_registration_fields";
 /** Bump when the instruction or tool schema changes, so results are attributable to a prompt. */
-export const CLAUDE_REGISTRATION_PROMPT_VERSION = "p1";
-export const DEFAULT_CLAUDE_REGISTRATION_MODEL = "claude-sonnet-5-5";
-const MAX_OUTPUT_TOKENS = 1500;
+export const CLAUDE_REGISTRATION_PROMPT_VERSION = "p2";
+export const DEFAULT_CLAUDE_REGISTRATION_MODEL = DEFAULT_REGISTRATION_OCR_MODEL;
+/** Output ceiling (thinking tokens count against it on current models — hence not tiny). */
+const MAX_OUTPUT_TOKENS = 4000;
+/** Transcription needs no deep reasoning; the lowest effort keeps the call cheap and fast. */
+const EFFORT = "low";
 
 const SYSTEM_PROMPT = [
   "You transcribe an Omani vehicle registration card (mulkiya) from a photo or scan.",
@@ -115,6 +134,8 @@ function toCandidates(input: z.infer<typeof toolInputSchema>): RegistrationCandi
 
 export type ClaudeVisionReaderConfig = {
   apiKey: string;
+  /** REQUIRED: where inference may run. Sent on every request and verified on every answer. */
+  inferenceGeo: RegistrationOcrInferenceGeo;
   model?: string;
   timeoutMs?: number;
   /** Injectable for tests; defaults to the platform fetch. */
@@ -125,11 +146,16 @@ export function createClaudeVisionRegistrationReader(config: ClaudeVisionReaderC
   const model = config.model ?? DEFAULT_CLAUDE_REGISTRATION_MODEL;
   const timeoutMs = config.timeoutMs ?? REGISTRATION_OCR_TIMEOUT_MS;
   const doFetch = config.fetch ?? fetch;
+  const inferenceGeo = config.inferenceGeo;
 
   return {
     engine: `claude-vision/${model}/${CLAUDE_REGISTRATION_PROMPT_VERSION}`,
+    inferenceGeo,
 
     async read({ bytes, mimeType }): Promise<RegistrationReadResult> {
+      // Nothing above the ceiling is ever sent.
+      if (bytes.byteLength > MAX_OCR_INPUT_BYTES) return { ok: false, code: "OCR_INPUT_TOO_LARGE" };
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -142,6 +168,8 @@ export function createClaudeVisionRegistrationReader(config: ClaudeVisionReaderC
             body: JSON.stringify({
               model,
               max_tokens: MAX_OUTPUT_TOKENS,
+              inference_geo: inferenceGeo,
+              output_config: { effort: EFFORT },
               system: SYSTEM_PROMPT,
               tools: [TOOL],
               tool_choice: { type: "auto" },
@@ -161,7 +189,13 @@ export function createClaudeVisionRegistrationReader(config: ClaudeVisionReaderC
           return { ok: false, code: controller.signal.aborted ? "OCR_TIMEOUT" : "OCR_MALFORMED_RESPONSE" };
         }
 
-        const message = payload as { content?: unknown; stop_reason?: unknown } | null;
+        const message = payload as { content?: unknown; stop_reason?: unknown; usage?: { inference_geo?: unknown } | null } | null;
+
+        // GEOGRAPHY FIRST, before any content is examined: the vendor must report exactly the
+        // geography we asked for. Missing or different → the whole answer is discarded unread.
+        const reported = message?.usage?.inference_geo;
+        if (reported !== inferenceGeo) return { ok: false, code: "OCR_GEO_MISMATCH" };
+
         const content = message?.content;
         if (!Array.isArray(content)) return { ok: false, code: "OCR_MALFORMED_RESPONSE" };
         if (message?.stop_reason === "max_tokens") return { ok: false, code: "OCR_MALFORMED_RESPONSE" }; // a truncated answer is never used
@@ -173,7 +207,7 @@ export function createClaudeVisionRegistrationReader(config: ClaudeVisionReaderC
 
         const parsed = toolInputSchema.safeParse(toolUse.input);
         if (!parsed.success) return { ok: false, code: "OCR_MALFORMED_RESPONSE" };
-        return { ok: true, candidates: toCandidates(parsed.data) };
+        return { ok: true, candidates: toCandidates(parsed.data), inferenceGeo }; // == reported (checked above)
       } finally {
         clearTimeout(timer);
       }

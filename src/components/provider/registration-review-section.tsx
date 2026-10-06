@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import type { RegistrationReviewView } from "@/lib/vehicles/registration-review/get-registration-review";
 import { AnalyzeRegistrationButton } from "@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button";
+import { OcrConsentStep } from "@/app/[locale]/provider/vehicles/new/[vehicleId]/_components/ocr-consent-step";
 import { RegistrationConfirmationForm, type FieldView } from "@/app/[locale]/provider/vehicles/[id]/_components/registration-confirmation-form";
 
 // Phase 3C Slice 3A — provider registration review SECTION (server component), rendered on the
@@ -15,6 +16,7 @@ import { RegistrationConfirmationForm, type FieldView } from "@/app/[locale]/pro
 const EXTRACTION_STATE_LABEL: Record<RegistrationReviewView["reviewState"]["extraction"], string> = {
   NOT_ANALYZED: "vehicleRegStateNotAnalyzed",
   PROCESSING: "vehicleRegStateProcessing",
+  AWAITING_CONSENT: "vehicleRegStateAwaitingChoice",
   EXTRACTED: "vehicleRegStateExtracted",
   NEEDS_REVIEW: "vehicleRegStateNeedsReview",
   FAILED: "vehicleRegStateFailed",
@@ -74,6 +76,12 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
         </div>
       </Card>
 
+      {/* Phase 3C OCR privacy gate — a replaced/new photo or scan is never sent for automatic reading
+          until the provider decides here (same standalone notice as the onboarding wizard). */}
+      {reviewState.extraction === "AWAITING_CONSENT" && review.ocrConsent && (
+        <OcrConsentStep vehicleId={vehicleId} mode={review.ocrConsent.state === "DECLINED" ? "declined" : review.ocrConsent.state === "STALE" ? "stale" : "choose"} inferenceGeo={review.ocrConsent.inferenceGeo} />
+      )}
+
       {reviewState.confirmation === "STALE" && <Alert variant="warning">{t("vehicleRegConfStale")}</Alert>}
       {reviewState.confirmation === "SUPERSEDED" && <Alert variant="info">{t("vehicleRegConfSuperseded")}</Alert>}
 
@@ -87,7 +95,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
         </Card>
       ) : null}
 
-      {(reviewState.canConfirm || reviewState.locked) && (
+      {(reviewState.canConfirm || reviewState.locked) && !(reviewState.extraction === "AWAITING_CONSENT" && review.ocrConsent && review.ocrConsent.state !== "DECLINED") && (
         <RegistrationConfirmationForm
           vehicleId={vehicleId}
           fields={review.fields as FieldView[]}

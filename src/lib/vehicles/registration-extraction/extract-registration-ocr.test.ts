@@ -25,6 +25,7 @@ const P2003 = () => new Prisma.PrismaClientKnownRequestError("fk", { code: "P200
 
 const GOOD: RegistrationReadResult = {
   ok: true,
+  inferenceGeo: "us",
   candidates: {
     plateNumber: [{ text: "T 99001" }],
     makeDescription: [{ text: "Toyota" }],
@@ -78,10 +79,16 @@ const doc = (mimeType: string) => ({ id: "doc-1", type: "VEHICLE_REGISTRATION", 
 
 const pdfText = vi.fn();
 const read = vi.fn<(input: { bytes: ArrayBuffer; mimeType: string }) => Promise<RegistrationReadResult>>();
-const reader: RegistrationDocumentReader = { engine: ENGINE, read: (input) => read(input) };
+const reader: RegistrationDocumentReader = { engine: ENGINE, inferenceGeo: "us", read: (input) => read(input) };
 const getReader = vi.fn<() => RegistrationDocumentReader | null>();
-const deps = () => ({ db, extractPdfText: pdfText, downloadPrivateObject: async () => BYTES(), isStorageConfigured: () => true, getReader });
-const run = () => runVehicleRegistrationExtraction({ assetDocumentId: "doc-1" }, deps());
+// The privacy gate's seams: the processing notice, the provider's recorded decision for THIS
+// document, and the external-call budget. Defaults: notice configured, consent GRANTED, budget open.
+const POLICY = { processor: "anthropic", purpose: "VEHICLE_REGISTRATION_READING", policyVersion: "test-notice-v1", inferenceGeo: "us" as const };
+const getPolicy = vi.fn<() => typeof POLICY | null>();
+const readConsent = vi.fn<() => Promise<{ state: "GRANTED" | "DECLINED" | "STALE" | "NONE"; policyVersion: string | null; decidedAt: Date | null }>>();
+const consumeOcrBudget = vi.fn<() => Promise<"ALLOWED" | "LIMITED">>();
+const deps = () => ({ db, extractPdfText: pdfText, downloadPrivateObject: async () => BYTES(), isStorageConfigured: () => true, getReader, getPolicy, readConsent, consumeOcrBudget });
+const run = (actorUserId: string | null = "user-1") => runVehicleRegistrationExtraction({ assetDocumentId: "doc-1", actorUserId }, deps());
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -92,6 +99,9 @@ beforeEach(() => {
   pdfText.mockResolvedValue({ ok: false, code: "NO_TEXT_LAYER" });
   read.mockResolvedValue(GOOD);
   getReader.mockReturnValue(reader);
+  getPolicy.mockReturnValue(POLICY);
+  readConsent.mockResolvedValue({ state: "GRANTED", policyVersion: POLICY.policyVersion, decidedAt: new Date() });
+  consumeOcrBudget.mockResolvedValue("ALLOWED");
   auditMock.mockResolvedValue(undefined);
 });
 
@@ -155,6 +165,118 @@ describe("no OCR engine configured — fail closed, honestly", () => {
     docFindUnique.mockResolvedValue(doc("application/pdf"));
     expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "NO_TEXT_LAYER" });
     expect(read).not.toHaveBeenCalled();
+  });
+
+  it("an engine WITHOUT a processing notice (no policy) is as good as no engine: nothing is sent, consent is not even looked up", async () => {
+    getReader.mockReturnValue(reader);
+    getPolicy.mockReturnValue(null);
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_NOT_CONFIGURED" });
+    expect(read).not.toHaveBeenCalled();
+    expect(readConsent).not.toHaveBeenCalled();
+  });
+});
+
+describe("CONSENT — no recorded, current decision for THIS document → zero outbound requests", () => {
+  it.each([
+    ["no decision", { state: "NONE" as const, policyVersion: null, decidedAt: null }],
+    ["the provider DECLINED", { state: "DECLINED" as const, policyVersion: "test-notice-v1", decidedAt: new Date() }],
+    ["a GRANTED decision for an OLDER notice (stale)", { state: "STALE" as const, policyVersion: "old-notice", decidedAt: new Date() }],
+  ])("%s → FAILED / OCR_CONSENT_REQUIRED, no call, no reuse lookup, no budget spent, nothing invented", async (_label, consent) => {
+    readConsent.mockResolvedValue(consent);
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    expect(read).not.toHaveBeenCalled();
+    expect(ext.findFirst).not.toHaveBeenCalled(); // an earlier OCR result is not even reused without consent
+    expect(consumeOcrBudget).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED", source: "OCR", fields: null, ocrEngine: null, extractedPlateNumber: null });
+    // Recorded honestly: nothing was sent, so this is not an "AI-assisted" event.
+    expect((auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> }).newValue).toMatchObject({ failureCode: "OCR_CONSENT_REQUIRED", aiAssisted: false, ocrEngine: null });
+    // The decision is looked up for exactly this document and this provider, against the current notice.
+    expect(readConsent).toHaveBeenCalledWith(db, { providerId: "prov-1", assetDocumentId: "doc-1", documentSha256: SHA }, POLICY);
+  });
+
+  it("a consent LOOKUP FAILURE fails closed: treated as no consent, nothing sent, a category-only log line", async () => {
+    readConsent.mockRejectedValue(new Error("db down while reading consent for T 99001"));
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    expect(read).not.toHaveBeenCalled();
+    expect(loggerError).toHaveBeenCalledWith("registrationExtraction.consent_lookup_failed", expect.objectContaining({ assetDocumentId: "doc-1" }));
+    expect(JSON.stringify(loggerError.mock.calls)).not.toContain("T 99001");
+  });
+
+  it("after the provider GRANTS, the very same request path makes exactly one call", async () => {
+    readConsent.mockResolvedValueOnce({ state: "NONE", policyVersion: null, decidedAt: null });
+    expect(await run()).toMatchObject({ status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW", idempotent: false });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ABUSE AND COST CONTROLS around the one external call", () => {
+  it("the call budget is consumed by the attempt that holds the lease, for the provider AND the acting user", async () => {
+    await run("user-77");
+    expect(consumeOcrBudget).toHaveBeenCalledTimes(1);
+    expect(consumeOcrBudget).toHaveBeenCalledWith({ providerId: "prov-1", userId: "user-77" });
+  });
+
+  it("a replay answered from the stored result spends NO budget", async () => {
+    await run();
+    await run();
+    await run();
+    expect(consumeOcrBudget).toHaveBeenCalledTimes(1);
+  });
+
+  it("budget LIMITED → the lease is completed as a retryable FAILED / OCR_RATE_LIMITED; NO call is made", async () => {
+    consumeOcrBudget.mockResolvedValue("LIMITED");
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_RATE_LIMITED" });
+    expect(read).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ status: "FAILED", failureCode: "OCR_RATE_LIMITED", processingToken: null, fields: null });
+    // …and once the budget is open again the retry reads the document.
+    consumeOcrBudget.mockResolvedValue("ALLOWED");
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("a budget store failure fails CLOSED (no call)", async () => {
+    consumeOcrBudget.mockRejectedValue(new Error("limiter down"));
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_RATE_LIMITED" });
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("every lease taken counts against the per-document ceiling; at the ceiling no further call is ever made (OCR_ATTEMPT_LIMIT)", async () => {
+    read.mockResolvedValue({ ok: false, code: "OCR_TIMEOUT" });
+    for (let i = 1; i <= 5; i++) {
+      expect(await run()).toMatchObject({ status: "FAILED", failureCode: "OCR_TIMEOUT" });
+      expect(row!.ocrCallCount).toBe(i);
+    }
+    expect(read).toHaveBeenCalledTimes(5);
+    read.mockResolvedValue(GOOD);
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_ATTEMPT_LIMIT" });
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_ATTEMPT_LIMIT" });
+    expect(read).toHaveBeenCalledTimes(5); // not 6, not 7
+    expect(consumeOcrBudget).toHaveBeenCalledTimes(5);
+  });
+
+  it("a pre-gate row (NULL call count) is treated as zero and may still be read", async () => {
+    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: "1.0.0", status: "FAILED", failureCode: "OCR_TIMEOUT", version: 2, attemptCount: 1, ocrCallCount: null, processingToken: null, processingExpiresAt: null, lastSucceededAt: null };
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
+    expect(row!.ocrCallCount).toBe(1);
+  });
+});
+
+describe("GEOGRAPHY — the vendor's reported inference geography", () => {
+  it("a confirmed geography is stored with the result and audited (configured + observed)", async () => {
+    await run();
+    expect(row).toMatchObject({ status: "NEEDS_REVIEW", ocrInferenceGeo: "us" });
+    const event = auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> };
+    expect(event.newValue).toMatchObject({ inferenceGeo: "us", observedInferenceGeo: "us" });
+  });
+
+  it("OCR_GEO_MISMATCH from the reader → FAILED, NOTHING of the answer stored, audited with the configured geography and no observed one", async () => {
+    read.mockResolvedValue({ ok: false, code: "OCR_GEO_MISMATCH" });
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_GEO_MISMATCH" });
+    expect(row).toMatchObject({ status: "FAILED", failureCode: "OCR_GEO_MISMATCH", fields: null, ocrInferenceGeo: null, extractedPlateNumber: null, processingToken: null });
+    const event = auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> };
+    expect(event.newValue).toMatchObject({ failureCode: "OCR_GEO_MISMATCH", inferenceGeo: "us", observedInferenceGeo: null, aiAssisted: true });
+    expect(read).toHaveBeenCalledTimes(1); // no second attempt on another geography
   });
 });
 

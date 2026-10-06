@@ -32,6 +32,7 @@ const getRegistrationReviewMock = vi.fn();
 vi.mock("@/lib/vehicles/registration-review/get-registration-review", () => ({ getRegistrationReview: (...a: unknown[]) => getRegistrationReviewMock(...a) }));
 vi.mock("./_components/onboarding-review-form", () => ({ OnboardingReviewForm: function OnboardingReviewForm() { return null; } }));
 vi.mock("./_components/extraction-progress", () => ({ ExtractionProgress: function ExtractionProgress() { return null; } }));
+vi.mock("./_components/ocr-consent-step", () => ({ OcrConsentStep: function OcrConsentStep() { return null; } }));
 const ocrOperationalMock = vi.fn(() => false);
 vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader", () => ({ isRegistrationOcrOperational: () => ocrOperationalMock() }));
 vi.mock("../_components/registration-upload-form", () => ({ RegistrationUploadForm: function RegistrationUploadForm() { return null; } }));
@@ -41,6 +42,7 @@ const { default: OnboardingReviewPage } = await import("./page");
 const { OnboardingReviewForm } = await import("./_components/onboarding-review-form");
 const { RegistrationUploadForm } = await import("../_components/registration-upload-form");
 const { ExtractionProgress } = await import("./_components/extraction-progress");
+const { OcrConsentStep } = await import("./_components/ocr-consent-step");
 const { AnalyzeRegistrationButton } = await import("@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button");
 
 type AnyEl = { type: unknown; props: Record<string, unknown> };
@@ -70,6 +72,7 @@ const review = (over: Record<string, unknown> = {}) => ({
   documentFilename: "reg.pdf",
   documentMimeType: "application/pdf",
   extractionSource: "NATIVE_PDF_TEXT",
+  ocrConsent: null,
   reviewState: { extraction: "EXTRACTED", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null },
   lastAttemptedAt: null,
   lastSucceededAt: null,
@@ -203,5 +206,63 @@ describe("OnboardingReviewPage", () => {
     requireApprovedProviderMock.mockRejectedValue(new ForbiddenError("no"));
     await expect(OnboardingReviewPage(call())).rejects.toThrow("NEXT_NOT_FOUND");
     expect(getRegistrationReviewMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
+  const AWAITING = { extraction: "AWAITING_CONSENT", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null };
+  const consent = (state: "NONE" | "DECLINED" | "STALE" | "GRANTED") => ({ state, policyVersion: "2026-10-v1", processor: "anthropic", inferenceGeo: "us" });
+  const photo = (state: "NONE" | "DECLINED" | "STALE", over: Record<string, unknown> = {}) =>
+    review({ documentMimeType: "image/jpeg", extractionSource: null, ocrConsent: consent(state), reviewState: AWAITING, fields: [field("make", null), field("model", null)], ...over });
+
+  it("photo awaiting the provider's choice → the standalone consent step, NO form, NO retry button, nothing read", async () => {
+    getRegistrationReviewMock.mockResolvedValue(photo("NONE"));
+    const el = await OnboardingReviewPage(call());
+    const steps = findAll(el, (e) => e.type === OcrConsentStep);
+    expect(steps).toHaveLength(1);
+    expect(steps[0]!.props).toEqual({ vehicleId: VEH, mode: "choose", inferenceGeo: "us" });
+    expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
+    expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
+    expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(0);
+    expect(strings(el)).toContain("vehicleRegStateAwaitingChoice");
+  });
+
+  it("the notice changed since the last consent → the step in 'stale' mode (asked again)", async () => {
+    getRegistrationReviewMock.mockResolvedValue(photo("STALE"));
+    const el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === OcrConsentStep)[0]!.props).toMatchObject({ mode: "stale" });
+    expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
+  });
+
+  it("DECLINED → manual entry is available: the review form with the 'you chose manual' notice, plus the compact step to change one's mind", async () => {
+    getRegistrationReviewMock.mockResolvedValue(photo("DECLINED"));
+    const el = await OnboardingReviewPage(call());
+    const form = findAll(el, (e) => e.type === OnboardingReviewForm);
+    expect(form).toHaveLength(1);
+    expect(form[0]!.props).toMatchObject({ noticeKey: "vehicleRegConsentDeclinedNotice", noticeVariant: "info" });
+    expect((form[0]!.props.fields as { extractedValue: unknown }[]).every((f) => f.extractedValue === null)).toBe(true); // nothing invented
+    const step = findAll(el, (e) => e.type === OcrConsentStep);
+    expect(step).toHaveLength(1);
+    expect(step[0]!.props).toMatchObject({ mode: "declined" });
+  });
+
+  it("automatic reading switched off (no consent facts) → never a consent step; the honest manual review as before", async () => {
+    getRegistrationReviewMock.mockResolvedValue(
+      review({ documentMimeType: "image/jpeg", extractionSource: null, ocrConsent: null, reviewState: { extraction: "FAILED", confirmation: "NONE", canAnalyze: true, canConfirm: true, locked: false, failureLabelKey: "vehicleRegExtractFailOcrUnavailable" }, fields: [field("make", null)] }),
+    );
+    const el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
+    expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: "vehicleRegExtractFailOcrUnavailable", noticeVariant: "warning" });
+  });
+
+  it("the passage from consent to suggestions: GRANTED + reading in flight → the progress wait; GRANTED + read → the OCR-caution form", async () => {
+    getRegistrationReviewMock.mockResolvedValue(photo("NONE", { ocrConsent: consent("GRANTED"), reviewState: { ...AWAITING, extraction: "PROCESSING", canConfirm: false } }));
+    let el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(1);
+    expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
+    getRegistrationReviewMock.mockResolvedValue(photo("NONE", { ocrConsent: consent("GRANTED"), extractionSource: "OCR", reviewState: { ...AWAITING, extraction: "NEEDS_REVIEW" }, fields: [{ ...field("make", "Toyota"), source: "OCR", confidence: "MEDIUM", needsReview: true }] }));
+    el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: "vehicleOnboardOcrNotice" });
+    expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
   });
 });

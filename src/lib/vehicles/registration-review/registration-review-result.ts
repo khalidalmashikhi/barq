@@ -14,6 +14,9 @@ export type RegistrationReviewCode =
   | "CONFLICT"
   | "STORAGE_NOT_CONFIGURED"
   | "EXTRACTION_FAILED"
+  // OCR consent decisions (Phase 3C privacy gate)
+  | "OCR_NOT_AVAILABLE"
+  | "OWNER_AUTHORIZATION_REQUIRED"
   | "UNAUTHENTICATED"
   | "UNKNOWN_ERROR";
 
@@ -22,7 +25,7 @@ export type RegistrationReviewResult =
   | { ok: false; code: RegistrationReviewCode; fieldErrors?: ConfirmationFieldError[] };
 
 export type RegistrationAnalysisResult =
-  | { ok: true; status: "EXTRACTED" | "NEEDS_REVIEW" | "FAILED" | "PROCESSING"; failureLabelKey: string | null }
+  | { ok: true; status: "EXTRACTED" | "NEEDS_REVIEW" | "FAILED" | "PROCESSING" | "AWAITING_CONSENT"; failureLabelKey: string | null }
   | { ok: false; code: RegistrationReviewCode };
 
 const MESSAGE_KEY: Record<RegistrationReviewCode, string> = {
@@ -35,6 +38,8 @@ const MESSAGE_KEY: Record<RegistrationReviewCode, string> = {
   CONFLICT: "vehicleRegReviewErrConflict",
   STORAGE_NOT_CONFIGURED: "vehicleRegReviewErrStorage",
   EXTRACTION_FAILED: "vehicleRegReviewErrExtraction",
+  OCR_NOT_AVAILABLE: "vehicleRegOcrNotAvailable",
+  OWNER_AUTHORIZATION_REQUIRED: "vehicleRegConsentOwnerRequired",
   UNAUTHENTICATED: "vehicleRegReviewErrAuth",
   UNKNOWN_ERROR: "vehicleRegReviewErrUnknown",
 };

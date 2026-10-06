@@ -23,6 +23,13 @@ export const REGISTRATION_EXTRACTION_FAILURE_CODES = [
   "OCR_PROVIDER_ERROR", // the OCR engine was unreachable or answered with an error (retryable)
   "OCR_MALFORMED_RESPONSE", // the OCR engine's answer did not match the expected shape (never persisted)
   "OCR_UNREADABLE", // the engine answered, but no registration field could be read from the document
+  // ---- OCR privacy / abuse gate. None of these made an external call (except GEO_MISMATCH, whose
+  // ---- answer was discarded unread). Each leaves the document stored and manual entry open.
+  "OCR_CONSENT_REQUIRED", // the provider has not (yet) consented to external processing of THIS document
+  "OCR_RATE_LIMITED", // the provider/user hit the OCR call budget (retryable later)
+  "OCR_ATTEMPT_LIMIT", // the per-document ceiling on external calls was reached (manual entry)
+  "OCR_GEO_MISMATCH", // the engine reported another inference geography than configured — answer discarded
+  "OCR_INPUT_TOO_LARGE", // the stored document exceeds what may be sent (nothing was sent)
 ] as const;
 
 export type RegistrationExtractionFailureCode = (typeof REGISTRATION_EXTRACTION_FAILURE_CODES)[number];

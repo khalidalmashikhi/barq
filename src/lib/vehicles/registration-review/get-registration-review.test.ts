@@ -5,6 +5,9 @@ const requireApprovedProviderMock = vi.fn();
 vi.mock("@/lib/auth", () => ({ requireApprovedProvider: (...a: unknown[]) => requireApprovedProviderMock(...a) }));
 const assetFindFirst = vi.fn();
 vi.mock("@/lib/db", () => ({ prisma: { asset: { findFirst: (...a: unknown[]) => assetFindFirst(...a) } } }));
+// Automatic reading availability + the notice consent is bound to (environment). Off by default.
+const policyMock = vi.fn<() => { processor: string; purpose: string; policyVersion: string; inferenceGeo: "us" | "global" } | null>(() => null);
+vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader", () => ({ getRegistrationOcrPolicy: () => policyMock() }));
 
 const { getRegistrationReview } = await import("./get-registration-review");
 
@@ -146,5 +149,63 @@ describe("getRegistrationReview — per-field source and 'needs review'", () => 
     for (const needle of ["sha-1", "objectKey", "asset-documents", "claude-vision", "ocrEngine", "rawValue", "processingToken"]) expect(raw).not.toContain(needle);
     const select = JSON.stringify(assetFindFirst.mock.calls.at(-1)![0].select);
     expect(select).not.toMatch(/objectKey|processingToken|ocrEngine/);
+  });
+});
+
+describe("getRegistrationReview — the OCR consent view", () => {
+  const POLICY = { processor: "anthropic", purpose: "VEHICLE_REGISTRATION_READING", policyVersion: "2026-10-v1", inferenceGeo: "us" as const };
+  const photoDoc = (consents: unknown[], over: Record<string, unknown> = {}) => ({
+    id: VEHICLE,
+    documents: [{
+      id: "doc-1", status: "PENDING", originalFilename: "IMG.jpg", mimeType: "image/jpeg",
+      registrationExtraction: { id: "ext-1", status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED", documentSha256: "sha-1", parserVersion: "1.0.0", source: "OCR", processingExpiresAt: null, fields: null, lastAttemptedAt: new Date(), lastSucceededAt: null, ...over },
+      registrationConfirmations: [],
+      registrationOcrConsents: consents,
+    }],
+  });
+  const grantedRow = (policyVersion: string, documentSha256 = "sha-1") => ({ decision: "GRANTED", policyVersion, processor: "anthropic", documentSha256, createdAt: new Date() });
+
+  it("automatic reading NOT available → ocrConsent is null and the row reads as plain 'unavailable' (manual entry)", async () => {
+    policyMock.mockReturnValue(null);
+    assetFindFirst.mockResolvedValue(photoDoc([]));
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r?.ocrConsent).toBeNull();
+    expect(r?.reviewState).toMatchObject({ extraction: "FAILED", failureLabelKey: "vehicleRegExtractFailOcrUnavailable", canConfirm: true });
+  });
+
+  it("available + no decision → AWAITING_CONSENT with state NONE; the notice facts shown carry no key or model", async () => {
+    policyMock.mockReturnValue(POLICY);
+    assetFindFirst.mockResolvedValue(photoDoc([]));
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r?.reviewState.extraction).toBe("AWAITING_CONSENT");
+    expect(r?.ocrConsent).toEqual({ state: "NONE", policyVersion: "2026-10-v1", processor: "anthropic", inferenceGeo: "us" });
+    expect(JSON.stringify(r)).not.toMatch(/claude|sonnet|apiKey|sk-ant/i);
+    // The consent lookup is scoped to the signed-in provider and takes only the latest row.
+    const select = assetFindFirst.mock.calls[0]![0].select.documents.select.registrationOcrConsents;
+    expect(select).toMatchObject({ where: { providerId: "prov-1" }, take: 1 });
+  });
+
+  it("DECLINED → state DECLINED (manual entry, compact notice)", async () => {
+    policyMock.mockReturnValue(POLICY);
+    assetFindFirst.mockResolvedValue(photoDoc([{ decision: "DECLINED", policyVersion: "2026-10-v1", processor: "anthropic", documentSha256: null, createdAt: new Date() }]));
+    expect((await getRegistrationReview(VEHICLE))?.ocrConsent?.state).toBe("DECLINED");
+  });
+
+  it("GRANTED for an older notice → STALE (asked again); GRANTED for the current one → GRANTED", async () => {
+    policyMock.mockReturnValue(POLICY);
+    assetFindFirst.mockResolvedValue(photoDoc([grantedRow("2026-09-v0")]));
+    expect((await getRegistrationReview(VEHICLE))?.ocrConsent?.state).toBe("STALE");
+    assetFindFirst.mockResolvedValue(photoDoc([grantedRow("2026-10-v1")], { status: "NEEDS_REVIEW", failureCode: null, fields }));
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r?.ocrConsent?.state).toBe("GRANTED");
+    expect(r?.reviewState.extraction).toBe("NEEDS_REVIEW");
+  });
+
+  it("GRANTED for the bytes BEFORE a replacement → NONE for the new bytes (asked again, the step shows)", async () => {
+    policyMock.mockReturnValue(POLICY);
+    assetFindFirst.mockResolvedValue(photoDoc([grantedRow("2026-10-v1", "sha-OLD")], { documentSha256: "sha-NEW" }));
+    const r = await getRegistrationReview(VEHICLE);
+    expect(r?.ocrConsent?.state).toBe("NONE");
+    expect(r?.reviewState.extraction).toBe("AWAITING_CONSENT");
   });
 });

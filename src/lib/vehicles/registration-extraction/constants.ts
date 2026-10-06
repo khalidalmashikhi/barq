@@ -33,6 +33,19 @@ export const REGISTRATION_OCR_TIMEOUT_MS = 25_000;
 export const MAX_OCR_CANDIDATES_PER_FIELD = 4;
 export const MAX_OCR_CANDIDATE_CHARS = 120;
 
+// ── OCR privacy / abuse gate ─────────────────────────────────────────────────────────────────────
+/** Hard ceiling on EXTERNAL OCR calls per stored document (retries included). Beyond it the
+ *  document goes to manual entry (OCR_ATTEMPT_LIMIT) — a provider cannot turn one upload into an
+ *  unbounded stream of vendor calls. */
+export const MAX_OCR_CALLS_PER_DOCUMENT = 5;
+/** A reader never sends more than this (the stored document is already bounded by the 4 MiB
+ *  upload ceiling and images are re-encoded to <= 2 MiB; this is the belt to that brace). */
+export const MAX_OCR_INPUT_BYTES = 4 * 1024 * 1024;
+/** Name of the external processor as disclosed to the provider and recorded with each consent. */
+export const REGISTRATION_OCR_PROCESSOR = "anthropic";
+/** The ONLY purpose a registration document may be processed for externally. */
+export const REGISTRATION_OCR_PURPOSE = "VEHICLE_REGISTRATION_READING";
+
 /** Conservative page-count ceiling — an Omani registration is 1–2 pages; anything far
  *  larger is rejected (`PDF_PAGE_LIMIT`) rather than parsed, bounding memory/time. */
 export const MAX_REGISTRATION_PDF_PAGES = 8;

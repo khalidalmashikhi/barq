@@ -607,6 +607,9 @@ model User {
   authUserId String?   @unique
   authUser   AuthUser? @relation(fields: [authUserId], references: [id])
 
+  /// Phase 3C OCR privacy gate — the authenticated user who decided about external OCR processing.
+  registrationOcrConsents VehicleRegistrationOcrConsent[]
+
   @@map("users")
 }
 
@@ -723,6 +726,8 @@ model Provider {
   documents                 ProviderDocument[]
   /// Phase 3C Slice 3A — private registration confirmation claims this provider submitted.
   registrationConfirmations VehicleRegistrationConfirmation[]
+  /// Phase 3C OCR privacy gate — durable proof of this provider's OCR consent / decline decisions.
+  registrationOcrConsents   VehicleRegistrationOcrConsent[]
 
   @@index([status])
   @@index([approvedByAdminId])
@@ -900,6 +905,9 @@ model Asset {
   /// Back-relation only (the FK lives on the request row and is SET NULL when the asset is deleted,
   /// so the request survives as an idempotency tombstone).
   onboardingRequest         VehicleOnboardingRequest?
+  /// Phase 3C OCR privacy gate — consent decisions taken for this asset's registration document.
+  /// Back-relation only; SET NULL on delete so the proof survives a cancelled setup.
+  registrationOcrConsents   VehicleRegistrationOcrConsent[]
 
   @@index([providerId])
   @@index([status])
@@ -953,6 +961,9 @@ model AssetDocument {
   registrationExtraction    VehicleRegistrationExtraction?
   /// Phase 3C Slice 3A — provider confirmation claims for this document (one active + history).
   registrationConfirmations VehicleRegistrationConfirmation[]
+  /// Phase 3C OCR privacy gate — consent decisions bound to THIS document (a replacement document
+  /// is a new row and needs its own decision). Back-relation only; SET NULL on delete.
+  registrationOcrConsents   VehicleRegistrationOcrConsent[]
 
   /// One CURRENT document per (asset, type) — replace is an upsert (a later gate),
   /// exactly like ProviderDocument's (provider, type) uniqueness but scoped to the
@@ -993,6 +1004,13 @@ model VehicleRegistrationExtraction {
   /// replaced or taken-over document is discarded instead of being written.
   processingToken                    String?                             @db.Uuid
   processingExpiresAt                DateTime?                           @db.Timestamptz(6)
+  /// Phase 3C OCR privacy gate — how many EXTERNAL OCR calls were started for this document
+  /// (bounded: MAX_OCR_CALLS_PER_DOCUMENT). NULL (pre-gate rows) counts as 0. Never a value.
+  ocrCallCount                       Int?
+  /// Phase 3C OCR privacy gate — the inference geography the engine REPORTED for the stored OCR
+  /// result (e.g. "us"), for the operational record. A result whose reported geography differed
+  /// from the configured one is never stored.
+  ocrInferenceGeo                    String?
   status                             VehicleRegistrationExtractionStatus
   /// Safe, stable failure code when status = FAILED (never a raw library exception).
   failureCode                        String?
@@ -3394,4 +3412,57 @@ enum VehicleOnboardingRequestStatus {
   PENDING
   COMPLETED
   CANCELLED
+}
+
+/// Phase 3C (registration OCR privacy / consent gate) — DURABLE PROOF of a provider's explicit
+/// decision about sending ONE registration document to the external AI processor. Written BEFORE
+/// any document bytes may leave BARQ infrastructure (a GRANTED row for the current policy version,
+/// bound to this exact document, is a precondition of the external call), or when the provider
+/// chooses manual entry instead (DECLINED). Append-only: a new decision is a new row; the latest row
+/// for a document is the effective one. Holds ONLY what proof of consent needs — who (provider +
+/// authenticated user), what (the setup + the document, both SET NULL on delete so the proof
+/// outlives them), which notice (policy version, processor, purpose, disclosed geography, language),
+/// and the owner/authorized attestation. NEVER document contents, document values or any secret.
+model VehicleRegistrationOcrConsent {
+  id                          String                                @id @default(uuid(7)) @db.Uuid
+  providerId                  String                                @db.Uuid
+  provider                    Provider                              @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  /// The signed-in BARQ user who took the decision (a provider account may be operated by a person).
+  userId                      String                                @db.Uuid
+  user                        User                                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assetId                     String?                               @db.Uuid
+  asset                       Asset?                                @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  /// The ONE document this decision is about; cancelling the setup nulls this but keeps the proof.
+  assetDocumentId             String?                               @db.Uuid
+  assetDocument               AssetDocument?                        @relation(fields: [assetDocumentId], references: [id], onDelete: SetNull)
+  /// SHA-256 (hex) of the EXACT stored bytes the decision was taken for — a replacement document
+  /// (same document row, new bytes) therefore needs a fresh decision. A hash of the bytes, never
+  /// the bytes, never a value printed on them. NULL for a decline.
+  documentSha256              String?
+  decision                    VehicleRegistrationOcrConsentDecision
+  /// Version token of the processing notice the provider saw (REGISTRATION_OCR_PRIVACY_POLICY_VERSION).
+  /// A GRANTED row for another version is STALE: fresh consent is required.
+  policyVersion               String
+  /// Processor named in the notice, e.g. "anthropic". Never the model id or an engine secret.
+  processor                   String
+  /// Purpose named in the notice, e.g. "VEHICLE_REGISTRATION_READING".
+  purpose                     String
+  /// Inference geography disclosed at decision time (e.g. "us"), as configured; NULL for a decline.
+  inferenceGeo                String?
+  /// Interface language the notice was shown in (one of the 8 supported locales).
+  locale                      String
+  /// The provider attested they are the owner or authorized by the owner (required for GRANTED).
+  ownerAuthorizationConfirmed Boolean
+  createdAt                   DateTime                              @default(now()) @db.Timestamptz(6)
+
+  /// "Latest decision for this document" lookup.
+  @@index([assetDocumentId, createdAt])
+  /// Per-provider history / purge scans.
+  @@index([providerId, createdAt])
+  @@map("vehicle_registration_ocr_consents")
+}
+
+enum VehicleRegistrationOcrConsentDecision {
+  GRANTED
+  DECLINED
 }

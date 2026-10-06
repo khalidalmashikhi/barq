@@ -39,6 +39,7 @@ BARQ (Arabic: **برق** — never "بارق") is a multi-language tourism marke
 | `docs/project-memory/20-PERMISSION-MATRIX.md` | The concrete per-module permission grid operationalizing `IDENTITY_AND_ACCESS.md`'s philosophy |
 | `docs/project-memory/21-ENGINE-SPECIFICATIONS.md` | Purpose/Responsibilities/Dependencies/Inputs/Outputs for every planned engine |
 | `docs/project-memory/22-NON-FUNCTIONAL-REQUIREMENTS.md` | Performance/security/scalability/etc. — current state vs. target, one page |
+| `docs/project-memory/23-REGISTRATION-OCR-PRIVACY-GATE.md` | **Operational gate (OPEN) for external OCR of vehicle-registration documents** — exposure, 9 preconditions (assessment, vendor terms/DPA, retention, privacy policy, geography, notice version, cost controls, live test, sign-off), what the code guarantees, honest limits |
 | `docs/plans/ROADMAP.md` | High-level phased sequencing for the planned engines |
 | `docs/plans/IMPLEMENTATION-PLAN.md` | Per-engine implementation scoping, filled in as each is approved |
 | `BARQ_BIBLE.md` | Full documentation map and reading order by role — the architectural constitution (ADRs, domain model, tech stack) lives under `docs/00-foundation/` through `docs/11-release/`, indexed there |

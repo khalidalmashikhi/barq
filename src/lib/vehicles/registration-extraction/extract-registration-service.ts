@@ -6,19 +6,23 @@ import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit/record-audit-event";
 import { getRequestId } from "@/lib/observability/request-context";
 import { isDocumentStorageConfigured, downloadPrivateObject } from "@/lib/storage/storage";
+import { consumeRateLimit } from "@/lib/rate-limit/durable-rate-limiter";
+import { getRegistrationOcrRateLimit } from "@/lib/rate-limit/rate-limit-config";
 import { safeErrorCategory } from "@/lib/vehicles/documents/safe-error-category";
 import {
   REGISTRATION_PARSER_VERSION,
   REGISTRATION_EXTRACTION_SOURCE,
   REGISTRATION_OCR_SOURCE,
   REGISTRATION_OCR_LEASE_MS,
+  MAX_OCR_CALLS_PER_DOCUMENT,
   type RegistrationExtractionSource,
 } from "./constants";
 import { parseOmanVehicleRegistration, buildRegistrationExtraction } from "./parse-registration";
 import { extractPdfText, type PdfTextResult } from "./pdf-text";
 import { serializePersistedFields, serializeWarnings, extractionTypedColumns, persistedFieldsSchema, type ExtractionTypedColumns } from "./record";
 import { isExtractionInProgress } from "./processing-lease";
-import { getRegistrationDocumentReader } from "./ocr/get-registration-document-reader";
+import { getRegistrationDocumentReader, getRegistrationOcrPolicy, type RegistrationOcrPolicy } from "./ocr/get-registration-document-reader";
+import { getEffectiveOcrConsent, isOcrConsentGranted, type EffectiveOcrConsent } from "./ocr/ocr-consent";
 import { isRegistrationReadableMimeType, type RegistrationDocumentReader, type RegistrationReadResult } from "./ocr/registration-document-reader";
 import type { RegistrationExtractionStatus, RegistrationRecordStatus } from "./codes";
 import type { VehicleRegistrationExtractionResult } from "./types";
@@ -26,16 +30,30 @@ import type { VehicleRegistrationExtractionResult } from "./types";
 // Phase 3C — Vehicle Registration Extraction. Server-only orchestration turning an
 // already-authorized VEHICLE_REGISTRATION document into a PRIVATE extraction CANDIDATE. It NEVER
 // mutates the Vehicle, NEVER exposes a route/action/cron/UI, and NEVER trusts a client-supplied
-// provider identity (its ONLY input is a document id).
+// provider identity (its ONLY input is a document id, plus — optionally — the acting user's id for
+// the OCR call budget).
 //
 // TWO TIERS, IN THIS ORDER
 //   1. NATIVE PDF TEXT — deterministic local extraction. Always tried first for a PDF; no external
 //      call is ever made for a document that has a usable text layer.
-//   2. OCR — ONLY for a photo or a scanned / image-only PDF, and only when an OCR engine is
-//      configured. The engine reports the text it sees per allowlisted field; the SAME
-//      deterministic normalizers/validators then build the result, capped so that an OCR value is
-//      always "needs review". With no engine configured the document simply stays on the manual
-//      path (FAILED / OCR_NOT_CONFIGURED) — nothing is sent anywhere and nothing is invented.
+//   2. OCR — ONLY for a photo or a scanned / image-only PDF, only when an OCR engine is configured,
+//      and ONLY with the provider's recorded consent for THIS document. The engine reports the text
+//      it sees per allowlisted field; the SAME deterministic normalizers/validators then build the
+//      result, capped so that an OCR value is always "needs review". With no engine configured the
+//      document simply stays on the manual path (FAILED / OCR_NOT_CONFIGURED); with no consent it
+//      waits for the provider's choice (FAILED / OCR_CONSENT_REQUIRED) — in both cases nothing is
+//      sent anywhere and nothing is invented.
+//
+// THE GATES IN FRONT OF THE EXTERNAL CALL, in order — every one of them stops before any byte leaves:
+//   • readable type and a configured engine + processing notice (fail closed);
+//   • CONSENT: the latest decision for (this document, this provider) is GRANTED for the current
+//     notice version and processor — never another provider's, another document's or a stale one;
+//   • REUSE: identical bytes already read for this provider by this engine → no call at all;
+//   • the per-document CEILING on external calls (MAX_OCR_CALLS_PER_DOCUMENT);
+//   • the LEASE (exactly one attempt per document at a time);
+//   • the durable, fail-closed CALL BUDGET per provider and per acting user (rate limit).
+//   And after the call: the engine's REPORTED inference geography must equal the configured one —
+//   otherwise the answer is discarded unread (OCR_GEO_MISMATCH); there is no fallback geography.
 //
 // STATE MACHINE (one row per document; update-in-place, NOT immutable versions):
 //   existing EXTRACTED/NEEDS_REVIEW + same hash & parser version → idempotent no-op (no re-parse,
@@ -55,16 +73,24 @@ import type { VehicleRegistrationExtractionResult } from "./types";
 //   • completion and its audit share ONE transaction: an audit or database failure leaves the row
 //     NOT complete, and it is handed back as a retryable failure.
 //
-// Nothing here logs document bytes, OCR text, a plate, a VIN, or a provider error message.
+// Nothing here logs document bytes, OCR text, a plate, a VIN, a request or response body, or a
+// provider error message — log context is a fixed set of ids and error CATEGORIES.
 
-export type RunExtractionInput = { assetDocumentId: string };
+export type RunExtractionInput = {
+  assetDocumentId: string;
+  /** The signed-in user on whose request this runs (OCR call budget). Null for system/replay paths. */
+  actorUserId?: string | null;
+};
 
 export type RunExtractionResult =
   | { ok: true; extractionId: string; status: RegistrationRecordStatus; failureCode: string | null; idempotent: boolean }
   | { ok: false; error: "DOCUMENT_NOT_FOUND" | "WRONG_DOCUMENT_TYPE" | "NOT_A_VEHICLE" | "STORAGE_NOT_CONFIGURED" | "DOWNLOAD_FAILED" | "UNKNOWN_ERROR" };
 
+export type OcrBudgetScope = { providerId: string; userId: string | null };
+
 // Injectable seams (tests / disposable-DB proofs). Defaults use the real adapter, storage, the
-// environment-configured OCR engine (or none) and the global prisma client.
+// environment-configured OCR engine + notice (or none), the real consent table, the durable rate
+// limiter and the global prisma client.
 export type ExtractionServiceDeps = {
   db: PrismaClient;
   extractPdfText: (bytes: ArrayBuffer) => Promise<PdfTextResult>;
@@ -72,7 +98,25 @@ export type ExtractionServiceDeps = {
   isStorageConfigured: () => boolean;
   /** The OCR engine for this environment, or null when none is configured (fail closed). */
   getReader: () => RegistrationDocumentReader | null;
+  /** The processing notice consent is bound to, or null when OCR is not configured. */
+  getPolicy: () => RegistrationOcrPolicy | null;
+  /** The provider's effective decision for ONE document (never another provider's). */
+  readConsent: (db: PrismaClient, scope: { providerId: string; assetDocumentId: string; documentSha256: string }, policy: RegistrationOcrPolicy) => Promise<EffectiveOcrConsent>;
+  /** Consume ONE unit of the external-call budget for the provider and the acting user. Fail closed. */
+  consumeOcrBudget: (scope: OcrBudgetScope) => Promise<"ALLOWED" | "LIMITED">;
 };
+
+async function consumeOcrBudgetWithDurableLimiter(scope: OcrBudgetScope): Promise<"ALLOWED" | "LIMITED"> {
+  const { limit, windowMs } = getRegistrationOcrRateLimit();
+  const windowSeconds = Math.ceil(windowMs / 1000);
+  // Keys are opaque ids, never a phone/email/name; the limiter never logs them.
+  const keys = [`registration-ocr:provider:${scope.providerId}`, ...(scope.userId ? [`registration-ocr:user:${scope.userId}`] : [])];
+  for (const key of keys) {
+    const res = await consumeRateLimit(key, limit, windowSeconds);
+    if (!res.allowed) return "LIMITED";
+  }
+  return "ALLOWED";
+}
 
 const defaultDeps: ExtractionServiceDeps = {
   db: prisma,
@@ -80,6 +124,9 @@ const defaultDeps: ExtractionServiceDeps = {
   downloadPrivateObject,
   isStorageConfigured: isDocumentStorageConfigured,
   getReader: () => getRegistrationDocumentReader(),
+  getPolicy: () => getRegistrationOcrPolicy(),
+  readConsent: (db, scope, policy) => getEffectiveOcrConsent(db, scope, policy),
+  consumeOcrBudget: consumeOcrBudgetWithDurableLimiter,
 };
 
 const MAX_PERSIST_ATTEMPTS = 3;
@@ -100,18 +147,22 @@ type Computed = {
   source: RegistrationExtractionSource;
   /** Operational metadata for an OCR result (engine + version); null for native text. */
   ocrEngine: string | null;
+  /** The inference geography the engine REPORTED for a stored OCR result; null otherwise. */
+  ocrInferenceGeo: string | null;
+  /** The geography the reader was CONFIGURED for (audit record only). */
+  configuredInferenceGeo: string | null;
   /** Counts only — for the audit record. Never values. */
   fieldsRead: number;
   fieldsNeedingReview: number;
 };
 
-function failed(failureCode: string, source: RegistrationExtractionSource, ocrEngine: string | null): Computed {
-  return { status: "FAILED", failureCode, fields: Prisma.JsonNull, warnings: Prisma.JsonNull, typed: NO_TYPED, success: false, source, ocrEngine, fieldsRead: 0, fieldsNeedingReview: 0 };
+function failed(failureCode: string, source: RegistrationExtractionSource, ocrEngine: string | null, configuredInferenceGeo: string | null = null): Computed {
+  return { status: "FAILED", failureCode, fields: Prisma.JsonNull, warnings: Prisma.JsonNull, typed: NO_TYPED, success: false, source, ocrEngine, ocrInferenceGeo: null, configuredInferenceGeo, fieldsRead: 0, fieldsNeedingReview: 0 };
 }
 
-function fromParsed(parsed: VehicleRegistrationExtractionResult, ocrEngine: string | null, unreadableCode: string): Computed {
+function fromParsed(parsed: VehicleRegistrationExtractionResult, ocr: { engine: string; reportedGeo: string | null; configuredGeo: string | null } | null, unreadableCode: string): Computed {
   // A parse that produced no usable field is NOT a success.
-  if (parsed.overallStatus === "FAILED") return failed(unreadableCode, parsed.source, ocrEngine);
+  if (parsed.overallStatus === "FAILED") return failed(unreadableCode, parsed.source, ocr?.engine ?? null, ocr?.configuredGeo ?? null);
   const all = Object.values(parsed.fields);
   return {
     status: parsed.overallStatus,
@@ -121,7 +172,9 @@ function fromParsed(parsed: VehicleRegistrationExtractionResult, ocrEngine: stri
     typed: extractionTypedColumns(parsed),
     success: true,
     source: parsed.source,
-    ocrEngine,
+    ocrEngine: ocr?.engine ?? null,
+    ocrInferenceGeo: ocr?.reportedGeo ?? null,
+    configuredInferenceGeo: ocr?.configuredGeo ?? null,
     fieldsRead: all.filter((f) => f.normalizedValue !== null).length,
     fieldsNeedingReview: all.filter((f) => f.normalizedValue !== null && f.confidence !== "HIGH").length,
   };
@@ -132,10 +185,11 @@ function computeFromPdf(pdfResult: PdfTextResult): Computed {
   return fromParsed(parseOmanVehicleRegistration(pdfResult.text), null, "UNSUPPORTED_LAYOUT");
 }
 
-function computeFromRead(read: RegistrationReadResult, engine: string): Computed {
-  if (!read.ok) return failed(read.code, REGISTRATION_OCR_SOURCE, engine);
+function computeFromRead(read: RegistrationReadResult, reader: RegistrationDocumentReader): Computed {
+  const configuredGeo = reader.inferenceGeo ?? null;
+  if (!read.ok) return failed(read.code, REGISTRATION_OCR_SOURCE, reader.engine, configuredGeo);
   // The engine only contributed detected text; the deterministic rules decide everything else.
-  return fromParsed(buildRegistrationExtraction(read.candidates, { source: REGISTRATION_OCR_SOURCE }), engine, "OCR_UNREADABLE");
+  return fromParsed(buildRegistrationExtraction(read.candidates, { source: REGISTRATION_OCR_SOURCE }), { engine: reader.engine, reportedGeo: read.inferenceGeo ?? null, configuredGeo }, "OCR_UNREADABLE");
 }
 
 const AUDIT = (assetId: string, c: Computed) => ({
@@ -151,11 +205,16 @@ const AUDIT = (assetId: string, c: Computed) => ({
     parserVersion: REGISTRATION_PARSER_VERSION,
     failureCode: c.failureCode ?? null,
     // An OCR reading is an AI-assisted suggestion (ADR-0008 §13/§15/§16): the record names the
-    // engine, why it ran, how much still needs human review, and the request it belongs to.
+    // engine, why it ran, where it ran, how much still needs human review, and the request it
+    // belongs to.
     ...(c.source === REGISTRATION_OCR_SOURCE
       ? {
-          aiAssisted: true,
+          // "AI-assisted" only when an engine was actually involved — a gate outcome that sent
+          // nothing (consent pending, not configured) is recorded as such, not as a reading.
+          aiAssisted: c.ocrEngine !== null,
           ocrEngine: c.ocrEngine,
+          inferenceGeo: c.configuredInferenceGeo,
+          observedInferenceGeo: c.ocrInferenceGeo,
           reason: "REGISTRATION_DOCUMENT_READING",
           confidence: c.success ? "SUGGESTION_REQUIRES_PROVIDER_REVIEW" : null,
           fieldsRead: c.fieldsRead,
@@ -229,11 +288,25 @@ export async function runVehicleRegistrationExtraction(
   // ── Tier 2: OCR, for a photo or an image-only PDF.
   if (!isRegistrationReadableMimeType(doc.mimeType)) return persistSafely(failed("INVALID_FILE_TYPE", REGISTRATION_EXTRACTION_SOURCE, null));
   const reader = deps.getReader();
-  if (!reader) {
-    // No engine configured: the document stays stored and goes to manual review. Honest codes —
-    // a scanned PDF keeps its long-standing NO_TEXT_LAYER, a photo says OCR is not available.
+  const policy = deps.getPolicy();
+  if (!reader || !policy) {
+    // No engine (or no processing notice) configured: the document stays stored and goes to manual
+    // review. Honest codes — a scanned PDF keeps its long-standing NO_TEXT_LAYER, a photo says OCR
+    // is not available.
     return persistSafely(isPdf ? failed("NO_TEXT_LAYER", REGISTRATION_EXTRACTION_SOURCE, null) : failed("OCR_NOT_CONFIGURED", REGISTRATION_OCR_SOURCE, null));
   }
+
+  // CONSENT — the provider's recorded, current decision for THIS document AND these exact bytes
+  // (a replaced document needs a fresh decision). A lookup failure is treated as "not granted"
+  // (fail closed): nothing is sent, the provider is asked.
+  let consent: EffectiveOcrConsent;
+  try {
+    consent = await deps.readConsent(db, { providerId: doc.providerId, assetDocumentId: doc.id, documentSha256 }, policy);
+  } catch (error) {
+    logger.error("registrationExtraction.consent_lookup_failed", { assetDocumentId: doc.id, error: safeErrorCategory(error) });
+    consent = { state: "NONE", policyVersion: null, decidedAt: null };
+  }
+  if (!isOcrConsentGranted(consent)) return persistSafely(failed("OCR_CONSENT_REQUIRED", REGISTRATION_OCR_SOURCE, null));
 
   // Identical bytes already read for THIS provider by the same engine → reuse, no external call.
   let reusable: Computed | null = null;
@@ -253,6 +326,17 @@ export async function runVehicleRegistrationExtraction(
   }
   if (claim.kind === "GONE") return { ok: false, error: "DOCUMENT_NOT_FOUND" };
   if (claim.kind === "SETTLED") return { ok: true, extractionId: claim.id, status: claim.status, failureCode: claim.failureCode, idempotent: true };
+  if (claim.kind === "CAPPED") return persistSafely(failed("OCR_ATTEMPT_LIMIT", REGISTRATION_OCR_SOURCE, reader.engine, reader.inferenceGeo ?? null));
+
+  // CALL BUDGET — consumed only by the attempt that holds the lease (a duplicate request never
+  // spends a unit). Denied → the lease is completed as a retryable failure; no call is made.
+  let budget: "ALLOWED" | "LIMITED";
+  try {
+    budget = await deps.consumeOcrBudget({ providerId: doc.providerId, userId: input.actorUserId ?? null });
+  } catch {
+    budget = "LIMITED"; // fail closed
+  }
+  if (budget !== "ALLOWED") return completeOcr(db, doc, claim, failed("OCR_RATE_LIMITED", REGISTRATION_OCR_SOURCE, reader.engine, reader.inferenceGeo ?? null));
 
   // The ONE external call for this document. The reader never throws by contract; treat a throw as
   // a provider error anyway so a bug there can never leave the row stuck or leak a message.
@@ -263,7 +347,7 @@ export async function runVehicleRegistrationExtraction(
     read = { ok: false, code: "OCR_PROVIDER_ERROR" };
   }
 
-  return completeOcr(db, doc, claim, computeFromRead(read, reader.engine));
+  return completeOcr(db, doc, claim, computeFromRead(read, reader));
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -281,6 +365,7 @@ function finalColumns(documentSha256: string, computed: Computed, now: Date) {
     parserVersion: REGISTRATION_PARSER_VERSION,
     source: computed.source,
     ocrEngine: computed.ocrEngine,
+    ocrInferenceGeo: computed.ocrInferenceGeo,
     status: computed.status,
     failureCode: computed.failureCode,
     ...computed.typed,
@@ -382,7 +467,7 @@ async function findReusableOcrResult(db: PrismaClient, doc: DocRow, documentSha2
       asset: { providerId: doc.providerId },
     },
     orderBy: { lastSucceededAt: "desc" },
-    select: { status: true, fields: true, warnings: true, extractedVin: true, extractedPlateNumber: true, extractedLicensedPassengerCapacity: true, extractedManufactureYear: true, licenseExpiryDate: true },
+    select: { status: true, fields: true, warnings: true, ocrInferenceGeo: true, extractedVin: true, extractedPlateNumber: true, extractedLicensedPassengerCapacity: true, extractedManufactureYear: true, licenseExpiryDate: true },
   });
   if (!hit || hit.status === "FAILED" || hit.status === "PROCESSING") return null;
   const parsed = persistedFieldsSchema.safeParse(hit.fields);
@@ -404,6 +489,8 @@ async function findReusableOcrResult(db: PrismaClient, doc: DocRow, documentSha2
     success: true,
     source: REGISTRATION_OCR_SOURCE,
     ocrEngine: engine,
+    ocrInferenceGeo: hit.ocrInferenceGeo ?? null,
+    configuredInferenceGeo: null,
     fieldsRead: all.filter((f) => f.normalizedValue !== null).length,
     fieldsNeedingReview: all.filter((f) => f.normalizedValue !== null && f.confidence !== "HIGH").length,
   };
@@ -413,12 +500,15 @@ type OcrClaim =
   | { kind: "CLAIMED"; id: string; token: string }
   /** Another attempt holds the lease, or a result already exists — do no work. */
   | { kind: "SETTLED"; id: string; status: RegistrationRecordStatus; failureCode: string | null }
+  /** This document has reached its ceiling of external calls — no further call, manual entry. */
+  | { kind: "CAPPED" }
   /** The document no longer exists (the setup was cancelled). */
   | { kind: "GONE" };
 
 /**
  * Take the PROCESSING lease for this document's bytes — the gate in front of the external call.
- * Exactly one attempt wins (unique document row on create, version CAS on takeover).
+ * Exactly one attempt wins (unique document row on create, version CAS on takeover). Taking the
+ * lease counts as one external-call attempt against the per-document ceiling.
  */
 async function claimOcr(db: PrismaClient, doc: DocRow, documentSha256: string, engine: string): Promise<OcrClaim> {
   for (let attempt = 0; attempt < MAX_PERSIST_ATTEMPTS + 2; attempt++) {
@@ -429,6 +519,7 @@ async function claimOcr(db: PrismaClient, doc: DocRow, documentSha256: string, e
       parserVersion: REGISTRATION_PARSER_VERSION,
       source: REGISTRATION_OCR_SOURCE,
       ocrEngine: engine,
+      ocrInferenceGeo: null,
       status: "PROCESSING" as const,
       failureCode: null,
       // A row being read shows no stale suggestion (e.g. from a replaced document).
@@ -442,13 +533,13 @@ async function claimOcr(db: PrismaClient, doc: DocRow, documentSha256: string, e
 
     const current = await db.vehicleRegistrationExtraction.findUnique({
       where: { assetDocumentId: doc.id },
-      select: { id: true, documentSha256: true, parserVersion: true, status: true, failureCode: true, version: true, attemptCount: true, processingExpiresAt: true },
+      select: { id: true, documentSha256: true, parserVersion: true, status: true, failureCode: true, version: true, attemptCount: true, processingExpiresAt: true, ocrCallCount: true },
     });
 
     if (!current) {
       try {
         const created = await db.vehicleRegistrationExtraction.create({
-          data: { assetId: doc.assetId, assetDocumentId: doc.id, ...lease, attemptCount: 1 },
+          data: { assetId: doc.assetId, assetDocumentId: doc.id, ...lease, attemptCount: 1, ocrCallCount: 1 },
           select: { id: true },
         });
         return { kind: "CLAIMED", id: created.id, token };
@@ -465,12 +556,17 @@ async function claimOcr(db: PrismaClient, doc: DocRow, documentSha256: string, e
       if (current.status === "EXTRACTED" || current.status === "NEEDS_REVIEW") return { kind: "SETTLED", id: current.id, status: current.status, failureCode: current.failureCode };
     }
 
+    // The per-document ceiling: once this many external-call attempts were started for the
+    // document, no further call is ever made for it (pre-gate rows have NULL = 0).
+    const callsSoFar = current.ocrCallCount ?? 0;
+    if (callsSoFar >= MAX_OCR_CALLS_PER_DOCUMENT) return { kind: "CAPPED" };
+
     // FAILED (retry), an expired lease (the attempt died), or different bytes (the document was
     // replaced) → take the row over. The version CAS lets exactly one taker win; any attempt still
     // holding the old lease can no longer complete (its token is gone).
     const taken = await db.vehicleRegistrationExtraction.updateMany({
       where: { id: current.id, version: current.version },
-      data: { ...lease, attemptCount: current.attemptCount + 1, version: current.version + 1 },
+      data: { ...lease, attemptCount: current.attemptCount + 1, ocrCallCount: callsSoFar + 1, version: current.version + 1 },
     });
     if (taken.count === 1) return { kind: "CLAIMED", id: current.id, token };
   }
@@ -493,6 +589,7 @@ async function completeOcr(db: PrismaClient, doc: DocRow, claim: { id: string; t
         data: {
           source: computed.source,
           ocrEngine: computed.ocrEngine,
+          ocrInferenceGeo: computed.ocrInferenceGeo,
           status: computed.status,
           failureCode: computed.failureCode,
           ...computed.typed,

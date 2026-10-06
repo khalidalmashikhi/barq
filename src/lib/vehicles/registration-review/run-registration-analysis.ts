@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireApprovedProvider } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
 import { runVehicleRegistrationExtraction } from "@/lib/vehicles/registration-extraction/extract-registration-service";
-import { extractionFailureLabelKey } from "./review-status";
+import { extractionFailureLabelKey, OCR_CONSENT_REQUIRED_CODE } from "./review-status";
 import type { RegistrationAnalysisResult } from "./registration-review-result";
 
 // Phase 3C Slice 3A — orchestrates the Slice-2 extraction engine from the provider workflow WITHOUT
@@ -12,12 +12,13 @@ import type { RegistrationAnalysisResult } from "./registration-review-result";
 // concurrency-safe) extraction service is invoked. Throws on auth (the action wrapper maps it);
 // returns a coded result for domain outcomes. NEVER parses inside an upload transaction and NEVER
 // mutates the Vehicle. For a photo or scanned PDF the service may call the configured OCR engine —
-// at most once per document: a repeat for the same bytes is answered from the stored result, and a
-// request that arrives while one is in flight is told PROCESSING.
+// only with the provider's recorded consent for that document, at most once per document, within
+// the acting user's call budget: a repeat for the same bytes is answered from the stored result,
+// and a request that arrives while one is in flight is told PROCESSING.
 
 export async function runRegistrationAnalysis(vehicleId: string): Promise<RegistrationAnalysisResult> {
   if (!isValidUuid(vehicleId)) return { ok: false, code: "VEHICLE_NOT_FOUND" };
-  const { provider } = await requireApprovedProvider();
+  const { barqUser, provider } = await requireApprovedProvider();
 
   const asset = await prisma.asset.findFirst({
     where: { id: vehicleId, providerId: provider.id, assetType: "VEHICLE" },
@@ -27,7 +28,7 @@ export async function runRegistrationAnalysis(vehicleId: string): Promise<Regist
   const doc = asset.documents[0];
   if (!doc) return { ok: false, code: "DOCUMENT_NOT_FOUND" };
 
-  const res = await runVehicleRegistrationExtraction({ assetDocumentId: doc.id });
+  const res = await runVehicleRegistrationExtraction({ assetDocumentId: doc.id, actorUserId: barqUser.id });
   if (!res.ok) {
     switch (res.error) {
       case "STORAGE_NOT_CONFIGURED":
@@ -41,5 +42,11 @@ export async function runRegistrationAnalysis(vehicleId: string): Promise<Regist
     }
   }
   // PROCESSING = another request is already reading this document; nothing was repeated here.
-  return { ok: true, status: res.status, failureLabelKey: res.status === "FAILED" ? extractionFailureLabelKey(res.failureCode) : null };
+  // A photo/scan whose external reading awaits the provider's choice is not a failure to label.
+  const awaitingConsent = res.status === "FAILED" && res.failureCode === OCR_CONSENT_REQUIRED_CODE;
+  return {
+    ok: true,
+    status: awaitingConsent ? "AWAITING_CONSENT" : res.status,
+    failureLabelKey: res.status === "FAILED" && !awaitingConsent ? extractionFailureLabelKey(res.failureCode) : null,
+  };
 }

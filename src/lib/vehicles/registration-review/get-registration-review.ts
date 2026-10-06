@@ -15,6 +15,8 @@ import { mapExtractedByField } from "./extracted-mapping";
 import { columnsToValues } from "./confirmation-record";
 import { computeFieldDecisions, type FieldDecision } from "./diff";
 import { deriveReviewState, isConfirmationStale, type ReviewState } from "./review-status";
+import { getRegistrationOcrPolicy } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
+import { classifyOcrConsent, type OcrConsentState } from "@/lib/vehicles/registration-extraction/ocr/ocr-consent";
 
 // Phase 3C Slice 3A — the owner-scoped PRIVATE read model for the provider registration review.
 // requireApprovedProvider + a providerId-scoped asset query: a foreign/missing/invalid vehicle
@@ -42,6 +44,16 @@ export type RegistrationReviewFieldView = {
   needsReview: boolean;
 };
 
+/** The provider's standing decision about EXTERNAL automatic reading of THIS document, and what the
+ *  notice they are (or were) shown says. Null when automatic reading is not available here — then
+ *  there is nothing to decide. Never carries a key, a model id or a document value. */
+export type RegistrationOcrConsentView = {
+  state: OcrConsentState;
+  policyVersion: string;
+  processor: string;
+  inferenceGeo: "us" | "global";
+};
+
 export type RegistrationReviewView = {
   vehicleId: string;
   documentId: string | null;
@@ -51,6 +63,8 @@ export type RegistrationReviewView = {
   documentMimeType: string | null;
   /** How the current suggestions were produced (null when there are none). */
   extractionSource: "NATIVE_PDF_TEXT" | "OCR" | null;
+  /** Consent status for external reading of the current document (null = not available here). */
+  ocrConsent: RegistrationOcrConsentView | null;
   reviewState: ReviewState;
   lastAttemptedAt: Date | null;
   lastSucceededAt: Date | null;
@@ -87,6 +101,13 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
             where: { status: { not: "SUPERSEDED" } },
             select: { ...CONFIRMATION_COLUMN_SELECT, status: true, submittedAt: true, boundDocumentSha256: true, boundParserVersion: true },
           },
+          // The LATEST decision of THIS provider about THIS document (consent is provider-scoped).
+          registrationOcrConsents: {
+            where: { providerId: provider.id },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: 1,
+            select: { decision: true, policyVersion: true, processor: true, documentSha256: true, createdAt: true },
+          },
         },
       },
     },
@@ -114,7 +135,12 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
   const confirmedValues = effectiveConfirmation ? columnsToValues(effectiveConfirmation) : columnsToValues({});
   const decisions = extraction && effectiveConfirmation ? computeFieldDecisions(extracted.values, confirmedValues) : {};
 
-  const reviewState = deriveReviewState(extractionFacts, confirmationFacts);
+  // Automatic reading availability + the notice consent is bound to (environment, never the key).
+  const policy = getRegistrationOcrPolicy();
+  const reviewState = deriveReviewState(extractionFacts, confirmationFacts, new Date(), { ocrAvailable: policy !== null });
+  const ocrConsent: RegistrationOcrConsentView | null = policy
+    ? { state: classifyOcrConsent(doc?.registrationOcrConsents[0] ?? null, policy, extraction?.documentSha256 ?? null).state, policyVersion: policy.policyVersion, processor: policy.processor, inferenceGeo: policy.inferenceGeo }
+    : null;
 
   const hasSuggestions = !!extraction && (extraction.status === "EXTRACTED" || extraction.status === "NEEDS_REVIEW");
   const extractionSource: "NATIVE_PDF_TEXT" | "OCR" | null = hasSuggestions ? (extraction.source === "OCR" ? "OCR" : "NATIVE_PDF_TEXT") : null;
@@ -158,6 +184,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     documentFilename: doc?.originalFilename ?? null,
     documentMimeType: doc?.mimeType ?? null,
     extractionSource,
+    ocrConsent,
     reviewState,
     lastAttemptedAt: extraction?.lastAttemptedAt ?? null,
     lastSucceededAt: extraction?.lastSucceededAt ?? null,

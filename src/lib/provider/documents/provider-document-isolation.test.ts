@@ -30,8 +30,17 @@ vi.mock("@/lib/vehicles/registration-extraction/pdf-text", () => ({ extractPdfTe
 vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader", () => ({
   getRegistrationDocumentReader: tripwire("the vehicle-registration OCR engine"),
   isRegistrationOcrOperational: tripwire("the vehicle-registration OCR engine"),
+  getRegistrationOcrConfig: tripwire("the vehicle-registration OCR configuration"),
+  getRegistrationOcrPolicy: tripwire("the vehicle-registration OCR processing notice"),
 }));
 vi.mock("@/lib/vehicles/registration-extraction/ocr/claude-vision-reader", () => ({ createClaudeVisionRegistrationReader: tripwire("the vehicle-registration OCR engine") }));
+// A provider-verification document has no OCR consent flow either: neither reading nor recording a
+// consent decision may ever be reached from this subsystem.
+vi.mock("@/lib/vehicles/registration-extraction/ocr/ocr-consent", () => ({
+  getEffectiveOcrConsent: tripwire("the vehicle-registration OCR consent store"),
+  recordOcrConsentDecision: tripwire("the vehicle-registration OCR consent store"),
+  classifyOcrConsent: tripwire("the vehicle-registration OCR consent store"),
+}));
 vi.mock("@/lib/vehicles/registration-extraction/extract-registration-service", () => ({ runVehicleRegistrationExtraction: tripwire("the vehicle-registration extraction service") }));
 
 const { requireProviderMock, ForbiddenError, UnauthenticatedError } = vi.hoisted(() => ({
@@ -211,6 +220,8 @@ describe("ProviderDocument — its contract is its own", () => {
       "HEIC_UNSUPPORTED", "IMAGE_TOO_LARGE", "IMAGE_CORRUPT", "PDF_ENCRYPTED", "PDF_CORRUPT", "PDF_TOO_MANY_PAGES", "ONBOARDING_CANCELLED", "ONBOARDING_IN_PROGRESS",
       // vehicle-registration OCR / extraction outcomes
       "OCR_NOT_CONFIGURED", "OCR_TIMEOUT", "OCR_PROVIDER_ERROR", "OCR_MALFORMED_RESPONSE", "OCR_UNREADABLE", "NO_TEXT_LAYER", "UNSUPPORTED_LAYOUT", "EXTRACTION_FAILED",
+      // vehicle-registration OCR privacy / abuse gate
+      "OCR_CONSENT_REQUIRED", "OCR_RATE_LIMITED", "OCR_ATTEMPT_LIMIT", "OCR_GEO_MISMATCH", "OCR_INPUT_TOO_LARGE", "OWNER_AUTHORIZATION_REQUIRED", "OCR_NOT_AVAILABLE",
     ]) {
       expect(codes).not.toContain(vehicleOnly);
     }
@@ -237,7 +248,7 @@ describe("ProviderDocument — its contract is its own", () => {
 
   it.each(sources)("%s never references the OCR configuration, the OCR vendor or the registration extraction tables", (rel) => {
     const text = readFileSync(path.join(ROOT, rel), "utf8");
-    expect(text).not.toMatch(/REGISTRATION_OCR|ANTHROPIC|api\.anthropic\.com|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|RegistrationDocumentReader/);
+    expect(text).not.toMatch(/REGISTRATION_OCR|ANTHROPIC|api\.anthropic\.com|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|RegistrationDocumentReader|OcrConsent|registration_ocr_consent|inference_geo|inferenceGeo|RATE_LIMIT_REGISTRATION_OCR/);
   });
 
   it("uploading or replacing a provider document makes NO outbound request at all (no OCR, no vendor call)", async () => {

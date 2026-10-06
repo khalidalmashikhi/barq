@@ -42,7 +42,11 @@ const PRIVATE_VALUES = {
   extractedPlateNumber: "T 99001",
   documentSha256: "0f".repeat(32),
   ocrEngine: "claude-vision/model/p1",
+  ocrInferenceGeo: "us",
+  ocrCallCount: 3,
   processingToken: "11111111-2222-3333-4444-555555555555",
+  policyVersion: "2026-10-vehicle-ocr-v1",
+  ownerAuthorizationConfirmed: true,
   objectKey: "asset-documents/asset-1/vehicle_registration/secret.jpg",
   originalFilename: "my-registration-photo.jpg",
   idempotencyKey: "onboarding-request-key-1",
@@ -71,6 +75,7 @@ const stuffedRow = {
   registrationExtraction: { fields: { vin: { rawValue: "TESTV1N0000000001" } }, status: "NEEDS_REVIEW", source: "OCR" },
   registrationConfirmations: [{ vin: "TESTV1N0000000001", plateNumber: "T 99001" }],
   onboardingRequest: { idempotencyKey: "onboarding-request-key-1" },
+  registrationOcrConsents: [{ decision: "GRANTED", policyVersion: "2026-10-vehicle-ocr-v1", processor: "anthropic", userId: "user-1", locale: "ar" }],
   documents: [{ objectKey: "asset-documents/asset-1/vehicle_registration/secret.jpg" }],
   ...PRIVATE_VALUES,
 } as unknown as VehicleWithAsset;
@@ -124,7 +129,7 @@ describe("booking / customer vehicle snapshot — the same allowlist", () => {
 
 // ── structural: public readers never touch the private registration surface ─────────────────────
 const PRIVATE_TOKENS =
-  /registrationExtraction|registrationConfirmation|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|onboardingRequest\b|extractedVin|extractedPlateNumber|extractedManufactureYear|extractedLicensedPassengerCapacity|licenseExpiryDate|licenseExpiry|firstRegistrationDate|licenseValidFrom|engineNumber|plateNumber|documentSha256|ocrEngine|processingToken|idempotencyKey|assetDocument|objectKey|originalFilename|registration-extraction|registration-review|onboarding\//;
+  /registrationExtraction|registrationConfirmation|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|onboardingRequest\b|registrationOcrConsent|vehicleRegistrationOcrConsent|OcrConsent|ocrInferenceGeo|ocrCallCount|ownerAuthorizationConfirmed|policyVersion|extractedVin|extractedPlateNumber|extractedManufactureYear|extractedLicensedPassengerCapacity|licenseExpiryDate|licenseExpiry|firstRegistrationDate|licenseValidFrom|engineNumber|plateNumber|documentSha256|ocrEngine|processingToken|idempotencyKey|assetDocument|objectKey|originalFilename|registration-extraction|registration-review|onboarding\//;
 
 /** Customer-facing read models: discovery, service detail, search/browse, provider profile, rental
  *  calendar, public vehicle, public tour vehicles, and the vehicle snapshot stored on a booking. */
@@ -172,7 +177,7 @@ describe("public read models and public API routes never reference private regis
 
   it("the customer-facing API DTO for a vehicle is derived from the public DTO, and the ONE DTO that carries a plate is the provider's assigned-vehicle view", () => {
     const dtos = code("src/lib/api/v1/dtos.ts");
-    expect(dtos).not.toMatch(/registrationExtraction|registrationConfirmation|vehicleOnboardingRequest|extractedVin|extractedPlateNumber|licenseExpiry|engineNumber|documentSha256|ocrEngine|idempotencyKey|\bvin\b/);
+    expect(dtos).not.toMatch(/registrationExtraction|registrationConfirmation|vehicleOnboardingRequest|extractedVin|extractedPlateNumber|licenseExpiry|engineNumber|documentSha256|ocrEngine|idempotencyKey|\bvin\b|OcrConsent|ocrInferenceGeo|policyVersion/);
     // registrationNumber appears only in the provider-assigned-vehicle DTO (its type + its mapper).
     const lines = dtos.split("\n").filter((l) => l.includes("registrationNumber"));
     expect(lines.length).toBeLessThanOrEqual(3);

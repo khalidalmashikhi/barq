@@ -20,11 +20,13 @@ const BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]).buffer as Arr
 const TOOL = "record_registration_fields";
 
 const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-const toolAnswer = (input: unknown, extra: Record<string, unknown> = {}) => ({ id: "msg_1", type: "message", role: "assistant", stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu_1", name: TOOL, input }], ...extra });
+/** The vendor reports where inference ran; every well-formed answer in this suite says "us". */
+const USAGE = { input_tokens: 1200, output_tokens: 80, inference_geo: "us" };
+const toolAnswer = (input: unknown, extra: Record<string, unknown> = {}) => ({ id: "msg_1", type: "message", role: "assistant", stop_reason: "tool_use", usage: USAGE, content: [{ type: "tool_use", id: "tu_1", name: TOOL, input }], ...extra });
 
 function reader(fetchImpl: (...a: Parameters<typeof fetch>) => Promise<Response>, over: Record<string, unknown> = {}) {
   const spy = vi.fn(fetchImpl);
-  return { spy, r: createClaudeVisionRegistrationReader({ apiKey: KEY, fetch: spy as unknown as typeof fetch, ...over }) };
+  return { spy, r: createClaudeVisionRegistrationReader({ apiKey: KEY, inferenceGeo: "us", fetch: spy as unknown as typeof fetch, ...over }) };
 }
 const sent = (spy: ReturnType<typeof vi.fn>) => {
   const [url, init] = spy.mock.calls[0] as [string, RequestInit];
@@ -84,8 +86,28 @@ describe("Claude vision reader — what is sent", () => {
     const { spy, r } = reader(async () => jsonResponse(toolAnswer({})));
     await r.read({ bytes: BYTES, mimeType: "image/jpeg" });
     const { body } = sent(spy);
-    expect(Object.keys(body).sort()).toEqual(["max_tokens", "messages", "model", "system", "tool_choice", "tools"]);
+    expect(Object.keys(body).sort()).toEqual(["inference_geo", "max_tokens", "messages", "model", "output_config", "system", "tool_choice", "tools"]);
     expect(body.metadata).toBeUndefined();
+  });
+
+  it("pins the inference geography EXPLICITLY on every request (never the vendor's implicit default) and keeps the call cheap", async () => {
+    const { spy, r } = reader(async () => jsonResponse(toolAnswer({})));
+    await r.read({ bytes: BYTES, mimeType: "image/jpeg" });
+    const { body } = sent(spy);
+    expect(body.inference_geo).toBe("us");
+    expect(body.output_config).toEqual({ effort: "low" });
+    expect(body.max_tokens).toBeLessThanOrEqual(4000);
+    expect(r.inferenceGeo).toBe("us");
+    const { spy: spyGlobal, r: rGlobal } = reader(async () => jsonResponse(toolAnswer({}, { usage: { ...USAGE, inference_geo: "global" } })), { inferenceGeo: "global" });
+    await rGlobal.read({ bytes: BYTES, mimeType: "image/jpeg" });
+    expect(sent(spyGlobal).body.inference_geo).toBe("global"); // only ever the configured value, explicitly
+  });
+
+  it("never sends a document above the input ceiling (nothing is sent at all)", async () => {
+    const { spy, r } = reader(async () => jsonResponse(toolAnswer({})));
+    const huge = new ArrayBuffer(4 * 1024 * 1024 + 1);
+    expect(await r.read({ bytes: huge, mimeType: "image/jpeg" })).toEqual({ ok: false, code: "OCR_INPUT_TOO_LARGE" });
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("the engine id names the model and prompt version, and never contains the key", () => {
@@ -109,6 +131,7 @@ describe("Claude vision reader — a good answer", () => {
     );
     expect(await r.read({ bytes: BYTES, mimeType: "image/jpeg" })).toEqual({
       ok: true,
+      inferenceGeo: "us",
       candidates: {
         plateNumber: [{ text: "T 99001", unclear: false }],
         makeDescription: [{ text: "Toyota", unclear: false }],
@@ -120,7 +143,7 @@ describe("Claude vision reader — a good answer", () => {
 
   it("no field visible (not a registration document) → ok with no candidates", async () => {
     const { r } = reader(async () => jsonResponse(toolAnswer({})));
-    expect(await r.read({ bytes: BYTES, mimeType: "image/jpeg" })).toEqual({ ok: true, candidates: {} });
+    expect(await r.read({ bytes: BYTES, mimeType: "image/jpeg" })).toEqual({ ok: true, candidates: {}, inferenceGeo: "us" });
   });
 
   it("two values for one field are both kept (the deterministic rules flag the conflict)", async () => {
@@ -130,10 +153,10 @@ describe("Claude vision reader — a good answer", () => {
   });
 
   it("text blocks around the tool call are ignored — only the tool input is used", async () => {
-    const answer = { stop_reason: "tool_use", content: [{ type: "text", text: "Owner: Synthetic Person, civil 12345678" }, { type: "tool_use", id: "t", name: TOOL, input: { model: [{ text: "Testcruiser", unclear: false }] } }] };
+    const answer = { stop_reason: "tool_use", usage: USAGE, content: [{ type: "text", text: "Owner: Synthetic Person, civil 12345678" }, { type: "tool_use", id: "t", name: TOOL, input: { model: [{ text: "Testcruiser", unclear: false }] } }] };
     const { r } = reader(async () => jsonResponse(answer));
     const out = await r.read({ bytes: BYTES, mimeType: "image/jpeg" });
-    expect(out).toEqual({ ok: true, candidates: { model: [{ text: "Testcruiser", unclear: false }] } });
+    expect(out).toEqual({ ok: true, candidates: { model: [{ text: "Testcruiser", unclear: false }] }, inferenceGeo: "us" });
     expect(JSON.stringify(out)).not.toMatch(/Synthetic Person|12345678/);
   });
 });
@@ -144,7 +167,7 @@ describe("Claude vision reader — data that must never come through", () => {
       jsonResponse(toolAnswer({ ownerName: [{ text: "Synthetic Person", unclear: false }], civilNumber: [{ text: "12345678", unclear: false }], address: "Somewhere", vin: [{ text: "TESTV1N0000000001", unclear: false }] })),
     );
     const out = await r.read({ bytes: BYTES, mimeType: "image/jpeg" });
-    expect(out).toEqual({ ok: true, candidates: { vin: [{ text: "TESTV1N0000000001", unclear: false }] } });
+    expect(out).toEqual({ ok: true, candidates: { vin: [{ text: "TESTV1N0000000001", unclear: false }] }, inferenceGeo: "us" });
     expect(JSON.stringify(out)).not.toMatch(/Synthetic Person|12345678|Somewhere|owner|civil|address/i);
   });
 
@@ -160,12 +183,10 @@ describe("Claude vision reader — data that must never come through", () => {
 
 describe("Claude vision reader — every failure is a fixed code (never a message, never a throw)", () => {
   it.each([
-    ["no tool call at all (a prose answer or a refusal)", { stop_reason: "end_turn", content: [{ type: "text", text: "I cannot help with that." }] }],
-    ["a different tool name", { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t", name: "something_else", input: {} }] }],
-    ["content is not an array", { stop_reason: "tool_use", content: "oops" }],
-    ["an empty object", {}],
-    ["null", null],
-    ["a truncated answer (max_tokens)", { stop_reason: "max_tokens", content: [{ type: "tool_use", id: "t", name: TOOL, input: { model: [{ text: "Pra", unclear: false }] } }] }],
+    ["no tool call at all (a prose answer or a refusal)", { stop_reason: "end_turn", usage: USAGE, content: [{ type: "text", text: "I cannot help with that." }] }],
+    ["a different tool name", { stop_reason: "tool_use", usage: USAGE, content: [{ type: "tool_use", id: "t", name: "something_else", input: {} }] }],
+    ["content is not an array", { stop_reason: "tool_use", usage: USAGE, content: "oops" }],
+    ["a truncated answer (max_tokens)", { stop_reason: "max_tokens", usage: USAGE, content: [{ type: "tool_use", id: "t", name: TOOL, input: { model: [{ text: "Pra", unclear: false }] } }] }],
     ["a field that is not a list", toolAnswer({ model: "Prado" })],
     ["a candidate without text", toolAnswer({ model: [{ unclear: false }] })],
     ["a candidate whose text is not a string", toolAnswer({ model: [{ text: 42, unclear: false }] })],
@@ -175,6 +196,25 @@ describe("Claude vision reader — every failure is a fixed code (never a messag
   ])("malformed answer — %s → OCR_MALFORMED_RESPONSE", async (_label, body) => {
     const { r } = reader(async () => jsonResponse(body));
     expect(await r.read({ bytes: BYTES, mimeType: "image/jpeg" })).toEqual({ ok: false, code: "OCR_MALFORMED_RESPONSE" });
+  });
+
+  it.each([
+    ["an empty object (no usage at all)", {}],
+    ["null", null],
+    ["usage without a geography", toolAnswer({ model: [{ text: "Prado", unclear: false }] }, { usage: { input_tokens: 1 } })],
+    ["a DIFFERENT geography than configured", toolAnswer({ model: [{ text: "Prado", unclear: false }] }, { usage: { ...USAGE, inference_geo: "global" } })],
+    ["a geography of the wrong type", toolAnswer({ model: [{ text: "Prado", unclear: false }] }, { usage: { ...USAGE, inference_geo: ["us"] } })],
+  ])("geography not confirmed — %s → OCR_GEO_MISMATCH, the answer is discarded UNREAD and no second request is made", async (_label, body) => {
+    const { spy, r } = reader(async () => jsonResponse(body));
+    const out = await r.read({ bytes: BYTES, mimeType: "image/jpeg" });
+    expect(out).toEqual({ ok: false, code: "OCR_GEO_MISMATCH" });
+    expect(JSON.stringify(out)).not.toContain("Prado"); // nothing of the answer survives
+    expect(spy).toHaveBeenCalledTimes(1); // never retried on another geography
+  });
+
+  it("a configured 'global' reader accepts only a reported 'global' — a 'us' answer is still a mismatch (no silent substitution either way)", async () => {
+    const { r } = reader(async () => jsonResponse(toolAnswer({})), { inferenceGeo: "global" });
+    expect(await r.read({ bytes: BYTES, mimeType: "image/jpeg" })).toEqual({ ok: false, code: "OCR_GEO_MISMATCH" });
   });
 
   it("a body that is not JSON → OCR_MALFORMED_RESPONSE", async () => {

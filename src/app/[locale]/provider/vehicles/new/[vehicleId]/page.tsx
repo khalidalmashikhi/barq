@@ -18,6 +18,7 @@ import { AnalyzeRegistrationButton } from "@/app/[locale]/provider/vehicles/[id]
 import { RegistrationUploadForm } from "../_components/registration-upload-form";
 import { OnboardingReviewForm, type FieldView } from "./_components/onboarding-review-form";
 import { ExtractionProgress } from "./_components/extraction-progress";
+import { OcrConsentStep } from "./_components/ocr-consent-step";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2: review the extracted (or
 // manually-entered) registration details and explicitly confirm to finish the vehicle.
@@ -27,14 +28,20 @@ import { ExtractionProgress } from "./_components/extraction-progress";
 // automatically and what needs checking, and nothing is saved to the vehicle until the provider
 // confirms. A failed or unavailable reading keeps the document and leaves retry + manual entry.
 //
+// PRIVACY GATE: a photo/scan is NEVER sent for automatic (external) reading until the provider has
+// seen the standalone processing notice and chosen "read automatically" — the OcrConsentStep. Until
+// then (AWAITING_CONSENT) there is no form to fill; after a decline the same form is the manual path
+// with the compact notice above it; after a notice change the provider is asked again.
+//
 // AUTHORITY: the general vehicle-create rule (an APPROVED provider) + ownership — never the rental
 // workspace or any vertical. A foreign/missing vehicle is non-enumerating (notFound). Once the claim
 // is SUBMITTED the vehicle is finished — the provider continues on its detail page.
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-const EXTRACTION_STATE_LABEL: Record<"NOT_ANALYZED" | "PROCESSING" | "EXTRACTED" | "NEEDS_REVIEW" | "FAILED", string> = {
+const EXTRACTION_STATE_LABEL: Record<"NOT_ANALYZED" | "PROCESSING" | "AWAITING_CONSENT" | "EXTRACTED" | "NEEDS_REVIEW" | "FAILED", string> = {
   PROCESSING: "vehicleRegStateProcessing",
+  AWAITING_CONSENT: "vehicleRegStateAwaitingChoice",
   NOT_ANALYZED: "vehicleRegStateNotAnalyzed",
   EXTRACTED: "vehicleRegStateExtracted",
   NEEDS_REVIEW: "vehicleRegStateNeedsReview",
@@ -110,13 +117,23 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   // and the provider enters the details — we never claim it was read.
   const isManual = reviewState.extraction !== "EXTRACTED" && reviewState.extraction !== "NEEDS_REVIEW";
   const isReading = reviewState.extraction === "PROCESSING";
+  // The provider's choice about EXTERNAL reading of this photo/scan is pending (or was a decline).
+  const consent = review.ocrConsent;
+  const awaitingChoice = reviewState.extraction === "AWAITING_CONSENT" && consent !== null;
+  const declined = awaitingChoice && consent.state === "DECLINED";
   const viewHref = `/api/provider/vehicles/${vehicleId}/documents/${review.documentId}/view`;
   // An image document is previewed inline through the SAME owner-checked, short-lived signed view
   // route (never a public URL, never the storage key). A PDF keeps the "view" link only.
   const isImageDocument = typeof review.documentMimeType === "string" && review.documentMimeType.startsWith("image/");
   // What the form should say above the fields: the precise failure reason when there is one, the
   // OCR caution when the values were read from a photo/scan, otherwise the generic manual notice.
-  const noticeKey = isManual ? (reviewState.failureLabelKey ?? "vehicleOnboardManualNotice") : review.extractionSource === "OCR" ? "vehicleOnboardOcrNotice" : null;
+  const noticeKey = declined
+    ? "vehicleRegConsentDeclinedNotice"
+    : isManual
+      ? (reviewState.failureLabelKey ?? "vehicleOnboardManualNotice")
+      : review.extractionSource === "OCR"
+        ? "vehicleOnboardOcrNotice"
+        : null;
 
   // Confident type suggestion from the extracted make/model/usage text (always overridable).
   const hintText = review.fields
@@ -166,7 +183,13 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
         // Another request is reading the document right now: wait for it (bounded) instead of
         // opening an empty form whose suggestions are about to arrive.
         <ExtractionProgress />
+      ) : awaitingChoice && !declined ? (
+        // Nothing has been sent anywhere. The provider reads the processing notice and chooses;
+        // "enter manually" opens the same form below as the manual path.
+        <OcrConsentStep vehicleId={vehicleId} mode={consent.state === "STALE" ? "stale" : "choose"} inferenceGeo={consent.inferenceGeo} />
       ) : (
+        <>
+        {declined && <OcrConsentStep vehicleId={vehicleId} mode="declined" inferenceGeo={consent.inferenceGeo} />}
         <OnboardingReviewForm
           vehicleId={vehicleId}
           fields={review.fields as FieldView[]}
@@ -175,6 +198,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
           noticeKey={noticeKey}
           noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
         />
+        </>
       )}
     </div>
   );

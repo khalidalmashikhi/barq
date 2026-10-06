@@ -46,3 +46,14 @@ export function getRentalHoldRateLimit(): RateLimitConfig {
     windowMs: readPositiveInt("RATE_LIMIT_RENTAL_HOLD_WINDOW_SECONDS", 3600) * 1000,
   };
 }
+
+// Phase 3C (registration OCR privacy gate) — EXTERNAL OCR calls for vehicle-registration documents,
+// consumed ONCE per call that is about to be made, against BOTH the provider and the signed-in user
+// (durable, fail-closed limiter). An abuse guard against turning the endpoint into a general vision
+// proxy or a cost sink — a legitimate provider registers a handful of vehicles a day, each read once.
+export function getRegistrationOcrRateLimit(): RateLimitConfig {
+  return {
+    limit: readPositiveInt("RATE_LIMIT_REGISTRATION_OCR_MAX", 20),
+    windowMs: readPositiveInt("RATE_LIMIT_REGISTRATION_OCR_WINDOW_SECONDS", 3600) * 1000,
+  };
+}

@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  REGISTRATION_OCR_INFERENCE_GEOS,
+  REGISTRATION_OCR_MODEL_ALLOWLIST,
+  REGISTRATION_OCR_POLICY_VERSION_PATTERN,
+} from "../src/lib/vehicles/registration-extraction/ocr/ocr-model-allowlist";
 
 // Environment schema — extracted from validate-env.ts, Phase D.3
 // (Production Hardening), specifically so this schema is unit-testable
@@ -76,13 +81,21 @@ export const envSchema = z
     // ANTHROPIC_API_KEY (the .superRefine() below) — a server-only secret, never exposed to the
     // browser, never committed (.env.example ships an empty placeholder). Enabling it is an
     // explicit data-processing decision for documents that carry owner details.
-    // REGISTRATION_OCR_MODEL optionally overrides the reader's default model.
+    // REGISTRATION_OCR_INFERENCE_GEO chooses where inference runs ("us" | "global") — REQUIRED with
+    // "claude", no default: the vendor defaults to global routing and this integration refuses to
+    // accept that implicitly. REGISTRATION_OCR_PRIVACY_POLICY_VERSION is the version token of the
+    // processing notice providers consent to — REQUIRED with "claude"; every consent is bound to it.
+    // REGISTRATION_OCR_MODEL optionally overrides the reader's default model and must be on the
+    // allowlist (src/lib/vehicles/registration-extraction/ocr/ocr-model-allowlist.ts).
+    // Enabling is gated operationally: docs/project-memory/23-REGISTRATION-OCR-PRIVACY-GATE.md.
     REGISTRATION_OCR_PROVIDER: z.enum(["disabled", "claude"]).optional().default("disabled"),
     ANTHROPIC_API_KEY: z.string().optional(),
-    REGISTRATION_OCR_MODEL: z
+    REGISTRATION_OCR_INFERENCE_GEO: z.enum(REGISTRATION_OCR_INFERENCE_GEOS).optional(),
+    REGISTRATION_OCR_PRIVACY_POLICY_VERSION: z
       .string()
-      .regex(/^claude-[a-z0-9][a-z0-9.-]{2,60}$/, "must be a Claude model id, e.g. claude-sonnet-5-5")
+      .regex(REGISTRATION_OCR_POLICY_VERSION_PATTERN, "must be a short version token, e.g. 2026-10-vehicle-ocr-v1")
       .optional(),
+    REGISTRATION_OCR_MODEL: z.enum(REGISTRATION_OCR_MODEL_ALLOWLIST).optional(),
     EMAIL_FROM: z.string().optional(),
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
@@ -202,12 +215,26 @@ export const envSchema = z
     // Registration OCR: selecting the Claude reader without its credential is a misconfiguration
     // (at runtime the reader factory also fails closed, so nothing would be sent — but the
     // deployment should say so at startup rather than silently fall back to manual entry).
-    if (env.REGISTRATION_OCR_PROVIDER === "claude" && !env.ANTHROPIC_API_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["ANTHROPIC_API_KEY"],
-        message: "required when REGISTRATION_OCR_PROVIDER=claude",
-      });
+    if (env.REGISTRATION_OCR_PROVIDER === "claude") {
+      // Each of these is a fail-closed precondition of ANY external call (the reader factory also
+      // refuses at runtime); the deployment should fail loudly at startup, not silently go manual.
+      if (!env.ANTHROPIC_API_KEY) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ANTHROPIC_API_KEY"], message: "required when REGISTRATION_OCR_PROVIDER=claude" });
+      }
+      if (!env.REGISTRATION_OCR_INFERENCE_GEO) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["REGISTRATION_OCR_INFERENCE_GEO"],
+          message: "required when REGISTRATION_OCR_PROVIDER=claude — choose the inference geography explicitly (us | global); there is no default",
+        });
+      }
+      if (!env.REGISTRATION_OCR_PRIVACY_POLICY_VERSION) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["REGISTRATION_OCR_PRIVACY_POLICY_VERSION"],
+          message: "required when REGISTRATION_OCR_PROVIDER=claude — the version of the processing notice providers consent to",
+        });
+      }
     }
     if (env.BOOKING_EMAIL_PROVIDER === "resend") {
       if (!env.RESEND_API_KEY) {

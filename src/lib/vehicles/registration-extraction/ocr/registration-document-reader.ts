@@ -23,11 +23,21 @@ export function isRegistrationReadableMimeType(value: unknown): value is Registr
   return typeof value === "string" && (REGISTRATION_READABLE_MIME_TYPES as readonly string[]).includes(value);
 }
 
-/** Safe, fixed failure reasons — never a provider message, never document content. */
-export type RegistrationReadFailureCode = "OCR_TIMEOUT" | "OCR_PROVIDER_ERROR" | "OCR_MALFORMED_RESPONSE";
+/** Safe, fixed failure reasons — never a provider message, never document content.
+ *  OCR_GEO_MISMATCH: the engine reported an inference geography other than the configured one —
+ *  the answer is DISCARDED unread (fail closed, never a fallback to global routing).
+ *  OCR_INPUT_TOO_LARGE: the stored document exceeds what a reader may send (nothing was sent). */
+export type RegistrationReadFailureCode = "OCR_TIMEOUT" | "OCR_PROVIDER_ERROR" | "OCR_MALFORMED_RESPONSE" | "OCR_GEO_MISMATCH" | "OCR_INPUT_TOO_LARGE";
 
 export type RegistrationReadResult =
-  | { ok: true; candidates: RegistrationCandidates }
+  | {
+      ok: true;
+      candidates: RegistrationCandidates;
+      /** The inference geography the engine REPORTED for this answer (operational record), when
+       *  the engine reports one. Always equal to the configured geography — a mismatch never
+       *  yields an ok result. */
+      inferenceGeo?: string | null;
+    }
   | { ok: false; code: RegistrationReadFailureCode };
 
 export interface RegistrationDocumentReader {
@@ -37,6 +47,8 @@ export interface RegistrationDocumentReader {
    * identical bytes; it never contains a secret.
    */
   readonly engine: string;
+  /** The inference geography this reader is pinned to ("us" | "global"), when the engine has one. */
+  readonly inferenceGeo?: string;
   /** Never throws: every failure is one of the fixed codes. Never logs the document or its text. */
   read(input: { bytes: ArrayBuffer; mimeType: RegistrationReadableMimeType }): Promise<RegistrationReadResult>;
 }

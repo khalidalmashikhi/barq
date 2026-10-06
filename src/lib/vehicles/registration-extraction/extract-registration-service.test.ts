@@ -34,7 +34,7 @@ const db = {
 const extractOk = vi.fn(async () => ({ ok: true as const, pageCount: 1, text: REG_TEXT }));
 const download = vi.fn(async () => BYTES);
 // Native-text path: no OCR engine is involved (the OCR tier has its own suite, ocr-extraction.test.ts).
-const deps = () => ({ db, extractPdfText: extractOk, downloadPrivateObject: download, isStorageConfigured: () => true, getReader: () => null });
+const deps = () => ({ db, extractPdfText: extractOk, downloadPrivateObject: download, isStorageConfigured: () => true, getReader: () => null, getPolicy: () => null, readConsent: async () => ({ state: "NONE" as const, policyVersion: null, decidedAt: null }), consumeOcrBudget: async () => "ALLOWED" as const });
 
 const P2002 = new Prisma.PrismaClientKnownRequestError("unique", { code: "P2002", clientVersion: "5.22.0" });
 
