@@ -1,6 +1,6 @@
 # 23 — Registration OCR: privacy, consent and live-readiness gate
 
-**Status (2026-10-06): the gate is OPEN — automatic (external) reading of vehicle-registration documents is DISABLED everywhere.** `REGISTRATION_OCR_PROVIDER=disabled` on local, staging and production. The code that would send a document exists (local commits `f4dfef0` + the consent-gate commit on top of it) but refuses to run until every item below is complete and the three configuration keys are set. Nothing in this document is legal advice; the consent screen informs the provider and records their choice — it does not by itself make the processing lawful.
+**Status (2026-10-07): the gate is OPEN — automatic (external) reading of vehicle-registration documents is DISABLED everywhere.** The code (`f4dfef0` + consent-gate commit `c9f5d8b`) is DEPLOYED TO STAGING with migrations 64–66 applied, but `REGISTRATION_OCR_PROVIDER` is absent (= `disabled`) on staging and production, no `ANTHROPIC_API_KEY` exists in any environment, and no Anthropic request has ever been made. It refuses to run until every item below is complete and the four configuration keys are set. Nothing in this document is legal advice; the consent screen informs the provider and records their choice — it does not by itself make the processing lawful.
 
 ## 1. What is at stake (the exposure, stated plainly)
 
@@ -45,3 +45,4 @@ Only after 9: set `REGISTRATION_OCR_PROVIDER=claude`, `ANTHROPIC_API_KEY`, `REGI
 ## 5. Changelog of this gate
 
 - 2026-10-06 — gate created; OCR disabled everywhere; consent flow, geography pinning, call budgets and migration 66 implemented locally (not pushed, not deployed, not applied to staging or production).
+- 2026-10-07 — stack `83dec4b…c9f5d8b` deployed to STAGING (Phase A, OCR disabled); migrations 64–66 applied on staging; Phase B (enable Claude on staging for a synthetic live test) BLOCKED: no `ANTHROPIC_API_KEY` on the barq-staging project — the owner must add it (Sensitive) with `REGISTRATION_OCR_PROVIDER=claude`, `REGISTRATION_OCR_INFERENCE_GEO=us`, `REGISTRATION_OCR_PRIVACY_POLICY_VERSION=2026-10-07-v1`. Items 1–9 above remain unticked; production untouched.
