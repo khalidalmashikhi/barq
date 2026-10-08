@@ -222,6 +222,8 @@ describe("ProviderDocument — its contract is its own", () => {
       "OCR_NOT_CONFIGURED", "OCR_TIMEOUT", "OCR_PROVIDER_ERROR", "OCR_MALFORMED_RESPONSE", "OCR_UNREADABLE", "NO_TEXT_LAYER", "UNSUPPORTED_LAYOUT", "EXTRACTION_FAILED",
       // vehicle-registration OCR privacy / abuse gate
       "OCR_CONSENT_REQUIRED", "OCR_RATE_LIMITED", "OCR_ATTEMPT_LIMIT", "OCR_GEO_MISMATCH", "OCR_INPUT_TOO_LARGE", "OWNER_AUTHORIZATION_REQUIRED", "OCR_NOT_AVAILABLE",
+      // vehicle-registration document SET (front/back photos, one PDF)
+      "INVALID_DOCUMENT_SET", "OCR_INVALID_SET", "VEHICLE_REGISTRATION_BACK",
     ]) {
       expect(codes).not.toContain(vehicleOnly);
     }

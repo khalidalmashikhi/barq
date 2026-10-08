@@ -16,9 +16,12 @@ import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingActio
 // client island. The parser's suggestions PREFILL the inputs but are never silently accepted: the
 // provider reviews/corrects every field, chooses the vehicle type (a confident suggestion is
 // pre-selected, always overridable), and accepts the accuracy declaration to create the vehicle.
-// A scanned/image upload yields no suggestions — the same form is then the manual-entry path (NO
-// OCR). Sensitive identifiers (plate/VIN/engine) are masked with an explicit reveal. No value ever
-// enters a URL/metadata; every mutation goes through the session-derived, owner-scoped actions.
+// A scanned/image upload yields no suggestions until the provider chooses automatic reading — the
+// same form is otherwise the manual-entry path. A field the document showed with two DIFFERENT
+// values (front vs back, page 1 vs page 2) arrives UNRESOLVED with the values it showed: nothing
+// is chosen for the provider — they pick one or type the right value. Sensitive identifiers
+// (plate/VIN/engine) are masked with an explicit reveal. No value ever enters a URL/metadata; every
+// mutation goes through the session-derived, owner-scoped actions.
 
 export type FieldView = {
   key: ConfirmationFieldKey;
@@ -34,6 +37,9 @@ export type FieldView = {
   source: "NATIVE_PDF_TEXT" | "OCR" | "PROVIDER" | "UNRESOLVED";
   /** Read without certainty, flagged, or required but missing — the provider must look at it. */
   needsReview: boolean;
+  /** The document showed different values for this field; `alternatives` lists them (private). */
+  conflict?: boolean;
+  alternatives?: (string | number)[];
 };
 
 const SOURCE_LABEL_KEY = {
@@ -169,6 +175,29 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           {flagged && <span className="rounded-full bg-accent/20 px-2 py-0.5 font-medium text-accent-foreground">{t("vehicleOnboardNeedsReviewBadge")}</span>}
         </p>
         {FIELD_HINT_KEY[f.key] && <p className="text-xs text-foreground/60">{t(FIELD_HINT_KEY[f.key]!)}</p>}
+        {f.conflict && (f.alternatives?.length ?? 0) > 0 && !edited && (
+          // CONFLICT: the document itself disagrees. Nothing was chosen; every value it showed is
+          // offered (masked like any sensitive value) and ONE tap puts it in the input — the
+          // provider can still overrule it by typing.
+          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent/10 p-3">
+            <p className="text-xs font-medium text-accent-foreground">{t("vehicleRegConflictLabel")}</p>
+            <p className="text-xs text-foreground/70">{t("vehicleRegConflictHint")}</p>
+            <div className="flex flex-wrap gap-2">
+              {f.alternatives!.map((alt, i) => (
+                <button
+                  key={`${f.key}-alt-${i}`}
+                  type="button"
+                  onClick={() => setValues((v) => ({ ...v, [f.key]: String(alt) }))}
+                  disabled={pending}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                >
+                  <bdi className="font-medium">{f.sensitive && !isRevealed ? maskSensitiveValue(String(alt)) : String(alt)}</bdi>
+                  <span className="text-xs text-foreground/60">{t("vehicleRegConflictChoose")}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {extractedDisplay !== null && (
           <p className="text-xs text-foreground/50">
             {t("vehicleRegExtractedPrefix")}: <bdi className="text-foreground/70">{extractedDisplay}</bdi>

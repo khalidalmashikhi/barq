@@ -60,6 +60,8 @@ export const EXTRACTION_FAILURE_LABEL_KEY: Record<RegistrationExtractionFailureC
   OCR_ATTEMPT_LIMIT: "vehicleRegExtractFailOcrAttemptLimit",
   OCR_GEO_MISMATCH: "vehicleRegExtractFailOcrUnavailable",
   OCR_INPUT_TOO_LARGE: "vehicleRegExtractFailTooLarge",
+  OCR_INVALID_SET: "vehicleRegExtractFailInvalidSet",
+  INVALID_DOCUMENT_SET: "vehicleRegExtractFailInvalidSet",
 };
 
 export const OCR_CONSENT_REQUIRED_CODE = "OCR_CONSENT_REQUIRED";

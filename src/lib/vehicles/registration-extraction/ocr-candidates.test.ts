@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildRegistrationExtraction, parseOmanVehicleRegistration } from "./parse-registration";
-import { persistedFieldsSchema, serializePersistedFields } from "./record";
+import { buildRegistrationExtraction, parseOmanVehicleRegistration, isNativeTextUsable } from "./parse-registration";
+import { persistedFieldsSchema, serializePersistedFields, extractionTypedColumns } from "./record";
 import { REGISTRATION_FIELD_KEYS, type RegistrationCandidates } from "./types";
 
 // What the deterministic rules make of text an OCR engine reports. The engine only contributes
@@ -100,10 +100,11 @@ describe("OCR candidates → validated result", () => {
     expect(r.fields.licensedPassengerCapacity.normalizedValue).toBeNull();
   });
 
-  it("CONFLICTING values for one field → LOW + CONFLICT (the first is shown, the provider decides)", () => {
+  it("CONFLICTING values for one field → UNRESOLVED (null) + LOW + CONFLICT, both values kept — nothing is chosen for the provider", () => {
     const r = ocr({ ...ENGLISH_CARD, manufactureYear: [{ text: "2019" }, { text: "2020" }], licensedPassengerCapacity: [{ text: "7" }, { text: "8" }] });
-    expect(r.fields.manufactureYear).toMatchObject({ normalizedValue: 2019, confidence: "LOW" });
+    expect(r.fields.manufactureYear).toMatchObject({ normalizedValue: null, confidence: "LOW", alternatives: [2019, 2020] });
     expect(r.fields.manufactureYear.warnings).toContain("CONFLICT");
+    expect(r.fields.licensedPassengerCapacity).toMatchObject({ normalizedValue: null, alternatives: [7, 8] });
     expect(r.fields.licensedPassengerCapacity.warnings).toContain("CONFLICT");
   });
 
@@ -148,5 +149,50 @@ describe("OCR candidates → validated result", () => {
   it("customer/bookable capacity and registered seats are NOT extraction fields at all — OCR cannot fill them", () => {
     expect(REGISTRATION_FIELD_KEYS).not.toContain("bookablePassengerCapacity" as never);
     expect(REGISTRATION_FIELD_KEYS).not.toContain("registeredSeats" as never);
+  });
+});
+
+describe("a field printed DIFFERENTLY on two sides / pages of the set", () => {
+  it("is NOT chosen silently: the value is null, confidence LOW, CONFLICT flagged, every distinct value kept in detection order", () => {
+    const r = ocr({ ...ENGLISH_CARD, manufactureYear: [{ text: "2019" }, { text: "2020" }] });
+    expect(r.fields.manufactureYear).toMatchObject({ normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT"], alternatives: [2019, 2020] });
+    expect(r.overallStatus).toBe("NEEDS_REVIEW");
+  });
+
+  it("the SAME value seen on both sides is agreement, not a conflict", () => {
+    const r = ocr({ ...ENGLISH_CARD, manufactureYear: [{ text: "2020" }, { text: "٢٠٢٠" }] });
+    expect(r.fields.manufactureYear.normalizedValue).toBe(2020);
+    expect(r.fields.manufactureYear.warnings).not.toContain("CONFLICT");
+    expect(r.fields.manufactureYear.alternatives).toBeUndefined();
+  });
+
+  it("alternatives are distinct and bounded", () => {
+    const r = ocr({ ...ENGLISH_CARD, manufactureYear: [{ text: "2015" }, { text: "2016" }, { text: "2017" }, { text: "2018" }, { text: "2019" }, { text: "2015" }] });
+    expect(r.fields.manufactureYear.alternatives).toEqual([2015, 2016, 2017, 2018]);
+  });
+
+  it("a conflicting IDENTIFIER never reaches the typed searchable columns", () => {
+    const r = ocr({ ...ENGLISH_CARD, plateNumber: [{ text: "T 99001" }, { text: "T 99002" }], vin: [{ text: "TESTV1N0000000001" }, { text: "TESTV1N0000000002" }] });
+    expect(extractionTypedColumns(r)).toMatchObject({ extractedPlateNumber: null, extractedVin: null });
+    expect(r.fields.plateNumber.alternatives).toEqual(["T 99001", "T 99002"]);
+  });
+
+  it("the persisted (strict) shape keeps the alternatives — and only on a conflict", () => {
+    const r = ocr({ ...ENGLISH_CARD, manufactureYear: [{ text: "2019" }, { text: "2020" }] });
+    const stored = persistedFieldsSchema.parse(serializePersistedFields(r)) as Record<string, { alternatives?: unknown[] }>;
+    expect(stored.manufactureYear!.alternatives).toEqual([2019, 2020]);
+    expect(stored.makeDescription!.alternatives).toBeUndefined();
+  });
+});
+
+describe("isNativeTextUsable — when the local PDF text counts as a reading", () => {
+  it("usable: at least one critical field resolved from the text layer → zero external calls", () => {
+    expect(isNativeTextUsable(parseOmanVehicleRegistration("رقم اللوحة: A 12345", NOW))).toBe(true);
+    expect(isNativeTextUsable(parseOmanVehicleRegistration("Chassis Number: TESTV1N0000000001", NOW))).toBe(true);
+  });
+
+  it("NOT usable: a text layer with no registration content (unsupported layout, cover page) — the PDF is then offered to OCR instead of dead-ending", () => {
+    expect(isNativeTextUsable(parseOmanVehicleRegistration("Ministry of Transport\nVehicle services\nPage 1 of 2", NOW))).toBe(false);
+    expect(isNativeTextUsable(parseOmanVehicleRegistration("", NOW))).toBe(false);
   });
 });

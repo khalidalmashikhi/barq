@@ -114,7 +114,9 @@ describe("deriveReviewState — the OCR privacy gate (AWAITING_CONSENT)", () => 
   });
 
   it("no raw code ever leaks: every failure code maps to a label key, and a label is never the code itself", () => {
-    for (const code of ["OCR_CONSENT_REQUIRED", "OCR_RATE_LIMITED", "OCR_ATTEMPT_LIMIT", "OCR_GEO_MISMATCH", "OCR_INPUT_TOO_LARGE"]) {
+    expect(extractionFailureLabelKey("OCR_INVALID_SET")).toBe("vehicleRegExtractFailInvalidSet");
+    expect(extractionFailureLabelKey("INVALID_DOCUMENT_SET")).toBe("vehicleRegExtractFailInvalidSet");
+    for (const code of ["OCR_CONSENT_REQUIRED", "OCR_RATE_LIMITED", "OCR_ATTEMPT_LIMIT", "OCR_GEO_MISMATCH", "OCR_INPUT_TOO_LARGE", "OCR_INVALID_SET", "INVALID_DOCUMENT_SET"]) {
       const key = extractionFailureLabelKey(code);
       expect(key).toMatch(/^vehicleReg/);
       expect(key).not.toContain(code);

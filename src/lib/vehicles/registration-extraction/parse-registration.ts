@@ -104,13 +104,16 @@ function buildField(kind: FieldKind, candidates: RegistrationCandidate[], maxYea
   const distinct = new Set(outcomes.filter((o) => o.value !== null).map((o) => JSON.stringify(o.value)));
 
   if (distinct.size > 1) {
+    // Two (or more) different valid values for one field — e.g. printed differently on the front
+    // and the back, or on page 1 and page 2. NOTHING is chosen silently: the field is unresolved,
+    // every distinct value is kept (bounded) for the provider to choose from or overrule.
     const first = outcomes[0]!;
-    return {
-      rawValue: first.raw,
-      normalizedValue: first.value,
-      confidence: "LOW",
-      warnings: Array.from(new Set([...first.warnings, "CONFLICT"])),
-    };
+    const alternatives: (string | number)[] = [];
+    for (const o of outcomes) {
+      if (o.value !== null && !alternatives.some((a) => JSON.stringify(a) === JSON.stringify(o.value))) alternatives.push(o.value);
+      if (alternatives.length >= 4) break;
+    }
+    return { rawValue: first.raw, normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT"], alternatives };
   }
 
   const chosen = outcomes.find((o) => o.value !== null) ?? outcomes[0]!;
@@ -162,6 +165,17 @@ export function buildRegistrationExtraction(
     overallStatus,
     warnings,
   };
+}
+
+/**
+ * Whether a NATIVE-text result is worth keeping as the reading: at least one CRITICAL field
+ * (plate, make, model, year, passengers, VIN, expiry) was actually resolved. A text layer that
+ * yields nothing usable (an unsupported layout, garbled glyph order, a cover page) must not
+ * dead-end the provider at manual entry — the service then offers the OCR choice instead.
+ */
+export function isNativeTextUsable(result: VehicleRegistrationExtractionResult): boolean {
+  if (result.overallStatus === "FAILED") return false;
+  return CRITICAL_REGISTRATION_FIELDS.some((k) => result.fields[k].normalizedValue !== null);
 }
 
 /**

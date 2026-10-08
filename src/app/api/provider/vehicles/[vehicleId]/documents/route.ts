@@ -47,7 +47,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ vehicleId:
       // SEPARATE owner-scoped operation (re-resolves provider + ownership, idempotent service). Its
       // failure NEVER rolls back the authoritative upload; the detail page shows the extraction
       // status + a Retry control. Only the registration document is extracted.
-      if (result.ok && type === "VEHICLE_REGISTRATION") {
+      if (result.ok && (type === "VEHICLE_REGISTRATION" || type === "VEHICLE_REGISTRATION_BACK")) {
         try {
           await runRegistrationAnalysis(vehicleId);
         } catch {

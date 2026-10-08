@@ -1,3 +1,4 @@
+import { buildIncrementallyUpdatedPdf } from "@/lib/vehicles/documents/synthetic-test-documents";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -196,5 +197,15 @@ describe("extractPdfText — REAL unpdf fixtures (fictional data)", () => {
   });
   it("8) image-only / no-usable-text PDF → NO_TEXT_LAYER", async () => {
     expect(await extractPdfText(buildPdf([null]))).toEqual({ ok: false, code: "NO_TEXT_LAYER" });
+  });
+  it("9) an incrementally-updated (signed-style) PDF — two %%EOF markers, the last ending the file — opens and its text is read", async () => {
+    const res = await extractPdfText(buildIncrementallyUpdatedPdf([["Plate Number: A 12345"]]));
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.text).toContain("A 12345");
+  });
+  it("10) a payload after the LAST %%EOF of an incrementally-updated PDF → PDF_TRAILING_DATA (the guard looks past the first marker, not the last)", async () => {
+    const signed = Buffer.from(buildIncrementallyUpdatedPdf([["Plate Number: A 1"]]));
+    const polyglot = Buffer.concat([signed, Buffer.from("PK\u0003\u0004TRAILINGZIPPAYLOAD", "latin1")]);
+    expect(await extractPdfText(polyglot.buffer.slice(polyglot.byteOffset, polyglot.byteOffset + polyglot.byteLength))).toEqual({ ok: false, code: "PDF_TRAILING_DATA" });
   });
 });

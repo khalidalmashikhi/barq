@@ -25,8 +25,14 @@ const extCreate = vi.fn();
 const extUpdateMany = vi.fn();
 const txClient = { vehicleRegistrationExtraction: { create: (...a: unknown[]) => extCreate(...a), updateMany: (...a: unknown[]) => extUpdateMany(...a) } };
 const transaction = vi.fn(async (cb: (tx: unknown) => unknown) => cb(txClient));
+// The set of the asset: the front alone (whatever the last findUnique answered).
+const assetDocFindMany = vi.fn(async () => {
+  const last = assetDocFindUnique.mock.results.at(-1);
+  const d = last ? await (last.value as Promise<typeof goodDoc | null>) : null;
+  return d ? [{ id: d.id, type: d.type, objectKey: d.objectKey, mimeType: d.mimeType }] : [];
+});
 const db = {
-  assetDocument: { findUnique: (...a: unknown[]) => assetDocFindUnique(...a) },
+  assetDocument: { findUnique: (...a: unknown[]) => assetDocFindUnique(...a), findMany: () => assetDocFindMany() },
   vehicleRegistrationExtraction: { findUnique: (...a: unknown[]) => extFindUnique(...a) },
   $transaction: (cb: (tx: unknown) => unknown) => transaction(cb),
 } as never;
@@ -148,7 +154,8 @@ describe("audit privacy", () => {
     const params = auditMock.mock.calls[0]?.[0] as { actorType: string; actorId: null; newValue: Record<string, unknown> };
     expect(params.actorType).toBe("SYSTEM");
     expect(params.actorId).toBeNull();
-    expect(Object.keys(params.newValue).sort()).toEqual(["failureCode", "parserVersion", "source", "status"].sort());
+    expect(Object.keys(params.newValue).sort()).toEqual(["failureCode", "pageCount", "parserVersion", "source", "status"].sort());
+    expect(params.newValue.pageCount).toBe(1);
     for (const forbidden of ["JTEBU29J8K5012345", "A 12345", "rawValue", "fields", "objectKey", "فلان"]) {
       expect(JSON.stringify(params.newValue)).not.toContain(forbidden);
     }

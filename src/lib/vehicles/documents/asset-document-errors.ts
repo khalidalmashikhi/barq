@@ -38,6 +38,9 @@ export const ASSET_DOCUMENT_ERROR_CODES = [
   "PDF_CORRUPT",
   // A registration PDF with more pages than the registration page limit.
   "PDF_TOO_MANY_PAGES",
+  // Phase 3C (registration document set) — the files do not form a valid registration set: a PDF
+  // together with a photo, a PDF offered as the back side, or more than two sides.
+  "INVALID_DOCUMENT_SET",
   // Submission readiness failed (required docs missing/rejected).
   "NOT_READY",
   // Verification is not in a submittable state (e.g. already SUBMITTED/APPROVED).
@@ -72,6 +75,7 @@ const ASSET_DOCUMENT_ERROR_TRANSLATION_KEYS = {
   PDF_ENCRYPTED: "vehicleDocErrorPdfEncrypted",
   PDF_CORRUPT: "vehicleDocErrorPdfCorrupt",
   PDF_TOO_MANY_PAGES: "vehicleDocErrorPdfTooManyPages",
+  INVALID_DOCUMENT_SET: "vehicleDocErrorInvalidDocumentSet",
   NOT_READY: "vehicleVerifyErrorNotReady",
   INVALID_STATE: "vehicleVerifyErrorInvalidState",
   UNKNOWN_ERROR: "vehicleErrorUnknown",

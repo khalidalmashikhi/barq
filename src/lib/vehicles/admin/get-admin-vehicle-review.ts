@@ -8,6 +8,7 @@ import {
   requiredAssetDocumentTypesFor,
   ASSET_DOCUMENT_TYPE_LABEL_KEYS,
   assetDocumentTypeSupportsExpiry,
+  isValidAssetDocumentTypeKey,
   type AssetDocumentLabelKey,
 } from "@/lib/vehicles/documents/asset-document-types";
 import { omanValidThroughDateOfInstant } from "@/lib/date/oman-time";
@@ -166,7 +167,7 @@ export async function getAdminVehicleReview(assetId: string): Promise<AdminVehic
   const requiredSet = new Set<string>(requiredTypes);
   for (const d of asset.documents) {
     if (!requiredSet.has(d.type)) {
-      items.push({ type: d.type, labelKey: null, required: false, document: toReviewDoc(d) });
+      items.push({ type: d.type, labelKey: isValidAssetDocumentTypeKey(d.type) ? ASSET_DOCUMENT_TYPE_LABEL_KEYS[d.type] : null, required: false, document: toReviewDoc(d) });
     }
   }
 

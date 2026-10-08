@@ -49,9 +49,12 @@ export async function decideRegistrationOcrConsent(vehicleId: string, decision: 
   if (!asset) return { ok: false, code: "VEHICLE_NOT_FOUND" };
   const doc = asset.documents[0];
   if (!doc) return { ok: false, code: "DOCUMENT_NOT_FOUND" };
-  // A GRANTED decision is bound to the EXACT bytes in storage: their server-computed hash is on the
-  // extraction row the upload (or a previous analysis) left behind. Without it there is nothing to
-  // bind to yet — the provider analyzes first (which never sends anything without consent).
+  // A GRANTED decision is bound to the EXACT bytes in storage — of the COMPLETE ORDERED SET (the
+  // PDF, the one photo, or front + back): the server-computed set hash on the extraction row the
+  // upload (or a previous analysis) left behind. Replacing, adding, removing or swapping a side
+  // changes that hash, so a decision given for the old set never covers the new one. Without a hash
+  // there is nothing to bind to yet — the provider analyzes first (which never sends anything
+  // without consent).
   const documentSha256 = doc.registrationExtraction?.documentSha256 ?? null;
   if (decision === "GRANTED" && !documentSha256) return { ok: false, code: "EXTRACTION_NOT_READY" };
 

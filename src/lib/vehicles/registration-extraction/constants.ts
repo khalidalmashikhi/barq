@@ -38,17 +38,19 @@ export const MAX_OCR_CANDIDATE_CHARS = 120;
  *  document goes to manual entry (OCR_ATTEMPT_LIMIT) — a provider cannot turn one upload into an
  *  unbounded stream of vendor calls. */
 export const MAX_OCR_CALLS_PER_DOCUMENT = 5;
-/** A reader never sends more than this (the stored document is already bounded by the 4 MiB
- *  upload ceiling and images are re-encoded to <= 2 MiB; this is the belt to that brace). */
+/** A reader never sends more than this in ONE request — the AGGREGATE of every page of the set
+ *  (a PDF of up to 4 MiB, or two normalized images of <= 2 MiB each). Belt to the upload brace. */
 export const MAX_OCR_INPUT_BYTES = 4 * 1024 * 1024;
 /** Name of the external processor as disclosed to the provider and recorded with each consent. */
 export const REGISTRATION_OCR_PROCESSOR = "anthropic";
 /** The ONLY purpose a registration document may be processed for externally. */
 export const REGISTRATION_OCR_PURPOSE = "VEHICLE_REGISTRATION_READING";
 
-/** Conservative page-count ceiling — an Omani registration is 1–2 pages; anything far
- *  larger is rejected (`PDF_PAGE_LIMIT`) rather than parsed, bounding memory/time. */
-export const MAX_REGISTRATION_PDF_PAGES = 8;
+/** Page-count ceiling — an Omani registration is one card: a PDF of it has one or two pages
+ *  (front/back). Anything longer is rejected (`PDF_PAGE_LIMIT`) rather than parsed — it is not a
+ *  registration document, and the bound also caps memory/time. (Owner decision, 2026-10-09:
+ *  lowered from 8 to 2 together with the two-image registration set.) */
+export const MAX_REGISTRATION_PDF_PAGES = 2;
 
 /** Hard upper bound on parse wall-time before returning `PARSER_TIMEOUT` (bounded work). */
 export const REGISTRATION_PARSE_TIMEOUT_MS = 10_000;

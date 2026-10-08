@@ -14,6 +14,10 @@ export type VehicleRegistrationField<T> = {
   confidence: RegistrationFieldConfidence;
   /** Deterministic, machine-readable warning codes (e.g. "MISSING", "CONFLICT", "VIN_LENGTH", "UNIT_MISSING"). */
   warnings: string[];
+  /** CONFLICT only: every distinct validated value the document(s) showed for this field, in
+   *  detection order (front/page 1 first). The field is then UNRESOLVED (normalizedValue null) —
+   *  nothing is chosen silently; the provider picks one or types the confirmed value. Private. */
+  alternatives?: T[];
 };
 
 /** The ALLOWLISTED operational fields. Owner/nationality/address/civil-number/insurer/

@@ -37,6 +37,7 @@ const CODE_MAP: Record<AssetDocumentErrorCode, ApiErrorCode> = {
   PDF_ENCRYPTED: "INVALID_INPUT",
   PDF_CORRUPT: "INVALID_INPUT",
   PDF_TOO_MANY_PAGES: "INVALID_INPUT",
+  INVALID_DOCUMENT_SET: "INVALID_INPUT",
   // Submission readiness failed (required docs missing/rejected) → 422 (+ blockers).
   NOT_READY: "VERIFICATION_NOT_READY",
   // Not submittable from the current verification state (e.g. already SUBMITTED).
@@ -59,6 +60,7 @@ const FILE_VALIDATION_CODES: ReadonlySet<AssetDocumentErrorCode> = new Set([
   "PDF_ENCRYPTED",
   "PDF_CORRUPT",
   "PDF_TOO_MANY_PAGES",
+  "INVALID_DOCUMENT_SET",
 ]);
 
 /**

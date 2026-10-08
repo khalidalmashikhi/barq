@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import type { RegistrationDocumentReader, RegistrationReadResult } from "./ocr/registration-document-reader";
+import type { RegistrationDocumentReader, RegistrationReadInput, RegistrationReadResult } from "./ocr/registration-document-reader";
 
 // The OCR TIER of the extraction service against an in-memory stand-in for the extraction row
 // (so leases, takeovers and guarded completion behave as they do on the database) and a fake
@@ -16,6 +16,7 @@ vi.mock("@/lib/db", () => ({ prisma: {} }));
 vi.mock("@/lib/storage/storage", () => ({ isDocumentStorageConfigured: () => true, downloadPrivateObject: async () => new ArrayBuffer(0) }));
 
 const { runVehicleRegistrationExtraction } = await import("./extract-registration-service");
+const { computeRegistrationSetHash } = await import("./registration-document-set");
 
 const BYTES = () => new TextEncoder().encode("synthetic-stored-document-bytes").buffer as ArrayBuffer;
 const SHA = createHash("sha256").update(Buffer.from(BYTES())).digest("hex");
@@ -69,8 +70,17 @@ const ext = {
   }),
 };
 const docFindUnique = vi.fn();
+// The SET of the asset (front + optional back), as the service loads it after the front lookup.
+// Defaults to "the front alone" (whatever the last findUnique answered); a test may set two pages.
+let setDocs: { id: string; type: string; objectKey: string; mimeType: string }[] | null = null;
+const docFindMany = vi.fn(async () => {
+  if (setDocs) return setDocs;
+  const last = docFindUnique.mock.results.at(-1);
+  const d = last ? await (last.value as Promise<ReturnType<typeof doc> | null>) : null;
+  return d ? [{ id: d.id, type: d.type, objectKey: d.objectKey, mimeType: d.mimeType }] : [];
+});
 const db = {
-  assetDocument: { findUnique: (...a: unknown[]) => docFindUnique(...a) },
+  assetDocument: { findUnique: (...a: unknown[]) => docFindUnique(...a), findMany: () => docFindMany() },
   vehicleRegistrationExtraction: ext,
   $transaction: async (cb: (tx: unknown) => unknown) => cb({ vehicleRegistrationExtraction: ext }),
 } as never;
@@ -78,7 +88,7 @@ const db = {
 const doc = (mimeType: string) => ({ id: "doc-1", type: "VEHICLE_REGISTRATION", objectKey: "asset-documents/asset-1/vehicle_registration/x.jpg", mimeType, assetId: "asset-1", asset: { assetType: "VEHICLE", providerId: "prov-1" } });
 
 const pdfText = vi.fn();
-const read = vi.fn<(input: { bytes: ArrayBuffer; mimeType: string }) => Promise<RegistrationReadResult>>();
+const read = vi.fn<(input: RegistrationReadInput) => Promise<RegistrationReadResult>>();
 const reader: RegistrationDocumentReader = { engine: ENGINE, inferenceGeo: "us", read: (input) => read(input) };
 const getReader = vi.fn<() => RegistrationDocumentReader | null>();
 // The privacy gate's seams: the processing notice, the provider's recorded decision for THIS
@@ -87,7 +97,8 @@ const POLICY = { processor: "anthropic", purpose: "VEHICLE_REGISTRATION_READING"
 const getPolicy = vi.fn<() => typeof POLICY | null>();
 const readConsent = vi.fn<() => Promise<{ state: "GRANTED" | "DECLINED" | "STALE" | "NONE"; policyVersion: string | null; decidedAt: Date | null }>>();
 const consumeOcrBudget = vi.fn<() => Promise<"ALLOWED" | "LIMITED">>();
-const deps = () => ({ db, extractPdfText: pdfText, downloadPrivateObject: async () => BYTES(), isStorageConfigured: () => true, getReader, getPolicy, readConsent, consumeOcrBudget });
+const BACK_BYTES = () => new TextEncoder().encode("synthetic-stored-back-side-bytes").buffer as ArrayBuffer;
+const deps = () => ({ db, extractPdfText: pdfText, downloadPrivateObject: async (key: string) => (key.includes("back") ? BACK_BYTES() : BYTES()), isStorageConfigured: () => true, getReader, getPolicy, readConsent, consumeOcrBudget });
 const run = (actorUserId: string | null = "user-1") => runVehicleRegistrationExtraction({ assetDocumentId: "doc-1", actorUserId }, deps());
 
 beforeEach(() => {
@@ -95,6 +106,7 @@ beforeEach(() => {
   row = null;
   reuseHit = null;
   createError = null;
+  setDocs = null;
   docFindUnique.mockResolvedValue(doc("image/jpeg"));
   pdfText.mockResolvedValue({ ok: false, code: "NO_TEXT_LAYER" });
   read.mockResolvedValue(GOOD);
@@ -133,8 +145,9 @@ describe("tiering — native text first, OCR only as the fallback", () => {
     expect(res).toMatchObject({ ok: true, status: "NEEDS_REVIEW", idempotent: false });
     expect(read).toHaveBeenCalledTimes(1);
     const input = read.mock.calls[0]![0];
-    expect(input.mimeType).toBe("application/pdf");
-    expect(Buffer.from(input.bytes).equals(Buffer.from(BYTES()))).toBe(true);
+    expect(input.pages).toHaveLength(1);
+    expect(input.pages[0]!.mimeType).toBe("application/pdf");
+    expect(Buffer.from(input.pages[0]!.bytes).equals(Buffer.from(BYTES()))).toBe(true);
   });
 
   it("a PHOTO → OCR directly; the PDF parser is never run on an image", async () => {
@@ -142,7 +155,7 @@ describe("tiering — native text first, OCR only as the fallback", () => {
     expect(res).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
     expect(pdfText).not.toHaveBeenCalled();
     expect(read).toHaveBeenCalledTimes(1);
-    expect(read.mock.calls[0]![0].mimeType).toBe("image/jpeg");
+    expect(read.mock.calls[0]![0].pages[0]!.mimeType).toBe("image/jpeg");
   });
 
   it("a stored type the reader cannot take is failed honestly, never sent", async () => {
@@ -448,5 +461,136 @@ describe("late answers and failures never mark an extraction complete", () => {
     expect(event).toBe("registrationExtraction.ocr_complete_failed");
     expect(Object.keys(fields).sort()).toEqual(["assetDocumentId", "error"]);
     expect(JSON.stringify(loggerError.mock.calls)).not.toMatch(/T 99001|asset-documents\/x|Toyota/);
+  });
+});
+
+describe("the registration document SET — front + optional back, ONE reading", () => {
+  const BACK_SHA = createHash("sha256").update(Buffer.from(BACK_BYTES())).digest("hex");
+  const SET_SHA = computeRegistrationSetHash([SHA, BACK_SHA]);
+  const FRONT = { id: "doc-1", type: "VEHICLE_REGISTRATION", objectKey: "asset-documents/asset-1/vehicle_registration/x.jpg", mimeType: "image/jpeg" };
+  const BACK = { id: "doc-2", type: "VEHICLE_REGISTRATION_BACK", objectKey: "asset-documents/asset-1/vehicle_registration_back/y.jpg", mimeType: "image/jpeg" };
+
+  it("two photos → ONE call carrying BOTH pages in order; the row, the consent lookup and the audit are bound to the ORDERED SET hash", async () => {
+    setDocs = [FRONT, BACK];
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW", idempotent: false });
+    expect(read).toHaveBeenCalledTimes(1);
+    const input = read.mock.calls[0]![0];
+    expect(input.pages.map((p) => p.role)).toEqual(["FRONT", "BACK"]);
+    expect(Buffer.from(input.pages[0]!.bytes).equals(Buffer.from(BYTES()))).toBe(true);
+    expect(Buffer.from(input.pages[1]!.bytes).equals(Buffer.from(BACK_BYTES()))).toBe(true);
+    expect(SET_SHA).not.toBe(SHA);
+    expect(row).toMatchObject({ documentSha256: SET_SHA, status: "NEEDS_REVIEW", source: "OCR" });
+    expect(readConsent).toHaveBeenCalledWith(db, { providerId: "prov-1", assetDocumentId: "doc-1", documentSha256: SET_SHA }, POLICY);
+    expect((auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> }).newValue).toMatchObject({ pageCount: 2, aiAssisted: true });
+    expect(consumeOcrBudget).toHaveBeenCalledTimes(1); // one unit for the whole set, not one per image
+  });
+
+  it("the ORDER is the set's order (front, then back) whatever order the database returns the rows in", async () => {
+    setDocs = [BACK, FRONT];
+    await run();
+    expect(read.mock.calls[0]![0].pages.map((p) => p.role)).toEqual(["FRONT", "BACK"]);
+    expect(row).toMatchObject({ documentSha256: SET_SHA });
+  });
+
+  it("a replay / reload of a two-photo set is answered from the stored result — no second call", async () => {
+    setDocs = [FRONT, BACK];
+    await run();
+    for (let i = 0; i < 3; i++) expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW", idempotent: true });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("ADDING a back side to a set already read as the front alone is a NEW set: the old result is stale, the old consent does not cover it, nothing is sent without a fresh decision", async () => {
+    await run(); // front alone → read once under consent for SHA
+    expect(row).toMatchObject({ documentSha256: SHA });
+    setDocs = [FRONT, BACK];
+    readConsent.mockResolvedValue({ state: "NONE", policyVersion: null, decidedAt: null }); // what the real classifier says for a different hash
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(row).toMatchObject({ documentSha256: SET_SHA, status: "FAILED", fields: null, extractedPlateNumber: null }); // no stale front-only suggestion survives
+    readConsent.mockResolvedValue({ state: "GRANTED", policyVersion: POLICY.policyVersion, decidedAt: new Date() });
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read.mock.calls[1]![0].pages).toHaveLength(2);
+  });
+
+  it("a back side that cannot be fetched fails the WHOLE reading (DOWNLOAD_FAILED) — never a reading of the front presented as the set", async () => {
+    setDocs = [FRONT, BACK];
+    const res = await runVehicleRegistrationExtraction({ assetDocumentId: "doc-1", actorUserId: "user-1" }, { ...deps(), downloadPrivateObject: async (key: string) => { if (key.includes("back")) throw new Error("gone"); return BYTES(); } });
+    expect(res).toEqual({ ok: false, error: "DOWNLOAD_FAILED" });
+    expect(read).not.toHaveBeenCalled();
+    expect(row).toBeNull();
+  });
+
+  it("a PDF next to a photo is not a registration set: FAILED / INVALID_DOCUMENT_SET, no consent lookup, no call", async () => {
+    docFindUnique.mockResolvedValue(doc("application/pdf"));
+    setDocs = [{ ...FRONT, mimeType: "application/pdf" }, BACK];
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "INVALID_DOCUMENT_SET" });
+    expect(pdfText).not.toHaveBeenCalled();
+    expect(readConsent).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("the AGGREGATE of the set above the input ceiling → OCR_INPUT_TOO_LARGE before consent is even asked for; nothing sent", async () => {
+    setDocs = [FRONT, BACK];
+    const res = await runVehicleRegistrationExtraction({ assetDocumentId: "doc-1", actorUserId: "user-1" }, { ...deps(), downloadPrivateObject: async () => new ArrayBuffer(2.5 * 1024 * 1024) });
+    expect(res).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_INPUT_TOO_LARGE" });
+    expect(readConsent).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("a field printed DIFFERENTLY on the two sides is stored UNRESOLVED with both values — nothing is chosen, the typed column stays empty, and it counts as needing review", async () => {
+    setDocs = [FRONT, BACK];
+    read.mockResolvedValue({ ...GOOD, candidates: { ...GOOD.candidates, manufactureYear: [{ text: "2019" }, { text: "2020" }], plateNumber: [{ text: "T 99001" }, { text: "T 99002" }] } });
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
+    const fields = row!.fields as Record<string, { normalizedValue: unknown; warnings: string[]; alternatives?: unknown[] }>;
+    expect(fields.manufactureYear).toMatchObject({ normalizedValue: null, warnings: ["CONFLICT"], alternatives: [2019, 2020] });
+    expect(fields.plateNumber).toMatchObject({ normalizedValue: null, warnings: ["CONFLICT"], alternatives: ["T 99001", "T 99002"] });
+    expect(row).toMatchObject({ extractedManufactureYear: null, extractedPlateNumber: null });
+    const event = auditMock.mock.calls[0]![0] as { newValue: { fieldsNeedingReview: number } };
+    expect(event.newValue.fieldsNeedingReview).toBeGreaterThanOrEqual(7); // the five unresolved-but-read fields + the two conflicts
+    expect(JSON.stringify(event)).not.toMatch(/2019|2020|T 9900/); // values never reach the audit
+  });
+});
+
+describe("a PDF whose text layer yields nothing usable is NOT a dead end", () => {
+  const COVER = "Ministry of Transport\nVehicle services\nPage 1 of 2";
+
+  it("with an engine configured: the local reading is discarded, the provider is offered the choice (OCR_CONSENT_REQUIRED), and the reason is recorded as a code", async () => {
+    docFindUnique.mockResolvedValue(doc("application/pdf"));
+    pdfText.mockResolvedValue({ ok: true, pageCount: 1, text: COVER });
+    readConsent.mockResolvedValue({ state: "NONE", policyVersion: null, decidedAt: null });
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    expect(read).not.toHaveBeenCalled();
+    expect(row!.warnings).toContain("NATIVE_TEXT_UNUSABLE");
+    expect(JSON.stringify(row)).not.toContain("Ministry"); // the text itself is never stored
+  });
+
+  it("after consent: ONE call with the PDF; the result is an OCR reading that remembers why the local text was not used", async () => {
+    docFindUnique.mockResolvedValue(doc("application/pdf"));
+    pdfText.mockResolvedValue({ ok: true, pageCount: 2, text: COVER });
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW", idempotent: false });
+    expect(read).toHaveBeenCalledTimes(1);
+    const input = read.mock.calls[0]![0];
+    expect(input.pages).toHaveLength(1);
+    expect(input.pages[0]!.mimeType).toBe("application/pdf");
+    expect(row).toMatchObject({ source: "OCR", status: "NEEDS_REVIEW" });
+    expect(row!.warnings).toContain("NATIVE_TEXT_UNUSABLE");
+  });
+
+  it("with NO engine configured it keeps the honest UNSUPPORTED_LAYOUT outcome (manual entry), as before", async () => {
+    getReader.mockReturnValue(null);
+    docFindUnique.mockResolvedValue(doc("application/pdf"));
+    pdfText.mockResolvedValue({ ok: true, pageCount: 1, text: COVER });
+    expect(await run()).toMatchObject({ ok: true, status: "FAILED", failureCode: "UNSUPPORTED_LAYOUT" });
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("a PDF whose text DOES yield a usable reading never reaches the engine — even with consent on record", async () => {
+    docFindUnique.mockResolvedValue(doc("application/pdf"));
+    pdfText.mockResolvedValue({ ok: true, pageCount: 2, text: "Plate Number: T 99001\nVehicle Make: Toyota" });
+    expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
+    expect(read).not.toHaveBeenCalled();
+    expect(readConsent).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ source: "NATIVE_PDF_TEXT", ocrEngine: null });
   });
 });

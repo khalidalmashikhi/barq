@@ -23,7 +23,12 @@ describe("asset-document-types registry (code-owned, product policy)", () => {
     expect(requiredAssetDocumentTypesFor("VEHICLE")).toHaveLength(2);
   });
 
-  it("keys are exactly the two product evidence categories", () => {
-    expect([...ASSET_DOCUMENT_TYPE_KEYS]).toEqual(["VEHICLE_REGISTRATION", "VEHICLE_INSURANCE"]);
+  it("the optional back side is a governed key but NEVER a required or expiring document", () => {
+    expect(isValidAssetDocumentTypeKey("VEHICLE_REGISTRATION_BACK")).toBe(true);
+    expect(requiredAssetDocumentTypesFor("VEHICLE")).not.toContain("VEHICLE_REGISTRATION_BACK");
+  });
+
+  it("keys are exactly the product evidence categories (registration front/PDF, its optional back side, insurance)", () => {
+    expect([...ASSET_DOCUMENT_TYPE_KEYS]).toEqual(["VEHICLE_REGISTRATION", "VEHICLE_REGISTRATION_BACK", "VEHICLE_INSURANCE"]);
   });
 });

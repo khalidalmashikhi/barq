@@ -11,16 +11,19 @@ export type ExtractedSuggestions = {
   values: ExtractedByField;
   confidence: Partial<Record<ConfirmationFieldKey, RegistrationFieldConfidence>>;
   warnings: Partial<Record<ConfirmationFieldKey, string[]>>;
+  /** CONFLICT only: the distinct values the document(s) showed (private; the provider chooses). */
+  alternatives: Partial<Record<ConfirmationFieldKey, (string | number)[]>>;
 };
 
 export function mapExtractedByField(fieldsJson: unknown): ExtractedSuggestions {
   const values: ExtractedByField = {};
   const confidence: ExtractedSuggestions["confidence"] = {};
   const warnings: ExtractedSuggestions["warnings"] = {};
+  const alternatives: ExtractedSuggestions["alternatives"] = {};
 
   const parsed = persistedFieldsSchema.safeParse(fieldsJson);
-  if (!parsed.success) return { values, confidence, warnings };
-  const fields = parsed.data as Record<string, { normalizedValue: string | number | null; confidence: RegistrationFieldConfidence; warnings: string[] }>;
+  if (!parsed.success) return { values, confidence, warnings, alternatives };
+  const fields = parsed.data as Record<string, { normalizedValue: string | number | null; confidence: RegistrationFieldConfidence; warnings: string[]; alternatives?: (string | number)[] }>;
 
   for (const key of CONFIRMATION_FIELD_KEYS) {
     const exKey = CONFIRMATION_FIELDS[key].extractionKey;
@@ -30,6 +33,7 @@ export function mapExtractedByField(fieldsJson: unknown): ExtractedSuggestions {
     values[key] = f.normalizedValue;
     confidence[key] = f.confidence;
     warnings[key] = f.warnings;
+    if (f.alternatives && f.alternatives.length > 0) alternatives[key] = f.alternatives;
   }
-  return { values, confidence, warnings };
+  return { values, confidence, warnings, alternatives };
 }

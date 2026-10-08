@@ -14,6 +14,8 @@ const fieldSchema = z
     normalizedValue: z.union([z.string(), z.number()]).nullable(),
     confidence: z.enum(REGISTRATION_FIELD_CONFIDENCES),
     warnings: z.array(z.string()),
+    // CONFLICT only — the distinct validated values seen (bounded), never free text.
+    alternatives: z.array(z.union([z.string(), z.number()])).max(4).optional(),
   })
   .strict();
 

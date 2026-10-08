@@ -326,3 +326,120 @@ describe("startVehicleOnboarding — nothing sensitive is logged", () => {
     for (const needle of [KEY, "asset-documents/", FILENAME, "https://", "token="]) expect(raw).not.toContain(needle);
   });
 });
+
+describe("startVehicleOnboarding — the registration document SET (optional back side)", () => {
+  const BACK_FILENAME = "my-private-registration-back.png";
+  const BACK_NORMALIZED = new ArrayBuffer(1234);
+  const PDF_BYTES = new TextEncoder().encode("%PDF-1.4\n%synthetic\n").buffer as ArrayBuffer;
+  const withBack = (over: Record<string, unknown> = {}) => input({ back: { originalFilename: BACK_FILENAME, declaredMimeType: "image/png", bytes: new ArrayBuffer(32) }, ...over });
+  const gaveBack = () => expect(releaseLeaseMock).toHaveBeenCalledWith("req-1", "lease-1");
+
+  beforeEach(() => {
+    prepareMock.mockReset();
+    prepareMock
+      .mockResolvedValueOnce({ ok: true, bytes: NORMALIZED, mimeType: "image/jpeg", ext: "jpg", normalized: true })
+      .mockResolvedValueOnce({ ok: true, bytes: BACK_NORMALIZED, mimeType: "image/jpeg", ext: "jpg", normalized: true });
+    registerIntent.mockReset();
+    registerIntent.mockResolvedValueOnce("intent-1").mockResolvedValueOnce("intent-2");
+  });
+
+  it("front + back → both prepared (front first, each under its own type), two intents, two objects, TWO rows in ONE transaction, one audit with the page count", async () => {
+    const result = await startVehicleOnboarding(withBack());
+    expect(result).toMatchObject({ ok: true, replayed: false });
+    if (!result.ok) return;
+    expect(prepareMock).toHaveBeenCalledTimes(2);
+    expect(prepareMock.mock.calls[0]![0]).toMatchObject({ documentType: "VEHICLE_REGISTRATION" });
+    expect(prepareMock.mock.calls[1]![0]).toMatchObject({ documentType: "VEHICLE_REGISTRATION_BACK" });
+    expect(uploadMock).toHaveBeenCalledTimes(2);
+    const [front, back] = uploadMock.mock.calls.map((c) => c[0] as { objectKey: string; body: ArrayBuffer });
+    expect(front!.body).toBe(NORMALIZED);
+    expect(back!.body).toBe(BACK_NORMALIZED);
+    expect(front!.objectKey).toMatch(new RegExp(`^asset-documents/${result.vehicleId}/vehicle_registration/`));
+    expect(back!.objectKey).toMatch(new RegExp(`^asset-documents/${result.vehicleId}/vehicle_registration_back/`));
+    expect(registerIntent.mock.calls.map((c) => c[0])).toEqual([front!.objectKey, back!.objectKey]);
+    expect(releaseIntent.mock.calls.map((c) => c[1])).toEqual([front!.objectKey, back!.objectKey]);
+    expect(txAssetCreate).toHaveBeenCalledTimes(1);
+    expect(txDocCreate).toHaveBeenCalledTimes(2);
+    expect(txDocCreate.mock.calls[0]![0]).toEqual({ data: expect.objectContaining({ assetId: result.vehicleId, type: "VEHICLE_REGISTRATION", objectKey: front!.objectKey, sizeBytes: 4321, status: "PENDING" }) });
+    expect(txDocCreate.mock.calls[1]![0]).toEqual({ data: expect.objectContaining({ assetId: result.vehicleId, type: "VEHICLE_REGISTRATION_BACK", objectKey: back!.objectKey, sizeBytes: 1234, status: "PENDING" }) });
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    const event = auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> };
+    expect(event.newValue).toMatchObject({ documentType: "VEHICLE_REGISTRATION", pageCount: 2, documentSetKind: "IMAGES" });
+    expect(JSON.stringify(event)).not.toContain(BACK_FILENAME);
+    expect(attemptCleanup).not.toHaveBeenCalled();
+  });
+
+  it("without a back side the set is one photo (pageCount 1, IMAGE); a PDF front is PDF", async () => {
+    await startVehicleOnboarding(input());
+    expect(txDocCreate).toHaveBeenCalledTimes(1);
+    expect((auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> }).newValue).toMatchObject({ pageCount: 1, documentSetKind: "IMAGE" });
+    vi.clearAllMocks();
+    prepareMock.mockReset();
+    prepareMock.mockResolvedValueOnce({ ok: true, bytes: PDF_BYTES, mimeType: "application/pdf", ext: "pdf", normalized: false });
+    registerIntent.mockReset();
+    registerIntent.mockResolvedValueOnce("intent-3");
+    await startVehicleOnboarding(input({ declaredMimeType: "application/pdf", bytes: PDF_BYTES }));
+    expect((auditMock.mock.calls[0]![0] as { newValue: Record<string, unknown> }).newValue).toMatchObject({ pageCount: 1, documentSetKind: "PDF" });
+  });
+
+  it("a PDF front with a back side is not a set: INVALID_DOCUMENT_SET before the back is even prepared; nothing stored; the key stays retryable", async () => {
+    prepareMock.mockReset();
+    prepareMock.mockResolvedValueOnce({ ok: true, bytes: PDF_BYTES, mimeType: "application/pdf", ext: "pdf", normalized: false });
+    expect(await startVehicleOnboarding(withBack({ declaredMimeType: "application/pdf", bytes: PDF_BYTES }))).toEqual({ ok: false, error: "INVALID_DOCUMENT_SET" });
+    expect(prepareMock).toHaveBeenCalledTimes(1);
+    nothingStored();
+    gaveBack();
+  });
+
+  it("a back side whose BYTES are a PDF (whatever it is called) is refused the same way — decided from the signature, not the declared type", async () => {
+    expect(await startVehicleOnboarding(withBack({ back: { originalFilename: "back.jpg", declaredMimeType: "image/jpeg", bytes: PDF_BYTES } }))).toEqual({ ok: false, error: "INVALID_DOCUMENT_SET" });
+    expect(prepareMock).toHaveBeenCalledTimes(1); // the front only
+    nothingStored();
+    gaveBack();
+  });
+
+  it("a back side the normalizer refuses (e.g. HEIC) refuses the WHOLE set — the front is not stored alone", async () => {
+    prepareMock.mockReset();
+    prepareMock
+      .mockResolvedValueOnce({ ok: true, bytes: NORMALIZED, mimeType: "image/jpeg", ext: "jpg", normalized: true })
+      .mockResolvedValueOnce({ ok: false, error: "HEIC_UNSUPPORTED" });
+    expect(await startVehicleOnboarding(withBack())).toEqual({ ok: false, error: "HEIC_UNSUPPORTED" });
+    nothingStored();
+    gaveBack();
+  });
+
+  it("the SECOND object's write fails → BOTH stored objects are removed through their intents; no rows; UPLOAD_FAILED (retryable)", async () => {
+    uploadMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("storage down"));
+    expect(await startVehicleOnboarding(withBack())).toEqual({ ok: false, error: "UPLOAD_FAILED" });
+    expect(attemptCleanup.mock.calls.map((c) => c[0]).sort()).toEqual(["intent-1", "intent-2"]);
+    expect(txAssetCreate).not.toHaveBeenCalled();
+    expect(txDocCreate).not.toHaveBeenCalled();
+    gaveBack();
+  });
+
+  it("the SECOND intent cannot be recorded → the first object is removed, nothing else is written", async () => {
+    registerIntent.mockReset();
+    registerIntent.mockResolvedValueOnce("intent-1").mockRejectedValueOnce(new Error("db down"));
+    expect(await startVehicleOnboarding(withBack())).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    expect(attemptCleanup).toHaveBeenCalledWith("intent-1");
+    expect(txAssetCreate).not.toHaveBeenCalled();
+    gaveBack();
+  });
+
+  it("the transaction fails after both objects were stored → BOTH are removed; a partial set can never be committed", async () => {
+    txDocCreate.mockResolvedValueOnce({ id: "doc-1" }).mockRejectedValueOnce(new Error("db down"));
+    expect(await startVehicleOnboarding(withBack())).toEqual({ ok: false, error: "UNKNOWN_ERROR" });
+    expect(attemptCleanup.mock.calls.map((c) => c[0]).sort()).toEqual(["intent-1", "intent-2"]);
+    expect(completeMock).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
+    gaveBack();
+  });
+
+  it("a REPLAY of a completed two-file request touches neither file", async () => {
+    claimMock.mockResolvedValue({ kind: "COMPLETED", vehicleId: "veh-existing" });
+    expect(await startVehicleOnboarding(withBack())).toEqual({ ok: true, vehicleId: "veh-existing", replayed: true });
+    expect(prepareMock).not.toHaveBeenCalled();
+    nothingStored();
+  });
+});

@@ -36,15 +36,17 @@ describe("RegistrationUploadForm — pickers", () => {
     expect([...acceptFile, ...acceptCamera].join(",")).not.toMatch(/hei[cf]|image\/\*/i);
   });
 
-  it("'take a photo' and 'choose a photo or file' are two separate controls", () => {
+  it("'take a photo' and 'choose a photo or file' are two separate controls (one camera input + one picker input, each mounted in the empty and the filled state)", () => {
     expect(CODE).toMatch(/t\("vehicleOnboardTakePhoto"\)/);
     expect(CODE).toMatch(/t\("vehicleOnboardChooseFile"\)/);
-    expect((CODE.match(/type="file"/g) ?? []).length).toBe(2);
+    expect((CODE.match(/type="file"/g) ?? []).length).toBe(4);
+    expect((CODE.match(/ref=\{cameraRef\}/g) ?? []).length).toBe(2);
+    expect((CODE.match(/ref=\{fileRef\}/g) ?? []).length).toBe(2);
   });
 
   it("the file inputs are never disabled (a disabled input drops its file from the request)", () => {
     const inputs = CODE.match(/<input[^>]*type="file"[^>]*>/g) ?? [];
-    expect(inputs).toHaveLength(2);
+    expect(inputs).toHaveLength(4);
     for (const input of inputs) expect(input).not.toMatch(/disabled/);
   });
 });
@@ -54,7 +56,7 @@ describe("RegistrationUploadForm — submission", () => {
 
   it("sends the request key with every attempt, and asks for a JSON answer", () => {
     expect(CODE).toMatch(/body\.set\("requestKey", keyRef\.current\)/);
-    expect(CODE).toMatch(/accept: "application\/json"/);
+    expect(CODE).toMatch(/xhr\.setRequestHeader\("accept", "application\/json"\)/);
     // …and the ACTIVE key is in the plain form too (the server-rendered one until hydration).
     expect(CODE).toMatch(/\{activeKey && <input type="hidden" name="requestKey" value=\{activeKey\} \/>\}/);
   });
@@ -78,7 +80,7 @@ describe("RegistrationUploadForm — submission", () => {
   it("records that an attempt started BEFORE the request leaves (its answer may never arrive)", () => {
     const submit = fn("onSubmit");
     expect(submit.indexOf("markOnboardingKeyAttempted(")).toBeGreaterThan(0);
-    expect(submit.indexOf("markOnboardingKeyAttempted(")).toBeLessThan(submit.indexOf("await fetch("));
+    expect(submit.indexOf("markOnboardingKeyAttempted(")).toBeLessThan(submit.indexOf("xhr.send(body)"));
   });
 
   it("the browser forgets its key only when the attempt is RESOLVED (created or resumed), before navigating", () => {
@@ -91,8 +93,8 @@ describe("RegistrationUploadForm — submission", () => {
 
   it("a key the server reports CANCELLED is terminal: submitting is blocked until the provider explicitly starts a new setup", () => {
     expect(fn("fail")).toMatch(/if \(code === "ONBOARDING_CANCELLED"\) setRequestCancelled\(true\)/);
-    expect(fn("onSubmit")).toMatch(/if \(!file \|\| busyRef\.current \|\| requestCancelled\) return/);
-    expect(CODE).toMatch(/disabled=\{!file \|\| busy \|\| requestCancelled \|\| leaving\}/);
+    expect(fn("onSubmit")).toMatch(/if \(!front \|\| busyRef\.current \|\| requestCancelled\) return/);
+    expect(CODE).toMatch(/disabled=\{!front \|\| busy \|\| requestCancelled \|\| leaving\}/);
     expect(CODE).toMatch(/\{requestCancelled && \(\s*<button\s+type="button"\s+onClick=\{startNewSetup\}/);
     expect(CODE).toMatch(/t\("vehicleOnboardStartNew"\)/);
   });
@@ -100,7 +102,7 @@ describe("RegistrationUploadForm — submission", () => {
   it("leaving after an attempt of unknown outcome cancels the request ON THE SERVER by key; the key is kept if that could not be confirmed", () => {
     const cancel = fn("onCancel");
     expect(cancel).toMatch(/!attemptedRef\.current/); // nothing sent → plain navigation, nothing to cancel
-    expect(cancel).toMatch(/abortRef\.current\?\.abort\(\)/);
+    expect(cancel).toMatch(/xhrRef\.current\?\.abort\(\)/);
     expect(cancel).toMatch(/await cancelOnboardingRequestAction\(keyRef\.current\)/);
     expect(cancel).toMatch(/if \(result\.ok\) clearOnboardingRequestKey\(safeSessionStorage\(\)\)/);
     expect(cancel.indexOf("cancelOnboardingRequestAction(")).toBeLessThan(cancel.indexOf("router.push(cancelHref)"));
@@ -156,6 +158,10 @@ describe("upload copy — complete and honest in all 8 languages", () => {
     "vehicleOnboardFileHint", "vehicleOnboardPrivacyNote", "vehicleOnboardUploadButton", "vehicleOnboardProcessingImage", "vehicleOnboardUploading",
     "vehicleOnboardErrNetwork", "vehicleOnboardUploadFailed", "vehicleOnboardResumedNotice", "vehicleOnboardManualNotice", "vehicleCancelLabel",
     "vehicleOnboardErrCancelled", "vehicleOnboardErrInProgress", "vehicleOnboardStartNew",
+    // registration document SET (PDF | one photo | front + back photos)
+    "vehicleOnboardSetInstruction", "vehicleOnboardFrontSlotLabel", "vehicleOnboardBackSlotLabel", "vehicleOnboardAddBackSide", "vehicleOnboardReplaceFile", "vehicleOnboardRemoveFile",
+    "vehicleOnboardPdfSelected", "vehicleOnboardPdfPagesOne", "vehicleOnboardPdfPagesTwo", "vehicleOnboardPdfPagesMany", "vehicleOnboardPdfPagesUnknown", "vehicleOnboardPdfExclusive",
+    "vehicleOnboardUploadProgress", "vehicleOnboardSetSummaryPdf", "vehicleOnboardSetSummaryImage", "vehicleOnboardSetSummaryImages", "vehicleOnboardBackPreviewAlt", "vehicleOnboardFileSizeMb",
   ];
   const ERROR_KEYS = ASSET_DOCUMENT_ERROR_CODES.map(getAssetDocumentErrorTranslationKey);
 
@@ -202,5 +208,76 @@ describe("upload copy — complete and honest in all 8 languages", () => {
 
   it("the Arabic brand spelling stays correct", () => {
     expect(JSON.stringify(messages("ar"))).not.toContain("بارق");
+  });
+});
+
+describe("RegistrationUploadForm — the registration document SET (one PDF | one photo | front + back photos)", () => {
+  const fn = (name: string) => new RegExp(`const ${name} = [^\\n]*\\{\\n([\\s\\S]*?)\\n  \\};`).exec(CODE)![1]!;
+
+  it("tells the provider what to upload — the Arabic instruction is the owner's verbatim copy", () => {
+    expect(CODE).toMatch(/t\("vehicleOnboardSetInstruction"\)/);
+    expect(messages("ar").vehicleOnboardSetInstruction).toBe("ارفع ملكية المركبة — ملف PDF من صفحة أو صفحتين، أو صورة/صورتين واضحتين للوجه الأمامي والخلفي.");
+  });
+
+  it("the back slot takes a PHOTO only, exists only once a front PHOTO is in place, and a PDF hides it", () => {
+    expect(CODE).toMatch(/const ACCEPT_IMAGE_FILE = "image\/jpeg,image\/png"/);
+    expect(CODE).toMatch(/const canAddBack = !singleFile && front !== null && !frontIsPdf;/);
+    expect(CODE).toMatch(/input\.accept = slot === "back" \|\| \(front && !frontIsPdf\) \|\| back \? ACCEPT_IMAGE_FILE : ACCEPT_FILE;/);
+    expect(fn("pick")).toMatch(/if \(chosen\.type === "application\/pdf"\) return setErrorKey\("vehicleDocErrorInvalidDocumentSet"\);/);
+    expect(CODE).toMatch(/t\("vehicleOnboardAddBackSide"\)/);
+  });
+
+  it("choosing a PDF drops a back photo already chosen (a PDF is the whole document) — selecting one disables the other", () => {
+    const pick = fn("pick");
+    expect(pick).toMatch(/setBack\(null\);\s*setShowBack\(false\);/);
+    expect(CODE).toMatch(/\{frontIsPdf && !singleFile && <p[^>]*>\{t\("vehicleOnboardPdfExclusive"\)\}<\/p>\}/);
+  });
+
+  it("ORDER is preserved (front as `file`, back as `back`) and the whole set goes in ONE request with ONE aggregate progress figure", () => {
+    const submit = fn("onSubmit");
+    expect(submit.indexOf('body.set("file"')).toBeGreaterThan(0);
+    expect(submit.indexOf('body.set("file"')).toBeLessThan(submit.indexOf('body.set("back"'));
+    expect((CODE.match(/new XMLHttpRequest\(\)/g) ?? []).length).toBe(1);
+    expect(submit).toMatch(/xhr\.upload\.onprogress/);
+    expect(CODE).toMatch(/td\("vehicleOnboardUploadProgress", \{ percent \}\)/);
+    expect(CODE).not.toMatch(/fetch\(/); // one transport, one request
+  });
+
+  it("the set's shape is checked on the device too: a PDF never travels with a back photo (the server decides again)", () => {
+    expect(fn("onSubmit")).toMatch(/if \(back && preparedFront\.blob\.type === "application\/pdf"\) return fail\("INVALID_DOCUMENT_SET"\);/);
+  });
+
+  it("both photos are previewed from local object URLs that are released again; a PDF shows its name, size and page count (and an early 'too many pages')", () => {
+    expect((CODE.match(/URL\.createObjectURL\(/g) ?? []).length).toBe(2);
+    expect((CODE.match(/URL\.revokeObjectURL\(/g) ?? []).length).toBe(2);
+    expect(CODE).toMatch(/countPdfPages\(bytes\)/);
+    expect(CODE).toMatch(/t\("vehicleOnboardPdfPagesOne"\)/);
+    expect(CODE).toMatch(/t\("vehicleOnboardPdfPagesTwo"\)/);
+    expect(CODE).toMatch(/pages > MAX_REGISTRATION_PDF_PAGES\) setErrorKey\("vehicleDocErrorPdfTooManyPages"\)/);
+    expect(CODE).toMatch(/td\("vehicleOnboardFileSizeMb", \{ size: megabytes\((front|back)\.size\) \}\)/);
+  });
+
+  it("either side can be replaced (camera or picker) or removed before submitting", () => {
+    for (const needle of ['removeSlot("front")', 'removeSlot("back")', 'open("file", "front")', 'open("camera", "front")', 'open("file", "back")', 'open("camera", "back")']) expect(CODE).toContain(needle);
+    expect(CODE).toMatch(/t\("vehicleOnboardReplaceFile"\)/);
+    expect(CODE).toMatch(/t\("vehicleOnboardRemoveFile"\)/);
+  });
+
+  it("the actions stay above the phone browser's bottom toolbar (sticky, safe-area aware); layout uses logical (RTL-safe) spacing only", () => {
+    expect(CODE).toMatch(/sticky bottom-0/);
+    expect(CODE).toMatch(/safe-area-inset-bottom/);
+    expect(CODE).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d/);
+  });
+
+  it("attaching ONE document to an existing setup has no back slot", () => {
+    expect(CODE).toMatch(/singleFile = false/);
+    expect(CODE).toMatch(/const canAddBack = !singleFile &&/);
+  });
+
+  it.each(LOCALES)("%s: the set-shape error and the instruction exist and quote the real limits", (locale) => {
+    const m = messages(locale);
+    expect(m.vehicleDocErrorInvalidDocumentSet).toEqual(expect.stringMatching(/PDF/));
+    expect(m.vehicleOnboardSetInstruction).toEqual(expect.stringMatching(/PDF/));
+    expect(m.vehicleDocErrorPdfTooManyPages).toContain(String(MAX_REGISTRATION_PDF_PAGES));
   });
 });

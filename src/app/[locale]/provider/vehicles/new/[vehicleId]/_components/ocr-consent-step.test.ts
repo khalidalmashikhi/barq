@@ -30,6 +30,10 @@ const NOTICE_KEYS = [
   "vehicleRegConsentDeclinedNotice",
   "vehicleRegConsentChangeMind",
   "vehicleRegConsentStaleNotice",
+  // registration document SET — what exactly is sent, per set kind
+  "vehicleRegConsentPointProcessorPdf",
+  "vehicleRegConsentPointProcessorImages",
+  "vehicleRegConsentIntroPdf",
 ];
 const RESULT_KEYS = ["vehicleRegOcrNotAvailable", "vehicleRegConsentOwnerRequired", "vehicleRegStateAwaitingChoice", "vehicleRegExtractFailOcrRateLimited", "vehicleRegExtractFailOcrAttemptLimit"];
 
@@ -117,5 +121,47 @@ describe("the processing notice — what it must say, in every language", () => 
 
   it("the 'awaiting choice' state label is not a failure word", () => {
     expect(messages.en!.vehicleRegStateAwaitingChoice).not.toMatch(/fail|error|could not/i);
+  });
+});
+
+describe("OcrConsentStep — the notice names exactly what would be sent (the set)", () => {
+  it("chooses the processor sentence from the set kind — the selected PDF, the photo, or ALL selected photos together", () => {
+    expect(CODE).toContain('PDF: "vehicleRegConsentPointProcessorPdf"');
+    expect(CODE).toContain('IMAGE: "vehicleRegConsentPointProcessor"');
+    expect(CODE).toContain('IMAGES: "vehicleRegConsentPointProcessorImages"');
+    expect(CODE).toContain("t(PROCESSOR_POINT_KEY[setKind])");
+    expect(CODE).toMatch(/setKind: "PDF" \| "IMAGE" \| "IMAGES";/); // required — never defaulted to a generic sentence
+  });
+
+  it("a PDF reaches this step only when local reading found nothing usable — its intro says so", () => {
+    expect(CODE).toContain('setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")');
+    expect(messages.en!.vehicleRegConsentIntroPdf).toMatch(/could not extract/);
+    expect(messages.en!.vehicleRegConsentIntroPdf).toMatch(/enter the details yourself/);
+  });
+
+  it("English: the PDF variant names the selected PDF; the photos variant says all selected images are sent together (front and back); each still names the processor and the owner data", () => {
+    const en = messages.en!;
+    expect(en.vehicleRegConsentPointProcessorPdf).toMatch(/selected PDF/);
+    expect(en.vehicleRegConsentPointProcessorImages).toMatch(/All selected images are sent together/);
+    expect(en.vehicleRegConsentPointProcessorImages).toMatch(/front and back/);
+    for (const key of ["vehicleRegConsentPointProcessorPdf", "vehicleRegConsentPointProcessorImages", "vehicleRegConsentPointProcessor"]) {
+      expect(en[key], key).toMatch(/external AI processor \(Anthropic\)/);
+      expect(en[key], key).toMatch(/owner's name and civil number/);
+    }
+  });
+
+  it.each(LOCALES)("%s: the three processor sentences differ from each other and all name the processor", (locale) => {
+    const m = messages[locale]!;
+    const three = [m.vehicleRegConsentPointProcessor!, m.vehicleRegConsentPointProcessorPdf!, m.vehicleRegConsentPointProcessorImages!];
+    expect(new Set(three).size).toBe(3);
+    for (const s of three) expect(s).toContain("Anthropic");
+  });
+
+  it("Arabic variants are real Arabic, mention the PDF / both sides, and keep the brand spelling", () => {
+    const ar = messages.ar!;
+    expect(ar.vehicleRegConsentPointProcessorPdf).toMatch(/[؀-ۿ]/);
+    expect(ar.vehicleRegConsentPointProcessorPdf).toContain("PDF");
+    expect(ar.vehicleRegConsentPointProcessorImages).toMatch(/الوجه الأمامي والخلفي/);
+    expect(JSON.stringify(ar)).not.toContain("بارق");
   });
 });

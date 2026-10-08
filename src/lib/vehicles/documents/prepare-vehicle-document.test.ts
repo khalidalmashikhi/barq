@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import sharp from "sharp";
-import { buildSyntheticPdf, buildEncryptedPdf, isoBmffHeader, SYNTHETIC_REGISTRATION_LINES } from "./synthetic-test-documents";
+import { buildSyntheticPdf, buildEncryptedPdf, buildIncrementallyUpdatedPdf, isoBmffHeader, SYNTHETIC_REGISTRATION_LINES } from "./synthetic-test-documents";
+import { MAX_REGISTRATION_PDF_PAGES } from "@/lib/vehicles/registration-extraction/constants";
 import { MAX_UPLOAD_BYTES, MAX_IMAGE_PIXELS, NORMALIZED_IMAGE_MAX_EDGE, NORMALIZED_IMAGE_TARGET_BYTES } from "./document-upload-policy";
 
 // The REAL decoder (sharp/libvips) and the REAL bounded PDF parser run here — nothing is mocked but
@@ -68,7 +69,7 @@ describe("prepareVehicleDocumentForStorage — accepted formats", () => {
 
   it.each([
     ["blank scan", () => buildSyntheticPdf([null])],
-    ["multi-page", () => buildSyntheticPdf([["one"], ["two"], null])],
+    ["two-page", () => buildSyntheticPdf([["one"], null])],
   ])("a %s registration PDF keeps its full bytes through the structural check", async (_label, make) => {
     const bytes = make();
     const size = bytes.byteLength;
@@ -291,5 +292,39 @@ describe("prepareVehicleDocumentForStorage — the registration-only PDF rule ap
       const image = await prepareVehicleDocumentForStorage({ documentType, declaredMimeType: "image/png", bytes: ab(await solid(200, 100).png().toBuffer()) });
       expect(image).toMatchObject({ ok: true, mimeType: "image/jpeg", ext: "jpg", normalized: true });
     }
+  });
+});
+
+describe("prepareVehicleDocumentForStorage — the registration document SET", () => {
+  it("the BACK side is a photo by definition: a PDF offered as the back side is refused (UNSUPPORTED_TYPE), never stored", async () => {
+    expect(await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION_BACK", declaredMimeType: "application/pdf", bytes: buildSyntheticPdf([SYNTHETIC_REGISTRATION_LINES]) })).toEqual({ ok: false, error: "UNSUPPORTED_TYPE" });
+  });
+
+  it("a back-side PHOTO is normalized exactly like the front (re-encoded JPEG, metadata gone)", async () => {
+    const input = await solid(900, 600).jpeg().toBuffer();
+    const { result, meta } = await stored(await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION_BACK", declaredMimeType: "image/jpeg", bytes: ab(input) }));
+    expect(result).toMatchObject({ ok: true, mimeType: "image/jpeg", ext: "jpg", normalized: true });
+    expect(meta).toMatchObject({ format: "jpeg", width: 900, height: 600 });
+  });
+
+  it("the registration PDF page limit is TWO: one and two pages are accepted, three are refused", async () => {
+    expect(MAX_REGISTRATION_PDF_PAGES).toBe(2);
+    expect((await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION", declaredMimeType: "application/pdf", bytes: buildSyntheticPdf([SYNTHETIC_REGISTRATION_LINES]) })).ok).toBe(true);
+    expect((await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION", declaredMimeType: "application/pdf", bytes: buildSyntheticPdf([SYNTHETIC_REGISTRATION_LINES, ["page two"]]) })).ok).toBe(true);
+    expect(await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION", declaredMimeType: "application/pdf", bytes: buildSyntheticPdf([["1"], ["2"], ["3"]]) })).toEqual({ ok: false, error: "PDF_TOO_MANY_PAGES" });
+  });
+
+  it("an incrementally-updated PDF (the structure of a digitally signed or re-saved file: two %%EOF markers, the last ending the file) is ACCEPTED and stored unchanged", async () => {
+    const bytes = buildIncrementallyUpdatedPdf([SYNTHETIC_REGISTRATION_LINES]);
+    expect((Buffer.from(bytes).toString("latin1").match(/%%EOF/g) ?? []).length).toBe(2);
+    const result = await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION", declaredMimeType: "application/pdf", bytes });
+    expect(result).toMatchObject({ ok: true, mimeType: "application/pdf", normalized: false });
+    if (result.ok) expect(result.bytes.byteLength).toBe(bytes.byteLength);
+  });
+
+  it("…while a payload appended AFTER the last %%EOF of such a file is still refused (PDF_CORRUPT) — the polyglot guard is not loosened", async () => {
+    const signed = Buffer.from(buildIncrementallyUpdatedPdf([SYNTHETIC_REGISTRATION_LINES]));
+    const polyglot = Buffer.concat([signed, Buffer.from("\nPK\u0003\u0004" + "A".repeat(2048), "latin1")]);
+    expect(await prepareVehicleDocumentForStorage({ documentType: "VEHICLE_REGISTRATION", declaredMimeType: "application/pdf", bytes: ab(polyglot) })).toEqual({ ok: false, error: "PDF_CORRUPT" });
   });
 });

@@ -6,10 +6,15 @@ import { MAX_UPLOAD_BYTES } from "@/lib/vehicles/documents/document-upload-polic
 import { withRequestTracing } from "@/lib/observability/with-request-tracing";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Step 1 of the document-first onboarding:
-// the registration document is uploaded and a blank, non-public shell + its document are created
-// together by startVehicleOnboarding (general vehicle authority: an approved provider — never the
-// rental workspace or a vertical). A route handler, not a server action, so a multipart body up to
-// the upload ceiling is accepted.
+// the registration document SET is uploaded and a blank, non-public shell + its document row(s) are
+// created together by startVehicleOnboarding (general vehicle authority: an approved provider —
+// never the rental workspace or a vertical). A route handler, not a server action, so a multipart
+// body up to the upload ceiling is accepted.
+//
+// THE SET: `file` is the front/primary document (a PDF of one or two pages, or the front photo);
+// `back` is the OPTIONAL back photo. Each file is bounded individually before its bytes are read;
+// the set's shape (never PDF + photo, never a PDF as a back side) is decided by the domain function
+// from what is PROVEN about the files, and the two rows are committed together or not at all.
 //
 // IDEMPOTENT ON THE SERVER: the form's `requestKey` is bound to the provider and recorded in a
 // durable request row that outlives the setup it produces. A double tap, a retry after a dropped
@@ -39,6 +44,7 @@ function resolveLocale(v: FormDataEntryValue | null): string {
 // still in progress) → 409; storage/transient → 503; else 500.
 const CLIENT_ERRORS: ReadonlySet<string> = new Set([
   "INVALID_INPUT", "EMPTY_FILE", "TOO_LARGE", "UNSUPPORTED_TYPE", "SIGNATURE_MISMATCH", "HEIC_UNSUPPORTED", "IMAGE_TOO_LARGE", "IMAGE_CORRUPT", "PDF_ENCRYPTED", "PDF_CORRUPT", "PDF_TOO_MANY_PAGES",
+  "INVALID_DOCUMENT_SET",
 ]);
 function statusFor(code: StartOnboardingErrorCode): number {
   if (CLIENT_ERRORS.has(code)) return 400;
@@ -72,18 +78,25 @@ export async function POST(request: Request) {
       const file = formData.get("file");
       if (!(file instanceof File) || file.size === 0) return fail("EMPTY_FILE");
       if (file.size > MAX_UPLOAD_BYTES) return fail("TOO_LARGE"); // before the bytes are read or parsed
+      // The optional back side: an absent or empty field means "no back side"; a present one is
+      // bounded exactly like the front before its bytes are read. Only ONE back side exists.
+      const backEntry = formData.get("back");
+      const back = backEntry instanceof File && backEntry.size > 0 ? backEntry : null;
+      if (back && back.size > MAX_UPLOAD_BYTES) return fail("TOO_LARGE");
+      if (formData.getAll("back").filter((e) => e instanceof File && e.size > 0).length > 1 || formData.getAll("file").length > 1) return fail("INVALID_DOCUMENT_SET");
 
       const result = await startVehicleOnboarding({
         requestKey: formData.get("requestKey"),
         originalFilename: file.name,
         declaredMimeType: file.type,
         bytes: await file.arrayBuffer(),
+        back: back ? { originalFilename: back.name, declaredMimeType: back.type, bytes: await back.arrayBuffer() } : null,
       });
       if (!result.ok) return fail(result.error);
 
-      // Native-PDF extraction — a SEPARATE owner-scoped, idempotent, concurrency-safe operation
-      // (also safe to run for a replay). Its failure never undoes the upload; the review step shows
-      // the status with a retry, or the manual-review path.
+      // Reading of the SET — a SEPARATE owner-scoped, idempotent, concurrency-safe operation (also
+      // safe to run for a replay). Its failure never undoes the upload; the review step shows the
+      // status with a retry, the consent choice, or the manual-review path.
       try {
         await runRegistrationAnalysis(result.vehicleId);
       } catch {

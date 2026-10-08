@@ -93,6 +93,7 @@ describe("OCR review copy — complete and honest in all 8 languages", () => {
     "vehicleOnboardReadingNotice", "vehicleOnboardOcrNotice", "vehicleOnboardNeedsReviewBadge", "vehicleOnboardNeedsReviewHint",
     "vehicleRegSourceDocument", "vehicleRegSourceOcr", "vehicleRegSourceProvider", "vehicleRegSourceUnresolved",
     "vehicleOnboardPreviewAlt", "vehicleOnboardFileHintOcr", "vehicleOnboardManualNotice", "vehicleOnboardDeclaration",
+    "vehicleRegConflictLabel", "vehicleRegConflictHint", "vehicleRegConflictChoose", "vehicleOnboardBackPreviewAlt",
   ];
 
   it.each(LOCALES)("%s has every string, none empty", (locale) => {
@@ -131,5 +132,29 @@ describe("OCR review copy — complete and honest in all 8 languages", () => {
     const ar = messages("ar");
     for (const key of KEYS) expect(ar[key], key).toMatch(/[؀-ۿ]/);
     expect(JSON.stringify(ar)).not.toContain("بارق");
+  });
+});
+
+describe("review form — a field the document showed with TWO different values (front vs back, page 1 vs page 2)", () => {
+  it("is offered as a choice: nothing is picked for the provider, one tap fills the input, typing still overrules", () => {
+    expect(FORM).toMatch(/f\.conflict && \(f\.alternatives\?\.length \?\? 0\) > 0 && !edited/);
+    expect(FORM).toMatch(/onClick=\{\(\) => setValues\(\(v\) => \(\{ \.\.\.v, \[f\.key\]: String\(alt\) \}\)\)\}/);
+    expect(FORM).toMatch(/t\("vehicleRegConflictChoose"\)/);
+    expect(FORM).toMatch(/t\("vehicleRegConflictLabel"\)/);
+    expect(FORM).toMatch(/t\("vehicleRegConflictHint"\)/);
+    // The starting value comes only from the confirmed/extracted value — a conflict has none, so the
+    // input starts EMPTY; the first alternative is never pre-filled.
+    expect(FORM).toMatch(/const v = f\.confirmedValue \?\? f\.extractedValue;/);
+    expect(FORM).not.toMatch(/alternatives\?\.\[0\]|alternatives!\[0\]|alternatives\[0\]/);
+  });
+
+  it("a sensitive alternative (plate / VIN / engine) stays masked until the provider reveals it", () => {
+    expect(FORM).toMatch(/f\.sensitive && !isRevealed \? maskSensitiveValue\(String\(alt\)\) : String\(alt\)/);
+  });
+
+  it("English conflict copy says none was chosen and that the provider picks or types the right value", () => {
+    const en = messages("en");
+    expect(en.vehicleRegConflictHint).toMatch(/none was chosen/);
+    expect(en.vehicleRegConflictHint).toMatch(/type it yourself/);
   });
 });

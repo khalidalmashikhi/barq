@@ -53,6 +53,9 @@ export async function prepareVehicleDocumentForStorage(input: PrepareVehicleDocu
   if (!validation.ok) return { ok: false, error: validation.error };
 
   if (validation.format === "pdf") {
+    // The BACK side of a photographed registration is an image by definition: a PDF already holds
+    // every page, so a PDF can never be a "back side" (it would also let a second PDF join a set).
+    if (input.documentType === "VEHICLE_REGISTRATION_BACK") return { ok: false, error: "UNSUPPORTED_TYPE" };
     // PDFs are stored byte-for-byte (never rasterized). Only a REGISTRATION document gets the
     // registration-specific structural rule; every other vehicle document type is stored as-is.
     if (input.documentType === "VEHICLE_REGISTRATION") {

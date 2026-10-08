@@ -10,18 +10,21 @@ import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib
 import { grantOcrConsentAction, declineOcrConsentAction } from "../consent-actions";
 
 // Phase 3C (registration OCR privacy gate) — the STANDALONE processing-notice + choice step shown
-// after a photo/scan is uploaded and BEFORE any byte may leave BARQ:
+// after a photo/scan (or a PDF whose text could not be read locally) is uploaded and BEFORE any
+// byte may leave BARQ:
 //
 //   "Read details automatically" → records the provider's consent (with the owner/authorized
 //   attestation) and only then starts the external reading;
 //   "Enter details manually"     → records the decline; the review form is the manual path.
 //
 // The notice is deliberately its own step (not a line in general terms): it names the external AI
-// processor, says processing happens outside Oman (where exactly depends on the configured
-// geography), states the single purpose, that results may be wrong and need the provider's
-// confirmation, that declining is always possible and never blocks the vehicle, and what automatic
-// reading does NOT do. The choice is recorded on the server with the time, the document and the
-// notice version. Nothing here claims the notice alone makes the processing lawful.
+// processor, says WHAT is sent — the selected PDF, the selected photo, or ALL selected photos
+// together (front and back) — that processing happens outside Oman (where exactly depends on the
+// configured geography), states the single purpose, that results may be wrong and need the
+// provider's confirmation, that declining is always possible and never blocks the vehicle, and what
+// automatic reading does NOT do. The choice is recorded on the server with the time, the complete
+// document set and the notice version. Nothing here claims the notice alone makes the processing
+// lawful.
 //
 // `mode: "declined"` renders the compact variant shown above the manual form after a decline, so
 // the provider can still change their mind; `mode: "stale"` says the notice changed since they
@@ -32,11 +35,20 @@ type Props = {
   mode: "choose" | "declined" | "stale";
   /** Where inference runs for this deployment — decides the geography sentence of the notice. */
   inferenceGeo: "us" | "global";
+  /** What the stored set is — decides what the notice says is sent. */
+  setKind: "PDF" | "IMAGE" | "IMAGES";
 };
 
 const BUTTON = "inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
 
-export function OcrConsentStep({ vehicleId, mode, inferenceGeo }: Props) {
+// The sentence naming what leaves BARQ — one per set kind, never a generic "your document".
+const PROCESSOR_POINT_KEY = {
+  PDF: "vehicleRegConsentPointProcessorPdf",
+  IMAGE: "vehicleRegConsentPointProcessor",
+  IMAGES: "vehicleRegConsentPointProcessorImages",
+} as const;
+
+export function OcrConsentStep({ vehicleId, mode, inferenceGeo, setKind }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string) => string; // result-code message keys (parity-guaranteed)
   const router = useRouter();
@@ -78,7 +90,8 @@ export function OcrConsentStep({ vehicleId, mode, inferenceGeo }: Props) {
       <div className="flex flex-col gap-4" aria-busy={pending}>
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-foreground">{t("vehicleRegConsentTitle")}</h2>
-          <p className="text-sm text-foreground/70">{t("vehicleRegConsentIntro")}</p>
+          {/* A PDF only reaches this step when its text could not be read locally — say so. */}
+          <p className="text-sm text-foreground/70">{setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")}</p>
         </div>
 
         {mode === "stale" && <Alert variant="warning">{t("vehicleRegConsentStaleNotice")}</Alert>}
@@ -89,7 +102,7 @@ export function OcrConsentStep({ vehicleId, mode, inferenceGeo }: Props) {
             <span>{t("vehicleRegConsentNoticeTitle")}</span>
           </p>
           <ul className="flex list-disc flex-col gap-1.5 ps-5 text-sm text-foreground/80">
-            <li>{t("vehicleRegConsentPointProcessor")}</li>
+            <li>{t(PROCESSOR_POINT_KEY[setKind])}</li>
             <li>{inferenceGeo === "us" ? t("vehicleRegConsentPointGeoUs") : t("vehicleRegConsentPointGeoGlobal")}</li>
             <li>{t("vehicleRegConsentPointPurpose")}</li>
             <li>{t("vehicleRegConsentPointAccuracy")}</li>

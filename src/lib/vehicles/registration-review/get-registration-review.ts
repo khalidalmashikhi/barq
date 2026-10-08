@@ -11,17 +11,22 @@ import {
   type ConfirmationFieldGroup,
   type ConfirmationFieldKind,
 } from "./field-model";
-import { mapExtractedByField } from "./extracted-mapping";
+import { mapExtractedByField, type ExtractedSuggestions } from "./extracted-mapping";
 import { columnsToValues } from "./confirmation-record";
 import { computeFieldDecisions, type FieldDecision } from "./diff";
 import { deriveReviewState, isConfirmationStale, type ReviewState } from "./review-status";
 import { getRegistrationOcrPolicy } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { classifyOcrConsent, type OcrConsentState } from "@/lib/vehicles/registration-extraction/ocr/ocr-consent";
+import { REGISTRATION_SET_TYPES, roleOfRegistrationType, type RegistrationPageRole } from "@/lib/vehicles/registration-extraction/registration-document-set";
 
 // Phase 3C Slice 3A — the owner-scoped PRIVATE read model for the provider registration review.
 // requireApprovedProvider + a providerId-scoped asset query: a foreign/missing/invalid vehicle
 // returns null → the page renders notFound() (non-enumerating). Returns only allowlisted private
 // fields; never a storage object key, never raw PDF text, never owner/insurance PII.
+//
+// The registration is a SET (one PDF, one photo, or front + back photos — see
+// registration-document-set.ts): the extraction, the consent and the confirmation all hang off the
+// FRONT document, and `pages` lists every side in order so the review step can show them all.
 
 /** Where the value shown for a field comes from — so document-derived values are never confused
  *  with what the provider typed. UNRESOLVED = nothing was read and nothing has been entered. */
@@ -42,11 +47,16 @@ export type RegistrationReviewFieldView = {
   /** The provider must look at this field: required but unresolved, or read with less than HIGH
    *  confidence (every OCR value), or flagged by a warning (conflict / unclear). */
   needsReview: boolean;
+  /** The document showed DIFFERENT values for this field (e.g. front vs back, page 1 vs page 2).
+   *  Nothing was chosen: `extractedValue` is null and `alternatives` lists what was seen, in
+   *  order, for the provider to pick from or overrule. Private — never public. */
+  conflict: boolean;
+  alternatives: (string | number)[];
 };
 
-/** The provider's standing decision about EXTERNAL automatic reading of THIS document, and what the
- *  notice they are (or were) shown says. Null when automatic reading is not available here — then
- *  there is nothing to decide. Never carries a key, a model id or a document value. */
+/** The provider's standing decision about EXTERNAL automatic reading of THIS document set, and
+ *  what the notice they are (or were) shown says. Null when automatic reading is not available
+ *  here — then there is nothing to decide. Never carries a key, a model id or a document value. */
 export type RegistrationOcrConsentView = {
   state: OcrConsentState;
   policyVersion: string;
@@ -54,16 +64,32 @@ export type RegistrationOcrConsentView = {
   inferenceGeo: "us" | "global";
 };
 
+/** One side/page of the stored registration set, in order (front first). */
+export type RegistrationReviewPageView = {
+  documentId: string;
+  role: RegistrationPageRole;
+  mimeType: string;
+  filename: string | null;
+  sizeBytes: number;
+};
+
+/** What kind of set is stored: one PDF, one photo, or front + back photos. */
+export type RegistrationDocumentSetKind = "PDF" | "IMAGE" | "IMAGES";
+
 export type RegistrationReviewView = {
   vehicleId: string;
+  /** The FRONT (primary) document — what the extraction, consent and confirmation are bound to. */
   documentId: string | null;
   documentStatus: AssetDocumentStatus | null;
   documentFilename: string | null;
-  /** Stored type of the document — lets the review step show an inline preview for an image. */
+  /** Stored type of the front document — lets the review step show an inline preview for an image. */
   documentMimeType: string | null;
+  /** Every stored side/page of the set, front first (empty when there is no document). */
+  pages: RegistrationReviewPageView[];
+  setKind: RegistrationDocumentSetKind | null;
   /** How the current suggestions were produced (null when there are none). */
   extractionSource: "NATIVE_PDF_TEXT" | "OCR" | null;
-  /** Consent status for external reading of the current document (null = not available here). */
+  /** Consent status for external reading of the current set (null = not available here). */
   ocrConsent: RegistrationOcrConsentView | null;
   reviewState: ReviewState;
   lastAttemptedAt: Date | null;
@@ -79,6 +105,8 @@ const CONFIRMATION_COLUMN_SELECT = {
   maximumLoad: true, axleCount: true, licenseValidFrom: true, licenseExpiry: true, firstRegistrationDate: true,
 } as const;
 
+const NO_SUGGESTIONS: ExtractedSuggestions = { values: {}, confidence: {}, warnings: {}, alternatives: {} };
+
 export async function getRegistrationReview(vehicleId: string): Promise<RegistrationReviewView | null> {
   if (!isValidUuid(vehicleId)) return null;
   const { provider } = await requireApprovedProvider();
@@ -88,12 +116,14 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     select: {
       id: true,
       documents: {
-        where: { type: "VEHICLE_REGISTRATION" },
+        where: { type: { in: [...REGISTRATION_SET_TYPES] } },
         select: {
           id: true,
+          type: true,
           status: true,
           originalFilename: true,
           mimeType: true,
+          sizeBytes: true,
           registrationExtraction: {
             select: { id: true, status: true, failureCode: true, documentSha256: true, parserVersion: true, source: true, processingExpiresAt: true, fields: true, lastAttemptedAt: true, lastSucceededAt: true },
           },
@@ -101,7 +131,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
             where: { status: { not: "SUPERSEDED" } },
             select: { ...CONFIRMATION_COLUMN_SELECT, status: true, submittedAt: true, boundDocumentSha256: true, boundParserVersion: true },
           },
-          // The LATEST decision of THIS provider about THIS document (consent is provider-scoped).
+          // The LATEST decision of THIS provider about THIS set (consent is provider-scoped).
           registrationOcrConsents: {
             where: { providerId: provider.id },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -114,7 +144,16 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
   });
   if (!asset) return null;
 
-  const doc = asset.documents[0] ?? null;
+  // Ordered: front first, then the optional back. A back side without a front is not a set and is
+  // not shown (the front lookup drives everything).
+  const front = asset.documents.find((d) => d.type === REGISTRATION_SET_TYPES[0]) ?? null;
+  const ordered = front ? REGISTRATION_SET_TYPES.map((type) => asset.documents.find((d) => d.type === type)).filter((d): d is NonNullable<typeof d> => !!d) : [];
+  const doc = front;
+  const pages: RegistrationReviewPageView[] = doc
+    ? ordered.map((d) => ({ documentId: d.id, role: roleOfRegistrationType(d.type)!, mimeType: d.mimeType, filename: d.originalFilename, sizeBytes: d.sizeBytes }))
+    : [];
+  const setKind: RegistrationDocumentSetKind | null = !doc ? null : doc.mimeType === "application/pdf" ? "PDF" : pages.length === 2 ? "IMAGES" : "IMAGE";
+
   const extraction = doc?.registrationExtraction ?? null;
   const confirmation = doc?.registrationConfirmations[0] ?? null;
 
@@ -131,7 +170,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
   const stale = isConfirmationStale(confirmationFacts, extractionFacts);
   const effectiveConfirmation = stale ? null : confirmation;
 
-  const extracted = extraction ? mapExtractedByField(extraction.fields) : { values: {}, confidence: {}, warnings: {} };
+  const extracted = extraction ? mapExtractedByField(extraction.fields) : NO_SUGGESTIONS;
   const confirmedValues = effectiveConfirmation ? columnsToValues(effectiveConfirmation) : columnsToValues({});
   const decisions = extraction && effectiveConfirmation ? computeFieldDecisions(extracted.values, confirmedValues) : {};
 
@@ -152,6 +191,8 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     const confirmedValue = confirmedValues[key];
     const decision = decisions[key] ?? null;
     const warnings = extracted.warnings[key] ?? [];
+    const conflict = hasSuggestions && warnings.includes("CONFLICT");
+    const alternatives = conflict ? (extracted.alternatives[key] ?? []) : [];
     // The value the form starts with is the provider's own once they have entered or corrected it;
     // otherwise it is the document-derived suggestion; otherwise nothing.
     const providerOwned = confirmedValue !== null && (decision === null || !decision.matches || decision.source !== "EXTRACTED");
@@ -160,8 +201,8 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
       source === "PROVIDER"
         ? false
         : source === "UNRESOLVED"
-          ? spec.required
-          : confidence !== "HIGH" || warnings.includes("CONFLICT") || warnings.includes("OCR_UNCLEAR");
+          ? spec.required || conflict // a conflict is unresolved by design and must be looked at
+          : confidence !== "HIGH" || conflict || warnings.includes("OCR_UNCLEAR");
     return {
       key,
       group: spec.group,
@@ -174,6 +215,8 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
       decision,
       source,
       needsReview,
+      conflict,
+      alternatives,
     };
   });
 
@@ -183,6 +226,8 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     documentStatus: doc?.status ?? null,
     documentFilename: doc?.originalFilename ?? null,
     documentMimeType: doc?.mimeType ?? null,
+    pages,
+    setKind,
     extractionSource,
     ocrConsent,
     reviewState,

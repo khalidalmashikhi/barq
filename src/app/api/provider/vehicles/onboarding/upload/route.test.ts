@@ -128,7 +128,7 @@ describe("POST /api/provider/vehicles/onboarding/upload — JSON (fetch form)", 
 
   it.each([
     ["EMPTY_FILE", 400], ["TOO_LARGE", 400], ["UNSUPPORTED_TYPE", 400], ["SIGNATURE_MISMATCH", 400], ["HEIC_UNSUPPORTED", 400],
-    ["IMAGE_TOO_LARGE", 400], ["IMAGE_CORRUPT", 400], ["PDF_ENCRYPTED", 400], ["PDF_CORRUPT", 400], ["PDF_TOO_MANY_PAGES", 400], ["INVALID_INPUT", 400],
+    ["IMAGE_TOO_LARGE", 400], ["IMAGE_CORRUPT", 400], ["PDF_ENCRYPTED", 400], ["PDF_CORRUPT", 400], ["PDF_TOO_MANY_PAGES", 400], ["INVALID_INPUT", 400], ["INVALID_DOCUMENT_SET", 400],
     ["PROVIDER_NOT_APPROVED", 403], ["NO_PROVIDER_PROFILE", 403],
     ["ONBOARDING_CANCELLED", 409], ["ONBOARDING_IN_PROGRESS", 409],
     ["STORAGE_NOT_CONFIGURED", 503], ["UPLOAD_FAILED", 503],
@@ -164,6 +164,50 @@ describe("POST /api/provider/vehicles/onboarding/upload — JSON (fetch form)", 
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(start).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/provider/vehicles/onboarding/upload — the optional back side", () => {
+  const withBack = (backBytes: Uint8Array<ArrayBuffer> = new Uint8Array([9, 9, 9])) => {
+    const f = withFile("en");
+    f.set("back", new File([backBytes], "back.jpg", { type: "image/jpeg" }));
+    return f;
+  };
+
+  it("a back photo is forwarded AFTER the front with its own name and type — the domain function receives the ordered set", async () => {
+    const res = await POST(req(withBack(), true));
+    expect(res.status).toBe(200);
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ originalFilename: "reg.pdf", back: expect.objectContaining({ originalFilename: "back.jpg", declaredMimeType: "image/jpeg" }) }));
+    const raw = JSON.stringify(await res.json());
+    expect(raw).not.toContain("back.jpg");
+  });
+
+  it("an absent or EMPTY back field means 'no back side'", async () => {
+    await POST(req(withFile("en"), true));
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ back: null }));
+    const f = withFile("en");
+    f.set("back", new File([], "empty.jpg", { type: "image/jpeg" }));
+    await POST(req(f, true));
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ back: null }));
+  });
+
+  it("a back file above the ceiling is refused BEFORE any bytes are read", async () => {
+    const res = await POST(req(withBack(new Uint8Array(4 * 1024 * 1024 + 1)), true));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, error: "TOO_LARGE" });
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("more than one back file, or more than one front file → INVALID_DOCUMENT_SET without starting (a set has at most two sides)", async () => {
+    const f = withBack();
+    f.append("back", new File([new Uint8Array([1])], "back2.jpg", { type: "image/jpeg" }));
+    const res = await POST(req(f, true));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, error: "INVALID_DOCUMENT_SET" });
+    const g = withFile("en");
+    g.append("file", new File([new Uint8Array([1])], "second.jpg", { type: "image/jpeg" }));
+    expect(await (await POST(req(g, true))).json()).toEqual({ ok: false, error: "INVALID_DOCUMENT_SET" });
     expect(start).not.toHaveBeenCalled();
   });
 });

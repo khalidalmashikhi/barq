@@ -49,7 +49,7 @@ describe("getRegistrationReview", () => {
     assetFindFirst.mockResolvedValue({
       id: VEHICLE,
       documents: [{
-        id: "doc-1", status: "PENDING", originalFilename: "reg.pdf",
+        id: "doc-1", type: "VEHICLE_REGISTRATION", status: "PENDING", originalFilename: "reg.pdf", mimeType: "application/pdf", sizeBytes: 1000,
         registrationExtraction: { id: "ext-1", status: "EXTRACTED", failureCode: null, documentSha256: "sha-1", parserVersion: "1.0.0", fields, lastAttemptedAt: new Date(), lastSucceededAt: new Date() },
         registrationConfirmations: [{ status: "DRAFT", submittedAt: null, boundDocumentSha256: "sha-1", boundParserVersion: "1.0.0", vin: "JTEBU29J8K5012345", make: "Honda", model: null, modelYear: null, color: null, bookablePassengerCapacity: 13, licensedPassengerCapacity: null, registeredSeats: null, plateNumber: null, plateType: null, engineNumber: null, usageClassification: null, engineCapacity: null, emptyWeight: null, maximumLoad: null, axleCount: null, licenseValidFrom: null, licenseExpiry: null, firstRegistrationDate: null }],
       }],
@@ -70,7 +70,7 @@ describe("getRegistrationReview", () => {
     assetFindFirst.mockResolvedValue({
       id: VEHICLE,
       documents: [{
-        id: "doc-1", status: "PENDING", originalFilename: "reg.pdf",
+        id: "doc-1", type: "VEHICLE_REGISTRATION", status: "PENDING", originalFilename: "reg.pdf", mimeType: "application/pdf", sizeBytes: 1000,
         registrationExtraction: { id: "ext-2", status: "EXTRACTED", failureCode: null, documentSha256: "sha-NEW", parserVersion: "1.0.0", fields, lastAttemptedAt: new Date(), lastSucceededAt: new Date() },
         registrationConfirmations: [{ status: "DRAFT", submittedAt: null, boundDocumentSha256: "sha-OLD", boundParserVersion: "1.0.0", vin: "OLDVALUE123456789", make: "StaleMake", model: null, modelYear: null, color: null, bookablePassengerCapacity: 99, licensedPassengerCapacity: null, registeredSeats: null, plateNumber: null, plateType: null, engineNumber: null, usageClassification: null, engineCapacity: null, emptyWeight: null, maximumLoad: null, axleCount: null, licenseValidFrom: null, licenseExpiry: null, firstRegistrationDate: null }],
       }],
@@ -95,7 +95,7 @@ describe("getRegistrationReview — per-field source and 'needs review'", () => 
   ocrFields.vin = { rawValue: null, normalizedValue: null, confidence: "LOW", warnings: ["MISSING"] };
   const doc = (extraction: Record<string, unknown>, confirmations: unknown[] = [], mimeType = "image/jpeg") => ({
     id: VEHICLE,
-    documents: [{ id: "doc-1", status: "PENDING", originalFilename: "photo.jpg", mimeType, registrationExtraction: { id: "ext-1", failureCode: null, documentSha256: "sha-1", parserVersion: "1.0.0", processingExpiresAt: null, lastAttemptedAt: new Date(), lastSucceededAt: new Date(), ...extraction }, registrationConfirmations: confirmations }],
+    documents: [{ id: "doc-1", type: "VEHICLE_REGISTRATION", status: "PENDING", originalFilename: "photo.jpg", mimeType, sizeBytes: 2000, registrationExtraction: { id: "ext-1", failureCode: null, documentSha256: "sha-1", parserVersion: "1.0.0", processingExpiresAt: null, lastAttemptedAt: new Date(), lastSucceededAt: new Date(), ...extraction }, registrationConfirmations: confirmations }],
   });
   const field = (r: Awaited<ReturnType<typeof getRegistrationReview>>, key: string) => r!.fields.find((f) => f.key === key)!;
 
@@ -157,7 +157,7 @@ describe("getRegistrationReview — the OCR consent view", () => {
   const photoDoc = (consents: unknown[], over: Record<string, unknown> = {}) => ({
     id: VEHICLE,
     documents: [{
-      id: "doc-1", status: "PENDING", originalFilename: "IMG.jpg", mimeType: "image/jpeg",
+      id: "doc-1", type: "VEHICLE_REGISTRATION", status: "PENDING", originalFilename: "IMG.jpg", mimeType: "image/jpeg", sizeBytes: 3000,
       registrationExtraction: { id: "ext-1", status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED", documentSha256: "sha-1", parserVersion: "1.0.0", source: "OCR", processingExpiresAt: null, fields: null, lastAttemptedAt: new Date(), lastSucceededAt: null, ...over },
       registrationConfirmations: [],
       registrationOcrConsents: consents,
@@ -207,5 +207,48 @@ describe("getRegistrationReview — the OCR consent view", () => {
     const r = await getRegistrationReview(VEHICLE);
     expect(r?.ocrConsent?.state).toBe("NONE");
     expect(r?.reviewState.extraction).toBe("AWAITING_CONSENT");
+  });
+});
+
+describe("getRegistrationReview — the registration document SET", () => {
+  const page = (id: string, type: string, filename: string, sizeBytes: number, extra: Record<string, unknown> = {}) => ({ id, type, status: "PENDING", originalFilename: filename, mimeType: "image/jpeg", sizeBytes, registrationExtraction: null, registrationConfirmations: [], registrationOcrConsents: [], ...extra });
+  const ocrExtraction = (over: Record<string, unknown> = {}) => ({ id: "ext-1", status: "NEEDS_REVIEW", failureCode: null, documentSha256: "set-sha", parserVersion: "1.0.0", source: "OCR", processingExpiresAt: null, fields, lastAttemptedAt: new Date(), lastSucceededAt: new Date(), ...over });
+
+  it("lists every side in ORDER (front first) whatever order the database returned them, with a safe page view — never a storage key", async () => {
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-back", "VEHICLE_REGISTRATION_BACK", "back.jpg", 2000, { objectKey: "asset-documents/x/back.jpg" }), page("doc-front", "VEHICLE_REGISTRATION", "front.jpg", 1000, { registrationExtraction: ocrExtraction() })] });
+    const r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.documentId).toBe("doc-front");
+    expect(r.setKind).toBe("IMAGES");
+    expect(r.pages.map((p) => p.role)).toEqual(["FRONT", "BACK"]);
+    expect(r.pages.map((p) => p.documentId)).toEqual(["doc-front", "doc-back"]);
+    for (const p of r.pages) expect(Object.keys(p).sort()).toEqual(["documentId", "filename", "mimeType", "role", "sizeBytes"]);
+    expect(JSON.stringify(r)).not.toContain("asset-documents");
+    expect(r.reviewState.extraction).toBe("NEEDS_REVIEW");
+  });
+
+  it("a lone BACK row (no front) is not a set: no document, no pages", async () => {
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-back", "VEHICLE_REGISTRATION_BACK", "back.jpg", 2000)] });
+    const r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.documentId).toBeNull();
+    expect(r.pages).toEqual([]);
+    expect(r.setKind).toBeNull();
+  });
+
+  it("set kinds: one PDF → PDF; one photo → IMAGE; two photos → IMAGES", async () => {
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [{ ...page("doc-1", "VEHICLE_REGISTRATION", "reg.pdf", 500), mimeType: "application/pdf" }] });
+    expect((await getRegistrationReview(VEHICLE))!.setKind).toBe("PDF");
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", "front.jpg", 500)] });
+    expect((await getRegistrationReview(VEHICLE))!.setKind).toBe("IMAGE");
+  });
+
+  it("a CONFLICT field arrives UNRESOLVED with its alternatives and flagged — nothing chosen; other fields carry no alternatives", async () => {
+    const conflictFields = JSON.parse(JSON.stringify(fields)) as typeof fields & Record<string, { alternatives?: unknown[] }>;
+    conflictFields.manufactureYear = { rawValue: "2019", normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT"], alternatives: [2019, 2020] } as never;
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-front", "VEHICLE_REGISTRATION", "front.jpg", 1000, { registrationExtraction: ocrExtraction({ fields: conflictFields }) }), page("doc-back", "VEHICLE_REGISTRATION_BACK", "back.jpg", 2000)] });
+    const r = (await getRegistrationReview(VEHICLE))!;
+    const year = r.fields.find((f) => f.key === "modelYear")!;
+    expect(year).toMatchObject({ extractedValue: null, conflict: true, alternatives: [2019, 2020], needsReview: true, source: "UNRESOLVED" });
+    const make = r.fields.find((f) => f.key === "make")!;
+    expect(make).toMatchObject({ extractedValue: "Toyota", conflict: false, alternatives: [] });
   });
 });

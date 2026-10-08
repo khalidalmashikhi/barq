@@ -79,7 +79,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
       {/* Phase 3C OCR privacy gate — a replaced/new photo or scan is never sent for automatic reading
           until the provider decides here (same standalone notice as the onboarding wizard). */}
       {reviewState.extraction === "AWAITING_CONSENT" && review.ocrConsent && (
-        <OcrConsentStep vehicleId={vehicleId} mode={review.ocrConsent.state === "DECLINED" ? "declined" : review.ocrConsent.state === "STALE" ? "stale" : "choose"} inferenceGeo={review.ocrConsent.inferenceGeo} />
+        <OcrConsentStep vehicleId={vehicleId} mode={review.ocrConsent.state === "DECLINED" ? "declined" : review.ocrConsent.state === "STALE" ? "stale" : "choose"} inferenceGeo={review.ocrConsent.inferenceGeo} setKind={review.setKind ?? "IMAGE"} />
       )}
 
       {reviewState.confirmation === "STALE" && <Alert variant="warning">{t("vehicleRegConfStale")}</Alert>}

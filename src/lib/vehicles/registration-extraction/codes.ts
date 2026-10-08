@@ -29,7 +29,9 @@ export const REGISTRATION_EXTRACTION_FAILURE_CODES = [
   "OCR_RATE_LIMITED", // the provider/user hit the OCR call budget (retryable later)
   "OCR_ATTEMPT_LIMIT", // the per-document ceiling on external calls was reached (manual entry)
   "OCR_GEO_MISMATCH", // the engine reported another inference geography than configured — answer discarded
-  "OCR_INPUT_TOO_LARGE", // the stored document exceeds what may be sent (nothing was sent)
+  "OCR_INPUT_TOO_LARGE", // the stored document set exceeds what may be sent in one request (nothing was sent)
+  "OCR_INVALID_SET", // the reader refused the set's shape (nothing was sent)
+  "INVALID_DOCUMENT_SET", // the stored set is not a valid registration set (e.g. a PDF next to an image)
 ] as const;
 
 export type RegistrationExtractionFailureCode = (typeof REGISTRATION_EXTRACTION_FAILURE_CODES)[number];

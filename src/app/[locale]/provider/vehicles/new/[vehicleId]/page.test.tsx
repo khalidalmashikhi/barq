@@ -65,7 +65,15 @@ function strings(el: unknown, acc: string[] = []): string[] {
 const VEH = "11111111-1111-1111-1111-111111111111";
 const call = (sp: Record<string, string> = {}) => ({ params: Promise.resolve({ vehicleId: VEH }), searchParams: Promise.resolve(sp) });
 const field = (key: string, extractedValue: string | number | null) => ({ key, group: "CUSTOMER", kind: "text", sensitive: false, required: true, extractedValue, confidence: extractedValue === null ? null : "HIGH", confirmedValue: null, decision: null, source: extractedValue === null ? "UNRESOLVED" : "NATIVE_PDF_TEXT", needsReview: extractedValue === null });
-const review = (over: Record<string, unknown> = {}) => ({
+/** The stored SET as the read model reports it: derived from the (legacy) single-document fields
+ *  unless a test supplies `pages` / `setKind` itself. */
+function withPages(r: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...r };
+  if (!("pages" in out)) out.pages = out.documentId ? [{ documentId: out.documentId, role: "FRONT", mimeType: out.documentMimeType ?? "application/pdf", filename: out.documentFilename ?? null, sizeBytes: 1234 }] : [];
+  if (!("setKind" in out)) out.setKind = !out.documentId ? null : out.documentMimeType === "application/pdf" ? "PDF" : (out.pages as unknown[]).length === 2 ? "IMAGES" : "IMAGE";
+  return out;
+}
+const review = (over: Record<string, unknown> = {}) => withPages({
   vehicleId: VEH,
   documentId: "doc-1",
   documentStatus: "PENDING",
@@ -220,7 +228,7 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     const el = await OnboardingReviewPage(call());
     const steps = findAll(el, (e) => e.type === OcrConsentStep);
     expect(steps).toHaveLength(1);
-    expect(steps[0]!.props).toEqual({ vehicleId: VEH, mode: "choose", inferenceGeo: "us" });
+    expect(steps[0]!.props).toEqual({ vehicleId: VEH, mode: "choose", inferenceGeo: "us", setKind: "IMAGE" }); // the notice names what would be sent
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(0);
@@ -264,5 +272,56 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     el = await OnboardingReviewPage(call());
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: "vehicleOnboardOcrNotice" });
     expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
+  });
+});
+
+describe("OnboardingReviewPage — the registration document SET", () => {
+  const twoPages = [
+    { documentId: "doc-1", role: "FRONT", mimeType: "image/jpeg", filename: "front.jpg", sizeBytes: 1000 },
+    { documentId: "doc-2", role: "BACK", mimeType: "image/jpeg", filename: "back.jpg", sizeBytes: 2000 },
+  ];
+  const consent = { state: "NONE", policyVersion: "v1", processor: "anthropic", inferenceGeo: "us" };
+  const awaiting = { extraction: "AWAITING_CONSENT", confirmation: "NONE", canAnalyze: false, canConfirm: false, locked: false, failureLabelKey: null };
+
+  it("front + back photos → BOTH sides previewed, front first, each through the owner-checked view route; the summary says two photos", async () => {
+    getRegistrationReviewMock.mockResolvedValue(review({ documentMimeType: "image/jpeg", pages: twoPages, setKind: "IMAGES", extractionSource: "OCR", reviewState: { extraction: "NEEDS_REVIEW", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null } }));
+    const el = await OnboardingReviewPage(call());
+    const imgs = findAll(el, (e) => e.type === "img");
+    expect(imgs.map((i) => i.props.src)).toEqual([`/api/provider/vehicles/${VEH}/documents/doc-1/view`, `/api/provider/vehicles/${VEH}/documents/doc-2/view`]);
+    expect(imgs.map((i) => i.props.alt)).toEqual(["vehicleOnboardPreviewAlt", "vehicleOnboardBackPreviewAlt"]);
+    const text = strings(el);
+    expect(text).toContain("vehicleOnboardSetSummaryImages");
+    expect(text).toContain("vehicleRegPageFront");
+    expect(text).toContain("vehicleRegPageBack");
+    expect(findAll(el, (e) => e.type === "a" && String(e.props.href).endsWith("/view"))).toHaveLength(2);
+  });
+
+  it("a PDF → no inline image; a safe open link with the file's name and size; the summary says one PDF", async () => {
+    const el = await OnboardingReviewPage(call());
+    expect(findAll(el, (e) => e.type === "img")).toHaveLength(0);
+    expect(findAll(el, (e) => e.type === "a" && e.props.href === `/api/provider/vehicles/${VEH}/documents/doc-1/view`)).toHaveLength(1);
+    const text = strings(el);
+    expect(text).toContain("vehicleOnboardSetSummaryPdf");
+    expect(text).toContain("vehicleRegPagePdf");
+    expect(text).toContain("reg.pdf");
+    expect(text.join(" ")).not.toMatch(/asset-documents|supabase/);
+  });
+
+  it("the consent step is told WHAT would be sent: all photos together for a two-photo set, the PDF for a PDF", async () => {
+    getRegistrationReviewMock.mockResolvedValue(review({ documentMimeType: "image/jpeg", pages: twoPages, setKind: "IMAGES", extractionSource: null, ocrConsent: consent, reviewState: awaiting, fields: [field("make", null)] }));
+    let step = findAll(await OnboardingReviewPage(call()), (e) => e.type === OcrConsentStep);
+    expect(step).toHaveLength(1);
+    expect(step[0]!.props).toMatchObject({ mode: "choose", setKind: "IMAGES", inferenceGeo: "us" });
+    getRegistrationReviewMock.mockResolvedValue(review({ extractionSource: null, ocrConsent: consent, reviewState: awaiting, fields: [field("make", null)] }));
+    step = findAll(await OnboardingReviewPage(call()), (e) => e.type === OcrConsentStep);
+    expect(step[0]!.props).toMatchObject({ setKind: "PDF" });
+    expect(findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)).toHaveLength(0); // nothing to fill before the choice
+  });
+
+  it("a field the document showed with two different values reaches the form UNRESOLVED with its alternatives, flagged for review", async () => {
+    const conflicting = { ...field("modelYear", null), conflict: true, alternatives: [2019, 2020], needsReview: true, source: "UNRESOLVED" };
+    getRegistrationReviewMock.mockResolvedValue(review({ documentMimeType: "image/jpeg", pages: twoPages, setKind: "IMAGES", extractionSource: "OCR", reviewState: { extraction: "NEEDS_REVIEW", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null }, fields: [conflicting] }));
+    const form = findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)[0]!;
+    expect((form.props.fields as unknown[])[0]).toMatchObject({ key: "modelYear", extractedValue: null, conflict: true, alternatives: [2019, 2020], needsReview: true });
   });
 });

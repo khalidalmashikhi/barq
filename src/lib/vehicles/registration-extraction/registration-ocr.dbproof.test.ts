@@ -58,7 +58,7 @@ const { session, state } = vi.hoisted(() => {
         enabled: true,
         policyVersion: "test-notice-v1",
         answer: null as unknown, // RegistrationReadResult
-        calls: [] as { mimeType: string; bytes: ArrayBuffer }[],
+        calls: [] as { mimeType: string; bytes: ArrayBuffer; pages: { role: string; mimeType: string; bytes: ArrayBuffer }[] }[],
         gate: null as null | { entered: () => void; wait: Promise<void> },
       },
     },
@@ -120,8 +120,10 @@ vi.mock("@/lib/vehicles/registration-extraction/ocr/get-registration-document-re
   const reader = {
     engine: "fake-ocr/v1",
     inferenceGeo: "us",
-    read: async (input: { bytes: ArrayBuffer; mimeType: string }) => {
-      state.ocr.calls.push({ mimeType: input.mimeType, bytes: input.bytes.slice(0) });
+    read: async (input: { pages: { role: string; bytes: ArrayBuffer; mimeType: string }[] }) => {
+      // ONE call per SET: every page arrives in this one request, in order.
+      const pages = input.pages.map((p) => ({ role: p.role, mimeType: p.mimeType, bytes: p.bytes.slice(0) }));
+      state.ocr.calls.push({ mimeType: pages[0]!.mimeType, bytes: pages[0]!.bytes, pages });
       const gate = state.ocr.gate;
       if (gate) {
         state.ocr.gate = null; // holds exactly ONE call
@@ -150,6 +152,8 @@ const { getRegistrationReview } = await import("@/lib/vehicles/registration-revi
 const { writeRegistrationConfirmation } = await import("@/lib/vehicles/registration-review/write-confirmation");
 const { decideRegistrationOcrConsent } = await import("@/lib/vehicles/registration-review/decide-ocr-consent");
 const { replaceVehicleDocument } = await import("@/lib/vehicles/documents/replace-vehicle-document");
+const { uploadVehicleDocument } = await import("@/lib/vehicles/documents/upload-vehicle-document");
+const { computeRegistrationSetHash } = await import("@/lib/vehicles/registration-extraction/registration-document-set");
 const { logger } = await import("@/lib/logger");
 
 let admin: PrismaClient, db: PrismaClient;
@@ -180,17 +184,18 @@ const READ = (over: Record<string, { text: string; unclear?: boolean }[]> = {}):
   },
 });
 
-function uploadRequest(requestKey: string, body: ArrayBuffer, type = "image/jpeg", name = "IMG_0001.jpg") {
+function uploadRequest(requestKey: string, body: ArrayBuffer, type = "image/jpeg", name = "IMG_0001.jpg", back?: ArrayBuffer) {
   const form = new FormData();
   form.set("locale", "en");
   form.set("requestKey", requestKey);
   form.set("file", new File([body], name, { type }));
+  if (back) form.set("back", new File([back], "IMG_0002.jpg", { type: "image/jpeg" }));
   return new Request("https://barq.test/api/provider/vehicles/onboarding/upload", { method: "POST", body: form, headers: { accept: "application/json" } });
 }
 type Json = { ok: boolean; redirectTo?: string; replayed?: boolean; error?: string };
 const idOf = (json: Json) => json.redirectTo!.split("/").pop()!.split("?")[0]!;
-async function upload(provider: string, key: string, body: ArrayBuffer, type?: string, name?: string) {
-  const res = await as(provider, () => POST(uploadRequest(key, body, type, name)));
+async function upload(provider: string, key: string, body: ArrayBuffer, type?: string, name?: string, back?: ArrayBuffer) {
+  const res = await as(provider, () => POST(uploadRequest(key, body, type, name, back)));
   return { status: res.status, json: (await res.json()) as Json };
 }
 /** The provider's choice on the review step — the ONLY way an external reading can start. */
@@ -223,7 +228,7 @@ const consentsFor = (assetId: string) =>
 const ocrReadAudits = (assetId: string) => n(`SELECT count(*)::int n FROM "audit_logs" WHERE action='vehicle.registration_extracted' AND "entityId"=$1::uuid AND ("newValue"->>'aiAssisted')='true'`, assetId);
 const consentAudits = (assetId: string, kind: "granted" | "declined") => n(`SELECT count(*)::int n FROM "audit_logs" WHERE action=$2 AND "entityId"=$1::uuid`, assetId, `vehicle.registration_ocr_consent_${kind}`);
 const assetExists = async (id: string) => (await n(`SELECT count(*)::int n FROM "assets" WHERE id=$1::uuid`, id)) === 1;
-const docIdOf = async (assetId: string) => (await q<{ id: string }>(`SELECT id::text FROM "asset_documents" WHERE "assetId"=$1::uuid AND type='VEHICLE_REGISTRATION'`, assetId))[0]!.id;
+const docIdOf = async (assetId: string, type = "VEHICLE_REGISTRATION") => (await q<{ id: string }>(`SELECT id::text FROM "asset_documents" WHERE "assetId"=$1::uuid AND type=$2`, assetId, type))[0]!.id;
 const vehicleRow = async (id: string) => (await q<Record<string, unknown>>(`SELECT make, model, "modelYear", color, "registrationNumber", "passengerCapacity" AS "bookablePassengerCapacity", "registeredSeats", "vehicleType" FROM "vehicles" WHERE "assetId"=$1::uuid`, id))[0]!;
 const tableCount = (t: string) => n(`SELECT count(*)::int n FROM "${t}"`);
 const confirmed = (over: Record<string, unknown> = {}) => ({
@@ -763,7 +768,7 @@ describe.skipIf(!RUN)("registration OCR lifecycle + privacy gate — real Postgr
     }
     const audit = (await q<{ v: Record<string, unknown> }>(`SELECT "newValue" v FROM "audit_logs" WHERE action='vehicle.registration_extracted' AND "entityId"=$1::uuid AND ("newValue"->>'aiAssisted')='true'`, id))[0]!.v;
     expect(audit).toMatchObject({ source: "OCR", aiAssisted: true, ocrEngine: ENGINE, inferenceGeo: "us", observedInferenceGeo: "us", confidence: "SUGGESTION_REQUIRES_PROVIDER_REVIEW" });
-    expect(Object.keys(audit).sort()).toEqual(["aiAssisted", "confidence", "failureCode", "fieldsNeedingReview", "fieldsRead", "inferenceGeo", "observedInferenceGeo", "ocrEngine", "parserVersion", "reason", "requestId", "source", "status"]);
+    expect(Object.keys(audit).sort()).toEqual(["aiAssisted", "confidence", "failureCode", "fieldsNeedingReview", "fieldsRead", "inferenceGeo", "observedInferenceGeo", "ocrEngine", "pageCount", "parserVersion", "reason", "requestId", "source", "status"]);
   }, 60_000);
 
   it("the server log never carried a request/response body, a document value, a key or an image: only event names, ids and error categories", () => {
@@ -790,5 +795,187 @@ describe.skipIf(!RUN)("registration OCR lifecycle + privacy gate — real Postgr
     }
     // OCR approved nothing: no asset was activated or verified by any of the above.
     expect(await n(`SELECT count(*)::int n FROM "assets" WHERE status <> 'REGISTERED' OR "verificationStatus" = 'APPROVED'`)).toBe(0);
+  });
+});
+
+describe.skipIf(!RUN)("registration document SET — one PDF | one photo | front + back photos (real PostgreSQL)", () => {
+  const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => sha(a) === sha(b);
+
+  it("TWO PHOTOS → one shell with TWO rows (front, back) committed together; the review lists both sides in order; nothing is read before the choice", async () => {
+    const { status, json } = await upload(PROV_A, newKey(), await photo(201), undefined, undefined, await photo(202));
+    expect(status).toBe(200);
+    const id = idOf(json);
+    const docs = await q<{ type: string; mimeType: string }>(`SELECT type, "mimeType" FROM "asset_documents" WHERE "assetId"=$1::uuid ORDER BY type`, id);
+    expect(docs).toEqual([{ type: "VEHICLE_REGISTRATION", mimeType: "image/jpeg" }, { type: "VEHICLE_REGISTRATION_BACK", mimeType: "image/jpeg" }]);
+    expect(state.ocr.calls).toEqual([]);
+    expect((await extractionsFor(id))[0]).toMatchObject({ status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    const review = (await as(PROV_A, () => getRegistrationReview(id)))!;
+    expect(review.setKind).toBe("IMAGES");
+    expect(review.pages.map((p) => p.role)).toEqual(["FRONT", "BACK"]);
+    expect(review.reviewState.extraction).toBe("AWAITING_CONSENT");
+    expect(await consentsFor(id)).toEqual([]);
+  }, 60_000);
+
+  it("CONSENT for the set → ONE call carrying BOTH pages in order; the consent, the extraction and the audit are bound to the ORDERED SET hash (not to one file); a replay reads nothing again", async () => {
+    const { json } = await upload(PROV_A, newKey(), await photo(203), undefined, undefined, await photo(204));
+    const id = idOf(json);
+    expect(await grant(PROV_A, id)).toMatchObject({ ok: true, analysis: { ok: true, status: "NEEDS_REVIEW" } });
+    expect(state.ocr.calls).toHaveLength(1);
+    const given = state.ocr.calls[0]!;
+    expect(given.pages.map((p) => p.role)).toEqual(["FRONT", "BACK"]);
+    expect(given.pages.map((p) => p.mimeType)).toEqual(["image/jpeg", "image/jpeg"]);
+    const setHash = computeRegistrationSetHash(given.pages.map((p) => sha(p.bytes)));
+    expect(setHash).not.toBe(sha(given.pages[0]!.bytes));
+    const ext = (await extractionsFor(id))[0]!;
+    expect(ext).toMatchObject({ status: "NEEDS_REVIEW", source: "OCR", ocrEngine: ENGINE, documentSha256: setHash, ocrCallCount: 1 });
+    expect((await consentsFor(id)).at(-1)!.documentSha256).toBe(setHash);
+    expect(await ocrReadAudits(id)).toBe(1);
+    const audit = (await q<{ v: Record<string, unknown> }>(`SELECT "newValue" v FROM "audit_logs" WHERE action='vehicle.registration_extracted' AND "entityId"=$1::uuid AND ("newValue"->>'aiAssisted')='true'`, id))[0]!.v;
+    expect(audit).toMatchObject({ pageCount: 2 });
+    // Reload / replay: answered from the stored result.
+    expect(await as(PROV_A, () => runRegistrationAnalysis(id))).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
+    expect(await as(PROV_A, () => grant(PROV_A, id))).toMatchObject({ ok: true });
+    expect(state.ocr.calls).toHaveLength(1);
+  }, 60_000);
+
+  it("two SIMULTANEOUS analyses of a two-photo set under one consent → ONE call, one reading audit", async () => {
+    const { json } = await upload(PROV_A, newKey(), await photo(205), undefined, undefined, await photo(206));
+    const id = idOf(json);
+    const { inFlight, release } = holdNextOcrCall();
+    const first = grant(PROV_A, id);
+    await inFlight;
+    const second = await as(PROV_A, () => runRegistrationAnalysis(id));
+    expect(second).toMatchObject({ ok: true, status: "PROCESSING" });
+    release();
+    expect(await first).toMatchObject({ ok: true, analysis: { ok: true, status: "NEEDS_REVIEW" } });
+    expect(state.ocr.calls).toHaveLength(1);
+    expect(await ocrReadAudits(id)).toBe(1);
+  }, 60_000);
+
+  it("REPLACING the BACK side invalidates the consent AND the extraction: nothing is read until a fresh decision, which reads the NEW set once", async () => {
+    const { json } = await upload(PROV_A, newKey(), await photo(207), undefined, undefined, await photo(208));
+    const id = idOf(json);
+    await grant(PROV_A, id);
+    expect(state.ocr.calls).toHaveLength(1);
+    const firstHash = (await extractionsFor(id))[0]!.documentSha256;
+    const backId = await docIdOf(id, "VEHICLE_REGISTRATION_BACK");
+    const newBack = await photo(209);
+    expect(await as(PROV_A, () => replaceVehicleDocument(id, backId, { originalFilename: "IMG_0003.jpg", declaredMimeType: "image/jpeg", bytes: newBack }))).toEqual({ ok: true });
+    expect(await as(PROV_A, () => runRegistrationAnalysis(id))).toMatchObject({ ok: true, status: "AWAITING_CONSENT" });
+    expect(state.ocr.calls).toHaveLength(1); // the old consent covered the OLD set only
+    const stale = (await extractionsFor(id))[0]!;
+    expect(stale.documentSha256).not.toBe(firstHash);
+    expect(stale).toMatchObject({ status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED", fields: null });
+    expect((await as(PROV_A, () => getRegistrationReview(id)))!.ocrConsent!.state).toBe("NONE");
+    expect(await grant(PROV_A, id)).toMatchObject({ ok: true, analysis: { ok: true, status: "NEEDS_REVIEW" } });
+    expect(state.ocr.calls).toHaveLength(2);
+    expect(sameBytes(state.ocr.calls[1]!.pages[1]!.bytes, state.ocr.calls[0]!.pages[1]!.bytes)).toBe(false); // the new back was read
+    expect(sameBytes(state.ocr.calls[1]!.pages[0]!.bytes, state.ocr.calls[0]!.pages[0]!.bytes)).toBe(true); // with the unchanged front
+  }, 90_000);
+
+  it("REPLACING the FRONT side likewise invalidates both — the stale back is never read with an old front", async () => {
+    const { json } = await upload(PROV_A, newKey(), await photo(210), undefined, undefined, await photo(211));
+    const id = idOf(json);
+    await grant(PROV_A, id);
+    const frontId = await docIdOf(id);
+    const newFront = await photo(212);
+    expect(await as(PROV_A, () => replaceVehicleDocument(id, frontId, { originalFilename: "IMG_0004.jpg", declaredMimeType: "image/jpeg", bytes: newFront }))).toEqual({ ok: true });
+    expect(await as(PROV_A, () => runRegistrationAnalysis(id))).toMatchObject({ ok: true, status: "AWAITING_CONSENT" });
+    expect(state.ocr.calls).toHaveLength(1);
+    await grant(PROV_A, id);
+    expect(state.ocr.calls).toHaveLength(2);
+    expect(sameBytes(state.ocr.calls[1]!.pages[0]!.bytes, state.ocr.calls[0]!.pages[0]!.bytes)).toBe(false);
+    expect(sameBytes(state.ocr.calls[1]!.pages[1]!.bytes, state.ocr.calls[0]!.pages[1]!.bytes)).toBe(true);
+  }, 90_000);
+
+  it("ADDING a back side to a one-photo set already read is a NEW set: the earlier consent for the front alone does not cover it", async () => {
+    const { id } = await uploadAndRead(PROV_A, newKey(), await photo(213));
+    expect(state.ocr.calls).toHaveLength(1);
+    expect(state.ocr.calls[0]!.pages).toHaveLength(1);
+    const addedBack = await photo(214);
+    expect(await as(PROV_A, () => uploadVehicleDocument(id, { type: "VEHICLE_REGISTRATION_BACK", originalFilename: "IMG_0005.jpg", declaredMimeType: "image/jpeg", bytes: addedBack }))).toMatchObject({ ok: true });
+    expect(await as(PROV_A, () => runRegistrationAnalysis(id))).toMatchObject({ ok: true, status: "AWAITING_CONSENT" });
+    expect(state.ocr.calls).toHaveLength(1);
+    expect(await grant(PROV_A, id)).toMatchObject({ ok: true, analysis: { ok: true, status: "NEEDS_REVIEW" } });
+    expect(state.ocr.calls).toHaveLength(2);
+    expect(state.ocr.calls[1]!.pages.map((p) => p.role)).toEqual(["FRONT", "BACK"]);
+    const consents = await consentsFor(id);
+    expect(consents).toHaveLength(2);
+    expect(consents[0]!.documentSha256).not.toBe(consents[1]!.documentSha256);
+  }, 90_000);
+
+  it("SWAPPING the sides (reorder) is a different set: consent given for front→back does not cover back→front", async () => {
+    const a = await photo(215), b = await photo(216);
+    const { json } = await upload(PROV_A, newKey(), a, undefined, undefined, b);
+    const id = idOf(json);
+    await grant(PROV_A, id);
+    const firstHash = (await extractionsFor(id))[0]!.documentSha256;
+    const frontId = await docIdOf(id), backId = await docIdOf(id, "VEHICLE_REGISTRATION_BACK");
+    expect(await as(PROV_A, () => replaceVehicleDocument(id, frontId, { originalFilename: "swap-front.jpg", declaredMimeType: "image/jpeg", bytes: b }))).toEqual({ ok: true });
+    expect(await as(PROV_A, () => replaceVehicleDocument(id, backId, { originalFilename: "swap-back.jpg", declaredMimeType: "image/jpeg", bytes: a }))).toEqual({ ok: true });
+    expect(await as(PROV_A, () => runRegistrationAnalysis(id))).toMatchObject({ ok: true, status: "AWAITING_CONSENT" });
+    expect(state.ocr.calls).toHaveLength(1);
+    expect((await extractionsFor(id))[0]!.documentSha256).not.toBe(firstHash);
+    await grant(PROV_A, id);
+    expect(state.ocr.calls).toHaveLength(2);
+    // The second reading saw the pages in the NEW order.
+    expect(sameBytes(state.ocr.calls[1]!.pages[0]!.bytes, state.ocr.calls[0]!.pages[1]!.bytes)).toBe(true);
+    expect(sameBytes(state.ocr.calls[1]!.pages[1]!.bytes, state.ocr.calls[0]!.pages[0]!.bytes)).toBe(true);
+  }, 120_000);
+
+  it("a TEXT-LAYER PDF whose text yields nothing usable is NOT a dead end: the choice is offered, then ONE call with the PDF", async () => {
+    const { json } = await upload(PROV_A, newKey(), buildSyntheticPdf([["Ministry of Transport", "Vehicle services", "Page 1 of 2"]]), "application/pdf", "cover.pdf");
+    const id = idOf(json);
+    expect(state.ocr.calls).toEqual([]);
+    const ext = (await extractionsFor(id))[0]!;
+    expect(ext).toMatchObject({ status: "FAILED", failureCode: "OCR_CONSENT_REQUIRED" });
+    expect(ext.warnings).toContain("NATIVE_TEXT_UNUSABLE");
+    expect((await as(PROV_A, () => getRegistrationReview(id)))!.reviewState.extraction).toBe("AWAITING_CONSENT");
+    expect(await grant(PROV_A, id)).toMatchObject({ ok: true, analysis: { ok: true, status: "NEEDS_REVIEW" } });
+    expect(state.ocr.calls).toHaveLength(1);
+    expect(state.ocr.calls[0]!.pages.map((p) => p.mimeType)).toEqual(["application/pdf"]);
+    expect((await extractionsFor(id))[0]).toMatchObject({ status: "NEEDS_REVIEW", source: "OCR" });
+  }, 60_000);
+
+  it("a SCANNED TWO-PAGE PDF → one call with ONE page object (the PDF) — never one call per printed page", async () => {
+    const { json } = await upload(PROV_A, newKey(), buildSyntheticPdf([null, null]), "application/pdf", "scan2.pdf");
+    const id = idOf(json);
+    expect(await grant(PROV_A, id)).toMatchObject({ ok: true, analysis: { ok: true, status: "NEEDS_REVIEW" } });
+    expect(state.ocr.calls).toHaveLength(1);
+    expect(state.ocr.calls[0]!.pages).toHaveLength(1);
+    expect(state.ocr.calls[0]!.pages[0]!.mimeType).toBe("application/pdf");
+  }, 60_000);
+
+  it("a THREE-PAGE PDF and a PDF + photo are refused at upload; nothing is stored and the key stays retryable", async () => {
+    const key = newKey();
+    const three = await upload(PROV_A, key, buildSyntheticPdf([["1"], ["2"], ["3"]]), "application/pdf", "three.pdf");
+    expect(three).toMatchObject({ status: 400, json: { ok: false, error: "PDF_TOO_MANY_PAGES" } });
+    const mixed = await upload(PROV_A, key, buildSyntheticPdf([SYNTHETIC_REGISTRATION_LINES]), "application/pdf", "reg.pdf", await photo(217));
+    expect(mixed).toMatchObject({ status: 400, json: { ok: false, error: "INVALID_DOCUMENT_SET" } });
+    const ok = await upload(PROV_A, key, buildSyntheticPdf([SYNTHETIC_REGISTRATION_LINES]), "application/pdf", "reg.pdf");
+    expect(ok).toMatchObject({ status: 200, json: { ok: true, replayed: false } });
+    expect(state.ocr.calls).toEqual([]); // native text — no call for a readable PDF
+  }, 60_000);
+
+  it("CANCELLING a two-photo setup removes BOTH objects and both rows; the consent proof survives with its links nulled", async () => {
+    const { json } = await upload(PROV_A, newKey(), await photo(218), undefined, undefined, await photo(219));
+    const id = idOf(json);
+    await grant(PROV_A, id);
+    const keys = (await q<{ k: string }>(`SELECT "objectKey" k FROM "asset_documents" WHERE "assetId"=$1::uuid`, id)).map((r) => r.k);
+    expect(keys).toHaveLength(2);
+    const { deleteDraftVehicle } = await import("@/lib/vehicles/onboarding/delete-draft-vehicle");
+    expect(await as(PROV_A, () => deleteDraftVehicle(id))).toMatchObject({ ok: true });
+    expect(await assetExists(id)).toBe(false);
+    expect(await n(`SELECT count(*)::int n FROM "asset_documents" WHERE "assetId"=$1::uuid`, id)).toBe(0);
+    for (const k of keys) expect(state.storage.has(k)).toBe(false);
+    const consents = await consentsFor(id);
+    expect(consents).toEqual([]); // assetId was set NULL — the row still exists under the provider
+    expect(await n(`SELECT count(*)::int n FROM "vehicle_registration_ocr_consents" WHERE "providerId"=$1::uuid AND "assetId" IS NULL AND "assetDocumentId" IS NULL`, PROV_A)).toBeGreaterThan(0);
+  }, 60_000);
+
+  it("the back side never reaches the provider-verification document tables, and a set never has two of either side", async () => {
+    expect(await tableCount("provider_documents")).toBe(0);
+    expect(await n(`SELECT count(*)::int n FROM (SELECT "assetId", type FROM "asset_documents" WHERE type IN ('VEHICLE_REGISTRATION','VEHICLE_REGISTRATION_BACK') GROUP BY 1, 2 HAVING count(*) > 1) d`)).toBe(0);
+    expect(await n(`SELECT count(*)::int n FROM "asset_documents" b WHERE b.type='VEHICLE_REGISTRATION_BACK' AND NOT EXISTS (SELECT 1 FROM "asset_documents" f WHERE f."assetId"=b."assetId" AND f.type='VEHICLE_REGISTRATION')`)).toBe(0); // no orphan back side
   });
 });

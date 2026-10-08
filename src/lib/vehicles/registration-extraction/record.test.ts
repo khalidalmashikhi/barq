@@ -44,3 +44,13 @@ describe("record — persistence mapping", () => {
     expect(Array.isArray(w)).toBe(true);
   });
 });
+
+describe("record — conflict alternatives (private, bounded)", () => {
+  it("accepts a bounded list of validated values on a field; rejects more than four, or anything that is not a plain value", () => {
+    const valid = serializePersistedFields(result) as Record<string, Record<string, unknown>>;
+    const withAlt = { ...valid, manufactureYear: { ...valid.manufactureYear, normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT"], alternatives: [2019, 2020] } };
+    expect(persistedFieldsSchema.safeParse(withAlt).success).toBe(true);
+    expect(persistedFieldsSchema.safeParse({ ...withAlt, manufactureYear: { ...withAlt.manufactureYear, alternatives: [1, 2, 3, 4, 5] } }).success).toBe(false);
+    expect(persistedFieldsSchema.safeParse({ ...withAlt, manufactureYear: { ...withAlt.manufactureYear, alternatives: [{ owner: "x" }] } }).success).toBe(false);
+  });
+});

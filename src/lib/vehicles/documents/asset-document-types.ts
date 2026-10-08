@@ -13,13 +13,18 @@ import type { AssetType } from "@prisma/client";
 //
 // Isomorphic (no server-only): pure data for domain validation + future UI.
 
-export const ASSET_DOCUMENT_TYPE_KEYS = ["VEHICLE_REGISTRATION", "VEHICLE_INSURANCE"] as const;
+// Phase 3C (registration document set) — VEHICLE_REGISTRATION_BACK is the OPTIONAL back side of a
+// photographed registration card (images only, never a PDF). It is part of the registration SET
+// (see registration-extraction/registration-document-set.ts): not required on its own, no expiry of
+// its own, never a verification requirement — it only exists to let the reading see both sides.
+export const ASSET_DOCUMENT_TYPE_KEYS = ["VEHICLE_REGISTRATION", "VEHICLE_REGISTRATION_BACK", "VEHICLE_INSURANCE"] as const;
 
 export type AssetDocumentTypeKey = (typeof ASSET_DOCUMENT_TYPE_KEYS)[number];
 
 // i18n label key per type — presentation only; translations added with the LC2 UI.
 export const ASSET_DOCUMENT_TYPE_LABEL_KEYS = {
   VEHICLE_REGISTRATION: "assetDocumentTypeVehicleRegistration",
+  VEHICLE_REGISTRATION_BACK: "assetDocumentTypeVehicleRegistrationBack",
   VEHICLE_INSURANCE: "assetDocumentTypeVehicleInsurance",
 } as const satisfies Record<AssetDocumentTypeKey, string>;
 
