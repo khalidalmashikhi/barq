@@ -72,9 +72,9 @@ describe("4. a compound description is never the manufacturer wholesale", () => 
     expect(p.warnings.make).toContain("HEURISTIC_SPLIT");
   });
 
-  it("an Arabic-spelled brand is recognized too; the make keeps the document's spelling (never translated)", () => {
+  it("an Arabic-spelled brand is recognized too and emitted as the CANONICAL manufacturer; the model keeps the document's spelling", () => {
     const r = native(["نوع المركبة: تويوتا استيشن Modelname"]);
-    expect(r.fields.makeDescription.normalizedValue).toBe("تويوتا");
+    expect(r.fields.makeDescription.normalizedValue).toBe("Toyota");
     expect(r.fields.model.normalizedValue).toBe("Modelname");
   });
 
@@ -85,22 +85,28 @@ describe("4. a compound description is never the manufacturer wholesale", () => 
     expect(r.warnings).toContain("DESCRIPTION_HAS_NO_MODEL");
   });
 
-  it("splitVehicleDescription is pure and conservative: unknown first word → null; body words are stripped; multi-word brands work", () => {
-    expect(splitVehicleDescription("Unknownbrand Station X")).toBeNull();
-    expect(splitVehicleDescription("Land Rover Station Modelname")).toEqual({ make: "Land Rover", model: "Modelname", bodyStyle: "Station" });
-    expect(splitVehicleDescription("Nissan Pickup Double Cab Modelname")).toEqual({ make: "Nissan", model: "Modelname", bodyStyle: "Pickup Double Cab" });
-    expect(splitVehicleDescription("")).toBeNull();
+  it("splitVehicleDescription is pure and conservative: unknown brand → not split; body words are stripped; multi-word brands work", () => {
+    expect(splitVehicleDescription("Unknownbrand Station X")).toEqual({ ok: false, reason: "UNKNOWN_MANUFACTURER" });
+    expect(splitVehicleDescription("Land Rover Station Modelname")).toMatchObject({ ok: true, split: { make: "Land Rover", model: "Modelname", bodyStyles: ["STATION_WAGON"], vehicleType: null } });
+    expect(splitVehicleDescription("Nissan Pickup Double Cab Modelname")).toMatchObject({ ok: true, split: { make: "Nissan", model: "Modelname", bodyStyles: ["PICKUP", "PICKUP"] } });
+    expect(splitVehicleDescription("")).toEqual({ ok: false, reason: "EMPTY" });
   });
 });
 
 describe("5. explicit make + explicit model win over the description", () => {
-  it("printed make and model name are used as-is (HIGH) and the description stays a private reference", () => {
-    const r = native(["الماركة: Toyota", "الطراز: Modelname", "نوع المركبة: Toyota Station Modelname GXR", "الموديل: 2019"]);
+  it("printed make and model name are used as-is (HIGH) when the description agrees; the description stays a private reference", () => {
+    const r = native(["الماركة: Toyota", "الطراز: Modelname", "نوع المركبة: Toyota Station Modelname", "الموديل: 2019"]);
     expect(r.fields.makeDescription).toMatchObject({ normalizedValue: "Toyota", confidence: "HIGH" });
     expect(r.fields.model).toMatchObject({ normalizedValue: "Modelname", confidence: "HIGH" });
     expect(r.fields.model.warnings).not.toContain("HEURISTIC_SPLIT");
     expect(r.fields.manufactureYear.normalizedValue).toBe(2019);
-    expect(r.fields.vehicleDescription.normalizedValue).toBe("Toyota Station Modelname GXR");
+    expect(r.fields.vehicleDescription.normalizedValue).toBe("Toyota Station Modelname");
+  });
+
+  it("when the printed model and the description DISAGREE the field becomes a CONFLICT for the provider — neither value is chosen", () => {
+    const r = native(["الماركة: Toyota", "الطراز: Modelname", "نوع المركبة: Toyota Station Modelname GXR"]);
+    expect(r.fields.model).toMatchObject({ normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT", "EXPLICIT_VS_DERIVED"], alternatives: ["Modelname", "Modelname GXR"] });
+    expect(r.fields.makeDescription).toMatchObject({ normalizedValue: "Toyota", confidence: "HIGH" }); // make agrees → untouched
   });
 });
 

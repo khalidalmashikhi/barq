@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
-import { ScanLine, PencilLine, ShieldAlert } from "lucide-react";
+import { Link, useRouter } from "@/i18n/navigation";
+import { ScanLine, PencilLine, ShieldCheck, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib/vehicles/registration-review/registration-review-result";
@@ -13,22 +13,29 @@ import { grantOcrConsentAction, declineOcrConsentAction } from "../consent-actio
 // after a photo/scan (or a PDF whose text could not be read locally) is uploaded and BEFORE any
 // byte may leave BARQ:
 //
-//   "Read details automatically" → records the provider's consent (with the owner/authorized
+//   "Continue with automatic reading" → records the provider's consent (with the owner/authorized
 //   attestation) and only then starts the external reading;
-//   "Enter details manually"     → records the decline; the review form is the manual path.
+//   "Enter the details manually"      → records the decline; the review form is the manual path.
 //
-// The notice is deliberately its own step (not a line in general terms): it names the external AI
-// processor, says WHAT is sent — the selected PDF, the selected photo, or ALL selected photos
-// together (front and back) — that processing happens outside Oman (where exactly depends on the
-// configured geography), states the single purpose, that results may be wrong and need the
-// provider's confirmation, that declining is always possible and never blocks the vehicle, and what
-// automatic reading does NOT do. The choice is recorded on the server with the time, the complete
-// document set and the notice version. Nothing here claims the notice alone makes the processing
-// lawful.
+// LAYERED (2026-10-09 wording simplification): the ordinary workflow speaks of "automatic reading"
+// only — a short, neutral explanation, ONE short disclosure (a copy of the document is processed,
+// possibly by an external service provider outside Oman), the accuracy statement, the attestation
+// and the two choices. Everything a careful provider may want to know — WHO processes it (the
+// provider's legal identity), WHAT exactly is sent (the selected PDF, the photo, or ALL selected
+// photos together), WHERE (outside Oman; the exact geography depends on the configured region),
+// the single purpose, what automatic reading does not do, retention and the privacy policy — sits
+// behind the "Privacy details" disclosure, always reachable, never hidden behind a sign-in or a
+// second page. Nothing in the ordinary copy names an engine, a vendor or "AI"; nothing anywhere
+// claims the processing happens only in Oman or that BARQ performs all of it.
+//
+// The choice is recorded on the server with the time, the complete document set, the purpose, the
+// locale, the configured geography and the notice version. Nothing here claims the notice alone
+// makes the processing lawful.
 //
 // `mode: "declined"` renders the compact variant shown above the manual form after a decline, so
 // the provider can still change their mind; `mode: "stale"` says the notice changed since they
-// last agreed. Copy never shows engine names, model ids, error codes or raw results.
+// last agreed (the details open by default then). Copy never shows engine names, model ids, error
+// codes or raw results.
 
 type Props = {
   vehicleId: string;
@@ -96,20 +103,37 @@ export function OcrConsentStep({ vehicleId, mode, inferenceGeo, setKind }: Props
 
         {mode === "stale" && <Alert variant="warning">{t("vehicleRegConsentStaleNotice")}</Alert>}
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-accent/10 p-4">
-          <p className="flex items-start gap-2 text-sm font-medium text-foreground">
-            <ShieldAlert size={16} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0" />
-            <span>{t("vehicleRegConsentNoticeTitle")}</span>
+        {/* The short disclosure + accuracy statement: always visible, part of the ordinary workflow. */}
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-accent/10 p-4 text-sm text-foreground/80">
+          <p className="flex items-start gap-2">
+            <ShieldCheck size={16} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0" />
+            <span>{t("vehicleRegConsentDisclosure")}</span>
           </p>
-          <ul className="flex list-disc flex-col gap-1.5 ps-5 text-sm text-foreground/80">
-            <li>{t(PROCESSOR_POINT_KEY[setKind])}</li>
-            <li>{inferenceGeo === "us" ? t("vehicleRegConsentPointGeoUs") : t("vehicleRegConsentPointGeoGlobal")}</li>
-            <li>{t("vehicleRegConsentPointPurpose")}</li>
-            <li>{t("vehicleRegConsentPointAccuracy")}</li>
-            <li>{t("vehicleRegConsentPointDecline")}</li>
-          </ul>
-          <p className="text-sm text-foreground/80">{t("vehicleRegConsentLimits")}</p>
-          <p className="text-xs text-foreground/60">{t("vehicleRegConsentLegalNote")}</p>
+          <p>{t("vehicleRegConsentAccuracy")}</p>
+
+          {/* Layered privacy information — the full notice, always reachable from here. */}
+          <details className="group mt-1 rounded-xl border border-border bg-background/60" open={mode === "stale"}>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+              <span>{t("vehicleRegConsentDetailsToggle")}</span>
+              <ChevronDown size={16} strokeWidth={1.75} aria-hidden className="shrink-0 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
+              <p className="font-medium text-foreground">{t("vehicleRegConsentNoticeTitle")}</p>
+              <ul className="flex list-disc flex-col gap-1.5 ps-5">
+                <li>{t(PROCESSOR_POINT_KEY[setKind])}</li>
+                <li>{inferenceGeo === "us" ? t("vehicleRegConsentPointGeoUs") : t("vehicleRegConsentPointGeoGlobal")}</li>
+                <li>{t("vehicleRegConsentPointPurpose")}</li>
+                <li>{t("vehicleRegConsentPointAccuracy")}</li>
+                <li>{t("vehicleRegConsentPointDecline")}</li>
+                <li>{t("vehicleRegConsentPointRetention")}</li>
+              </ul>
+              <p>{t("vehicleRegConsentLimits")}</p>
+              <p className="text-xs text-foreground/60">{t("vehicleRegConsentLegalNote")}</p>
+              <Link href="/privacy" className="inline-flex min-h-11 items-center self-start text-sm text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                {t("vehicleRegConsentPrivacyPolicyLink")}
+              </Link>
+            </div>
+          </details>
         </div>
 
         <label className="flex items-start gap-3 text-sm text-foreground">

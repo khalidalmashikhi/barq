@@ -1,98 +1,135 @@
-// Phase 3C (Oman field-mapping correction, 2026-10-09) — PURE, deterministic decomposition of the
-// COMPOUND vehicle description an Omani registration prints under "نوع المركبة" (usually
-// brand + body style + model in one line, e.g. a brand, then "station", then a model name).
+// Phase 3C (Oman parsing discrepancy correction, 2026-10-09) — PURE, deterministic decomposition
+// of the COMPOUND vehicle description an Omani registration prints under "نوع المركبة" (usually
+// manufacturer + body style + commercial model, in either order, e.g. a brand, "صالون", then "6").
+//
+// ONE shared stage for BOTH tiers (native PDF text and OCR candidates). It works on the FOLDED form
+// of the text (normalize.ts: canonical letters instead of presentation-form glyphs, no diacritics /
+// tatweel / bidi marks, punctuation → spaces, Western digits, lower case), so "ﻣﺎﺯﺩﺍ ﺻﺎﻟﻮﻥ ٦",
+// "مــازدا صـالون 6", "مَازْدَا صَالُون 6" and "صالون مازدا 6" all decompose alike — while the
+// document's own spelling is kept for the model name and the whole description is preserved
+// separately for the provider to compare against.
 //
 // The rules are deliberately CONSERVATIVE:
-//   • a manufacturer is recognized ONLY from a bounded, general dictionary of brand names (Arabic
-//     and Latin spellings) and ONLY at the START of the description — nothing is guessed;
-//   • body-style words (station, wagon, sedan, pickup, van, bus, …) are removed from the model
-//     name and reported separately as a body-style HINT (a provider still chooses the type);
-//   • whatever remains is the commercial model name; if nothing remains, there is no model;
-//   • if the manufacturer is not recognized the description is NOT split at all — the caller
-//     leaves make and model unresolved and shows the original description for the provider.
-// A split result is always a LOW-confidence suggestion that needs review; the shared builder
-// marks it "HEURISTIC_SPLIT". The returned make/model keep the document's own spelling (never
-// translated or canonicalized). No I/O, no PII.
+//   • a manufacturer is recognized ONLY from the governed registry (manufacturer-registry.ts),
+//     at a token boundary, anywhere in the description; the CANONICAL name is emitted;
+//   • exactly ONE manufacturer must be recognized — none → unknown (nothing split), two different
+//     ones → ambiguous (nothing split);
+//   • body-style words come ONLY from the governed registry (body-style-registry.ts); they are
+//     removed from the model name and reported as a type HINT (the provider still chooses);
+//   • a 4-digit year is never part of a model name (it belongs to the year field);
+//   • what remains is the commercial model only when it is bounded (1–4 tokens, ≤ 40 chars):
+//     a numeric model such as "6", "300" or "500" is fine; an unbounded remainder gives NO model;
+//   • when nothing remains there is no model — nothing is invented.
+// Every value derived here is a LOW-confidence suggestion the builder flags "HEURISTIC_SPLIT".
 
-import { cleanValue, toWesternDigits } from "./normalize";
-
-/** Brand names as they may be printed (Latin and Arabic). Multi-word first. General, not tuned to
- *  one vehicle; extend by adding spellings, never by adding model names. */
-const MANUFACTURERS: readonly string[] = [
-  // multi-word
-  "land rover", "لاند روفر", "mercedes benz", "mercedes-benz", "مرسيدس بنز", "alfa romeo", "aston martin", "rolls royce", "rolls-royce", "great wall", "جريت وول", "king long", "كينج لونج", "ashok leyland",
-  // single-word
-  "toyota", "تويوتا", "nissan", "نيسان", "hyundai", "هيونداي", "هيونداى", "kia", "كيا", "mitsubishi", "ميتسوبيشي", "lexus", "لكزس", "honda", "هوندا", "ford", "فورد",
-  "chevrolet", "شيفروليه", "شفروليه", "شيفرولية", "gmc", "جي ام سي", "جي إم سي", "mercedes", "مرسيدس", "bmw", "بي ام دبليو", "بي إم دبليو", "audi", "أودي", "اودي",
-  "isuzu", "إيسوزو", "ايسوزو", "suzuki", "سوزوكي", "mazda", "مازدا", "volkswagen", "فولكس واجن", "فولكسفاجن", "jeep", "جيب", "dodge", "دودج", "renault", "رينو",
-  "peugeot", "بيجو", "mg", "ام جي", "إم جي", "changan", "شانجان", "geely", "جيلي", "haval", "هافال", "jac", "جاك", "infiniti", "انفينيتي", "إنفينيتي", "cadillac", "كاديلاك",
-  "chrysler", "كرايسلر", "subaru", "سوبارو", "volvo", "فولفو", "porsche", "بورش", "tesla", "تيسلا", "byd", "بي واي دي", "jetour", "جيتور", "chery", "شيري",
-  "daihatsu", "دايهاتسو", "hino", "هينو", "lincoln", "لينكولن", "ram", "رام", "foton", "فوتون", "yutong", "يوتونج", "tata", "تاتا", "scania", "سكانيا", "man", "مان",
-  "mitsubishi fuso", "fuso", "فوسو", "maxus", "ماكسس", "exeed", "اكسيد", "إكسيد", "omoda", "أومودا", "jaecoo", "lynk", "zeekr", "seat", "skoda", "سكودا", "opel", "أوبل", "اوبل",
-  "fiat", "فيات", "citroen", "سيتروين", "mini", "ميني", "genesis", "جينيسيس", "acura", "buick", "بيوك", "hummer", "هامر", "lada", "لادا", "proton", "بروتون", "ssangyong", "سانج يونج",
-];
-
-/** Body-style words that describe the body, not the model — stripped from the model name and
- *  returned as a hint. Kept general. */
-const BODY_STYLE_WORDS: readonly string[] = [
-  "station", "استيشن", "ستيشن", "wagon", "واجن", "sedan", "سيدان", "صالون", "saloon", "hatchback", "هاتشباك",
-  "pickup", "pick-up", "بيك اب", "بيكب", "بكب", "van", "فان", "bus", "باص", "حافلة", "minibus", "ميني باص", "coupe", "كوبيه",
-  "suv", "4x4", "4×4", "دفع رباعي", "truck", "شاحنة", "double cab", "دبل كاب", "single cab", "سنجل كاب", "crew cab", "cabin", "كابينة", "convertible", "كشف",
-];
+import { cleanValue, foldForMatching } from "./normalize";
+import { matchManufacturerAt } from "./manufacturer-registry";
+import { matchBodyStyleAt, suggestTypeFromBodyStyles, type BodyStyleKey } from "./body-style-registry";
+import type { VehicleTypeCode } from "@/lib/vehicles/vehicle-type-codes";
 
 export type VehicleDescriptionSplit = {
-  /** The manufacturer as printed (document spelling). */
+  /** The CANONICAL manufacturer name from the registry. */
   make: string;
-  /** The commercial model name as printed, body-style words removed; null when nothing remains. */
+  /** The commercial model name in the document's own spelling, body-style words removed; null when nothing bounded remains. */
   model: string | null;
-  /** Body-style words found (document spelling), joined — a HINT for the vehicle-type suggestion. */
-  bodyStyle: string | null;
+  /** Why there is no model, when `model` is null. */
+  modelReason: "NONE_LEFT" | "UNBOUNDED" | null;
+  /** Body styles recognized (registry keys), in document order. */
+  bodyStyles: BodyStyleKey[];
+  /** The most specific vehicle-type SUGGESTION the body styles map to, or null — never applied by itself. */
+  vehicleType: VehicleTypeCode | null;
 };
 
-const fold = (s: string) => toWesternDigits(cleanValue(s)).toLowerCase();
+export type VehicleDescriptionOutcome =
+  | { ok: true; split: VehicleDescriptionSplit }
+  | { ok: false; reason: "EMPTY" | "UNKNOWN_MANUFACTURER" | "AMBIGUOUS_MANUFACTURER" };
 
-/** Split a compound description into manufacturer / model / body style, or null when the
- *  manufacturer is not recognized at the start (then nothing is split — never a guess). */
-export function splitVehicleDescription(description: string): VehicleDescriptionSplit | null {
-  const original = cleanValue(description);
-  if (original.length === 0) return null;
-  const tokens = original.split(" ");
-  const folded = tokens.map(fold);
-
-  let makeLen = 0;
-  for (const name of MANUFACTURERS) {
-    const parts = name.split(" ");
-    if (parts.length > tokens.length) continue;
-    const head = folded.slice(0, parts.length).join(" ");
-    if (head === name.toLowerCase() && parts.length > makeLen) makeLen = parts.length;
-  }
-  if (makeLen === 0) return null;
-
-  const make = tokens.slice(0, makeLen).join(" ");
-  const rest = tokens.slice(makeLen);
-  const restFolded = folded.slice(makeLen);
-  const bodyWords: string[] = [];
-  const modelWords: string[] = [];
-  for (let i = 0; i < rest.length; i++) {
-    // two-word body styles first ("double cab", "دفع رباعي"), then single words
-    const two = i + 1 < rest.length ? `${restFolded[i]} ${restFolded[i + 1]}` : null;
-    if (two && BODY_STYLE_WORDS.includes(two)) {
-      bodyWords.push(`${rest[i]} ${rest[i + 1]}`);
-      i++;
-      continue;
-    }
-    if (BODY_STYLE_WORDS.includes(restFolded[i]!)) bodyWords.push(rest[i]!);
-    else modelWords.push(rest[i]!);
-  }
-  return {
-    make,
-    model: modelWords.length > 0 ? modelWords.join(" ") : null,
-    bodyStyle: bodyWords.length > 0 ? bodyWords.join(" ") : null,
-  };
-}
+const MAX_MODEL_TOKENS = 4;
+const MAX_MODEL_CHARS = 40;
 
 /** True when a value is nothing but a 4-digit year (Western or Arabic-Indic digits) — such a value
  *  is never a make or model name. */
 export function isYearLike(value: string): boolean {
-  return /^(19|20)\d{2}$/.test(toWesternDigits(cleanValue(value)));
+  return /^(19|20)\d{2}$/.test(foldForMatching(value));
+}
+
+type FoldedToken = { folded: string; origIndex: number };
+
+/** Tokenize the ORIGINAL (cleaned) text and fold each token; a token that folds into several
+ *  words ("pick-up" → "pick", "up") yields several folded tokens pointing at the same original. */
+function tokenize(description: string): { original: string[]; folded: FoldedToken[] } {
+  const original = cleanValue(description).split(" ").filter(Boolean);
+  const folded: FoldedToken[] = [];
+  original.forEach((tok, origIndex) => {
+    for (const part of foldForMatching(tok).split(" ").filter(Boolean)) folded.push({ folded: part, origIndex });
+  });
+  return { original, folded };
+}
+
+export function splitVehicleDescription(description: string): VehicleDescriptionOutcome {
+  const { original, folded } = tokenize(description);
+  if (folded.length === 0) return { ok: false, reason: "EMPTY" };
+  const words = folded.map((t) => t.folded);
+
+  const makes: string[] = [];
+  const bodyStyles: BodyStyleKey[] = [];
+  const consumed = new Set<number>(); // indexes into `folded`
+  let i = 0;
+  while (i < words.length) {
+    const m = matchManufacturerAt(words, i);
+    if (m) {
+      makes.push(m.canonical);
+      for (let k = 0; k < m.tokenCount; k++) consumed.add(i + k);
+      i += m.tokenCount;
+      continue;
+    }
+    const b = matchBodyStyleAt(words, i);
+    if (b) {
+      bodyStyles.push(b.key);
+      for (let k = 0; k < b.tokenCount; k++) consumed.add(i + k);
+      i += b.tokenCount;
+      continue;
+    }
+    i++;
+  }
+
+  const distinctMakes = Array.from(new Set(makes));
+  if (distinctMakes.length === 0) return { ok: false, reason: "UNKNOWN_MANUFACTURER" };
+  if (distinctMakes.length > 1) return { ok: false, reason: "AMBIGUOUS_MANUFACTURER" };
+  const make = distinctMakes[0]!;
+
+  // The model is what is left, in the document's own spelling: an original token is kept only when
+  // NONE of its folded parts was consumed and it is not a bare 4-digit year.
+  const leftover = new Set<number>();
+  folded.forEach((t, idx) => {
+    if (!consumed.has(idx)) leftover.add(t.origIndex);
+  });
+  folded.forEach((t, idx) => {
+    if (consumed.has(idx)) leftover.delete(t.origIndex);
+  });
+  const modelTokens = original.filter((tok, idx) => leftover.has(idx) && !isYearLike(tok) && foldForMatching(tok).length > 0);
+
+  let model: string | null = null;
+  let modelReason: VehicleDescriptionSplit["modelReason"] = null;
+  if (modelTokens.length === 0) modelReason = "NONE_LEFT";
+  else if (modelTokens.length > MAX_MODEL_TOKENS || modelTokens.join(" ").length > MAX_MODEL_CHARS) modelReason = "UNBOUNDED";
+  else model = modelTokens.join(" ");
+
+  return { ok: true, split: { make, model, modelReason, bodyStyles, vehicleType: suggestTypeFromBodyStyles(bodyStyles) } };
+}
+
+/** Body-style-based vehicle-type suggestion for any free text (description / make / model /
+ *  usage). Governed registry only; null when nothing recognizable — never OTHER, never a default. */
+export function suggestVehicleTypeFromText(text: string): VehicleTypeCode | null {
+  const words = foldForMatching(text).split(" ").filter(Boolean);
+  const keys: BodyStyleKey[] = [];
+  let i = 0;
+  while (i < words.length) {
+    const b = matchBodyStyleAt(words, i);
+    if (b) {
+      keys.push(b.key);
+      i += b.tokenCount;
+    } else i++;
+  }
+  return suggestTypeFromBodyStyles(keys);
 }

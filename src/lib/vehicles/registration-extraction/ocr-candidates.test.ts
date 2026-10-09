@@ -40,7 +40,7 @@ describe("OCR candidates → validated result", () => {
     expect(r.fields.manufactureYear).toMatchObject({ rawValue: "٢٠٢٠", normalizedValue: 2020 });
     expect(r.fields.licensedPassengerCapacity.normalizedValue).toBe(7);
     expect(r.fields.licenseExpiry.normalizedValue).toBe("2027-05-31");
-    expect(r.fields.makeDescription.normalizedValue).toBe("تويوتا");
+    expect(r.fields.makeDescription.normalizedValue).toBe("Toyota"); // a governed manufacturer alias → its CANONICAL name
     expect(r.fields.color.normalizedValue).toBe("أبيض");
     expect(r.fields.plateNumber.normalizedValue).toBe("99001 ت");
     expect(r.fields.vin.normalizedValue).toBe("TESTV1N0000000001");

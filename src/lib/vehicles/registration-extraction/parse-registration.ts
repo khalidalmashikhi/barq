@@ -24,6 +24,8 @@ import {
 import { matchLine } from "./labels";
 import { cleanValue, normalizePlate, parseYear, parsePositiveInt, parseMeasure, normalizeVin, parseIsoDate } from "./normalize";
 import { splitVehicleDescription, isYearLike } from "./vehicle-description";
+import { canonicalManufacturer } from "./manufacturer-registry";
+import { foldForMatching } from "./normalize";
 
 // "name" = a make / model NAME: text that is never allowed to be a bare year (the Omani label
 // "الموديل" usually holds the model YEAR; the shared router below moves such values to
@@ -198,19 +200,45 @@ export function buildRegistrationExtraction(
   const warnings: string[] = [...routed.warnings];
   if (options.piiSeen) warnings.push("DISCARDED_PII_LABELS_PRESENT");
 
+  // An EXPLICIT make printed as an alias of a governed manufacturer is emitted in its canonical form
+  // (confidence unchanged); a value the registry does not know is kept exactly as printed.
+  if (typeof fields.makeDescription.normalizedValue === "string") {
+    const canon = canonicalManufacturer(fields.makeDescription.normalizedValue);
+    if (canon) fields.makeDescription = { ...fields.makeDescription, normalizedValue: canon };
+  }
+
+  // COMPOUND DESCRIPTION — the same shared, deterministic decomposition for both tiers.
+  // PRECEDENCE: (1) an explicit value under a trustworthy label wins; (2) a derived value fills ONLY
+  // an unresolved field, always LOW + HEURISTIC_SPLIT; (3) a derived value never overwrites an
+  // explicit one; (4) when explicit and derived DISAGREE the field becomes a CONFLICT the provider
+  // resolves (both kept, nothing chosen); (5) the year keeps its own semantics; (6) the body style
+  // is only a type HINT — the provider confirms the type.
   const description = fields.vehicleDescription.normalizedValue;
-  if (typeof description === "string" && (unresolved(fields.makeDescription) || unresolved(fields.model))) {
-    const split = splitVehicleDescription(description);
-    if (!split) {
-      warnings.push("DESCRIPTION_NOT_SPLIT");
+  if (typeof description === "string") {
+    const outcome = splitVehicleDescription(description);
+    if (!outcome.ok) {
+      warnings.push("DESCRIPTION_NOT_SPLIT", `DESCRIPTION_${outcome.reason}`);
     } else {
+      const { make, model, modelReason } = outcome.split;
+      const sameText = (a: string | number, b: string) => foldForMatching(String(a)) === foldForMatching(b);
+      // make
       if (unresolved(fields.makeDescription)) {
-        fields.makeDescription = { rawValue: description, normalizedValue: split.make, confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] };
+        fields.makeDescription = { rawValue: description, normalizedValue: make, confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] };
+      } else if (fields.makeDescription.normalizedValue !== null && !fields.makeDescription.warnings.includes("CONFLICT") && !sameText(fields.makeDescription.normalizedValue, make)) {
+        const explicit = fields.makeDescription.normalizedValue;
+        fields.makeDescription = { rawValue: fields.makeDescription.rawValue, normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT", "EXPLICIT_VS_DERIVED"], alternatives: [explicit, make] };
       }
-      if (unresolved(fields.model) && split.model !== null) {
-        fields.model = { rawValue: description, normalizedValue: split.model, confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] };
+      // model
+      if (model !== null) {
+        if (unresolved(fields.model)) {
+          fields.model = { rawValue: description, normalizedValue: model, confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] };
+        } else if (fields.model.normalizedValue !== null && !fields.model.warnings.includes("CONFLICT") && !sameText(fields.model.normalizedValue, model)) {
+          const explicit = fields.model.normalizedValue;
+          fields.model = { rawValue: fields.model.rawValue, normalizedValue: null, confidence: "LOW", warnings: ["CONFLICT", "EXPLICIT_VS_DERIVED"], alternatives: [explicit, model] };
+        }
+      } else if (unresolved(fields.model)) {
+        warnings.push(modelReason === "UNBOUNDED" ? "DESCRIPTION_MODEL_UNBOUNDED" : "DESCRIPTION_HAS_NO_MODEL");
       }
-      if (unresolved(fields.model) && split.model === null) warnings.push("DESCRIPTION_HAS_NO_MODEL");
     }
   }
 

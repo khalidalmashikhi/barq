@@ -40,17 +40,89 @@ export function normalizePunctuation(input: string): string {
     .replace(/[：﹕]/g, ":"); // ：/﹕ full-width & small colon
 }
 
-/** Clean a line for LABEL matching: strip bidi/zero-width, normalize punctuation +
- *  whitespace. Does NOT convert digits (labels are non-numeric) and does NOT lowercase
- *  (Arabic is caseless; English labels are matched case-insensitively by the caller). */
-export function cleanForMatching(input: string): string {
-  return collapseWhitespace(normalizePunctuation(stripBidiAndZeroWidth(input)));
+// Arabic diacritics (harakat, shadda, sukun, superscript alef, Quranic marks) and TATWEEL (U+0640,
+// the kashida stretch many PDF text layers insert). None of them carries meaning for matching.
+const ARABIC_DIACRITICS = /[ً-ٰٟۖ-ۭ]/g;
+const TATWEEL = /ـ/g;
+
+/** Unicode NFKC: Arabic PRESENTATION FORMS (the contextual glyph code points U+FB50–U+FDFF /
+ *  U+FE70–U+FEFF that PDF text layers commonly expose) become their base letters; full-width
+ *  Latin and digits become ASCII. Visually identical text, one code point per letter. */
+export function toCanonicalLetters(input: string): string {
+  return input.normalize("NFKC");
 }
 
-/** Clean a captured VALUE: strip bidi/zero-width + collapse whitespace, preserving the
- *  visible glyphs. Digit conversion is applied by the numeric normalizers, not here. */
+/** Clean a line for LABEL matching: canonical letters, no bidi/zero-width, normalized
+ *  punctuation + whitespace. Does NOT convert digits (labels are non-numeric) and does NOT
+ *  lowercase (Arabic is caseless; English labels are matched case-insensitively by the caller). */
+export function cleanForMatching(input: string): string {
+  return collapseWhitespace(normalizePunctuation(stripBidiAndZeroWidth(toCanonicalLetters(input))));
+}
+
+/** Clean a captured VALUE: canonical letters, no bidi/zero-width, no tatweel, collapsed
+ *  whitespace — the visible glyphs are preserved (diacritics stay). Digit conversion is applied
+ *  by the numeric normalizers, not here. */
 export function cleanValue(input: string): string {
-  return collapseWhitespace(stripBidiAndZeroWidth(input));
+  return collapseWhitespace(stripBidiAndZeroWidth(toCanonicalLetters(input)).replace(TATWEEL, ""));
+}
+
+// Punctuation and separators that carry no meaning inside a description / label (Arabic and
+// Latin); each becomes a space so tokens stay apart ("pick-up" → "pick up").
+const FOLD_PUNCTUATION = /[.,;:!?()[\]{}"'«»“”‘’\-–—_/\|،؛؟٪*+#~^<>=]/;
+
+function foldChar(ch: string): string {
+  if (ARABIC_DIACRITICS.test(ch) || ch === "ـ") {
+    ARABIC_DIACRITICS.lastIndex = 0;
+    return "";
+  }
+  ARABIC_DIACRITICS.lastIndex = 0;
+  if (FOLD_PUNCTUATION.test(ch)) return " ";
+  // Alef variants (أ إ آ ٱ) → bare alef, so "إيسوزو" / "ايسوزو" fold alike.
+  if (ch === "أ" || ch === "إ" || ch === "آ" || ch === "ٱ") return "ا";
+  const cp = ch.codePointAt(0)!;
+  if (cp >= 0x0660 && cp <= 0x0669) return String.fromCharCode(0x30 + (cp - 0x0660));
+  if (cp >= 0x06f0 && cp <= 0x06f9) return String.fromCharCode(0x30 + (cp - 0x06f0));
+  const lower = ch.toLowerCase();
+  return lower.length === ch.length ? lower : ch;
+}
+
+/** FOLD text for SEMANTIC matching (manufacturer / body-style / label aliases): canonical letters,
+ *  no bidi/zero-width, no diacritics, no tatweel, alef unified, punctuation → space, Western
+ *  digits, lower case, single spaces. Deterministic; used identically for native PDF text and OCR
+ *  candidates. Never stored — the document's own text is kept separately. */
+export function foldForMatching(input: string): string {
+  const base = stripBidiAndZeroWidth(toCanonicalLetters(input));
+  let out = "";
+  for (const ch of base) out += foldChar(ch);
+  return collapseWhitespace(out);
+}
+
+/** Fold a line while remembering, for every folded character, the index of the ORIGINAL character
+ *  it came from — so a label found in the folded text can cut the VALUE out of the original line
+ *  (document spelling preserved). The original must already be canonical-letter cleaned. */
+export function foldWithMap(cleanedLine: string): { folded: string; map: number[] } {
+  let folded = "";
+  const map: number[] = [];
+  let pendingSpace = false;
+  let i = 0;
+  for (const ch of cleanedLine) {
+    const f = ch === " " ? " " : foldChar(ch);
+    if (f === " ") {
+      pendingSpace = folded.length > 0;
+    } else if (f.length > 0) {
+      if (pendingSpace) {
+        folded += " ";
+        map.push(i);
+        pendingSpace = false;
+      }
+      for (const fc of f) {
+        folded += fc;
+        map.push(i);
+      }
+    }
+    i += ch.length;
+  }
+  return { folded, map };
 }
 
 // ---- numeric / identifier normalizers (integer-only; never floating-point) ----

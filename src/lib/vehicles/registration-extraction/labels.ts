@@ -13,7 +13,7 @@
 // The same registry drives the OCR tool's field guidance, so both tiers share one meaning.
 
 import type { RegistrationFieldKey } from "./types";
-import { cleanForMatching } from "./normalize";
+import { cleanForMatching, foldForMatching, foldWithMap } from "./normalize";
 
 // Each field's accepted labels (Arabic variants + English). Matching is case-insensitive
 // (English) and Arabic is caseless; punctuation/bidi/whitespace are normalized first.
@@ -86,12 +86,16 @@ export const REGISTRATION_PII_LABELS: readonly string[] = [
 // Flat index sorted by descending label length so the most specific label wins
 // (e.g. "رقم الهيكل"/"رقم المحرك" never collide, "الحمولة القصوى" beats "الحمولة", and
 // "سنة الموديل" (year) beats "الموديل" (model)).
+// Labels are matched on the FOLDED line (normalize.ts: canonical letters, no diacritics / tatweel,
+// unified alef, punctuation as spaces, lower case) so a PDF text layer made of presentation-form
+// glyphs or kashida-stretched labels still matches; the VALUE is cut from the original line.
 type LabelEntry = { field: RegistrationFieldKey; label: string };
 const LABEL_INDEX: LabelEntry[] = (Object.keys(REGISTRATION_LABELS) as RegistrationFieldKey[])
-  .flatMap((field) => REGISTRATION_LABELS[field].map((label) => ({ field, label: label.toLowerCase() })))
+  .flatMap((field) => REGISTRATION_LABELS[field].map((label) => ({ field, label: foldForMatching(label) })))
+  .filter((e) => e.label.length > 0)
   .sort((a, b) => b.label.length - a.label.length);
 
-const PII_INDEX: string[] = [...REGISTRATION_PII_LABELS].map((l) => l.toLowerCase()).sort((a, b) => b.length - a.length);
+const PII_INDEX: string[] = [...REGISTRATION_PII_LABELS].map((l) => foldForMatching(l)).filter(Boolean).sort((a, b) => b.length - a.length);
 
 const SEP_PREFIX = /^[\s:：\-–—.،\/|]+/;
 
@@ -106,7 +110,10 @@ export type LineMatch =
 export function matchLine(line: string): LineMatch {
   const cleaned = cleanForMatching(line);
   if (cleaned.length === 0) return { kind: "none" };
-  const lower = cleaned.toLowerCase();
+  const { folded, map } = foldWithMap(cleaned);
+  const lower = folded;
+  // Folded index → index in the cleaned (original-spelling) line.
+  const origAt = (idx: number): number => (idx >= map.length ? cleaned.length : map[idx]!);
 
   // PII first — a line naming an owner/insurer/etc. is dropped even if it also happens to
   // contain a digit an operational label might otherwise grab.
@@ -117,33 +124,30 @@ export function matchLine(line: string): LineMatch {
   for (const { field, label } of LABEL_INDEX) {
     const at = lower.indexOf(label);
     if (at < 0) continue;
-    // A short English label must stand on its own word (so "model" never matches inside "models"
-    // or "year" inside "yearly"); Arabic labels have no case/word-boundary issue of this kind.
-    if (/^[a-z ]+$/.test(label)) {
-      const before = at === 0 ? " " : lower[at - 1]!;
-      const after = lower[at + label.length] ?? " ";
-      if (/[a-z0-9]/.test(before) || /[a-z]/.test(after)) continue;
-    }
+    // A label must stand on its own word (so "model" never matches inside "models", "year" inside
+    // "yearly", nor an Arabic label inside a longer word).
+    const prevCh = at === 0 ? " " : lower[at - 1]!;
+    const nextCh = lower[at + label.length] ?? " ";
+    if (/[\p{L}\p{N}]/u.test(prevCh) || /[\p{L}]/u.test(nextCh)) continue;
     const afterStart = at + label.length;
     // Prefer the text AFTER the label; fall back to text BEFORE it (RTL layouts sometimes
     // place the value first). Capture from the ORIGINAL cleaned line to preserve glyphs/case.
-    let after = cleaned.slice(afterStart).replace(SEP_PREFIX, "").trim();
+    let after = cleaned.slice(origAt(afterStart)).replace(SEP_PREFIX, "").trim();
     if (after.length === 0) {
-      after = cleaned.slice(0, at).replace(SEP_PREFIX, "").replace(/[\s:：\-–—.،]+$/, "").trim();
+      after = cleaned.slice(0, origAt(at)).replace(SEP_PREFIX, "").replace(/[\s:：\-–—.،]+$/, "").trim();
     }
     if (after.length === 0) return { kind: "none" };
     // Bilingual layouts print the same label twice ("الماركة / Make: …"): a second label of the
     // SAME field at the start of the captured text is part of the label, not of the value.
     for (let guard = 0; guard < 3; guard++) {
-      const lowerAfter = after.toLowerCase();
-      const dup = REGISTRATION_LABELS[field].find((l) => {
-        const ll = l.toLowerCase();
-        if (!lowerAfter.startsWith(ll)) return false;
-        // A Latin label must end at a word boundary ("Model: X" yes, "Modelname" no).
-        return !(/^[a-z ]+$/.test(ll) && /^[a-z]/.test(lowerAfter.slice(ll.length)));
-      });
+      const fa = foldWithMap(after);
+      const dup = REGISTRATION_LABELS[field]
+        .map((l) => foldForMatching(l))
+        .filter((ll) => ll.length > 0 && fa.folded.startsWith(ll) && !/^[\p{L}]/u.test(fa.folded.slice(ll.length)))
+        .sort((a, b) => b.length - a.length)[0];
       if (!dup) break;
-      after = after.slice(dup.length).replace(SEP_PREFIX, "").trim();
+      const cut = dup.length >= fa.map.length ? after.length : fa.map[dup.length]!;
+      after = after.slice(cut).replace(SEP_PREFIX, "").trim();
     }
     if (after.length === 0) return { kind: "none" };
     return { kind: "field", field, rawValue: after };
