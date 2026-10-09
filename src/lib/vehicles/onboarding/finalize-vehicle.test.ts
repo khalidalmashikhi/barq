@@ -253,3 +253,28 @@ describe("finalizeVehicleFromRegistration", () => {
     expect(requireApprovedProviderMock).not.toHaveBeenCalled();
   });
 });
+
+describe("finalizeVehicleFromRegistration — the provider's explicit decisions gate creation (Oman field-mapping correction)", () => {
+  it("an OCR/body-style suggestion is NOT a chosen type: with no vehicleType in the submission the vehicle is not created (REQUIRED), no transaction", async () => {
+    const { vehicleType: _omitted, ...withoutType } = FULL as Record<string, unknown>;
+    void _omitted;
+    const res = await finalizeVehicleFromRegistration(VEHICLE, withoutType);
+    expect(res).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    if (!res.ok) expect(res.fieldErrors).toContainEqual({ field: "vehicleType", code: "REQUIRED" });
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("bookable passengers above the licensed count → INVALID_INPUT on the capacity chain, no transaction", async () => {
+    const res = await finalizeVehicleFromRegistration(VEHICLE, { ...FULL, bookablePassengerCapacity: "99", licensedPassengerCapacity: "13" });
+    expect(res).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    if (!res.ok) expect(res.fieldErrors).toContainEqual({ field: "capacity", code: "BOOKABLE_EXCEEDS_LICENSED" });
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("registered seats may be absent (not printed on the card): the vehicle is created with registeredSeats NULL, never a derived number", async () => {
+    const res = await finalizeVehicleFromRegistration(VEHICLE, { ...FULL, registeredSeats: "" });
+    expect(res).toMatchObject({ ok: true });
+    const vData = (vehicleUpdate.mock.calls.at(-1)![0] as { data: Record<string, unknown> }).data;
+    expect(vData).toMatchObject({ registeredSeats: null, licensedPassengerCapacity: 13, bookablePassengerCapacity: 13 });
+  });
+});

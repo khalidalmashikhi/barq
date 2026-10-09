@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { REGISTRATION_LABELS } from "../labels";
+import { REGISTRATION_LABELS, REGISTRATION_FIELD_GUIDANCE } from "../labels";
 import { REGISTRATION_FIELD_KEYS, type RegistrationCandidates, type RegistrationFieldKey } from "../types";
 import { MAX_OCR_CANDIDATES_PER_FIELD, MAX_OCR_CANDIDATE_CHARS, MAX_OCR_INPUT_BYTES, REGISTRATION_OCR_TIMEOUT_MS } from "../constants";
 import { checkRegistrationSetShape, MAX_REGISTRATION_SET_PAGES } from "../registration-document-set";
@@ -51,7 +51,7 @@ const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const TOOL_NAME = "record_registration_fields";
 /** Bump when the instruction or tool schema changes, so results are attributable to a prompt. */
-export const CLAUDE_REGISTRATION_PROMPT_VERSION = "p3";
+export const CLAUDE_REGISTRATION_PROMPT_VERSION = "p4";
 export const DEFAULT_CLAUDE_REGISTRATION_MODEL = DEFAULT_REGISTRATION_OCR_MODEL;
 /** Output ceiling (thinking tokens count against it on current models — hence not tiny). */
 const MAX_OUTPUT_TOKENS = 4000;
@@ -64,6 +64,9 @@ const SYSTEM_PROMPT = [
   `Answer ONLY by calling the ${TOOL_NAME} tool exactly once for the whole document. Never answer in prose.`,
   "Rules:",
   "- Copy each value exactly as printed (Arabic or English, digits as shown). Do not translate, correct, complete, reformat or guess.",
+  "- Omani cards print the FULL vehicle description (brand + body style + model) under نوع المركبة: report that whole line as vehicleDescription. Report makeDescription / model ONLY when the brand or the model name is printed as its own separate value. Never split the description yourself.",
+  "- The label الموديل on these cards usually holds the model YEAR: report a 4-digit year under manufactureYear, never under model.",
+  "- عدد الركاب is the passenger count (licensedPassengerCapacity). Report registeredSeats ONLY when a separate seats label (عدد المقاعد / seats) is printed; never calculate it.",
   "- If a field is not clearly printed anywhere on the document, leave it out. Never infer a value from another field.",
   "- If any character of a value is hard to read, still copy your best reading and set unclear to true.",
   "- If the same field appears on two sides or pages with DIFFERENT values, return both values, in the order you saw them.",
@@ -76,7 +79,7 @@ const SYSTEM_PROMPT = [
 const USER_PROMPT = "Transcribe the registration fields from this document.";
 
 function fieldDescription(key: RegistrationFieldKey): string {
-  return `Printed next to one of these labels: ${REGISTRATION_LABELS[key].join(" / ")}`;
+  return `${REGISTRATION_FIELD_GUIDANCE[key]} Labels: ${REGISTRATION_LABELS[key].join(" / ")}.`;
 }
 
 // Deliberately plain JSON Schema (no length/count keywords): the bounds are enforced on our side.

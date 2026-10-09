@@ -13,6 +13,8 @@ export type ExtractedSuggestions = {
   warnings: Partial<Record<ConfirmationFieldKey, string[]>>;
   /** CONFLICT only: the distinct values the document(s) showed (private; the provider chooses). */
   alternatives: Partial<Record<ConfirmationFieldKey, (string | number)[]>>;
+  /** The compound vehicle description printed on the document (private, whole, for review). */
+  documentDescription: string | null;
 };
 
 export function mapExtractedByField(fieldsJson: unknown): ExtractedSuggestions {
@@ -22,7 +24,7 @@ export function mapExtractedByField(fieldsJson: unknown): ExtractedSuggestions {
   const alternatives: ExtractedSuggestions["alternatives"] = {};
 
   const parsed = persistedFieldsSchema.safeParse(fieldsJson);
-  if (!parsed.success) return { values, confidence, warnings, alternatives };
+  if (!parsed.success) return { values, confidence, warnings, alternatives, documentDescription: null };
   const fields = parsed.data as Record<string, { normalizedValue: string | number | null; confidence: RegistrationFieldConfidence; warnings: string[]; alternatives?: (string | number)[] }>;
 
   for (const key of CONFIRMATION_FIELD_KEYS) {
@@ -35,5 +37,6 @@ export function mapExtractedByField(fieldsJson: unknown): ExtractedSuggestions {
     warnings[key] = f.warnings;
     if (f.alternatives && f.alternatives.length > 0) alternatives[key] = f.alternatives;
   }
-  return { values, confidence, warnings, alternatives };
+  const desc = fields.vehicleDescription?.normalizedValue;
+  return { values, confidence, warnings, alternatives, documentDescription: typeof desc === "string" ? desc : null };
 }

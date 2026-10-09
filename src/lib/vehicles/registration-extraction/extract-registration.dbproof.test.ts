@@ -35,7 +35,7 @@ function urls() {
 let db: PrismaClient, db2: PrismaClient, admin: PrismaClient, throwawayUrl: string;
 const PROV = randomUUID(), VEH = randomUUID(), DOC = randomUUID();
 const BYTES = new TextEncoder().encode("concurrency-proof-bytes").buffer;
-const REG_TEXT = ["رقم اللوحة: A 12345", "نوع المركبة: Toyota", "الموديل: Prado", "عدد الركاب: 7", "سنة الصنع: 2019", "رقم الهيكل: JTEBU29J8K5012345", "تاريخ الانتهاء: 31/05/2027"].join("\n");
+const REG_TEXT = ["رقم اللوحة: A 12345", "الماركة: Toyota", "الطراز: Prado", "عدد الركاب: 7", "سنة الصنع: 2019", "رقم الهيكل: JTEBU29J8K5012345", "تاريخ الانتهاء: 31/05/2027"].join("\n");
 
 const okDeps = (client: PrismaClient) => ({ db: client, isStorageConfigured: () => true, downloadPrivateObject: async () => BYTES, extractPdfText: async () => ({ ok: true as const, pageCount: 1, text: REG_TEXT }), getReader: () => null, getPolicy: () => null, readConsent: async () => ({ state: "NONE" as const, policyVersion: null, decidedAt: null }), consumeOcrBudget: async () => "ALLOWED" as const });
 const failDeps = (client: PrismaClient) => ({ ...okDeps(client), extractPdfText: async () => ({ ok: false as const, code: "PARSER_TIMEOUT" as const }) });

@@ -1,6 +1,16 @@
 // Phase 3C — Vehicle Registration Extraction, Slice 2. Arabic + English label registry
 // for the ALLOWLISTED operational fields, and a PII denylist whose lines are DISCARDED
 // (never captured). Pure, deterministic, data-only + matching helpers. No PII values here.
+//
+// OMAN TERMINOLOGY (2026-10-09 correction). The Omani registration card (mulkiya) prints:
+//   • "نوع المركبة" — the COMPOUND vehicle description (brand + body style + model in one line),
+//     NOT the manufacturer alone → captured as `vehicleDescription`, never as the make;
+//   • "الموديل" — usually the MODEL YEAR, not the commercial model → captured under `model` by
+//     label and then ROUTED by value in the shared builder (a 4-digit year → `manufactureYear`;
+//     a name stays `model`);
+//   • "عدد الركاب" — the licensed PASSENGER count; a SEAT count ("عدد المقاعد") is a different
+//     field (`registeredSeats`) and is captured only when such a label is actually printed.
+// The same registry drives the OCR tool's field guidance, so both tiers share one meaning.
 
 import type { RegistrationFieldKey } from "./types";
 import { cleanForMatching } from "./normalize";
@@ -12,21 +22,49 @@ import { cleanForMatching } from "./normalize";
 export const REGISTRATION_LABELS: Record<RegistrationFieldKey, readonly string[]> = {
   plateNumber: ["رقم اللوحة", "رقم اللوحه", "plate number", "plate no", "plate"],
   plateType: ["نوع اللوحة", "فئة اللوحة", "plate type", "plate category"],
-  makeDescription: ["نوع المركبة", "الماركة", "الصنع", "vehicle make", "make", "vehicle type"],
-  model: ["الموديل", "الطراز", "model"],
+  // Explicit manufacturer labels ONLY — the compound "نوع المركبة" is NOT a make label.
+  makeDescription: ["الشركة الصانعة", "الماركة", "ماركة", "الصنع", "manufacturer", "vehicle make", "make", "brand"],
+  // "الموديل" / "model" are accepted here but a YEAR under them is routed to manufactureYear.
+  model: ["اسم الطراز", "الطراز", "الموديل", "model name", "commercial model", "model"],
+  vehicleDescription: ["نوع المركبة", "وصف المركبة", "vehicle description", "vehicle type", "description"],
   color: ["اللون", "colour", "color"],
-  usageClassification: ["نوع الاستخدام", "الاستعمال", "الاستخدام", "usage"],
-  manufactureYear: ["سنة الصنع", "سنة الموديل", "year of manufacture", "model year", "manufacture year"],
+  usageClassification: ["نوع الاستخدام", "الاستعمال", "الاستخدام", "usage type", "usage"],
+  manufactureYear: ["سنة الصنع", "سنة الموديل", "سنة التصنيع", "year of manufacture", "model year", "manufacture year", "year"],
   engineCapacity: ["سعة المحرك", "engine capacity", "engine cc"],
   emptyWeight: ["الوزن الفارغ", "الوزن فارغ", "وزن المركبة فارغة", "empty weight", "unladen weight"],
   maximumLoad: ["الحمولة القصوى", "أقصى حمولة", "الحمولة", "maximum load", "max load"],
   axleCount: ["عدد المحاور", "number of axles", "axles"],
-  licensedPassengerCapacity: ["عدد الركاب", "number of passengers", "seating capacity", "passengers"],
+  licensedPassengerCapacity: ["عدد الركاب", "number of passengers", "passengers"],
+  registeredSeats: ["عدد المقاعد", "المقاعد", "number of seats", "total seats", "seating capacity", "seats"],
   vin: ["رقم الهيكل", "رقم الشاصي", "رقم الشاسيه", "chassis number", "chassis no", "vin"],
   engineNumber: ["رقم المحرك", "engine number", "engine no"],
   licenseValidFrom: ["تاريخ الإصدار", "ساري من", "valid from", "issue date"],
   licenseExpiry: ["تاريخ الانتهاء", "تاريخ انتهاء الرخصة", "ينتهي في", "صالحة حتى", "expiry date", "valid until", "expiry"],
   firstRegistrationDate: ["تاريخ أول تسجيل", "أول تسجيل", "first registration", "first registered"],
+};
+
+/** What each field MEANS — one sentence per key, shared with the OCR tool schema so an engine is
+ *  told the same semantics the deterministic parser applies. Never values, never PII. */
+export const REGISTRATION_FIELD_GUIDANCE: Record<RegistrationFieldKey, string> = {
+  plateNumber: "The plate / registration number exactly as printed (labels: رقم اللوحة / plate number).",
+  plateType: "The plate category (e.g. private, commercial) printed under نوع اللوحة / plate type.",
+  makeDescription: "The manufacturer or brand ONLY (e.g. a brand name), and only when it is printed as its own value under a make / brand label (الماركة / الصنع / manufacturer / make). Do NOT put the full vehicle description here. Never a year.",
+  model: "The commercial model NAME only, when printed as a name (الطراز / model name). NEVER a year: on Omani cards the label الموديل usually holds the model YEAR — report a year under manufactureYear instead.",
+  vehicleDescription: "The full vehicle description string exactly as printed under نوع المركبة / vehicle type / description — usually brand + body style + model in one line. Copy the whole line; do not split it into parts.",
+  color: "The colour printed under اللون / colour.",
+  usageClassification: "The usage / classification value printed under نوع الاستخدام / الاستخدام / usage — only when such a label exists. Never derived from the plate type.",
+  manufactureYear: "The 4-digit model year / year of manufacture (سنة الصنع / year of manufacture, or the year printed under الموديل / model).",
+  engineCapacity: "Engine capacity with its unit as printed (سعة المحرك / engine capacity).",
+  emptyWeight: "Empty / unladen weight with its unit as printed (الوزن الفارغ / empty weight).",
+  maximumLoad: "Maximum load with its unit as printed (الحمولة القصوى / maximum load).",
+  axleCount: "Number of axles (عدد المحاور / axles).",
+  licensedPassengerCapacity: "The passenger count printed under عدد الركاب / number of passengers — passengers only, never seats.",
+  registeredSeats: "The total seat count ONLY when a separate seats label is printed (عدد المقاعد / seats / seating capacity). Never compute it from the passenger count; leave it out if no seats label exists.",
+  vin: "The chassis / VIN number exactly as printed (رقم الهيكل / chassis number / VIN).",
+  engineNumber: "The engine number exactly as printed (رقم المحرك / engine number).",
+  licenseValidFrom: "The licence issue / valid-from date as printed (تاريخ الإصدار / valid from).",
+  licenseExpiry: "The licence expiry date as printed (تاريخ الانتهاء / expiry date).",
+  firstRegistrationDate: "The first registration date as printed (تاريخ أول تسجيل / first registration).",
 };
 
 // PII / non-operational labels. Any line whose text contains one of these is DISCARDED
@@ -46,7 +84,8 @@ export const REGISTRATION_PII_LABELS: readonly string[] = [
 ];
 
 // Flat index sorted by descending label length so the most specific label wins
-// (e.g. "رقم الهيكل"/"رقم المحرك" never collide, and "الحمولة القصوى" beats "الحمولة").
+// (e.g. "رقم الهيكل"/"رقم المحرك" never collide, "الحمولة القصوى" beats "الحمولة", and
+// "سنة الموديل" (year) beats "الموديل" (model)).
 type LabelEntry = { field: RegistrationFieldKey; label: string };
 const LABEL_INDEX: LabelEntry[] = (Object.keys(REGISTRATION_LABELS) as RegistrationFieldKey[])
   .flatMap((field) => REGISTRATION_LABELS[field].map((label) => ({ field, label: label.toLowerCase() })))
@@ -54,7 +93,7 @@ const LABEL_INDEX: LabelEntry[] = (Object.keys(REGISTRATION_LABELS) as Registrat
 
 const PII_INDEX: string[] = [...REGISTRATION_PII_LABELS].map((l) => l.toLowerCase()).sort((a, b) => b.length - a.length);
 
-const SEP_PREFIX = /^[\s:：\-–—.،]+/;
+const SEP_PREFIX = /^[\s:：\-–—.،\/|]+/;
 
 export type LineMatch =
   | { kind: "pii" }
@@ -78,12 +117,33 @@ export function matchLine(line: string): LineMatch {
   for (const { field, label } of LABEL_INDEX) {
     const at = lower.indexOf(label);
     if (at < 0) continue;
+    // A short English label must stand on its own word (so "model" never matches inside "models"
+    // or "year" inside "yearly"); Arabic labels have no case/word-boundary issue of this kind.
+    if (/^[a-z ]+$/.test(label)) {
+      const before = at === 0 ? " " : lower[at - 1]!;
+      const after = lower[at + label.length] ?? " ";
+      if (/[a-z0-9]/.test(before) || /[a-z]/.test(after)) continue;
+    }
     const afterStart = at + label.length;
     // Prefer the text AFTER the label; fall back to text BEFORE it (RTL layouts sometimes
     // place the value first). Capture from the ORIGINAL cleaned line to preserve glyphs/case.
     let after = cleaned.slice(afterStart).replace(SEP_PREFIX, "").trim();
     if (after.length === 0) {
       after = cleaned.slice(0, at).replace(SEP_PREFIX, "").replace(/[\s:：\-–—.،]+$/, "").trim();
+    }
+    if (after.length === 0) return { kind: "none" };
+    // Bilingual layouts print the same label twice ("الماركة / Make: …"): a second label of the
+    // SAME field at the start of the captured text is part of the label, not of the value.
+    for (let guard = 0; guard < 3; guard++) {
+      const lowerAfter = after.toLowerCase();
+      const dup = REGISTRATION_LABELS[field].find((l) => {
+        const ll = l.toLowerCase();
+        if (!lowerAfter.startsWith(ll)) return false;
+        // A Latin label must end at a word boundary ("Model: X" yes, "Modelname" no).
+        return !(/^[a-z ]+$/.test(ll) && /^[a-z]/.test(lowerAfter.slice(ll.length)));
+      });
+      if (!dup) break;
+      after = after.slice(dup.length).replace(SEP_PREFIX, "").trim();
     }
     if (after.length === 0) return { kind: "none" };
     return { kind: "field", field, rawValue: after };

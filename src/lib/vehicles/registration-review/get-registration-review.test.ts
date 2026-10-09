@@ -252,3 +252,63 @@ describe("getRegistrationReview — the registration document SET", () => {
     expect(make).toMatchObject({ extractedValue: "Toyota", conflict: false, alternatives: [] });
   });
 });
+
+describe("getRegistrationReview — Oman field-mapping correction", () => {
+  const page = (id: string, type: string, extra: Record<string, unknown> = {}) => ({ id, type, status: "PENDING", originalFilename: "f.jpg", mimeType: "image/jpeg", sizeBytes: 1000, registrationExtraction: null, registrationConfirmations: [], registrationOcrConsents: [], ...extra });
+  const withFields = (over: Record<string, unknown>, status = "NEEDS_REVIEW") => {
+    const f = JSON.parse(JSON.stringify(fields)) as Record<string, unknown>;
+    Object.assign(f, over);
+    return { id: "ext-1", status, failureCode: null, documentSha256: "sha-1", parserVersion: "1.1.0", source: "NATIVE_PDF_TEXT", processingExpiresAt: null, fields: f, lastAttemptedAt: new Date(), lastSucceededAt: new Date() };
+  };
+
+  it("a make/model DERIVED from the compound description arrives flagged (heuristic + needsReview) and the description itself is exposed privately", async () => {
+    const extraction = withFields({
+      vehicleDescription: { rawValue: "Toyota Station Modelname", normalizedValue: "Toyota Station Modelname", confidence: "HIGH", warnings: [] },
+      makeDescription: { rawValue: "Toyota Station Modelname", normalizedValue: "Toyota", confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] },
+      model: { rawValue: "Toyota Station Modelname", normalizedValue: "Modelname", confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] },
+    });
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", { registrationExtraction: extraction })] });
+    const r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.documentDescription).toBe("Toyota Station Modelname");
+    expect(r.fields.find((f) => f.key === "make")).toMatchObject({ extractedValue: "Toyota", heuristic: true, needsReview: true, source: "NATIVE_PDF_TEXT" });
+    expect(r.fields.find((f) => f.key === "model")).toMatchObject({ extractedValue: "Modelname", heuristic: true, needsReview: true });
+    expect(r.fields.find((f) => f.key === "modelYear")).toMatchObject({ heuristic: false });
+  });
+
+  it("the vehicle TYPE is only ever a SUGGESTION on the view (from the description / make / model / usage) — there is no chosen type and no type field", async () => {
+    const extraction = withFields({ vehicleDescription: { rawValue: "Toyota Pickup 4x4 Modelname", normalizedValue: "Toyota Pickup 4x4 Modelname", confidence: "HIGH", warnings: [] } });
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", { registrationExtraction: extraction })] });
+    const r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.vehicleTypeSuggestion).toBe("FOUR_BY_FOUR");
+    expect(r.fields.map((f) => f.key)).not.toContain("vehicleType");
+    expect("vehicleType" in r).toBe(false);
+    // With nothing recognizable the suggestion is null — never OTHER, never a default.
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", { registrationExtraction: withFields({}) })] });
+    expect((await getRegistrationReview(VEHICLE))!.vehicleTypeSuggestion).toBeNull();
+  });
+
+  it("registered seats are suggested ONLY when the document printed a seats value; otherwise unresolved and NOT flagged as required", async () => {
+    const printed = withFields({ registeredSeats: { rawValue: "8", normalizedValue: 8, confidence: "HIGH", warnings: [] }, licensedPassengerCapacity: { rawValue: "7", normalizedValue: 7, confidence: "HIGH", warnings: [] } });
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", { registrationExtraction: printed })] });
+    let r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.fields.find((f) => f.key === "registeredSeats")).toMatchObject({ extractedValue: 8, required: false });
+    expect(r.fields.find((f) => f.key === "licensedPassengerCapacity")).toMatchObject({ extractedValue: 7 });
+    const notPrinted = withFields({ licensedPassengerCapacity: { rawValue: "7", normalizedValue: 7, confidence: "HIGH", warnings: [] } });
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", { registrationExtraction: notPrinted })] });
+    r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.fields.find((f) => f.key === "registeredSeats")).toMatchObject({ extractedValue: null, required: false, needsReview: false, source: "UNRESOLVED" });
+    expect(r.fields.find((f) => f.key === "bookablePassengerCapacity")).toMatchObject({ extractedValue: null, required: true, source: "UNRESOLVED", needsReview: true }); // always the provider's own entry
+  });
+
+  it("a record written by parser 1.0.0 (no description / seats keys) still reads: those simply have no suggestion", async () => {
+    const legacy = withFields({});
+    delete (legacy.fields as Record<string, unknown>).vehicleDescription;
+    delete (legacy.fields as Record<string, unknown>).registeredSeats;
+    legacy.parserVersion = "1.0.0";
+    assetFindFirst.mockResolvedValue({ id: VEHICLE, documents: [page("doc-1", "VEHICLE_REGISTRATION", { registrationExtraction: legacy })] });
+    const r = (await getRegistrationReview(VEHICLE))!;
+    expect(r.documentDescription).toBeNull();
+    expect(r.fields.find((f) => f.key === "vin")?.extractedValue).toBe("JTEBU29J8K5012345"); // the old suggestions are intact
+    expect(r.fields.find((f) => f.key === "registeredSeats")?.extractedValue).toBeNull();
+  });
+});

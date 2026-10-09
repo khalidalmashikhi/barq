@@ -146,9 +146,11 @@ describe("OCR candidates → validated result", () => {
     expect(JSON.stringify(stored)).not.toMatch(/Synthetic Person|12345678|ownerName|civilNumber/);
   });
 
-  it("customer/bookable capacity and registered seats are NOT extraction fields at all — OCR cannot fill them", () => {
+  it("customer/bookable capacity is NOT an extraction field at all — OCR cannot fill it; registered seats only from an explicit seats label", () => {
     expect(REGISTRATION_FIELD_KEYS).not.toContain("bookablePassengerCapacity" as never);
-    expect(REGISTRATION_FIELD_KEYS).not.toContain("registeredSeats" as never);
+    expect(REGISTRATION_FIELD_KEYS).toContain("registeredSeats");
+    const r = ocr({ ...ENGLISH_CARD, licensedPassengerCapacity: one("7") });
+    expect(r.fields.registeredSeats).toMatchObject({ normalizedValue: null, warnings: ["MISSING"] });
   });
 });
 

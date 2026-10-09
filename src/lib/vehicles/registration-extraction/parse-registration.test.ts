@@ -9,8 +9,9 @@ const NOW = new Date("2027-01-01T00:00:00.000Z"); // maxYear = 2028
 const FULL = [
   "رقم اللوحة: A 12345",
   "نوع اللوحة: خصوصي",
-  "نوع المركبة: Toyota",
-  "الموديل: Land Cruiser",
+  "الماركة: Toyota",
+  "نوع المركبة: Toyota Station Land Cruiser",
+  "الطراز: Land Cruiser",
   "اللون: أبيض",
   "نوع الاستخدام: خاص",
   "سنة الصنع: 2019",
@@ -46,7 +47,9 @@ describe("parseOmanVehicleRegistration — full happy path", () => {
     expect(r.fields.plateNumber.normalizedValue).toBe("A 12345");
     expect(r.fields.makeDescription.normalizedValue).toBe("Toyota");
     expect(r.overallStatus).toBe("EXTRACTED");
-    expect(r.parserVersion).toBe("1.0.0");
+    expect(r.parserVersion).toBe("1.1.0");
+    expect(r.fields.vehicleDescription.normalizedValue).toBe("Toyota Station Land Cruiser"); // kept whole, privately
+    expect(r.fields.model.normalizedValue).toBe("Land Cruiser");
     expect(r.source).toBe("NATIVE_PDF_TEXT");
     expect(r.documentKind).toBe("OMAN_VEHICLE_REGISTRATION");
   });
@@ -155,10 +158,10 @@ describe("parseOmanVehicleRegistration — Arabic/RTL robustness (Slice-2 correc
     expect(r.overallStatus).toBe("NEEDS_REVIEW");
   });
 
-  it("licensed passenger capacity is SEPARATE from physical registered seats — no such field exists on the result", () => {
+  it("licensed passenger capacity is SEPARATE from registered seats: a passenger count never fills the seats field, and bookable capacity is not an extraction field at all", () => {
     const r = parseOmanVehicleRegistration("عدد الركاب: 15", NOW);
     expect(r.fields.licensedPassengerCapacity.normalizedValue).toBe(15);
-    expect((r.fields as Record<string, unknown>).registeredSeats).toBeUndefined();
+    expect(r.fields.registeredSeats).toMatchObject({ normalizedValue: null, warnings: ["MISSING"] }); // never derived (no "+1 driver")
     expect((r.fields as Record<string, unknown>).bookablePassengerCapacity).toBeUndefined();
   });
 });

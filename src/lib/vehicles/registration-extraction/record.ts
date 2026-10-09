@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { REGISTRATION_FIELD_CONFIDENCES } from "./codes";
-import { REGISTRATION_FIELD_KEYS, type VehicleRegistrationExtractionResult } from "./types";
+import { REGISTRATION_FIELD_KEYS, REGISTRATION_FIELD_KEYS_ADDED_1_1, type VehicleRegistrationExtractionResult } from "./types";
 
 const fieldSchema = z
   .object({
@@ -21,8 +21,11 @@ const fieldSchema = z
 
 // A strict object schema over EXACTLY the allowlisted field keys — no additional (e.g. PII)
 // key can ever be present in the persisted metadata.
+// Keys added by parser 1.1.0 are OPTIONAL on read so a record written by 1.0.0 still parses
+// (its missing keys read as "no suggestion"); a re-analysis under 1.1.0 writes them.
+const ADDED_1_1: ReadonlySet<string> = new Set(REGISTRATION_FIELD_KEYS_ADDED_1_1);
 export const persistedFieldsSchema = z
-  .object(Object.fromEntries(REGISTRATION_FIELD_KEYS.map((k) => [k, fieldSchema])))
+  .object(Object.fromEntries(REGISTRATION_FIELD_KEYS.map((k) => [k, ADDED_1_1.has(k) ? fieldSchema.optional() : fieldSchema])))
   .strict();
 
 export type PersistedRegistrationFields = z.infer<typeof persistedFieldsSchema>;

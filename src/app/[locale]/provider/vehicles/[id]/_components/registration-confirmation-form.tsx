@@ -13,6 +13,7 @@ import {
   type ConfirmationFieldKey,
 } from "@/lib/vehicles/registration-review/field-model";
 import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib/vehicles/registration-review/registration-review-result";
+import { formatIsoDateForDisplay, dateFieldSubmissionValue, DATE_INPUT_PLACEHOLDER } from "@/lib/vehicles/registration-review/date-display";
 import type { ConfirmationFieldError } from "@/lib/vehicles/registration-review/confirmation-input";
 import { saveRegistrationDraftAction, submitRegistrationConfirmationAction } from "../registration-actions";
 
@@ -37,7 +38,9 @@ type Props = { vehicleId: string; fields: FieldView[]; canConfirm: boolean; lock
 
 function initialValue(f: FieldView): string {
   const v = f.confirmedValue ?? f.extractedValue;
-  return v === null || v === undefined ? "" : String(v);
+  if (v === null || v === undefined) return "";
+  // Dates: canonical ISO stored, unambiguous day/month/year shown and typed.
+  return f.kind === "date" ? formatIsoDateForDisplay(String(v)) : String(v);
 }
 
 export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, locked }: Props) {
@@ -60,7 +63,8 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
   const run = (mode: "DRAFT" | "SUBMIT") => {
     setErrorCode(null);
     setFieldErrors([]);
-    const payload: Record<string, unknown> = { ...values, declarationAccepted: declaration };
+    const kinds = Object.fromEntries(fields.map((f) => [f.key, f.kind])) as Record<string, FieldView["kind"]>;
+    const payload: Record<string, unknown> = { ...Object.fromEntries(Object.entries(values).map(([k, v]) => [k, kinds[k] === "date" ? dateFieldSubmissionValue(v) : v])), declarationAccepted: declaration };
     startTransition(async () => {
       const action = mode === "SUBMIT" ? submitRegistrationConfirmationAction : saveRegistrationDraftAction;
       const res = await action(vehicleId, payload);
@@ -82,8 +86,9 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
     const label = td(regFieldLabelKey(f.key));
     const err = fieldErrorFor(f.key);
     const isRevealed = revealed[f.key] === true;
-    const inputType = f.kind === "int" ? "number" : f.kind === "date" ? "date" : "text";
-    const extractedDisplay = f.extractedValue === null ? null : f.sensitive && !isRevealed ? maskSensitiveValue(String(f.extractedValue)) : String(f.extractedValue);
+    const isDate = f.kind === "date";
+    const inputType = f.kind === "int" ? "number" : "text";
+    const extractedDisplay = f.extractedValue === null ? null : f.sensitive && !isRevealed ? maskSensitiveValue(String(f.extractedValue)) : isDate ? formatIsoDateForDisplay(String(f.extractedValue)) : String(f.extractedValue);
 
     return (
       <div key={f.key} className="flex flex-col gap-1.5 py-3 border-t border-border first:border-t-0">
@@ -100,7 +105,7 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
         </div>
         {extractedDisplay !== null && (
           <p className="text-xs text-foreground/50">
-            {t("vehicleRegExtractedPrefix")}: <span className="text-foreground/70">{extractedDisplay}</span>
+            {t("vehicleRegExtractedPrefix")}: <bdi dir={isDate ? "ltr" : undefined} className="text-foreground/70">{extractedDisplay}</bdi>
             {f.confidence && <span className="ms-2">· {td(`vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}`)}</span>}
           </p>
         )}
@@ -118,6 +123,9 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
             <input
               id={`rf-${f.key}`}
               type={inputType}
+              inputMode={isDate || f.kind === "int" ? "numeric" : undefined}
+              dir={isDate ? "ltr" : undefined}
+              placeholder={isDate ? DATE_INPUT_PLACEHOLDER : undefined}
               value={values[f.key] ?? ""}
               onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
               disabled={pending}

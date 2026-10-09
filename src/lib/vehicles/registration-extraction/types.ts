@@ -12,7 +12,8 @@ export type VehicleRegistrationField<T> = {
   /** The strictly-normalized value, or null when missing/unparseable. Never floating-point for ids/capacities. */
   normalizedValue: T | null;
   confidence: RegistrationFieldConfidence;
-  /** Deterministic, machine-readable warning codes (e.g. "MISSING", "CONFLICT", "VIN_LENGTH", "UNIT_MISSING"). */
+  /** Deterministic, machine-readable warning codes (e.g. "MISSING", "CONFLICT", "VIN_LENGTH", "UNIT_MISSING",
+   *  "HEURISTIC_SPLIT" = derived from the document's compound description, always LOW). */
   warnings: string[];
   /** CONFLICT only: every distinct validated value the document(s) showed for this field, in
    *  detection order (front/page 1 first). The field is then UNRESOLVED (normalizedValue null) —
@@ -21,12 +22,26 @@ export type VehicleRegistrationField<T> = {
 };
 
 /** The ALLOWLISTED operational fields. Owner/nationality/address/civil-number/insurer/
- *  policy/mortgage/barcode/officer are DELIBERATELY absent — they are discarded, never typed here. */
+ *  policy/mortgage/barcode/officer are DELIBERATELY absent — they are discarded, never typed here.
+ *
+ *  OMAN TERMINOLOGY (field-mapping contract, 2026-10-09):
+ *  • `makeDescription` — the manufacturer / brand ONLY, from an explicit make label, or derived
+ *    (LOW, "HEURISTIC_SPLIT") from the compound description when the manufacturer is recognizable.
+ *  • `model` — the commercial model NAME only. NEVER a year: a year under a model label is routed
+ *    to `manufactureYear`.
+ *  • `manufactureYear` — the model year / year of manufacture. On the Omani card the label
+ *    "الموديل" usually holds this year.
+ *  • `vehicleDescription` — the full description string printed under "نوع المركبة" (usually
+ *    brand + body style + model). Kept PRIVATE, whole, for review/audit; never copied to make.
+ *  • `licensedPassengerCapacity` — the passenger count printed under "عدد الركاب".
+ *  • `registeredSeats` — a total seat count ONLY when a separate seats label is printed. Never
+ *    computed from the passenger count. */
 export type VehicleRegistrationFields = {
   plateNumber: VehicleRegistrationField<string>;
   plateType: VehicleRegistrationField<string>;
   makeDescription: VehicleRegistrationField<string>;
   model: VehicleRegistrationField<string>;
+  vehicleDescription: VehicleRegistrationField<string>;
   color: VehicleRegistrationField<string>;
   usageClassification: VehicleRegistrationField<string>;
   manufactureYear: VehicleRegistrationField<number>;
@@ -36,6 +51,8 @@ export type VehicleRegistrationFields = {
   axleCount: VehicleRegistrationField<number>;
   /** From the Arabic label "عدد الركاب" — the official licensed passenger capacity. */
   licensedPassengerCapacity: VehicleRegistrationField<number>;
+  /** Only from an explicit seats label ("عدد المقاعد" / "seats"). Never derived. */
+  registeredSeats: VehicleRegistrationField<number>;
   /** Chassis / VIN. */
   vin: VehicleRegistrationField<string>;
   engineNumber: VehicleRegistrationField<string>;
@@ -50,6 +67,7 @@ export const REGISTRATION_FIELD_KEYS = [
   "plateType",
   "makeDescription",
   "model",
+  "vehicleDescription",
   "color",
   "usageClassification",
   "manufactureYear",
@@ -58,6 +76,7 @@ export const REGISTRATION_FIELD_KEYS = [
   "maximumLoad",
   "axleCount",
   "licensedPassengerCapacity",
+  "registeredSeats",
   "vin",
   "engineNumber",
   "licenseValidFrom",
@@ -66,6 +85,9 @@ export const REGISTRATION_FIELD_KEYS = [
 ] as const satisfies readonly (keyof VehicleRegistrationFields)[];
 
 export type RegistrationFieldKey = (typeof REGISTRATION_FIELD_KEYS)[number];
+
+/** Keys added by parser 1.1.0 — absent from records written by 1.0.0 (read as missing). */
+export const REGISTRATION_FIELD_KEYS_ADDED_1_1 = ["vehicleDescription", "registeredSeats"] as const satisfies readonly RegistrationFieldKey[];
 
 /** The "critical" identifiers whose absence/low-confidence forces NEEDS_REVIEW and which a
  *  later admin flow treats as critical-mismatch candidates. */
@@ -85,7 +107,8 @@ export type VehicleRegistrationExtractionResult = {
   source: RegistrationExtractionSource;
   fields: VehicleRegistrationFields;
   overallStatus: RegistrationExtractionStatus;
-  /** Document-level warning codes (e.g. "NO_SUPPORTED_FIELDS", "DISCARDED_PII_LABELS_PRESENT"). */
+  /** Document-level warning codes (e.g. "NO_SUPPORTED_FIELDS", "DISCARDED_PII_LABELS_PRESENT",
+   *  "MODEL_LABEL_HELD_YEAR", "DESCRIPTION_NOT_SPLIT"). */
   warnings: string[];
 };
 

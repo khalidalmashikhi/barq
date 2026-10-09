@@ -30,6 +30,9 @@ export type ConfirmationFieldKey =
 export type ConfirmationFieldKind = "text" | "int" | "date" | "vin" | "plate";
 export type ConfirmationFieldGroup = "CUSTOMER" | "PRIVATE";
 
+/** The provider-confirmed keys as the Vehicle row receives them. `make` ← makeDescription (brand
+ *  only), `model` ← model (name only, never a year), `modelYear` ← manufactureYear. The compound
+ *  document description is NOT a confirmation field: it is shown privately for review only. */
 export type ConfirmationFieldSpec = {
   group: ConfirmationFieldGroup;
   kind: ConfirmationFieldKind;
@@ -51,7 +54,9 @@ export const CONFIRMATION_FIELDS: Record<ConfirmationFieldKey, ConfirmationField
   bookablePassengerCapacity: { group: "CUSTOMER", kind: "int", extractionKey: null, sensitive: false, required: true },
   // Private operational / verification evidence (provider file only).
   licensedPassengerCapacity: { group: "PRIVATE", kind: "int", extractionKey: "licensedPassengerCapacity", sensitive: false, required: true },
-  registeredSeats: { group: "PRIVATE", kind: "int", extractionKey: null, sensitive: false, required: true },
+  // Only an EXPLICITLY printed total-seat value (extraction key `registeredSeats`); absent on most
+  // cards → stays unresolved and is NOT required (never derived from the passenger count).
+  registeredSeats: { group: "PRIVATE", kind: "int", extractionKey: "registeredSeats", sensitive: false, required: false },
   plateNumber: { group: "PRIVATE", kind: "plate", extractionKey: "plateNumber", sensitive: true, required: true },
   plateType: { group: "PRIVATE", kind: "text", extractionKey: "plateType", sensitive: false, required: false },
   vin: { group: "PRIVATE", kind: "vin", extractionKey: "vin", sensitive: true, required: true },

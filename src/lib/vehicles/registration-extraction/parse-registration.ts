@@ -23,14 +23,20 @@ import {
 } from "./types";
 import { matchLine } from "./labels";
 import { cleanValue, normalizePlate, parseYear, parsePositiveInt, parseMeasure, normalizeVin, parseIsoDate } from "./normalize";
+import { splitVehicleDescription, isYearLike } from "./vehicle-description";
 
-type FieldKind = "text" | "plate" | "year" | "measure" | "int" | "vin" | "date";
+// "name" = a make / model NAME: text that is never allowed to be a bare year (the Omani label
+// "الموديل" usually holds the model YEAR; the shared router below moves such values to
+// manufactureYear before the field is built, and anything year-like that still arrives here is
+// refused rather than stored as a name).
+type FieldKind = "text" | "name" | "plate" | "year" | "measure" | "int" | "vin" | "date";
 
 const FIELD_KIND: Record<RegistrationFieldKey, FieldKind> = {
   plateNumber: "plate",
   plateType: "text",
-  makeDescription: "text",
-  model: "text",
+  makeDescription: "name",
+  model: "name",
+  vehicleDescription: "text",
   color: "text",
   usageClassification: "text",
   manufactureYear: "year",
@@ -39,6 +45,7 @@ const FIELD_KIND: Record<RegistrationFieldKey, FieldKind> = {
   maximumLoad: "measure",
   axleCount: "int",
   licensedPassengerCapacity: "int",
+  registeredSeats: "int",
   vin: "vin",
   engineNumber: "text",
   licenseValidFrom: "date",
@@ -55,6 +62,13 @@ function normalizeOne(kind: FieldKind, raw: string, maxYear: number): NormOutcom
     case "text": {
       const v = cleanValue(raw);
       return v.length > 0 ? { value: v, confidence: "HIGH", warnings: [] } : { value: null, confidence: "LOW", warnings: ["UNPARSEABLE"] };
+    }
+    case "name": {
+      const v = cleanValue(raw);
+      if (v.length === 0) return { value: null, confidence: "LOW", warnings: ["UNPARSEABLE"] };
+      // A year is never a manufacturer or a commercial model name — unresolved, never stored.
+      if (isYearLike(v)) return { value: null, confidence: "LOW", warnings: ["YEAR_NOT_NAME"] };
+      return { value: v, confidence: "HIGH", warnings: [] };
     }
     case "plate": {
       const v = normalizePlate(raw);
@@ -125,23 +139,80 @@ function buildField(kind: FieldKind, candidates: RegistrationCandidate[], maxYea
 }
 
 /**
+ * OMAN TERMINOLOGY ROUTING — shared by BOTH tiers (native PDF text and OCR), applied to the raw
+ * candidates BEFORE any field is built, so neither source can bypass it:
+ *   • a 4-digit year reported under the model label ("الموديل" / "model") is the MODEL YEAR →
+ *     it becomes a `manufactureYear` candidate (de-duplicated) and leaves `model`;
+ *   • a year reported as the make is dropped (a make is never a year).
+ * Returns the routed candidates and the document-level codes explaining what moved.
+ */
+export function routeRegistrationCandidates(candidates: RegistrationCandidates): { candidates: RegistrationCandidates; warnings: string[] } {
+  const out: RegistrationCandidates = { ...candidates };
+  const warnings: string[] = [];
+  const years = [...(out.manufactureYear ?? [])];
+  const modelNames: RegistrationCandidate[] = [];
+  for (const c of out.model ?? []) {
+    if (isYearLike(c.text)) {
+      if (!years.some((y) => cleanValue(y.text) === cleanValue(c.text))) years.push(c);
+      if (!warnings.includes("MODEL_LABEL_HELD_YEAR")) warnings.push("MODEL_LABEL_HELD_YEAR");
+    } else modelNames.push(c);
+  }
+  if ((out.model ?? []).length !== modelNames.length) out.model = modelNames;
+  if (years.length !== (out.manufactureYear ?? []).length) out.manufactureYear = years;
+  const makes = (out.makeDescription ?? []).filter((c) => !isYearLike(c.text));
+  if (makes.length !== (out.makeDescription ?? []).length) {
+    out.makeDescription = makes;
+    warnings.push("MAKE_LABEL_HELD_YEAR");
+  }
+  for (const k of ["model", "manufactureYear", "makeDescription"] as const) if (out[k] && out[k]!.length === 0) delete out[k];
+  return { candidates: out, warnings };
+}
+
+const unresolved = (f: VehicleRegistrationField<string | number>) => f.normalizedValue === null && !f.warnings.includes("CONFLICT");
+
+/**
  * Turn detected text per field into the allowlisted, validated result. The SAME normalizers and
  * rules apply whatever produced the text (native PDF text or OCR): a value that does not validate
  * is unresolved (null), two different values for one field are a CONFLICT, and nothing is inferred
  * for a field with no candidate. `now` bounds the manufacture-year ceiling (injectable for tests).
+ *
+ * After the fields are built, the COMPOUND DESCRIPTION rule runs (shared by both tiers): when the
+ * document printed a description ("نوع المركبة") and the manufacturer / model were not printed as
+ * their own values, a conservative, dictionary-based split may SUGGEST them — always LOW
+ * confidence with "HEURISTIC_SPLIT" (so they are flagged for review and can never be EXTRACTED
+ * silently). When the manufacturer is not recognized, nothing is split: the fields stay unresolved
+ * and the whole description is kept privately for the provider to read.
  */
 export function buildRegistrationExtraction(
-  candidates: RegistrationCandidates,
+  rawCandidates: RegistrationCandidates,
   options: { source: RegistrationExtractionSource; now?: Date; piiSeen?: boolean },
 ): VehicleRegistrationExtractionResult {
   const maxYear = (options.now ?? new Date()).getUTCFullYear() + 1;
+  const routed = routeRegistrationCandidates(rawCandidates);
+  const candidates = routed.candidates;
 
   const fields = Object.fromEntries(
     REGISTRATION_FIELD_KEYS.map((k) => [k, buildField(FIELD_KIND[k], candidates[k] ?? [], maxYear, options.source)]),
   ) as unknown as VehicleRegistrationFields;
 
-  const warnings: string[] = [];
+  const warnings: string[] = [...routed.warnings];
   if (options.piiSeen) warnings.push("DISCARDED_PII_LABELS_PRESENT");
+
+  const description = fields.vehicleDescription.normalizedValue;
+  if (typeof description === "string" && (unresolved(fields.makeDescription) || unresolved(fields.model))) {
+    const split = splitVehicleDescription(description);
+    if (!split) {
+      warnings.push("DESCRIPTION_NOT_SPLIT");
+    } else {
+      if (unresolved(fields.makeDescription)) {
+        fields.makeDescription = { rawValue: description, normalizedValue: split.make, confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] };
+      }
+      if (unresolved(fields.model) && split.model !== null) {
+        fields.model = { rawValue: description, normalizedValue: split.model, confidence: "LOW", warnings: ["HEURISTIC_SPLIT"] };
+      }
+      if (unresolved(fields.model) && split.model === null) warnings.push("DESCRIPTION_HAS_NO_MODEL");
+    }
+  }
 
   const anySupported = REGISTRATION_FIELD_KEYS.some((k) => fields[k].rawValue !== null);
   let overallStatus: VehicleRegistrationExtractionResult["overallStatus"];

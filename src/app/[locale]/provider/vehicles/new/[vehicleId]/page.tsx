@@ -10,7 +10,6 @@ import { Alert } from "@/components/ui/alert";
 import type { Locale } from "@/i18n/locales";
 import { getRegistrationReview, type RegistrationReviewPageView } from "@/lib/vehicles/registration-review/get-registration-review";
 import { resolveVehicleCreateAccess } from "@/lib/vehicles/onboarding/vehicle-create-access";
-import { suggestVehicleType } from "@/lib/vehicles/onboarding/vehicle-type-suggestion";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
 import { isRegistrationOcrOperational } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
@@ -149,12 +148,9 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
         ? "vehicleOnboardOcrNotice"
         : null;
 
-  // Confident type suggestion from the extracted make/model/usage text (always overridable).
-  const hintText = review.fields
-    .filter((f) => f.key === "make" || f.key === "model" || f.key === "usageClassification")
-    .map((f) => (f.extractedValue === null ? "" : String(f.extractedValue)))
-    .join(" ");
-  const suggestedVehicleType = suggestVehicleType(hintText);
+  // The body-style suggestion and the printed description come from the read model; the form only
+  // OFFERS the suggestion — the provider chooses the type explicitly.
+  const suggestedVehicleType = review.vehicleTypeSuggestion;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-40 pt-6 sm:px-6 sm:pt-8">
@@ -232,6 +228,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
           fields={review.fields as FieldView[]}
           vehicleTypeOptions={vehicleTypeOptions(locale)}
           suggestedVehicleType={suggestedVehicleType}
+          documentDescription={review.documentDescription}
           noticeKey={noticeKey}
           noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
         />

@@ -5,7 +5,7 @@
 /** Bumped whenever the parser's field/normalization/confidence rules change. Persisted
  *  on each extraction record so a re-run under the SAME version is idempotent and a
  *  later version can be re-processed deliberately. */
-export const REGISTRATION_PARSER_VERSION = "1.0.0";
+export const REGISTRATION_PARSER_VERSION = "1.1.0"; // 1.1.0 (2026-10-09): Oman field-mapping contract — model-year routing, compound description, explicit seats
 
 /** The only document layout this engine understands. */
 export const REGISTRATION_DOCUMENT_KIND = "OMAN_VEHICLE_REGISTRATION" as const;

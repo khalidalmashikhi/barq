@@ -70,3 +70,29 @@ describe("parseConfirmation — DRAFT", () => {
     if (!r.ok) expect(r.errors.some((e) => e.field === "modelYear")).toBe(true);
   });
 });
+
+describe("parseConfirmation — capacity semantics (Oman field-mapping correction)", () => {
+  it("registered seats are OPTIONAL: a complete claim without them submits; the passenger chain still holds", () => {
+    const r = parseConfirmation({ ...FULL, registeredSeats: "" }, "SUBMIT");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.values.registeredSeats).toBeNull();
+  });
+  it("bookable passengers can never exceed the licensed passengers, with or without registered seats", () => {
+    const r = parseConfirmation({ ...FULL, registeredSeats: "", bookablePassengerCapacity: "14", licensedPassengerCapacity: "13" }, "SUBMIT");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors).toContainEqual({ field: "capacity", code: "BOOKABLE_EXCEEDS_LICENSED" });
+  });
+  it("when registered seats ARE printed they still bound the licensed and bookable counts", () => {
+    const r = parseConfirmation({ ...FULL, registeredSeats: "12", licensedPassengerCapacity: "13", bookablePassengerCapacity: "10" }, "SUBMIT");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors).toContainEqual({ field: "capacity", code: "LICENSED_EXCEEDS_REGISTERED" });
+  });
+  it("bookable passengers are REQUIRED and provider-entered — never defaulted from the licensed count", () => {
+    const r = parseConfirmation({ ...FULL, bookablePassengerCapacity: "" }, "SUBMIT");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors).toContainEqual({ field: "bookablePassengerCapacity", code: "REQUIRED" });
+  });
+  it("a year typed as the model is accepted as text by the input layer only if the provider typed it — the suggestion layer never proposes one (proven in registration-field-mapping.test.ts)", () => {
+    expect(parseConfirmation({ ...FULL, model: "Prado" }, "SUBMIT").ok).toBe(true);
+  });
+});

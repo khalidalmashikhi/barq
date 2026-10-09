@@ -18,6 +18,7 @@ import { deriveReviewState, isConfirmationStale, type ReviewState } from "./revi
 import { getRegistrationOcrPolicy } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { classifyOcrConsent, type OcrConsentState } from "@/lib/vehicles/registration-extraction/ocr/ocr-consent";
 import { REGISTRATION_SET_TYPES, roleOfRegistrationType, type RegistrationPageRole } from "@/lib/vehicles/registration-extraction/registration-document-set";
+import { suggestVehicleType } from "@/lib/vehicles/onboarding/vehicle-type-suggestion";
 
 // Phase 3C Slice 3A — the owner-scoped PRIVATE read model for the provider registration review.
 // requireApprovedProvider + a providerId-scoped asset query: a foreign/missing/invalid vehicle
@@ -52,6 +53,9 @@ export type RegistrationReviewFieldView = {
    *  order, for the provider to pick from or overrule. Private — never public. */
   conflict: boolean;
   alternatives: (string | number)[];
+  /** The suggestion was DERIVED from the document's compound description (dictionary split) —
+   *  always LOW confidence and flagged; the provider must confirm or correct it. */
+  heuristic: boolean;
 };
 
 /** The provider's standing decision about EXTERNAL automatic reading of THIS document set, and
@@ -89,6 +93,13 @@ export type RegistrationReviewView = {
   setKind: RegistrationDocumentSetKind | null;
   /** How the current suggestions were produced (null when there are none). */
   extractionSource: "NATIVE_PDF_TEXT" | "OCR" | null;
+  /** The compound vehicle description exactly as printed (private; shown so the provider can
+   *  check make / model / type against it). Null when the document printed none. */
+  documentDescription: string | null;
+  /** A body-style SUGGESTION for the vehicle type derived from the description / make / model /
+   *  usage text — never pre-selected: the provider must choose explicitly. Null when nothing is
+   *  recognizable. */
+  vehicleTypeSuggestion: string | null;
   /** Consent status for external reading of the current set (null = not available here). */
   ocrConsent: RegistrationOcrConsentView | null;
   reviewState: ReviewState;
@@ -105,7 +116,7 @@ const CONFIRMATION_COLUMN_SELECT = {
   maximumLoad: true, axleCount: true, licenseValidFrom: true, licenseExpiry: true, firstRegistrationDate: true,
 } as const;
 
-const NO_SUGGESTIONS: ExtractedSuggestions = { values: {}, confidence: {}, warnings: {}, alternatives: {} };
+const NO_SUGGESTIONS: ExtractedSuggestions = { values: {}, confidence: {}, warnings: {}, alternatives: {}, documentDescription: null };
 
 export async function getRegistrationReview(vehicleId: string): Promise<RegistrationReviewView | null> {
   if (!isValidUuid(vehicleId)) return null;
@@ -193,6 +204,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     const warnings = extracted.warnings[key] ?? [];
     const conflict = hasSuggestions && warnings.includes("CONFLICT");
     const alternatives = conflict ? (extracted.alternatives[key] ?? []) : [];
+    const heuristic = hasSuggestions && extractedValue !== null && warnings.includes("HEURISTIC_SPLIT");
     // The value the form starts with is the provider's own once they have entered or corrected it;
     // otherwise it is the document-derived suggestion; otherwise nothing.
     const providerOwned = confirmedValue !== null && (decision === null || !decision.matches || decision.source !== "EXTRACTED");
@@ -202,7 +214,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
         ? false
         : source === "UNRESOLVED"
           ? spec.required || conflict // a conflict is unresolved by design and must be looked at
-          : confidence !== "HIGH" || conflict || warnings.includes("OCR_UNCLEAR");
+          : confidence !== "HIGH" || conflict || heuristic || warnings.includes("OCR_UNCLEAR");
     return {
       key,
       group: spec.group,
@@ -217,8 +229,19 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
       needsReview,
       conflict,
       alternatives,
+      heuristic,
     };
   });
+
+  // The body-style HINT for the vehicle type: from the printed description first (it usually
+  // carries "station" / "pickup" / "bus"), then the make / model / usage suggestions. Only a
+  // suggestion — the form never pre-selects it.
+  const documentDescription = hasSuggestions ? extracted.documentDescription : null;
+  const typeHint = [documentDescription, extracted.values.make, extracted.values.model, extracted.values.usageClassification]
+    .filter((v): v is string | number => v !== null && v !== undefined)
+    .map(String)
+    .join(" ");
+  const vehicleTypeSuggestion = hasSuggestions ? suggestVehicleType(typeHint) : null;
 
   return {
     vehicleId: asset.id,
@@ -229,6 +252,8 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     pages,
     setKind,
     extractionSource,
+    documentDescription,
+    vehicleTypeSuggestion,
     ocrConsent,
     reviewState,
     lastAttemptedAt: extraction?.lastAttemptedAt ?? null,

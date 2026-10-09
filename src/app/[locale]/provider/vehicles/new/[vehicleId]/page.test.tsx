@@ -80,6 +80,8 @@ const review = (over: Record<string, unknown> = {}) => withPages({
   documentFilename: "reg.pdf",
   documentMimeType: "application/pdf",
   extractionSource: "NATIVE_PDF_TEXT",
+  documentDescription: null,
+  vehicleTypeSuggestion: "FOUR_BY_FOUR",
   ocrConsent: null,
   reviewState: { extraction: "EXTRACTED", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null },
   lastAttemptedAt: null,
@@ -107,7 +109,7 @@ describe("OnboardingReviewPage", () => {
 
   it("image / scanned PDF (extraction FAILED) → honest MANUAL review: no suggestion is invented", async () => {
     getRegistrationReviewMock.mockResolvedValue(
-      review({ extractionSource: null, reviewState: { extraction: "FAILED", confirmation: "NONE", canAnalyze: true, canConfirm: true, locked: false, failureLabelKey: "vehicleRegFailNoText" }, fields: [field("make", null), field("model", null)] }),
+      review({ extractionSource: null, vehicleTypeSuggestion: null, reviewState: { extraction: "FAILED", confirmation: "NONE", canAnalyze: true, canConfirm: true, locked: false, failureLabelKey: "vehicleRegFailNoText" }, fields: [field("make", null), field("model", null)] }),
     );
     const el = await OnboardingReviewPage(call());
     const form = findAll(el, (e) => e.type === OnboardingReviewForm)[0]!;
@@ -323,5 +325,21 @@ describe("OnboardingReviewPage — the registration document SET", () => {
     getRegistrationReviewMock.mockResolvedValue(review({ documentMimeType: "image/jpeg", pages: twoPages, setKind: "IMAGES", extractionSource: "OCR", reviewState: { extraction: "NEEDS_REVIEW", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null }, fields: [conflicting] }));
     const form = findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)[0]!;
     expect((form.props.fields as unknown[])[0]).toMatchObject({ key: "modelYear", extractedValue: null, conflict: true, alternatives: [2019, 2020], needsReview: true });
+  });
+});
+
+describe("OnboardingReviewPage — Oman field-mapping correction", () => {
+  it("passes the printed description and the body-style SUGGESTION to the form as data only — the page never selects a type", async () => {
+    getRegistrationReviewMock.mockResolvedValue(review({ documentDescription: "Brandname Station Modelname", vehicleTypeSuggestion: "SUV" }));
+    const form = findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)[0]!;
+    expect(form.props).toMatchObject({ documentDescription: "Brandname Station Modelname", suggestedVehicleType: "SUV" });
+    expect(Object.keys(form.props)).not.toContain("vehicleType"); // no chosen type is ever handed in
+  });
+
+  it("a heuristic (derived) suggestion reaches the form flagged, so it is shown as 'confirm it' and counts as needing review", async () => {
+    const derived = { ...field("make", "Brandname"), heuristic: true, confidence: "LOW", needsReview: true };
+    getRegistrationReviewMock.mockResolvedValue(review({ fields: [derived] }));
+    const form = findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)[0]!;
+    expect((form.props.fields as unknown[])[0]).toMatchObject({ key: "make", heuristic: true, needsReview: true });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { REGISTRATION_PARSER_VERSION } from "./constants";
 import type { RegistrationDocumentReader, RegistrationReadInput, RegistrationReadResult } from "./ocr/registration-document-reader";
 
 // The OCR TIER of the extraction service against an in-memory stand-in for the extraction row
@@ -269,7 +270,7 @@ describe("ABUSE AND COST CONTROLS around the one external call", () => {
   });
 
   it("a pre-gate row (NULL call count) is treated as zero and may still be read", async () => {
-    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: "1.0.0", status: "FAILED", failureCode: "OCR_TIMEOUT", version: 2, attemptCount: 1, ocrCallCount: null, processingToken: null, processingExpiresAt: null, lastSucceededAt: null };
+    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: REGISTRATION_PARSER_VERSION, status: "FAILED", failureCode: "OCR_TIMEOUT", version: 2, attemptCount: 1, ocrCallCount: null, processingToken: null, processingExpiresAt: null, lastSucceededAt: null };
     expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW" });
     expect(row!.ocrCallCount).toBe(1);
   });
@@ -355,7 +356,7 @@ describe("one effective OCR call per document", () => {
   });
 
   it("a request arriving while one is IN FLIGHT does no work and reports PROCESSING", async () => {
-    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: "1.0.0", status: "PROCESSING", failureCode: null, version: 3, attemptCount: 1, processingToken: "someone-else", processingExpiresAt: new Date(Date.now() + 60_000) };
+    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: REGISTRATION_PARSER_VERSION, status: "PROCESSING", failureCode: null, version: 3, attemptCount: 1, processingToken: "someone-else", processingExpiresAt: new Date(Date.now() + 60_000) };
     expect(await run()).toEqual({ ok: true, extractionId: "ext-1", status: "PROCESSING", failureCode: null, idempotent: true });
     expect(read).not.toHaveBeenCalled();
     expect(ext.updateMany).not.toHaveBeenCalled();
@@ -370,7 +371,7 @@ describe("one effective OCR call per document", () => {
   });
 
   it("an attempt that DIED (expired lease) is taken over by the next request", async () => {
-    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: "1.0.0", status: "PROCESSING", failureCode: null, version: 3, attemptCount: 1, processingToken: "dead-attempt", processingExpiresAt: new Date(Date.now() - 1_000), lastSucceededAt: null };
+    row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: REGISTRATION_PARSER_VERSION, status: "PROCESSING", failureCode: null, version: 3, attemptCount: 1, processingToken: "dead-attempt", processingExpiresAt: new Date(Date.now() - 1_000), lastSucceededAt: null };
     expect(await run()).toMatchObject({ ok: true, status: "NEEDS_REVIEW", idempotent: false });
     expect(read).toHaveBeenCalledTimes(1);
     expect(row).toMatchObject({ status: "NEEDS_REVIEW", attemptCount: 2, processingToken: null });
@@ -379,7 +380,7 @@ describe("one effective OCR call per document", () => {
   it("losing the claim to a concurrent request → no call", async () => {
     ext.create.mockImplementationOnce(async () => {
       // another request created and claimed the row first
-      row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: "1.0.0", status: "PROCESSING", failureCode: null, version: 0, attemptCount: 1, processingToken: "winner", processingExpiresAt: new Date(Date.now() + 60_000) };
+      row = { id: "ext-1", assetDocumentId: "doc-1", documentSha256: SHA, parserVersion: REGISTRATION_PARSER_VERSION, status: "PROCESSING", failureCode: null, version: 0, attemptCount: 1, processingToken: "winner", processingExpiresAt: new Date(Date.now() + 60_000) };
       throw P2002();
     });
     expect(await run()).toMatchObject({ ok: true, status: "PROCESSING", idempotent: true });

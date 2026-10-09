@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { REGISTRATION_PARSER_VERSION } from "./constants";
 
 vi.mock("server-only", () => ({}));
 const auditMock = vi.fn();
@@ -12,10 +13,10 @@ vi.mock("@/lib/storage/storage", () => ({ isDocumentStorageConfigured: () => tru
 
 const { runVehicleRegistrationExtraction } = await import("./extract-registration-service");
 
-const REG_TEXT = ["رقم اللوحة: A 12345", "نوع المركبة: Toyota", "الموديل: Land Cruiser", "عدد الركاب: 7", "سنة الصنع: 2019", "رقم الهيكل: JTEBU29J8K5012345", "تاريخ الانتهاء: 31/05/2027"].join("\n");
+const REG_TEXT = ["رقم اللوحة: A 12345", "الماركة: Toyota", "الطراز: Land Cruiser", "عدد الركاب: 7", "سنة الصنع: 2019", "رقم الهيكل: JTEBU29J8K5012345", "تاريخ الانتهاء: 31/05/2027"].join("\n");
 const BYTES = new TextEncoder().encode("fake-pdf-bytes").buffer;
 const SHA = createHash("sha256").update(Buffer.from(BYTES)).digest("hex");
-const VERSION = "1.0.0";
+const VERSION = REGISTRATION_PARSER_VERSION;
 const goodDoc = { id: "doc-1", type: "VEHICLE_REGISTRATION", objectKey: "asset-documents/asset-1/reg/x.pdf", mimeType: "application/pdf", assetId: "asset-1", asset: { assetType: "VEHICLE", providerId: "prov-1" } };
 
 // Mocks shared across tests.
