@@ -12,6 +12,19 @@ import { formatIsoDateForDisplay, dateFieldSubmissionValue, DATE_INPUT_PLACEHOLD
 import { onboardingMessageKey, type OnboardingCode, type OnboardingFieldError } from "@/lib/vehicles/onboarding/onboarding-result";
 import type { VehicleTypeOption } from "@/lib/vehicles/vehicle-type-options";
 import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/onboarding/onboarding-request-key-store";
+import {
+  applySuggestion,
+  canApplySuggestion,
+  fieldStatus,
+  initialFieldValue,
+  restorableAppliedSuggestions,
+  suggestionText,
+  syncUntouchedValues,
+  reviewFieldsSignature,
+  encodeAppliedSuggestions,
+  decodeAppliedSuggestions,
+  type ReviewFieldStatus,
+} from "@/lib/vehicles/registration-review/review-field-state";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2/3 (review & confirm),
@@ -25,9 +38,15 @@ import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingActio
 //      fields still missing; a validation error opens it and scrolls to the field
 //   5. optional description   6. declaration + actions (sticky above the phone toolbar)
 //
-// The parser's suggestions PREFILL the inputs but are never silently accepted: every field carries
-// ONE compact metadata row (source · confidence · "check"), a value DERIVED from the document's
-// compound description is flagged as such, a field printed with two different values arrives
+// DIRECT document values PREFILL the inputs but are never silently accepted: every field carries
+// ONE compact metadata row (a truthful status · confidence · "check" — review-field-state.ts; a
+// blank field is never "entered by you"). A make / commercial model DERIVED from the document's
+// compound description (or filled by the automatic completion) is NOT pre-filled: it is shown as a
+// suggestion with a one-tap "Use <value>" that fills only that input locally — no save, no server
+// call, never the vehicle type — and never replaces what the provider typed (2026-10-11). Fields
+// the provider has not touched follow the server when the review re-renders with new data (e.g.
+// after "Read document again"); applied make/model suggestions survive a language switch through
+// the same per-vehicle session storage as the type choice. A field printed with two different values arrives
 // UNRESOLVED with its alternatives, dates are shown and typed as unambiguous DD/MM/YYYY in an LTR
 // isolate while the canonical ISO value is what gets submitted, and sensitive identifiers
 // (plate / VIN / engine) stay masked until revealed. The vehicle TYPE is never pre-selected: the
@@ -94,20 +113,31 @@ const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
 };
 
 const TYPE_STORAGE_PREFIX = "barq:vehicle-onboarding:type:";
+/** Make/model suggestions the provider APPLIED in this tab (same mechanism as the type choice). */
+const APPLIED_STORAGE_PREFIX = "barq:vehicle-onboarding:applied:";
 
-function initialValue(f: FieldView): string {
-  const v = f.confirmedValue ?? f.extractedValue;
-  if (v === null || v === undefined) return "";
-  // Dates are stored and submitted as ISO; the provider SEES and types day/month/year.
-  return f.kind === "date" ? formatIsoDateForDisplay(String(v)) : String(v);
-}
+// The status line of a field — truthful for its CURRENT value (review-field-state.ts). The SOURCE
+// state keeps the existing wording for an untouched starting value (document / OCR / own draft).
+const STATUS_LABEL_KEY: Record<Exclude<ReviewFieldStatus, "SOURCE">, string> = {
+  NOT_ENTERED: "vehicleRegStatusNotEntered",
+  SUGGESTED: "vehicleRegStatusSuggested",
+  APPLIED: "vehicleRegStatusApplied",
+  PROVIDER: "vehicleRegSourceProvider",
+};
 
 export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string, values?: Record<string, string | number>) => string; // dynamic field-label/confidence/result keys (parity-guaranteed)
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, initialValue(f)])));
+  // Dates are stored and submitted as ISO; the provider SEES and types day/month/year. A derived
+  // make/model suggestion is NOT pre-filled — it is applied with an explicit tap.
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, initialFieldValue(f)])));
+  // Which fields the provider has typed in / applied a suggestion to (local state only).
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [applied, setApplied] = useState<Record<string, boolean>>({});
+  const touchedRef = useRef(touched);
+  touchedRef.current = touched;
   // The TYPE starts UNCHOSEN. A previous explicit choice for this vehicle (reload / language
   // switch) is restored from the tab's session storage after mount — never from a suggestion.
   const [vehicleType, setVehicleTypeState] = useState<string>("");
@@ -135,6 +165,70 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     }
   }, [vehicleId, vehicleTypeOptions]);
 
+  // The review re-rendered with NEW server data (e.g. after "Read document again" or a saved draft):
+  // fields the provider has not touched follow the server; their own values are kept.
+  const fieldsSignature = useMemo(() => reviewFieldsSignature(fields), [fields]);
+  const fieldsRef = useRef(fields);
+  fieldsRef.current = fields;
+  const firstSync = useRef(true);
+  useEffect(() => {
+    if (firstSync.current) {
+      firstSync.current = false;
+      return;
+    }
+    setValues((prev) => syncUntouchedValues(prev, touchedRef.current, fieldsRef.current));
+  }, [fieldsSignature]);
+
+  // Restore suggestions the provider APPLIED earlier in this tab (language switch / reload) — only
+  // while they still equal the server's current suggestion. Nothing is called or submitted here.
+  useEffect(() => {
+    try {
+      const restored = restorableAppliedSuggestions(decodeAppliedSuggestions(window.sessionStorage.getItem(APPLIED_STORAGE_PREFIX + vehicleId)), fieldsRef.current);
+      const keys = Object.keys(restored);
+      if (keys.length === 0) return;
+      setValues((prev) => {
+        const next = { ...prev };
+        for (const k of keys) if ((prev[k] ?? "").trim() === "" && !touchedRef.current[k]) next[k] = restored[k]!;
+        return next;
+      });
+      setTouched((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, true])) }));
+      setApplied((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, true])) }));
+    } catch {
+      /* storage unavailable or unreadable — the provider simply applies again */
+    }
+  }, [vehicleId]);
+
+  const rememberApplied = (key: string, value: string | null) => {
+    try {
+      const current = decodeAppliedSuggestions(window.sessionStorage.getItem(APPLIED_STORAGE_PREFIX + vehicleId));
+      if (value === null) delete current[key];
+      else current[key] = value;
+      const encoded = encodeAppliedSuggestions(current);
+      if (encoded === null) window.sessionStorage.removeItem(APPLIED_STORAGE_PREFIX + vehicleId);
+      else window.sessionStorage.setItem(APPLIED_STORAGE_PREFIX + vehicleId, encoded);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /** The provider TYPED in a field: it is theirs from now on (never replaced by a suggestion). */
+  const typeInto = (key: string, value: string) => {
+    setValues((v) => ({ ...v, [key]: value }));
+    setTouched((t) => ({ ...t, [key]: true }));
+    setApplied((a) => ({ ...a, [key]: false }));
+    rememberApplied(key, null);
+  };
+
+  /** "Use <suggestion>": fills ONLY this field in local state — no save, no server call, no type. */
+  const applyFieldSuggestion = (f: FieldView) => {
+    const suggestion = suggestionText(f);
+    if (suggestion === null) return;
+    setValues((v) => applySuggestion(v, f));
+    setTouched((t) => ({ ...t, [f.key]: true }));
+    setApplied((a) => ({ ...a, [f.key]: true }));
+    rememberApplied(f.key, suggestion);
+  };
+
   const setVehicleType = (code: string) => {
     setVehicleTypeState(code);
     try {
@@ -147,6 +241,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const forgetStoredType = () => {
     try {
       window.sessionStorage.removeItem(TYPE_STORAGE_PREFIX + vehicleId);
+      window.sessionStorage.removeItem(APPLIED_STORAGE_PREFIX + vehicleId);
     } catch {
       /* ignore */
     }
@@ -236,11 +331,15 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     const isRevealed = revealed[f.key] === true;
     const isDate = f.kind === "date";
     const inputType = f.kind === "int" ? "number" : "text";
-    // Once the provider changes a value it is theirs: the "check this" flag and the document
-    // source label describe the STARTING value only.
-    const edited = (values[f.key] ?? "") !== initialValue(f);
-    const source = edited ? "PROVIDER" : f.source;
-    const flagged = f.needsReview && !edited;
+    // The status line is derived from the CURRENT value (review-field-state.ts): a blank value is
+    // never "entered by you"; once the provider types, the value is theirs.
+    const status = fieldStatus(f, values[f.key], applied[f.key] === true);
+    const edited = status === "PROVIDER";
+    const describesDocument = status === "SOURCE" || status === "SUGGESTED" || status === "APPLIED";
+    const statusLabel = status === "SOURCE" ? t(SOURCE_LABEL_KEY[f.source]) : td(STATUS_LABEL_KEY[status]);
+    const flagged = f.needsReview && (status === "SOURCE" || status === "SUGGESTED" || status === "NOT_ENTERED");
+    const suggestion = suggestionText(f);
+    const offerApply = canApplySuggestion(f, values[f.key]);
     const extractedDisplay =
       f.extractedValue === null ? null : f.sensitive && !isRevealed ? maskSensitiveValue(String(f.extractedValue)) : isDate ? formatIsoDateForDisplay(String(f.extractedValue)) : String(f.extractedValue);
     const hintKey = FIELD_HINT_KEY[f.key];
@@ -260,12 +359,31 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         </div>
         {/* ONE compact metadata row: source · confidence · check — never three separate lines. */}
         <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-foreground/50">
-          <span>{t(SOURCE_LABEL_KEY[source])}</span>
-          {!edited && f.confidence && f.extractedValue !== null && <span aria-label={td(confidenceKey(f.confidence))}>· {td(confidenceKey(f.confidence))}</span>}
+          <span data-field-status={status}>{statusLabel}</span>
+          {describesDocument && f.confidence && f.extractedValue !== null && <span aria-label={td(confidenceKey(f.confidence))}>· {td(confidenceKey(f.confidence))}</span>}
           {flagged && <span className={`${CHIP} bg-accent/20 text-accent-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
-          {f.heuristic && !edited && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegHeuristicBadge")}</span>}
-          {f.completedAutomatically && !edited && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegCompletedBadge")}</span>}
+          {f.heuristic && describesDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegHeuristicBadge")}</span>}
+          {f.completedAutomatically && describesDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegCompletedBadge")}</span>}
         </p>
+        {offerApply && suggestion !== null && (
+          // A make/model SUGGESTION: shown beside a one-tap "Use <value>" that fills ONLY this input
+          // locally (no save, no server call, never the vehicle type). It disappears once the input
+          // holds anything, so it can never replace what the provider typed.
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
+            <span className="min-w-0 text-xs text-foreground/70">
+              {t("vehicleRegExtractedPrefix")}: <bdi className="font-medium text-foreground">{suggestion}</bdi>
+            </span>
+            <button
+              type="button"
+              onClick={() => applyFieldSuggestion(f)}
+              disabled={pending}
+              aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion })}
+              className="inline-flex min-h-11 max-w-full items-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+            >
+              <span className="truncate">{td("vehicleRegUseSuggestion", { value: suggestion })}</span>
+            </button>
+          </div>
+        )}
         {hintKey && <p className="text-xs text-foreground/60">{td(hintKey)}</p>}
         {isDate && <p className="text-xs text-foreground/60">{t("vehicleRegDateFormatHint")}</p>}
         {f.conflict && (f.alternatives?.length ?? 0) > 0 && !edited && (
@@ -280,7 +398,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
                 <button
                   key={`${f.key}-alt-${i}`}
                   type="button"
-                  onClick={() => setValues((v) => ({ ...v, [f.key]: isDate ? formatIsoDateForDisplay(String(alt)) : String(alt) }))}
+                  onClick={() => typeInto(f.key, isDate ? formatIsoDateForDisplay(String(alt)) : String(alt))}
                   disabled={pending}
                   className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
                 >
@@ -291,8 +409,9 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </div>
           </div>
         )}
-        {/* The original suggestion stays visible only once the provider has changed the value. */}
-        {edited && extractedDisplay !== null && (
+        {/* The document value stays visible once the provider has typed something else (or cleared a
+            field that has no one-tap action). */}
+        {(edited || (status === "SUGGESTED" && !offerApply)) && extractedDisplay !== null && (
           <p className="text-xs text-foreground/50">
             {t("vehicleRegExtractedPrefix")}: <bdi dir={isDate ? "ltr" : undefined} className="text-foreground/70">{extractedDisplay}</bdi>
           </p>
@@ -313,7 +432,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               dir={isDate ? "ltr" : undefined}
               placeholder={isDate ? DATE_INPUT_PLACEHOLDER : undefined}
               value={values[f.key] ?? ""}
-              onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+              onChange={(e) => typeInto(f.key, e.target.value)}
               disabled={pending}
               aria-invalid={err ? true : undefined}
               className={`${INPUT_CLASS} ${isDate ? "[unicode-bidi:isolate] text-start" : ""}`}

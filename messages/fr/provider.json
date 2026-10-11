@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "Votre choix est nécessaire avant que la lecture puisse être complétée automatiquement.",
   "vehicleRegRecoveryStaleError": "Une lecture plus récente de ce document est disponible. Choisissez d’abord « Relire le document ».",
   "vehicleRegCompletionFailed": "La lecture automatique n’a pas pu être complétée. Les informations déjà lues ont été conservées et vous pouvez remplir vous-même les champs restants.",
-  "vehicleRegCompletionNotAvailable": "La finalisation de la lecture automatique n’est pas disponible pour ce document. Vous pouvez remplir vous-même les champs restants."
+  "vehicleRegCompletionNotAvailable": "La finalisation de la lecture automatique n’est pas disponible pour ce document. Vous pouvez remplir vous-même les champs restants.",
+  "vehicleRegStatusNotEntered": "Non saisi",
+  "vehicleRegStatusSuggested": "Suggestion du document — non confirmée",
+  "vehicleRegStatusApplied": "Suggestion du document sélectionnée",
+  "vehicleRegUseSuggestion": "Utiliser {value}",
+  "vehicleRegUseSuggestionAria": "Utiliser la suggestion pour {field} : {value}"
 }

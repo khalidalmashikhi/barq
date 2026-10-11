@@ -29,23 +29,32 @@ describe("review form — sources and 'check this'", () => {
     expect(FORM).toMatch(/OCR: "vehicleRegSourceOcr"/);
     expect(FORM).toMatch(/PROVIDER: "vehicleRegSourceProvider"/);
     expect(FORM).toMatch(/UNRESOLVED: "vehicleRegSourceUnresolved"/);
-    expect(FORM).toMatch(/t\(SOURCE_LABEL_KEY\[source\]\)/);
+    // 2026-10-11: the status line is TRUTHFUL for the current value (review-field-state.ts): the
+    // untouched starting value keeps its source wording; blank / suggested / applied / typed each
+    // have their own words.
+    expect(FORM).toMatch(/const status = fieldStatus\(f, values\[f\.key\], applied\[f\.key\] === true\);/);
+    expect(FORM).toMatch(/const statusLabel = status === "SOURCE" \? t\(SOURCE_LABEL_KEY\[f\.source\]\) : td\(STATUS_LABEL_KEY\[status\]\);/);
+    expect(FORM).toMatch(/NOT_ENTERED: "vehicleRegStatusNotEntered"/);
+    expect(FORM).toMatch(/SUGGESTED: "vehicleRegStatusSuggested"/);
+    expect(FORM).toMatch(/APPLIED: "vehicleRegStatusApplied"/);
+    expect(FORM).toMatch(/PROVIDER: "vehicleRegSourceProvider"/);
   });
 
   it("once the provider changes a value it is THEIRS: the source becomes 'entered by you' and the flag is cleared", () => {
-    expect(FORM).toMatch(/const edited = \(values\[f\.key\] \?\? ""\) !== initialValue\(f\);/);
-    expect(FORM).toMatch(/const source = edited \? "PROVIDER" : f\.source;/);
-    expect(FORM).toMatch(/const flagged = f\.needsReview && !edited;/);
+    expect(FORM).toMatch(/const edited = status === "PROVIDER";/);
+    expect(FORM).toMatch(/const flagged = f\.needsReview && \(status === "SOURCE" \|\| status === "SUGGESTED" \|\| status === "NOT_ENTERED"\);/);
+    // typing (or picking a conflict value) marks the field as the provider's — never re-filled by a suggestion
+    expect(FORM).toMatch(/onChange=\{\(e\) => typeInto\(f\.key, e\.target\.value\)\}/);
   });
 
   it("ONE compact metadata row per field (source · confidence · check · derived) — not three separate lines", () => {
     const row = /<p className="flex flex-wrap items-center gap-1\.5 text-\[11px\] text-foreground\/50">[\s\S]*?<\/p>/.exec(FORM)![0];
-    expect(row).toContain("t(SOURCE_LABEL_KEY[source])");
+    expect(row).toContain("{statusLabel}");
     expect(row).toContain("confidenceKey(f.confidence)");
     expect(row).toContain('t("vehicleOnboardNeedsReviewBadge")');
     expect(row).toContain('t("vehicleRegHeuristicBadge")');
-    // The original suggestion is repeated only once the provider has changed the value.
-    expect(FORM).toMatch(/\{edited && extractedDisplay !== null && \(/);
+    // The document value is repeated once the provider typed something else (or cleared a field with no one-tap action).
+    expect(FORM).toMatch(/\{\(edited \|\| \(status === "SUGGESTED" && !offerApply\)\) && extractedDisplay !== null && \(/);
   });
 
   it("a notice (manual entry / failure reason / OCR caution) is shown above the fields, and flagged fields are explained", () => {
@@ -135,7 +144,7 @@ describe("review form — the vehicle TYPE is an explicit provider decision (3)"
 
 describe("review form — dates (6)", () => {
   it("dates are displayed and typed as DD/MM/YYYY (Western digits) in an LTR isolate; the canonical ISO is what is submitted", () => {
-    expect(FORM).toMatch(/return f\.kind === "date" \? formatIsoDateForDisplay\(String\(v\)\) : String\(v\);/);
+    expect(FORM).toMatch(/initialFieldValue\(f\)/); // the shared starting-value rule formats dates as DD/MM/YYYY (review-field-state.ts)
     expect(FORM).toMatch(/kindOf\[k\] === "date" \? dateFieldSubmissionValue\(v\) : v/);
     expect(FORM).toMatch(/dir=\{isDate \? "ltr" : undefined\}/);
     expect(FORM).toMatch(/placeholder=\{isDate \? DATE_INPUT_PLACEHOLDER : undefined\}/);
@@ -191,9 +200,9 @@ describe("review form — phone layout (7, 19, 20)", () => {
 describe("review form — a field the document showed with TWO different values (front vs back, page 1 vs page 2)", () => {
   it("is offered as a choice: nothing is picked for the provider, one tap fills the input, typing still overrules", () => {
     expect(FORM).toMatch(/f\.conflict && \(f\.alternatives\?\.length \?\? 0\) > 0 && !edited/);
-    expect(FORM).toMatch(/onClick=\{\(\) => setValues\(\(v\) => \(\{ \.\.\.v, \[f\.key\]: isDate \? formatIsoDateForDisplay\(String\(alt\)\) : String\(alt\) \}\)\)\}/);
+    expect(FORM).toMatch(/onClick=\{\(\) => typeInto\(f\.key, isDate \? formatIsoDateForDisplay\(String\(alt\)\) : String\(alt\)\)\}/);
     expect(FORM).toMatch(/t\("vehicleRegConflictChoose"\)/);
-    expect(FORM).toMatch(/const v = f\.confirmedValue \?\? f\.extractedValue;/);
+    expect(FORM).toMatch(/useState<Record<string, string>>\(\(\) => Object\.fromEntries\(fields\.map\(\(f\) => \[f\.key, initialFieldValue\(f\)\]\)\)\)/);
     expect(FORM).not.toMatch(/alternatives\?\.\[0\]|alternatives!\[0\]|alternatives\[0\]/);
   });
 
@@ -277,5 +286,83 @@ describe("OCR review copy — complete and honest in all 8 languages", () => {
     expect(ar.vehicleOnboardLicensedHint).toContain("عدد الركاب");
     expect(ar.vehicleOnboardRegisteredSeatsHint).toContain("المقاعد");
     expect(JSON.stringify(ar)).not.toContain("بارق");
+  });
+});
+
+// ── 2026-10-11 — applying a make / model suggestion (review UX correction) ─────────────────────────
+describe("review form — make / model suggestions are applied explicitly, one field at a time", () => {
+  const button = /<button\s+type="button"\s+onClick=\{\(\) => applyFieldSuggestion\(f\)\}[\s\S]*?<\/button>/.exec(FORM)?.[0] ?? "";
+  const handler = /const applyFieldSuggestion = \(f: FieldView\) => \{[\s\S]*?\n  \};/.exec(FORM)?.[0] ?? "";
+
+  it("26. the action is a real button with type=button, a field+value accessible name, a 44px touch target and a visible focus ring", () => {
+    expect(button).not.toBe("");
+    expect(button).toContain('aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion })}');
+    expect(button).toContain('td("vehicleRegUseSuggestion", { value: suggestion })');
+    expect(button).toMatch(/min-h-11/);
+    expect(button).toMatch(/focus-visible:ring-2/);
+    expect(button).toMatch(/max-w-full/); // long values truncate inside the button — no horizontal overflow
+  });
+
+  it("1/2/11/12. it is offered only while the input is blank and a suggestion exists (canApplySuggestion), so typed text is never replaced", () => {
+    expect(FORM).toMatch(/const offerApply = canApplySuggestion\(f, values\[f\.key\]\);/);
+    expect(FORM).toMatch(/\{offerApply && suggestion !== null && \(/);
+  });
+
+  it("3–10. the handler only updates LOCAL state for that one field — no server action, no fetch, no save, no vehicle type, no other field", () => {
+    expect(handler).not.toBe("");
+    expect(handler).toMatch(/setValues\(\(v\) => applySuggestion\(v, f\)\)/);
+    expect(handler).not.toMatch(/Action\(|fetch\(|startTransition|setVehicleType|setDeclaration|router\./);
+    expect(handler).toMatch(/rememberApplied\(f\.key, suggestion\)/); // tab-scoped memory only
+  });
+
+  it("a derived make / model is NOT pre-filled; untouched fields follow new server data on an in-place refresh", () => {
+    expect(FORM).toMatch(/initialFieldValue\(f\)/);
+    expect(FORM).toMatch(/setValues\(\(prev\) => syncUntouchedValues\(prev, touchedRef\.current, fieldsRef\.current\)\)/);
+    expect(FORM).toMatch(/useMemo\(\(\) => reviewFieldsSignature\(fields\), \[fields\]\)/);
+  });
+
+  it("23. applied suggestions survive a language switch through the established per-vehicle session storage, and are forgotten on create / cancel", () => {
+    expect(FORM).toMatch(/const APPLIED_STORAGE_PREFIX = "barq:vehicle-onboarding:applied:";/);
+    expect(FORM).toMatch(/restorableAppliedSuggestions\(decodeAppliedSuggestions\(window\.sessionStorage\.getItem\(APPLIED_STORAGE_PREFIX \+ vehicleId\)\), fieldsRef\.current\)/);
+    expect(FORM).toMatch(/window\.sessionStorage\.removeItem\(APPLIED_STORAGE_PREFIX \+ vehicleId\);/);
+  });
+
+  it("19/21. applied values travel in the SAME submit payload; Create still needs the local validator, an explicitly chosen type and the declaration", () => {
+    expect(FORM).toMatch(/const payload = \(\) => \(\{ \.\.\.submissionValues\(\), vehicleType, claimedFourByFour, publicDescription, declarationAccepted: declaration \}\);/);
+    expect(FORM).toMatch(/const canSubmit = localCheck\.ok && vehicleType !== "" && declaration && !pending;/);
+    expect(FORM).toMatch(/const \[vehicleType, setVehicleTypeState\] = useState<string>\(""\);/);
+  });
+
+  it("24/25. the suggestion row wraps on narrow screens and isolates the value's direction (RTL and LTR)", () => {
+    expect(FORM).toMatch(/flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent\/40 bg-accent\/10 px-3 py-2/);
+    expect(FORM).toMatch(/<bdi className="font-medium text-foreground">\{suggestion\}<\/bdi>/);
+  });
+});
+
+describe("apply-suggestion and status copy — every language", () => {
+  const KEYS = ["vehicleRegStatusNotEntered", "vehicleRegStatusSuggested", "vehicleRegStatusApplied", "vehicleRegUseSuggestion", "vehicleRegUseSuggestionAria"];
+  it.each(LOCALES)("%s has every key; the action copy carries the {value} placeholder and the accessible name the {field} too", (l) => {
+    const m = messages(l);
+    for (const k of KEYS) expect(m[k]?.trim().length ?? 0, `${l}.${k}`).toBeGreaterThan(0);
+    expect(m.vehicleRegUseSuggestion).toContain("{value}");
+    expect(m.vehicleRegUseSuggestionAria).toContain("{value}");
+    expect(m.vehicleRegUseSuggestionAria).toContain("{field}");
+  });
+
+  it("Arabic and English use exactly the approved wording", () => {
+    const ar = messages("ar");
+    expect(ar.vehicleRegStatusNotEntered).toBe("لم يتم إدخاله");
+    expect(ar.vehicleRegStatusSuggested).toBe("اقتراح من المستند — لم يتم تأكيده");
+    expect(ar.vehicleRegSourceProvider).toBe("أدخلته أنت");
+    expect(ar.vehicleRegStatusApplied).toBe("اخترت اقتراح المستند");
+    expect(ar.vehicleRegUseSuggestion!.replace("{value}", "Mazda")).toBe("استخدام Mazda");
+    expect(ar.vehicleRegUseSuggestionAria!.replace("{field}", ar.vehicleRegFieldMake!).replace("{value}", "Mazda")).toBe("استخدام اقتراح الماركة Mazda");
+    expect(ar.vehicleRegUseSuggestionAria!.replace("{field}", ar.vehicleRegFieldModel!).replace("{value}", "6")).toBe("استخدام اقتراح الطراز 6");
+    const en = messages("en");
+    expect(en.vehicleRegStatusNotEntered).toBe("Not entered");
+    expect(en.vehicleRegStatusSuggested).toBe("Document suggestion — not confirmed");
+    expect(en.vehicleRegSourceProvider).toBe("Entered by you");
+    expect(en.vehicleRegStatusApplied).toBe("Document suggestion selected");
+    expect(en.vehicleRegUseSuggestion!.replace("{value}", "Mazda")).toBe("Use Mazda");
   });
 });

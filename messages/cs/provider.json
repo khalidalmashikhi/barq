@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "Před automatickým dokončením načtení je potřeba vaše rozhodnutí.",
   "vehicleRegRecoveryStaleError": "Pro tento doklad je k dispozici novější načtení. Nejprve zvolte „Načíst doklad znovu“.",
   "vehicleRegCompletionFailed": "Automatické načtení se nepodařilo dokončit. Již načtené údaje zůstaly zachovány a zbývající pole můžete vyplnit sami.",
-  "vehicleRegCompletionNotAvailable": "Dokončení automatického načtení není pro tento doklad k dispozici. Zbývající pole můžete vyplnit sami."
+  "vehicleRegCompletionNotAvailable": "Dokončení automatického načtení není pro tento doklad k dispozici. Zbývající pole můžete vyplnit sami.",
+  "vehicleRegStatusNotEntered": "Nezadáno",
+  "vehicleRegStatusSuggested": "Návrh z dokladu — nepotvrzeno",
+  "vehicleRegStatusApplied": "Vybrán návrh z dokladu",
+  "vehicleRegUseSuggestion": "Použít {value}",
+  "vehicleRegUseSuggestionAria": "Použít návrh pro {field}: {value}"
 }

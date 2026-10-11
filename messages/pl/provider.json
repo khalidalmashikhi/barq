@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "Przed automatycznym dokończeniem odczytu potrzebna jest Twoja decyzja.",
   "vehicleRegRecoveryStaleError": "Dostępny jest nowszy odczyt tego dokumentu. Najpierw wybierz „Odczytaj dokument ponownie”.",
   "vehicleRegCompletionFailed": "Nie udało się dokończyć odczytu automatycznego. Odczytane już dane zostały zachowane, a pozostałe pola możesz uzupełnić samodzielnie.",
-  "vehicleRegCompletionNotAvailable": "Dokończenie odczytu automatycznego nie jest dostępne dla tego dokumentu. Pozostałe pola możesz uzupełnić samodzielnie."
+  "vehicleRegCompletionNotAvailable": "Dokończenie odczytu automatycznego nie jest dostępne dla tego dokumentu. Pozostałe pola możesz uzupełnić samodzielnie.",
+  "vehicleRegStatusNotEntered": "Nie wpisano",
+  "vehicleRegStatusSuggested": "Propozycja z dokumentu — niepotwierdzona",
+  "vehicleRegStatusApplied": "Wybrano propozycję z dokumentu",
+  "vehicleRegUseSuggestion": "Użyj {value}",
+  "vehicleRegUseSuggestionAria": "Użyj propozycji pola {field}: {value}"
 }

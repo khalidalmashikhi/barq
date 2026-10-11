@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "Ihre Entscheidung ist erforderlich, bevor das Lesen automatisch vervollständigt werden kann.",
   "vehicleRegRecoveryStaleError": "Für dieses Dokument ist ein neueres Lesen verfügbar. Wählen Sie zuerst „Dokument erneut lesen“.",
   "vehicleRegCompletionFailed": "Das automatische Lesen konnte nicht vervollständigt werden. Die bereits gelesenen Angaben bleiben erhalten, und Sie können die übrigen Felder selbst ausfüllen.",
-  "vehicleRegCompletionNotAvailable": "Das Vervollständigen des automatischen Lesens ist für dieses Dokument nicht verfügbar. Sie können die übrigen Felder selbst ausfüllen."
+  "vehicleRegCompletionNotAvailable": "Das Vervollständigen des automatischen Lesens ist für dieses Dokument nicht verfügbar. Sie können die übrigen Felder selbst ausfüllen.",
+  "vehicleRegStatusNotEntered": "Nicht eingegeben",
+  "vehicleRegStatusSuggested": "Vorschlag aus dem Dokument — nicht bestätigt",
+  "vehicleRegStatusApplied": "Vorschlag aus dem Dokument übernommen",
+  "vehicleRegUseSuggestion": "{value} übernehmen",
+  "vehicleRegUseSuggestionAria": "Vorschlag für {field} übernehmen: {value}"
 }

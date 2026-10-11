@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "Your choice is needed before the reading can be completed automatically.",
   "vehicleRegRecoveryStaleError": "A newer reading of this document is available. Choose “Read document again” first.",
   "vehicleRegCompletionFailed": "The automatic reading could not be completed. The details already read were kept, and you can fill in the remaining fields yourself.",
-  "vehicleRegCompletionNotAvailable": "Completing the automatic reading is not available for this document. You can fill in the remaining fields yourself."
+  "vehicleRegCompletionNotAvailable": "Completing the automatic reading is not available for this document. You can fill in the remaining fields yourself.",
+  "vehicleRegStatusNotEntered": "Not entered",
+  "vehicleRegStatusSuggested": "Document suggestion — not confirmed",
+  "vehicleRegStatusApplied": "Document suggestion selected",
+  "vehicleRegUseSuggestion": "Use {value}",
+  "vehicleRegUseSuggestionAria": "Use the {field} suggestion {value}"
 }

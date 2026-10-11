@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "Перед автоматическим завершением чтения нужен ваш выбор.",
   "vehicleRegRecoveryStaleError": "Доступно более новое чтение этого документа. Сначала выберите «Прочитать документ заново».",
   "vehicleRegCompletionFailed": "Не удалось завершить автоматическое чтение. Уже прочитанные данные сохранены, оставшиеся поля можно заполнить самостоятельно.",
-  "vehicleRegCompletionNotAvailable": "Завершение автоматического чтения недоступно для этого документа. Оставшиеся поля можно заполнить самостоятельно."
+  "vehicleRegCompletionNotAvailable": "Завершение автоматического чтения недоступно для этого документа. Оставшиеся поля можно заполнить самостоятельно.",
+  "vehicleRegStatusNotEntered": "Не введено",
+  "vehicleRegStatusSuggested": "Предложение из документа — не подтверждено",
+  "vehicleRegStatusApplied": "Выбрано предложение из документа",
+  "vehicleRegUseSuggestion": "Использовать {value}",
+  "vehicleRegUseSuggestionAria": "Использовать предложение для поля {field}: {value}"
 }

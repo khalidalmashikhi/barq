@@ -953,5 +953,10 @@
   "vehicleRegCompletionConsentRequired": "يلزم اختيارك قبل إكمال القراءة التلقائية.",
   "vehicleRegRecoveryStaleError": "تتوفر قراءة أحدث لهذا المستند. اختر «إعادة قراءة المستند» أولاً.",
   "vehicleRegCompletionFailed": "تعذّر إكمال القراءة التلقائية. بقيت البيانات المقروءة كما هي، ويمكنك تعبئة الحقول المتبقية بنفسك.",
-  "vehicleRegCompletionNotAvailable": "إكمال القراءة التلقائية غير متاح لهذا المستند. يمكنك تعبئة الحقول المتبقية بنفسك."
+  "vehicleRegCompletionNotAvailable": "إكمال القراءة التلقائية غير متاح لهذا المستند. يمكنك تعبئة الحقول المتبقية بنفسك.",
+  "vehicleRegStatusNotEntered": "لم يتم إدخاله",
+  "vehicleRegStatusSuggested": "اقتراح من المستند — لم يتم تأكيده",
+  "vehicleRegStatusApplied": "اخترت اقتراح المستند",
+  "vehicleRegUseSuggestion": "استخدام {value}",
+  "vehicleRegUseSuggestionAria": "استخدام اقتراح {field} {value}"
 }
