@@ -24,7 +24,7 @@ beforeEach(() => {
 describe("consent actions", () => {
   it("grant passes GRANTED, the attestation and the SERVER-side language, and revalidates both review surfaces", async () => {
     expect(await grantOcrConsentAction(VEH, true)).toEqual({ ok: true, decision: "GRANTED", analysis: null });
-    expect(decide).toHaveBeenCalledWith(VEH, "GRANTED", { ownerAuthorizationConfirmed: true, locale: "ar" });
+    expect(decide).toHaveBeenCalledWith(VEH, "GRANTED", { ownerAuthorizationConfirmed: true, locale: "ar", then: "ANALYSIS" });
     expect(revalidatePath).toHaveBeenCalledWith("/[locale]/provider/vehicles/new/[vehicleId]", "page");
     expect(revalidatePath).toHaveBeenCalledWith("/[locale]/provider/vehicles/[id]", "page");
   });
@@ -37,7 +37,7 @@ describe("consent actions", () => {
   it("decline passes DECLINED with no attestation", async () => {
     decide.mockResolvedValue({ ok: true, decision: "DECLINED", analysis: null });
     expect(await declineOcrConsentAction(VEH)).toEqual({ ok: true, decision: "DECLINED", analysis: null });
-    expect(decide).toHaveBeenCalledWith(VEH, "DECLINED", { ownerAuthorizationConfirmed: false, locale: "ar" });
+    expect(decide).toHaveBeenCalledWith(VEH, "DECLINED", { ownerAuthorizationConfirmed: false, locale: "ar", then: "ANALYSIS" });
   });
 
   it("a failed decision is returned as-is and nothing is revalidated", async () => {

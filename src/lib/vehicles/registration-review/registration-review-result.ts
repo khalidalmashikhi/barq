@@ -17,6 +17,13 @@ export type RegistrationReviewCode =
   // OCR consent decisions (Phase 3C privacy gate)
   | "OCR_NOT_AVAILABLE"
   | "OWNER_AUTHORIZATION_REQUIRED"
+  // Recovery of a stale / incomplete reading (2026-10-09)
+  | "OCR_CONSENT_REQUIRED"
+  | "OCR_RATE_LIMITED"
+  | "OCR_ATTEMPT_LIMIT"
+  | "RESULT_STALE"
+  | "COMPLETION_FAILED"
+  | "COMPLETION_NOT_AVAILABLE"
   | "UNAUTHENTICATED"
   | "UNKNOWN_ERROR";
 
@@ -40,6 +47,12 @@ const MESSAGE_KEY: Record<RegistrationReviewCode, string> = {
   EXTRACTION_FAILED: "vehicleRegReviewErrExtraction",
   OCR_NOT_AVAILABLE: "vehicleRegOcrNotAvailable",
   OWNER_AUTHORIZATION_REQUIRED: "vehicleRegConsentOwnerRequired",
+  OCR_CONSENT_REQUIRED: "vehicleRegCompletionConsentRequired",
+  OCR_RATE_LIMITED: "vehicleRegExtractFailOcrRateLimited",
+  OCR_ATTEMPT_LIMIT: "vehicleRegExtractFailOcrAttemptLimit",
+  RESULT_STALE: "vehicleRegRecoveryStaleError",
+  COMPLETION_FAILED: "vehicleRegCompletionFailed",
+  COMPLETION_NOT_AVAILABLE: "vehicleRegCompletionNotAvailable",
   UNAUTHENTICATED: "vehicleRegReviewErrAuth",
   UNKNOWN_ERROR: "vehicleRegReviewErrUnknown",
 };

@@ -7,7 +7,7 @@ import { ScanLine, PencilLine, ShieldCheck, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib/vehicles/registration-review/registration-review-result";
-import { grantOcrConsentAction, declineOcrConsentAction } from "../consent-actions";
+import { grantOcrConsentAction, grantOcrConsentForCompletionAction, declineOcrConsentAction } from "../consent-actions";
 
 // Phase 3C (registration OCR privacy gate) — the STANDALONE processing-notice + choice step shown
 // after a photo/scan (or a PDF whose text could not be read locally) is uploaded and BEFORE any
@@ -44,6 +44,15 @@ type Props = {
   inferenceGeo: "us" | "global";
   /** What the stored set is — decides what the notice says is sent. */
   setKind: "PDF" | "IMAGE" | "IMAGES";
+  /**
+   * "read" (default): the regular choice for a photo/scan or an unreadable PDF.
+   * "complete" (2026-10-09): asked from the recovery banner to COMPLETE an incomplete local PDF
+   * reading — same notice, same attestation, same recorded consent; the grant then starts the
+   * completion instead of a full reading.
+   */
+  intent?: "read" | "complete";
+  /** "complete" intent only: the provider chose manual entry (the banner closes the step). */
+  onDeclined?: () => void;
 };
 
 const BUTTON = "inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
@@ -55,7 +64,7 @@ const PROCESSOR_POINT_KEY = {
   IMAGES: "vehicleRegConsentPointProcessorImages",
 } as const;
 
-export function OcrConsentStep({ vehicleId, mode, inferenceGeo, setKind }: Props) {
+export function OcrConsentStep({ vehicleId, mode, inferenceGeo, setKind, intent = "read", onDeclined }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string) => string; // result-code message keys (parity-guaranteed)
   const router = useRouter();
@@ -69,12 +78,25 @@ export function OcrConsentStep({ vehicleId, mode, inferenceGeo, setKind }: Props
     setErrorCode(null);
     setBusy(which);
     startTransition(async () => {
-      const res = which === "read" ? await grantOcrConsentAction(vehicleId, ownerAuthorized) : await declineOcrConsentAction(vehicleId);
+      const res =
+        which === "read"
+          ? intent === "complete"
+            ? await grantOcrConsentForCompletionAction(vehicleId, ownerAuthorized)
+            : await grantOcrConsentAction(vehicleId, ownerAuthorized)
+          : await declineOcrConsentAction(vehicleId);
       setBusy(null);
       if (!res.ok) {
         setErrorCode(res.code);
         return;
       }
+      // The consent is recorded; a completion that could not run (budget, failure) is reported here
+      // while the local reading and manual entry stay as they were.
+      if (res.completion && !res.completion.ok) {
+        setErrorCode(res.completion.code);
+        router.refresh();
+        return;
+      }
+      if (which === "manual" && intent === "complete") onDeclined?.();
       // Granted → the page now shows "reading…" then the suggestions; declined → the manual form.
       router.refresh();
     });
@@ -98,7 +120,7 @@ export function OcrConsentStep({ vehicleId, mode, inferenceGeo, setKind }: Props
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-foreground">{t("vehicleRegConsentTitle")}</h2>
           {/* A PDF only reaches this step when its text could not be read locally — say so. */}
-          <p className="text-sm text-foreground/70">{setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")}</p>
+          <p className="text-sm text-foreground/70">{intent === "complete" ? t("vehicleRegConsentIntroComplete") : setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")}</p>
         </div>
 
         {mode === "stale" && <Alert variant="warning">{t("vehicleRegConsentStaleNotice")}</Alert>}

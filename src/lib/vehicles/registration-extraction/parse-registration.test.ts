@@ -47,7 +47,7 @@ describe("parseOmanVehicleRegistration — full happy path", () => {
     expect(r.fields.plateNumber.normalizedValue).toBe("A 12345");
     expect(r.fields.makeDescription.normalizedValue).toBe("Toyota");
     expect(r.overallStatus).toBe("EXTRACTED");
-    expect(r.parserVersion).toBe("1.1.0");
+    expect(r.parserVersion).toBe("1.2.0");
     expect(r.fields.vehicleDescription.normalizedValue).toBe("Toyota Station Land Cruiser"); // kept whole, privately
     expect(r.fields.model.normalizedValue).toBe("Land Cruiser");
     expect(r.source).toBe("NATIVE_PDF_TEXT");

@@ -82,6 +82,7 @@ const review = (over: Record<string, unknown> = {}) => withPages({
   extractionSource: "NATIVE_PDF_TEXT",
   documentDescription: null,
   vehicleTypeSuggestion: "FOUR_BY_FOUR",
+  recovery: { state: null, completionAvailable: false, completionInProgress: false, completionApplied: false, completionFailed: false },
   ocrConsent: null,
   reviewState: { extraction: "EXTRACTED", confirmation: "NONE", canAnalyze: false, canConfirm: true, locked: false, failureLabelKey: null },
   lastAttemptedAt: null,

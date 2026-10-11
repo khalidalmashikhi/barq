@@ -44,7 +44,7 @@ describe("4. Arabic / bilingual normalization before semantic matching", () => {
   it("foldWithMap maps every folded character back to the original index (so a label match cuts the value from the original)", () => {
     const line = "الماركة: مَازْدَا";
     const { folded, map } = foldWithMap(line);
-    expect(folded).toBe("الماركة مازدا");
+    expect(folded).toBe("الماركه مازدا"); // teh marbuta folds to heh (matching only)
     expect(map.length).toBe(folded.length);
     expect(line.slice(map[folded.indexOf("مازدا")]!)).toBe("مَازْدَا");
   });

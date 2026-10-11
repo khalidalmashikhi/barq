@@ -938,5 +938,20 @@
   "vehicleRegConsentAccuracy": "Wyodrębnione dane to propozycje do sprawdzenia; nie dowodzą własności i nie oznaczają zatwierdzenia pojazdu.",
   "vehicleRegConsentDetailsToggle": "Szczegóły prywatności",
   "vehicleRegConsentPointRetention": "BARQ używa wysłanej kopii wyłącznie do tego odczytu. Czas jej przechowywania przez dostawcę określają warunki tego dostawcy; zobacz politykę prywatności.",
-  "vehicleRegConsentPrivacyPolicyLink": "Polityka prywatności"
+  "vehicleRegConsentPrivacyPolicyLink": "Polityka prywatności",
+  "vehicleRegRecoveryStale": "Dostępny jest nowszy sposób odczytu tego dokumentu.",
+  "vehicleRegRereadButton": "Odczytaj dokument ponownie",
+  "vehicleRegRereadPending": "Ponowny odczyt…",
+  "vehicleRegRecoveryIncomplete": "Udało się odczytać tylko część danych. Możesz automatycznie dokończyć odczyt albo samodzielnie uzupełnić pozostałe pola.",
+  "vehicleRegRecoveryIncompleteManual": "Udało się odczytać tylko część danych. Uzupełnij pozostałe pola samodzielnie.",
+  "vehicleRegCompleteReadingButton": "Dokończ odczyt automatyczny",
+  "vehicleRegCompletionPending": "Kończenie odczytu…",
+  "vehicleRegCompletionInProgress": "Trwa kończenie odczytu dokumentu. W tym czasie możesz dalej wypełniać formularz.",
+  "vehicleRegCompletionAppliedNotice": "Część danych uzupełniono odczytem automatycznym. Sprawdź je przed zapisaniem.",
+  "vehicleRegCompletedBadge": "Uzupełniono automatycznie — potwierdź",
+  "vehicleRegConsentIntroComplete": "Część danych odczytano lokalnie z pliku PDF. System może automatycznie dokończyć odczyt i wypełnić pozostałe pola do sprawdzenia przed zapisaniem albo możesz wpisać je ręcznie.",
+  "vehicleRegCompletionConsentRequired": "Przed automatycznym dokończeniem odczytu potrzebna jest Twoja decyzja.",
+  "vehicleRegRecoveryStaleError": "Dostępny jest nowszy odczyt tego dokumentu. Najpierw wybierz „Odczytaj dokument ponownie”.",
+  "vehicleRegCompletionFailed": "Nie udało się dokończyć odczytu automatycznego. Odczytane już dane zostały zachowane, a pozostałe pola możesz uzupełnić samodzielnie.",
+  "vehicleRegCompletionNotAvailable": "Dokończenie odczytu automatycznego nie jest dostępne dla tego dokumentu. Pozostałe pola możesz uzupełnić samodzielnie."
 }

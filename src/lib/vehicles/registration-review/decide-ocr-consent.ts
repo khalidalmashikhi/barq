@@ -7,6 +7,7 @@ import { safeErrorCategory } from "@/lib/vehicles/documents/safe-error-category"
 import { getRegistrationOcrPolicy } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { recordOcrConsentDecision, OcrConsentInputError, type OcrConsentDecision } from "@/lib/vehicles/registration-extraction/ocr/ocr-consent";
 import { runRegistrationAnalysis } from "./run-registration-analysis";
+import { completeRegistrationReading, type CompletionActionResult } from "./complete-registration-reading";
 import type { RegistrationAnalysisResult, RegistrationReviewCode } from "./registration-review-result";
 
 // Phase 3C (registration OCR privacy gate) — the provider DECIDES, for ONE registration document,
@@ -28,10 +29,16 @@ export type OcrConsentDecisionInput = {
   ownerAuthorizationConfirmed: boolean;
   /** Interface language the notice was shown in (one of the 8 supported locales). */
   locale: string;
+  /**
+   * What a GRANTED decision starts (2026-10-09): the regular automatic reading of a photo/scan
+   * ("ANALYSIS", default), or the optional COMPLETION of an incomplete native-PDF reading. Either
+   * way the started operation re-reads the stored consent itself; this flag unlocks nothing.
+   */
+  then?: "ANALYSIS" | "COMPLETION";
 };
 
 export type OcrConsentDecisionResult =
-  | { ok: true; decision: OcrConsentDecision; analysis: RegistrationAnalysisResult | null }
+  | { ok: true; decision: OcrConsentDecision; analysis: RegistrationAnalysisResult | null; completion?: CompletionActionResult | null }
   | { ok: false; code: RegistrationReviewCode };
 
 export async function decideRegistrationOcrConsent(vehicleId: string, decision: OcrConsentDecision, input: OcrConsentDecisionInput): Promise<OcrConsentDecisionResult> {
@@ -86,6 +93,16 @@ export async function decideRegistrationOcrConsent(vehicleId: string, decision: 
   }
 
   if (decision === "DECLINED") return { ok: true, decision, analysis: null };
+
+  if (input.then === "COMPLETION") {
+    try {
+      const completion = await completeRegistrationReading(vehicleId);
+      return { ok: true, decision, analysis: null, completion };
+    } catch (error) {
+      logger.error("registrationOcrConsent.completion_failed", { vehicleId, error: safeErrorCategory(error) });
+      return { ok: true, decision, analysis: null, completion: { ok: false, code: "COMPLETION_FAILED" } };
+    }
+  }
 
   // Consent is on record → start the reading. Its outcome is reported, never treated as part of the
   // consent (a failed or slow reading leaves the GRANTED decision in place and the review retryable).

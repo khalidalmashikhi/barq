@@ -63,6 +63,10 @@ const PRIVATE_VALUES = {
   documentDescription: "SYNTHETIC-DOCUMENT-DESCRIPTION",
   vehicleTypeSuggestion: "SYNTHETIC-TYPE-HINT",
   makeDescription: "SYNTHETIC-MAKE-DESCRIPTION",
+  // 2026-10-09 recovery: the reading's recovery state and completion markers are private too.
+  recovery: "SYNTHETIC-RECOVERY-STATE",
+  completedAutomatically: "SYNTHETIC-COMPLETED-FLAG",
+  completionApplied: "SYNTHETIC-COMPLETION-APPLIED",
 };
 
 const stuffedRow = {
@@ -135,7 +139,7 @@ describe("booking / customer vehicle snapshot — the same allowlist", () => {
 
 // ── structural: public readers never touch the private registration surface ─────────────────────
 const PRIVATE_TOKENS =
-  /registrationExtraction|registrationConfirmation|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|onboardingRequest\b|registrationOcrConsent|vehicleRegistrationOcrConsent|OcrConsent|ocrInferenceGeo|ocrCallCount|ownerAuthorizationConfirmed|policyVersion|extractedVin|extractedPlateNumber|extractedManufactureYear|extractedLicensedPassengerCapacity|licenseExpiryDate|licenseExpiry|firstRegistrationDate|licenseValidFrom|engineNumber|plateNumber|documentSha256|ocrEngine|processingToken|idempotencyKey|assetDocument|objectKey|originalFilename|registration-extraction|registration-review|onboarding\/|VEHICLE_REGISTRATION_BACK|registration-document-set|REGISTRATION_BACK_TYPE|REGISTRATION_SET_TYPES|documentDescription|vehicleTypeSuggestion|HEURISTIC_SPLIT|vehicle-description|manufacturer-registry|body-style-registry|vehicle-description"|splitVehicleDescription|suggestVehicleTypeFromText|documentDescription|vehicleTypeSuggestion|HEURISTIC_SPLIT/;
+  /registrationExtraction|registrationConfirmation|vehicleRegistrationExtraction|vehicleRegistrationConfirmation|vehicleOnboardingRequest|onboardingRequest\b|registrationOcrConsent|vehicleRegistrationOcrConsent|OcrConsent|ocrInferenceGeo|ocrCallCount|ownerAuthorizationConfirmed|policyVersion|extractedVin|extractedPlateNumber|extractedManufactureYear|extractedLicensedPassengerCapacity|licenseExpiryDate|licenseExpiry|firstRegistrationDate|licenseValidFrom|engineNumber|plateNumber|documentSha256|ocrEngine|processingToken|idempotencyKey|assetDocument|objectKey|originalFilename|registration-extraction|registration-review|onboarding\/|VEHICLE_REGISTRATION_BACK|registration-document-set|REGISTRATION_BACK_TYPE|REGISTRATION_SET_TYPES|documentDescription|vehicleTypeSuggestion|HEURISTIC_SPLIT|vehicle-description|manufacturer-registry|body-style-registry|vehicle-description"|splitVehicleDescription|suggestVehicleTypeFromText|documentDescription|vehicleTypeSuggestion|HEURISTIC_SPLIT|completion-merge|completion-lease|reread-registration|complete-registration-reading|recovery-actions|AUTOMATIC_COMPLETION|FROM_AUTOMATIC_COMPLETION|runRegistrationCompletion|rereadRegistrationDocument/;
 
 /** Customer-facing read models: discovery, service detail, search/browse, provider profile, rental
  *  calendar, public vehicle, public tour vehicles, and the vehicle snapshot stored on a booking. */

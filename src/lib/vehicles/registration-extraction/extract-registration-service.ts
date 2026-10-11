@@ -22,6 +22,7 @@ import { parseOmanVehicleRegistration, buildRegistrationExtraction, isNativeText
 import { extractPdfText, type PdfTextResult } from "./pdf-text";
 import { serializePersistedFields, serializeWarnings, extractionTypedColumns, persistedFieldsSchema, type ExtractionTypedColumns } from "./record";
 import { isExtractionInProgress } from "./processing-lease";
+import { isCompletionInProgress } from "./completion-lease";
 import {
   REGISTRATION_FRONT_TYPE,
   REGISTRATION_SET_TYPES,
@@ -35,7 +36,15 @@ import { getRegistrationDocumentReader, getRegistrationOcrPolicy, type Registrat
 import { getEffectiveOcrConsent, isOcrConsentGranted, type EffectiveOcrConsent } from "./ocr/ocr-consent";
 import { isRegistrationReadableMimeType, type RegistrationDocumentReader, type RegistrationReadPage, type RegistrationReadResult } from "./ocr/registration-document-reader";
 import type { RegistrationExtractionStatus, RegistrationRecordStatus } from "./codes";
-import type { VehicleRegistrationExtractionResult } from "./types";
+import type { VehicleRegistrationExtractionResult, VehicleRegistrationFields } from "./types";
+import {
+  COMPLETION_APPLIED_WARNING,
+  COMPLETION_FAILED_WARNING,
+  REDERIVED_LOCALLY_WARNING,
+  candidatesFromStoredFields,
+  isIdentityIncomplete,
+  mergeCompletion,
+} from "./completion-merge";
 
 // Phase 3C — Vehicle Registration Extraction. Server-only orchestration turning an
 // already-authorized VEHICLE_REGISTRATION document SET into a PRIVATE extraction CANDIDATE. It
@@ -108,7 +117,17 @@ export type RunExtractionInput = {
 
 export type RunExtractionResult =
   | { ok: true; extractionId: string; status: RegistrationRecordStatus; failureCode: string | null; idempotent: boolean }
-  | { ok: false; error: "DOCUMENT_NOT_FOUND" | "WRONG_DOCUMENT_TYPE" | "NOT_A_VEHICLE" | "STORAGE_NOT_CONFIGURED" | "DOWNLOAD_FAILED" | "UNKNOWN_ERROR" };
+  | { ok: false; error: "DOCUMENT_NOT_FOUND" | "WRONG_DOCUMENT_TYPE" | "NOT_A_VEHICLE" | "STORAGE_NOT_CONFIGURED" | "DOWNLOAD_FAILED" | "NOTHING_TO_REREAD" | "UNKNOWN_ERROR" };
+
+export type RunExtractionOptions = {
+  /**
+   * LOCAL RE-READ (provider-triggered, for a reading stored under an older semantic version): run
+   * ONLY the deterministic stage — a PDF's own text layer, or the stored per-field text of an
+   * earlier automatic reading — and NEVER the external tier, whatever consent exists. When the
+   * local stage yields nothing usable the stored reading is left untouched (never downgraded).
+   */
+  localOnly?: boolean;
+};
 
 export type OcrBudgetScope = { providerId: string; userId: string | null };
 
@@ -178,6 +197,8 @@ type Computed = {
   pageCount: number;
   /** Document-level codes added by the service (e.g. why native text was not used). */
   extraWarnings: string[];
+  /** A stale stored automatic reading re-derived locally (no external call was made). */
+  localRederive?: boolean;
 };
 
 function failed(failureCode: string, source: RegistrationExtractionSource, ocrEngine: string | null, configuredInferenceGeo: string | null = null, pageCount = 1, extraWarnings: string[] = []): Computed {
@@ -230,10 +251,12 @@ const AUDIT = (assetId: string, c: Computed) => ({
     // An OCR reading is an AI-assisted suggestion (ADR-0008 §13/§15/§16): the record names the
     // engine, why it ran, where it ran, how much still needs human review, and the request it
     // belongs to.
+    ...(c.localRederive ? { localRederive: true, externalCall: false } : {}),
     ...(c.source === REGISTRATION_OCR_SOURCE
       ? {
           // "AI-assisted" only when an engine was actually involved — a gate outcome that sent
           // nothing (consent pending, not configured) is recorded as such, not as a reading.
+          // A local re-derivation of a stored reading made no new call (externalCall: false).
           aiAssisted: c.ocrEngine !== null,
           ocrEngine: c.ocrEngine,
           inferenceGeo: c.configuredInferenceGeo,
@@ -276,6 +299,7 @@ async function loadRegistrationSet(deps: ExtractionServiceDeps, assetId: string)
 export async function runVehicleRegistrationExtraction(
   input: RunExtractionInput,
   deps: ExtractionServiceDeps = defaultDeps,
+  options: RunExtractionOptions = {},
 ): Promise<RunExtractionResult> {
   const { db } = deps;
 
@@ -308,7 +332,7 @@ export async function runVehicleRegistrationExtraction(
   // hash/version falls through.
   const pre = await db.vehicleRegistrationExtraction.findUnique({
     where: { assetDocumentId: doc.id },
-    select: { id: true, documentSha256: true, parserVersion: true, status: true, failureCode: true, processingExpiresAt: true },
+    select: { id: true, documentSha256: true, parserVersion: true, status: true, failureCode: true, processingExpiresAt: true, source: true, ocrEngine: true, ocrInferenceGeo: true, fields: true, warnings: true },
   });
   if (pre && pre.documentSha256 === documentSha256 && pre.parserVersion === REGISTRATION_PARSER_VERSION) {
     if (pre.status === "PROCESSING") {
@@ -331,9 +355,39 @@ export async function runVehicleRegistrationExtraction(
   const shapeProblem = checkRegistrationSetShape(pages);
   if (shapeProblem) return persistSafely(failed("INVALID_DOCUMENT_SET", REGISTRATION_EXTRACTION_SOURCE, null, null, pageCount));
 
+  const isPdf = pages[0]!.mimeType === "application/pdf";
+
+  // A stored AUTOMATIC reading of this exact set written under an OLDER semantic version: its
+  // per-field text is re-derived under the CURRENT deterministic rules — never a new external
+  // request just because the rules changed (a replay, a reload or a re-read costs no call).
+  const rederiveStored = (): Computed | null => {
+    const storedOk = pre && pre.documentSha256 === documentSha256 && pre.parserVersion !== REGISTRATION_PARSER_VERSION && pre.source === REGISTRATION_OCR_SOURCE && (pre.status === "EXTRACTED" || pre.status === "NEEDS_REVIEW");
+    if (!storedOk) return null;
+    const stored = persistedFieldsSchema.safeParse(pre.fields);
+    if (!stored.success) return null;
+    const rebuilt = buildRegistrationExtraction(candidatesFromStoredFields(stored.data as never), { source: REGISTRATION_OCR_SOURCE });
+    const kept = (Array.isArray(pre.warnings) ? pre.warnings : []).filter((w): w is string => typeof w === "string" && SERVICE_WARNINGS.has(w));
+    const computed = fromParsed(rebuilt, { engine: pre.ocrEngine ?? "stored", reportedGeo: pre.ocrInferenceGeo ?? null, configuredGeo: null }, "OCR_UNREADABLE", pageCount, [...kept, REDERIVED_LOCALLY_WARNING]);
+    return computed.success ? { ...computed, localRederive: true } : null;
+  };
+
+  // ── LOCAL RE-READ: the deterministic stage only — never the external tier.
+  if (options.localOnly) {
+    if (isPdf) {
+      const pdfResult = await deps.extractPdfText(pages[0]!.bytes.slice(0));
+      if (pdfResult.ok) {
+        const native = parseOmanVehicleRegistration(pdfResult.text);
+        if (isNativeTextUsable(native)) return persistSafely(fromParsed(native, null, "UNSUPPORTED_LAYOUT", pageCount));
+      }
+    }
+    const rederived = rederiveStored();
+    if (rederived) return persistSafely(rederived);
+    // Nothing usable locally: the stored reading is left exactly as it is (never downgraded).
+    return pre ? { ok: true, extractionId: pre.id, status: pre.status, failureCode: pre.failureCode, idempotent: true } : { ok: false, error: "NOTHING_TO_REREAD" };
+  }
+
   // ── Tier 1: native PDF text, always first. The parser is given a COPY (the PDF engine detaches
   //    the buffer it receives) because a scanned PDF still needs its bytes for OCR.
-  const isPdf = pages[0]!.mimeType === "application/pdf";
   const ocrWarnings: string[] = [];
   if (isPdf) {
     const pdfResult = await deps.extractPdfText(pages[0]!.bytes.slice(0));
@@ -353,6 +407,9 @@ export async function runVehicleRegistrationExtraction(
 
   // ── Tier 2: OCR, for photos (one or two), an image-only PDF, or a PDF whose text was unusable.
   if (!pages.every((p) => isRegistrationReadableMimeType(p.mimeType))) return persistSafely(failed("INVALID_FILE_TYPE", REGISTRATION_EXTRACTION_SOURCE, null, null, pageCount));
+  // A stale stored automatic reading of this exact set is re-derived locally first (no call).
+  const rederivedBeforeCall = rederiveStored();
+  if (rederivedBeforeCall) return persistSafely(rederivedBeforeCall);
   const reader = deps.getReader();
   const policy = deps.getPolicy();
   if (!reader || !policy) {
@@ -422,6 +479,9 @@ export async function runVehicleRegistrationExtraction(
 
   return completeOcr(db, doc, claim, computeFromRead(read, reader, pageCount, ocrWarnings));
 }
+
+/** Document-level codes the SERVICE adds (never values) — carried over by a local re-derivation. */
+const SERVICE_WARNINGS: ReadonlySet<string> = new Set(["NATIVE_TEXT_UNUSABLE", "NO_TEXT_LAYER", "REUSED_IDENTICAL_DOCUMENT"]);
 
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -701,4 +761,335 @@ async function completeOcr(db: PrismaClient, doc: DocRow, claim: { id: string; t
   return current
     ? { ok: true, extractionId: current.id, status: current.status, failureCode: current.failureCode, idempotent: true }
     : { ok: false, error: "DOCUMENT_NOT_FOUND" };
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// OPTIONAL COMPLETION OF AN INCOMPLETE NATIVE-PDF READING (2026-10-09 staging finding)
+//
+// A PDF whose own text layer was read locally, under the CURRENT semantic version, may still lack
+// the customer-visible identity (manufacturer / commercial model). The provider may then ask —
+// explicitly, never by uploading or reloading — to COMPLETE it automatically. Every gate of the
+// external tier applies unchanged: engine + notice configured, the provider's current GRANTED
+// consent for this exact set hash, the aggregate size ceiling, the per-document call ceiling, the
+// durable per-provider/per-user budget, and ONE request for the whole PDF (one or two pages).
+//
+// The completion holds its OWN lease on the row (processingToken / processingExpiresAt) WITHOUT
+// changing the row status or fields: the local reading stays visible and usable throughout, and a
+// failure, timeout, budget denial or audit failure leaves it exactly as it was. The result is
+// MERGED into the local reading (completion-merge.ts) — never a blind replacement — in ONE guarded
+// update + audit transaction on the lease token, the set hash and the semantic version: a late
+// answer after a cancellation (row gone), a replacement (set re-read, token cleared) or a version
+// change is discarded unread.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+export type RunCompletionResult =
+  | { ok: true; outcome: "COMPLETED" | "REUSED" | "ALREADY_COMPLETED" | "IN_PROGRESS"; extractionId: string }
+  | {
+      ok: false;
+      error:
+        | "DOCUMENT_NOT_FOUND"
+        | "STORAGE_NOT_CONFIGURED"
+        | "DOWNLOAD_FAILED"
+        | "NOT_APPLICABLE"
+        | "RESULT_STALE"
+        | "NOT_NEEDED"
+        | "OCR_NOT_AVAILABLE"
+        | "CONSENT_REQUIRED"
+        | "INPUT_TOO_LARGE"
+        | "ATTEMPT_LIMIT"
+        | "RATE_LIMITED"
+        | "READ_FAILED"
+        | "UNKNOWN_ERROR";
+    };
+
+type CompletionRow = {
+  id: string;
+  version: number;
+  status: RegistrationRecordStatus;
+  documentSha256: string;
+  parserVersion: string;
+  source: string;
+  warnings: Prisma.JsonValue;
+  fields: Prisma.JsonValue;
+  processingToken: string | null;
+  processingExpiresAt: Date | null;
+  ocrCallCount: number | null;
+};
+
+const COMPLETION_ROW_SELECT = {
+  id: true, version: true, status: true, documentSha256: true, parserVersion: true, source: true, warnings: true, fields: true,
+  processingToken: true, processingExpiresAt: true, ocrCallCount: true,
+} as const;
+
+function warningList(value: Prisma.JsonValue): string[] {
+  return Array.isArray(value) ? value.filter((w): w is string => typeof w === "string") : [];
+}
+
+
+function toResultShape(fields: VehicleRegistrationFields): VehicleRegistrationExtractionResult {
+  return { parserVersion: REGISTRATION_PARSER_VERSION, documentKind: "OMAN_VEHICLE_REGISTRATION", source: REGISTRATION_EXTRACTION_SOURCE, fields, overallStatus: "NEEDS_REVIEW", warnings: [] };
+}
+
+const COMPLETION_AUDIT = (assetId: string, meta: Record<string, unknown>) => ({
+  actorType: "SYSTEM" as const,
+  actorId: null,
+  action: "vehicle.registration_completion",
+  entityType: "Vehicle",
+  entityId: assetId,
+  // Metadata ONLY — never extracted values, document text, the object key or a provider message.
+  newValue: { parserVersion: REGISTRATION_PARSER_VERSION, reason: "REGISTRATION_DOCUMENT_COMPLETION", requestId: getRequestId() ?? null, ...meta },
+});
+
+export async function runRegistrationCompletion(input: RunExtractionInput, deps: ExtractionServiceDeps = defaultDeps): Promise<RunCompletionResult> {
+  const { db } = deps;
+  const found = await db.assetDocument.findUnique({
+    where: { id: input.assetDocumentId },
+    select: { id: true, type: true, mimeType: true, assetId: true, asset: { select: { assetType: true, providerId: true } } },
+  });
+  if (!found || found.type !== REGISTRATION_FRONT_TYPE || found.asset.assetType !== "VEHICLE") return { ok: false, error: "DOCUMENT_NOT_FOUND" };
+  if (found.mimeType !== "application/pdf") return { ok: false, error: "NOT_APPLICABLE" }; // photos use the regular automatic reading
+  if (!deps.isStorageConfigured()) return { ok: false, error: "STORAGE_NOT_CONFIGURED" };
+  const doc: DocRow = { id: found.id, assetId: found.assetId, mimeType: found.mimeType, providerId: found.asset.providerId };
+
+  let pages: LoadedPage[];
+  try {
+    pages = await loadRegistrationSet(deps, doc.assetId);
+  } catch (error) {
+    logger.error("registrationCompletion.download_failed", { assetDocumentId: doc.id, error: safeErrorCategory(error) });
+    return { ok: false, error: "DOWNLOAD_FAILED" };
+  }
+  if (pages.length === 0 || pages[0]!.documentId !== doc.id) return { ok: false, error: "DOCUMENT_NOT_FOUND" };
+  if (checkRegistrationSetShape(pages)) return { ok: false, error: "NOT_APPLICABLE" };
+  const documentSha256 = computeRegistrationSetHash(pages.map((p) => p.sha256));
+  const pageCount = pages.length;
+
+  // The local reading must be the CURRENT one for these exact bytes — a stale reading is re-read
+  // locally first (that alone may complete it), never completed externally on old rules.
+  const row = (await db.vehicleRegistrationExtraction.findUnique({ where: { assetDocumentId: doc.id }, select: COMPLETION_ROW_SELECT })) as CompletionRow | null;
+  if (!row || row.documentSha256 !== documentSha256) return { ok: false, error: "NOT_APPLICABLE" };
+  if (row.status !== "EXTRACTED" && row.status !== "NEEDS_REVIEW") return { ok: false, error: "NOT_APPLICABLE" };
+  if (row.parserVersion !== REGISTRATION_PARSER_VERSION) return { ok: false, error: "RESULT_STALE" };
+  if (row.source !== REGISTRATION_EXTRACTION_SOURCE) return { ok: false, error: "NOT_APPLICABLE" };
+  if (warningList(row.warnings).includes(COMPLETION_APPLIED_WARNING)) return { ok: true, outcome: "ALREADY_COMPLETED", extractionId: row.id };
+  const local = persistedFieldsSchema.safeParse(row.fields);
+  if (!local.success) return { ok: false, error: "NOT_APPLICABLE" };
+  if (!isIdentityIncomplete(local.data as never)) return { ok: false, error: "NOT_NEEDED" };
+  if (isCompletionInProgress(row)) return { ok: true, outcome: "IN_PROGRESS", extractionId: row.id };
+
+  const reader = deps.getReader();
+  const policy = deps.getPolicy();
+  if (!reader || !policy) return { ok: false, error: "OCR_NOT_AVAILABLE" };
+  const totalBytes = pages.reduce((sum, p) => sum + p.bytes.byteLength, 0);
+  if (totalBytes > MAX_OCR_INPUT_BYTES) return { ok: false, error: "INPUT_TOO_LARGE" };
+
+  // CONSENT for THIS set under the CURRENT notice — a lookup failure is "not granted".
+  let consent: EffectiveOcrConsent;
+  try {
+    consent = await deps.readConsent(db, { providerId: doc.providerId, assetDocumentId: doc.id, documentSha256 }, policy);
+  } catch (error) {
+    logger.error("registrationCompletion.consent_lookup_failed", { assetDocumentId: doc.id, error: safeErrorCategory(error) });
+    consent = { state: "NONE", policyVersion: null, decidedAt: null };
+  }
+  if (!isOcrConsentGranted(consent)) return { ok: false, error: "CONSENT_REQUIRED" };
+
+  const localFields = local.data as unknown as VehicleRegistrationFields;
+  const localWarnings = warningList(row.warnings).filter((w) => w !== COMPLETION_FAILED_WARNING);
+
+  // REUSE — the same set already completed (or read automatically) for THIS provider by the same
+  // engine under the same version: no new external request.
+  let reusedFields: VehicleRegistrationFields | null = null;
+  try {
+    const hit = await db.vehicleRegistrationExtraction.findFirst({
+      where: {
+        documentSha256,
+        parserVersion: REGISTRATION_PARSER_VERSION,
+        ocrEngine: reader.engine,
+        status: { in: ["EXTRACTED", "NEEDS_REVIEW"] },
+        assetDocumentId: { not: doc.id },
+        asset: { providerId: doc.providerId },
+        OR: [{ source: REGISTRATION_OCR_SOURCE }, { warnings: { array_contains: [COMPLETION_APPLIED_WARNING] } }],
+      },
+      orderBy: { lastSucceededAt: "desc" },
+      select: { source: true, fields: true },
+    });
+    if (hit) {
+      const parsed = persistedFieldsSchema.safeParse(hit.fields);
+      if (parsed.success) {
+        const other = parsed.data as unknown as VehicleRegistrationFields;
+        // A completed row of the same bytes already holds the merged result; a pure automatic
+        // reading of them is merged into this local reading now.
+        reusedFields = hit.source === REGISTRATION_OCR_SOURCE ? mergeCompletion(localFields, other).fields : other;
+      }
+    }
+  } catch (error) {
+    logger.error("registrationCompletion.reuse_lookup_failed", { assetDocumentId: doc.id, error: safeErrorCategory(error) });
+  }
+  if (reusedFields) {
+    const written = await writeCompletion(db, doc, row, { kind: "REUSE" }, reusedFields, localWarnings, reader, null, pageCount, { filled: 0, conflicts: 0, differs: 0 });
+    return written ? { ok: true, outcome: "REUSED", extractionId: row.id } : { ok: false, error: "UNKNOWN_ERROR" };
+  }
+
+  // LEASE — exactly one attempt may call; it counts against the per-document ceiling.
+  const claim = await claimCompletion(db, row.id, documentSha256);
+  if (claim.kind === "GONE") return { ok: false, error: "DOCUMENT_NOT_FOUND" };
+  if (claim.kind === "IN_PROGRESS") return { ok: true, outcome: "IN_PROGRESS", extractionId: row.id };
+  if (claim.kind === "ALREADY") return { ok: true, outcome: "ALREADY_COMPLETED", extractionId: row.id };
+  if (claim.kind === "CAPPED") return { ok: false, error: "ATTEMPT_LIMIT" };
+  if (claim.kind === "CHANGED") return { ok: false, error: "NOT_APPLICABLE" };
+
+  // BUDGET — consumed only by the lease holder; denied → the local reading is kept, nothing sent.
+  let budget: "ALLOWED" | "LIMITED";
+  try {
+    budget = await deps.consumeOcrBudget({ providerId: doc.providerId, userId: input.actorUserId ?? null });
+  } catch {
+    budget = "LIMITED";
+  }
+  if (budget !== "ALLOWED") {
+    await releaseCompletion(db, doc, claim, localWarnings, "OCR_RATE_LIMITED", reader, pageCount);
+    return { ok: false, error: "RATE_LIMITED" };
+  }
+
+  // The ONE external request for this PDF (one or two pages travel together).
+  let read: RegistrationReadResult;
+  try {
+    read = await reader.read({ pages: pages.map((p) => ({ role: p.role, bytes: p.bytes, mimeType: p.mimeType as RegistrationReadPage["mimeType"] })) });
+  } catch {
+    read = { ok: false, code: "OCR_PROVIDER_ERROR" };
+  }
+  if (!read.ok) {
+    await releaseCompletion(db, doc, claim, localWarnings, read.code, reader, pageCount);
+    return { ok: false, error: "READ_FAILED" };
+  }
+
+  const automatic = buildRegistrationExtraction(read.candidates, { source: REGISTRATION_OCR_SOURCE });
+  const merged = mergeCompletion(localFields, automatic.fields);
+  const written = await writeCompletion(db, doc, row, { kind: "LEASE", token: claim.token }, merged.fields, localWarnings, reader, read.inferenceGeo ?? null, pageCount, merged);
+  if (written === null) return { ok: false, error: "UNKNOWN_ERROR" };
+  if (!written) {
+    // Discarded: cancelled, replaced, re-read or taken over meanwhile. Report what exists now.
+    const current = await db.vehicleRegistrationExtraction.findUnique({ where: { assetDocumentId: doc.id }, select: { id: true } }).catch(() => null);
+    return current ? { ok: false, error: "NOT_APPLICABLE" } : { ok: false, error: "DOCUMENT_NOT_FOUND" };
+  }
+  return { ok: true, outcome: "COMPLETED", extractionId: row.id };
+}
+
+type CompletionClaim =
+  | { kind: "CLAIMED"; id: string; token: string }
+  | { kind: "IN_PROGRESS" }
+  | { kind: "ALREADY" }
+  | { kind: "CAPPED" }
+  | { kind: "CHANGED" }
+  | { kind: "GONE" };
+
+async function claimCompletion(db: PrismaClient, rowId: string, documentSha256: string): Promise<CompletionClaim> {
+  for (let attempt = 0; attempt < MAX_PERSIST_ATTEMPTS + 2; attempt++) {
+    const now = new Date();
+    const current = (await db.vehicleRegistrationExtraction.findUnique({ where: { id: rowId }, select: COMPLETION_ROW_SELECT })) as CompletionRow | null;
+    if (!current) return { kind: "GONE" };
+    if (current.documentSha256 !== documentSha256 || current.parserVersion !== REGISTRATION_PARSER_VERSION || (current.status !== "EXTRACTED" && current.status !== "NEEDS_REVIEW")) return { kind: "CHANGED" };
+    if (warningList(current.warnings).includes(COMPLETION_APPLIED_WARNING)) return { kind: "ALREADY" };
+    if (isCompletionInProgress(current, now)) return { kind: "IN_PROGRESS" };
+    const callsSoFar = current.ocrCallCount ?? 0;
+    if (callsSoFar >= MAX_OCR_CALLS_PER_DOCUMENT) return { kind: "CAPPED" };
+    const token = randomUUID();
+    const taken = await db.vehicleRegistrationExtraction.updateMany({
+      where: { id: current.id, version: current.version },
+      data: { processingToken: token, processingExpiresAt: new Date(now.getTime() + REGISTRATION_OCR_LEASE_MS), ocrCallCount: callsSoFar + 1, lastAttemptedAt: now, version: current.version + 1 },
+    });
+    if (taken.count === 1) return { kind: "CLAIMED", id: current.id, token };
+  }
+  return { kind: "IN_PROGRESS" };
+}
+
+/** Give the lease back after a failure — the local reading is NOT touched, only a marker is added. */
+async function releaseCompletion(db: PrismaClient, doc: DocRow, claim: { id: string; token: string }, localWarnings: string[], code: string, reader: RegistrationDocumentReader, pageCount: number): Promise<void> {
+  try {
+    await db.$transaction(async (tx) => {
+      const upd = await tx.vehicleRegistrationExtraction.updateMany({
+        where: { id: claim.id, processingToken: claim.token },
+        data: { processingToken: null, processingExpiresAt: null, warnings: Array.from(new Set([...localWarnings, COMPLETION_FAILED_WARNING])), version: { increment: 1 } },
+      });
+      if (upd.count === 1) {
+        await recordAuditEvent(COMPLETION_AUDIT(doc.assetId, { outcome: "FAILED", failureCode: code, aiAssisted: true, ocrEngine: reader.engine, inferenceGeo: reader.inferenceGeo ?? null, pageCount }), tx);
+      }
+    });
+  } catch (error) {
+    // Even the release failed: the lease simply expires; the local reading was never changed.
+    logger.error("registrationCompletion.release_failed", { assetDocumentId: doc.id, error: safeErrorCategory(error) });
+  }
+}
+
+/**
+ * Write the merged reading in ONE guarded update + audit transaction. A lease write is guarded on
+ * the token (+ hash + version); a reuse write on the row version with no lease held. Returns true
+ * when written, false when discarded (the row changed meanwhile), null on a database/audit failure
+ * (nothing was marked complete; the lease, if any, is handed back).
+ */
+async function writeCompletion(
+  db: PrismaClient,
+  doc: DocRow,
+  row: CompletionRow,
+  guard: { kind: "LEASE"; token: string } | { kind: "REUSE" },
+  fields: VehicleRegistrationFields,
+  localWarnings: string[],
+  reader: RegistrationDocumentReader,
+  observedGeo: string | null,
+  pageCount: number,
+  counts: { filled: number; conflicts: number; differs: number },
+): Promise<boolean | null> {
+  let serialized: Prisma.InputJsonObject;
+  try {
+    serialized = serializePersistedFields(toResultShape(fields));
+  } catch {
+    if (guard.kind === "LEASE") await releaseCompletion(db, doc, { id: row.id, token: guard.token }, localWarnings, "OCR_MALFORMED_RESPONSE", reader, pageCount);
+    return null;
+  }
+  const where =
+    guard.kind === "LEASE"
+      ? { id: row.id, processingToken: guard.token, documentSha256: row.documentSha256, parserVersion: REGISTRATION_PARSER_VERSION }
+      : { id: row.id, version: row.version, processingToken: null, documentSha256: row.documentSha256, parserVersion: REGISTRATION_PARSER_VERSION };
+  try {
+    return await db.$transaction(async (tx) => {
+      const now = new Date();
+      const upd = await tx.vehicleRegistrationExtraction.updateMany({
+        where,
+        data: {
+          status: "NEEDS_REVIEW",
+          fields: serialized,
+          warnings: Array.from(new Set([...localWarnings, COMPLETION_APPLIED_WARNING])),
+          ...extractionTypedColumns(toResultShape(fields)),
+          ocrEngine: reader.engine,
+          ...(observedGeo !== null ? { ocrInferenceGeo: observedGeo } : {}),
+          processedAt: now,
+          lastSucceededAt: now,
+          processingToken: null,
+          processingExpiresAt: null,
+          version: { increment: 1 },
+        },
+      });
+      if (upd.count === 0) return false;
+      await recordAuditEvent(
+        COMPLETION_AUDIT(doc.assetId, {
+          outcome: guard.kind === "LEASE" ? "COMPLETED" : "REUSED",
+          aiAssisted: true,
+          externalCall: guard.kind === "LEASE",
+          ocrEngine: reader.engine,
+          inferenceGeo: reader.inferenceGeo ?? null,
+          observedInferenceGeo: observedGeo,
+          confidence: "SUGGESTION_REQUIRES_PROVIDER_REVIEW",
+          fieldsFilled: counts.filled,
+          fieldConflicts: counts.conflicts,
+          fieldsDiffering: counts.differs,
+          pageCount,
+        }),
+        tx,
+      );
+      return true;
+    });
+  } catch (error) {
+    // The audit or the database failed: NOTHING was marked complete; hand any lease back.
+    logger.error("registrationCompletion.write_failed", { assetDocumentId: doc.id, error: safeErrorCategory(error) });
+    if (guard.kind === "LEASE") await releaseCompletion(db, doc, { id: row.id, token: guard.token }, localWarnings, "EXTRACTION_FAILED", reader, pageCount);
+    return null;
+  }
 }

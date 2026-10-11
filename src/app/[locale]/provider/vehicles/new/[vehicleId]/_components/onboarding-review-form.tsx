@@ -55,6 +55,8 @@ export type FieldView = {
   alternatives?: (string | number)[];
   /** Derived from the document's compound description (dictionary split) — must be confirmed. */
   heuristic?: boolean;
+  /** Filled by the optional automatic completion of an incomplete PDF reading — must be confirmed. */
+  completedAutomatically?: boolean;
 };
 
 const SOURCE_LABEL_KEY = {
@@ -262,6 +264,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           {!edited && f.confidence && f.extractedValue !== null && <span aria-label={td(confidenceKey(f.confidence))}>· {td(confidenceKey(f.confidence))}</span>}
           {flagged && <span className={`${CHIP} bg-accent/20 text-accent-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
           {f.heuristic && !edited && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegHeuristicBadge")}</span>}
+          {f.completedAutomatically && !edited && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegCompletedBadge")}</span>}
         </p>
         {hintKey && <p className="text-xs text-foreground/60">{td(hintKey)}</p>}
         {isDate && <p className="text-xs text-foreground/60">{t("vehicleRegDateFormatHint")}</p>}

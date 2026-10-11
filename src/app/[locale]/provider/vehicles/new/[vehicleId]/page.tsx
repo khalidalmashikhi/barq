@@ -18,6 +18,7 @@ import { RegistrationUploadForm } from "../_components/registration-upload-form"
 import { OnboardingReviewForm, type FieldView } from "./_components/onboarding-review-form";
 import { ExtractionProgress } from "./_components/extraction-progress";
 import { OcrConsentStep } from "./_components/ocr-consent-step";
+import { RegistrationRecoveryBanner } from "./_components/registration-recovery-banner";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2: review the extracted (or
 // manually-entered) registration details and explicitly confirm to finish the vehicle.
@@ -223,6 +224,17 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
       ) : (
         <>
         {declined && <OcrConsentStep vehicleId={vehicleId} mode="declined" inferenceGeo={consent.inferenceGeo} setKind={setKind} />}
+        {/* Recovery of a stale or incomplete reading — state derived on the server (never on the client). */}
+        <RegistrationRecoveryBanner
+          vehicleId={vehicleId}
+          state={review.recovery.state}
+          completionAvailable={review.recovery.completionAvailable}
+          completionInProgress={review.recovery.completionInProgress}
+          completionApplied={review.recovery.completionApplied}
+          completionFailed={review.recovery.completionFailed}
+          consentState={review.ocrConsent?.state ?? null}
+          inferenceGeo={review.ocrConsent?.inferenceGeo ?? "us"}
+        />
         <OnboardingReviewForm
           vehicleId={vehicleId}
           fields={review.fields as FieldView[]}

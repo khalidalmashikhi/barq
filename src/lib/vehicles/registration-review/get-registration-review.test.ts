@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { REGISTRATION_PARSER_VERSION as CURRENT_VERSION } from "@/lib/vehicles/registration-extraction/constants";
 
 vi.mock("server-only", () => ({}));
 const requireApprovedProviderMock = vi.fn();
@@ -258,7 +259,7 @@ describe("getRegistrationReview — Oman field-mapping correction", () => {
   const withFields = (over: Record<string, unknown>, status = "NEEDS_REVIEW") => {
     const f = JSON.parse(JSON.stringify(fields)) as Record<string, unknown>;
     Object.assign(f, over);
-    return { id: "ext-1", status, failureCode: null, documentSha256: "sha-1", parserVersion: "1.1.0", source: "NATIVE_PDF_TEXT", processingExpiresAt: null, fields: f, lastAttemptedAt: new Date(), lastSucceededAt: new Date() };
+    return { id: "ext-1", status, failureCode: null, documentSha256: "sha-1", parserVersion: CURRENT_VERSION, source: "NATIVE_PDF_TEXT", processingExpiresAt: null, fields: f, lastAttemptedAt: new Date(), lastSucceededAt: new Date() };
   };
 
   it("a make/model DERIVED from the compound description arrives flagged (heuristic + needsReview) and the description itself is exposed privately", async () => {

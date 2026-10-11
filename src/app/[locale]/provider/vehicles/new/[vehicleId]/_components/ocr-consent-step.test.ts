@@ -88,8 +88,18 @@ describe("OcrConsentStep — structure", () => {
 
   it("the consent is never implied: no auto-grant on mount, on upload, on reload or on retry — only the explicit 'read' click grants", () => {
     expect(CODE).not.toMatch(/useEffect/);
-    expect((CODE.match(/grantOcrConsentAction\(/g) ?? []).length).toBe(1); // the single call inside run("read") (the import has no call parentheses)
-    expect(CODE).toMatch(/which === "read" \? await grantOcrConsentAction\(vehicleId, ownerAuthorized\)/);
+    // Exactly one call of each grant action, both on the explicit "read" branch of run() — the
+    // regular reading, or (intent "complete") the completion of an incomplete PDF reading.
+    expect((CODE.match(/grantOcrConsentAction\(/g) ?? []).length).toBe(1);
+    expect((CODE.match(/grantOcrConsentForCompletionAction\(/g) ?? []).length).toBe(1);
+    expect(CODE).toMatch(/which === "read"\s*\?\s*intent === "complete"\s*\?\s*await grantOcrConsentForCompletionAction\(vehicleId, ownerAuthorized\)\s*:\s*await grantOcrConsentAction\(vehicleId, ownerAuthorized\)\s*:\s*await declineOcrConsentAction\(vehicleId\)/);
+  });
+
+  it("the 'complete' intent reuses the SAME notice, attestation and buttons; only the intro differs and the grant starts the completion", () => {
+    expect(CODE).toContain('intent === "complete" ? t("vehicleRegConsentIntroComplete")');
+    expect(CODE).toMatch(/intent = "read"/); // default — every existing caller keeps the regular reading
+    expect(CODE).toContain("if (which === \"manual\" && intent === \"complete\") onDeclined?.();");
+    expect(CODE).toMatch(/res\.completion && !res\.completion\.ok/);
   });
 });
 

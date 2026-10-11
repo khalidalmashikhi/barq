@@ -938,5 +938,20 @@
   "vehicleRegConsentAccuracy": "Načtené údaje jsou návrhy ke kontrole; neprokazují vlastnictví a neznamenají schválení vozidla.",
   "vehicleRegConsentDetailsToggle": "Podrobnosti o ochraně soukromí",
   "vehicleRegConsentPointRetention": "BARQ používá odeslanou kopii jen pro toto načtení. Dobu, po kterou ji poskytovatel uchovává, upravují podmínky tohoto poskytovatele; viz zásady ochrany soukromí.",
-  "vehicleRegConsentPrivacyPolicyLink": "Zásady ochrany soukromí"
+  "vehicleRegConsentPrivacyPolicyLink": "Zásady ochrany soukromí",
+  "vehicleRegRecoveryStale": "Pro tento doklad je k dispozici novější způsob načtení.",
+  "vehicleRegRereadButton": "Načíst doklad znovu",
+  "vehicleRegRereadPending": "Probíhá nové načtení…",
+  "vehicleRegRecoveryIncomplete": "Podařilo se načíst jen některé údaje. Můžete načtení automaticky dokončit, nebo zbývající pole vyplnit sami.",
+  "vehicleRegRecoveryIncompleteManual": "Podařilo se načíst jen některé údaje. Zbývající pole prosím vyplňte sami.",
+  "vehicleRegCompleteReadingButton": "Dokončit automatické načtení",
+  "vehicleRegCompletionPending": "Dokončování načtení…",
+  "vehicleRegCompletionInProgress": "Načtení dokladu se dokončuje. Mezitím můžete formulář dál vyplňovat.",
+  "vehicleRegCompletionAppliedNotice": "Některé údaje byly doplněny automatickým načtením. Před uložením je zkontrolujte.",
+  "vehicleRegCompletedBadge": "Doplněno automaticky — potvrďte",
+  "vehicleRegConsentIntroComplete": "Některé údaje byly načteny z PDF lokálně. Systém může načtení automaticky dokončit a vyplnit zbývající pole ke kontrole před uložením, nebo je můžete zadat ručně.",
+  "vehicleRegCompletionConsentRequired": "Před automatickým dokončením načtení je potřeba vaše rozhodnutí.",
+  "vehicleRegRecoveryStaleError": "Pro tento doklad je k dispozici novější načtení. Nejprve zvolte „Načíst doklad znovu“.",
+  "vehicleRegCompletionFailed": "Automatické načtení se nepodařilo dokončit. Již načtené údaje zůstaly zachovány a zbývající pole můžete vyplnit sami.",
+  "vehicleRegCompletionNotAvailable": "Dokončení automatického načtení není pro tento doklad k dispozici. Zbývající pole můžete vyplnit sami."
 }

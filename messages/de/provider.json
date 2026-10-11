@@ -938,5 +938,20 @@
   "vehicleRegConsentAccuracy": "Die extrahierten Daten sind Vorschläge zur Prüfung; sie belegen keine Halterschaft und bedeuten nicht, dass das Fahrzeug freigegeben ist.",
   "vehicleRegConsentDetailsToggle": "Datenschutzdetails",
   "vehicleRegConsentPointRetention": "BARQ verwendet die gesendete Kopie nur für dieses Lesen. Wie lange der Dienstleister sie aufbewahrt, richtet sich nach dessen Bedingungen; siehe Datenschutzerklärung.",
-  "vehicleRegConsentPrivacyPolicyLink": "Datenschutzerklärung"
+  "vehicleRegConsentPrivacyPolicyLink": "Datenschutzerklärung",
+  "vehicleRegRecoveryStale": "Für dieses Dokument ist eine neuere Lesemethode verfügbar.",
+  "vehicleRegRereadButton": "Dokument erneut lesen",
+  "vehicleRegRereadPending": "Wird erneut gelesen…",
+  "vehicleRegRecoveryIncomplete": "Nur einige Angaben konnten gelesen werden. Sie können das Lesen automatisch vervollständigen oder die übrigen Felder selbst ausfüllen.",
+  "vehicleRegRecoveryIncompleteManual": "Nur einige Angaben konnten gelesen werden. Bitte füllen Sie die übrigen Felder selbst aus.",
+  "vehicleRegCompleteReadingButton": "Automatisches Lesen vervollständigen",
+  "vehicleRegCompletionPending": "Lesen wird vervollständigt…",
+  "vehicleRegCompletionInProgress": "Das Lesen des Dokuments wird vervollständigt. Sie können das Formular währenddessen weiter ausfüllen.",
+  "vehicleRegCompletionAppliedNotice": "Einige Angaben wurden durch automatisches Lesen ergänzt. Prüfen Sie sie vor dem Speichern.",
+  "vehicleRegCompletedBadge": "Automatisch ergänzt — bitte bestätigen",
+  "vehicleRegConsentIntroComplete": "Einige Angaben wurden lokal aus der PDF-Datei gelesen. Das System kann das Lesen automatisch vervollständigen und die übrigen Felder zur Prüfung vor dem Speichern ausfüllen, oder Sie geben sie manuell ein.",
+  "vehicleRegCompletionConsentRequired": "Ihre Entscheidung ist erforderlich, bevor das Lesen automatisch vervollständigt werden kann.",
+  "vehicleRegRecoveryStaleError": "Für dieses Dokument ist ein neueres Lesen verfügbar. Wählen Sie zuerst „Dokument erneut lesen“.",
+  "vehicleRegCompletionFailed": "Das automatische Lesen konnte nicht vervollständigt werden. Die bereits gelesenen Angaben bleiben erhalten, und Sie können die übrigen Felder selbst ausfüllen.",
+  "vehicleRegCompletionNotAvailable": "Das Vervollständigen des automatischen Lesens ist für dieses Dokument nicht verfügbar. Sie können die übrigen Felder selbst ausfüllen."
 }

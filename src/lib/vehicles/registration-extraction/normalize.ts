@@ -79,6 +79,14 @@ function foldChar(ch: string): string {
   if (FOLD_PUNCTUATION.test(ch)) return " ";
   // Alef variants (أ إ آ ٱ) → bare alef, so "إيسوزو" / "ايسوزو" fold alike.
   if (ch === "أ" || ch === "إ" || ch === "آ" || ch === "ٱ") return "ا";
+  // Letter VARIANTS that PDF fonts commonly substitute (2026-10-09 staging finding): the Persian /
+  // Farsi yeh "ی" (U+06CC — also what NFKC yields for the Farsi-yeh presentation glyphs
+  // U+FBFC–U+FBFF) and alef maksura "ى" (U+0649) fold to Arabic yeh "ي"; keheh "ک" (U+06A9, and
+  // its presentation glyphs) folds to kaf "ك"; teh marbuta "ة" folds to heh "ه" (the two are
+  // printed interchangeably at word end). Matching only — the stored text keeps its own letters.
+  if (ch === "ی" || ch === "ى") return "ي";
+  if (ch === "ک") return "ك";
+  if (ch === "ة") return "ه";
   const cp = ch.codePointAt(0)!;
   if (cp >= 0x0660 && cp <= 0x0669) return String.fromCharCode(0x30 + (cp - 0x0660));
   if (cp >= 0x06f0 && cp <= 0x06f9) return String.fromCharCode(0x30 + (cp - 0x06f0));

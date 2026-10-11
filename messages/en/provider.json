@@ -938,5 +938,20 @@
   "vehicleRegConsentAccuracy": "The extracted details are suggestions for your review; they do not prove ownership and do not mean the vehicle is approved.",
   "vehicleRegConsentDetailsToggle": "Privacy details",
   "vehicleRegConsentPointRetention": "BARQ uses the sent copy for this reading only. How long the service provider keeps it is governed by that provider's terms; see the privacy policy.",
-  "vehicleRegConsentPrivacyPolicyLink": "Privacy policy"
+  "vehicleRegConsentPrivacyPolicyLink": "Privacy policy",
+  "vehicleRegRecoveryStale": "A newer way to read this document is available.",
+  "vehicleRegRereadButton": "Read document again",
+  "vehicleRegRereadPending": "Reading again…",
+  "vehicleRegRecoveryIncomplete": "Only some of the details could be read. You can complete the reading automatically or fill in the remaining fields yourself.",
+  "vehicleRegRecoveryIncompleteManual": "Only some of the details could be read. Please fill in the remaining fields yourself.",
+  "vehicleRegCompleteReadingButton": "Complete automatic reading",
+  "vehicleRegCompletionPending": "Completing the reading…",
+  "vehicleRegCompletionInProgress": "The document reading is being completed. You can keep filling in the form meanwhile.",
+  "vehicleRegCompletionAppliedNotice": "Some details were completed by automatic reading. Review them before saving.",
+  "vehicleRegCompletedBadge": "Completed automatically — confirm it",
+  "vehicleRegConsentIntroComplete": "Some details were read from the PDF locally. The system can complete the reading automatically and fill in the remaining fields for you to review before saving, or you can enter them manually.",
+  "vehicleRegCompletionConsentRequired": "Your choice is needed before the reading can be completed automatically.",
+  "vehicleRegRecoveryStaleError": "A newer reading of this document is available. Choose “Read document again” first.",
+  "vehicleRegCompletionFailed": "The automatic reading could not be completed. The details already read were kept, and you can fill in the remaining fields yourself.",
+  "vehicleRegCompletionNotAvailable": "Completing the automatic reading is not available for this document. You can fill in the remaining fields yourself."
 }

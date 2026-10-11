@@ -17,10 +17,10 @@ function revalidate(): void {
   revalidatePath("/[locale]/provider/vehicles/[id]", "page");
 }
 
-async function decide(vehicleId: string, decision: "GRANTED" | "DECLINED", ownerAuthorizationConfirmed: boolean): Promise<OcrConsentDecisionResult> {
+async function decide(vehicleId: string, decision: "GRANTED" | "DECLINED", ownerAuthorizationConfirmed: boolean, then: "ANALYSIS" | "COMPLETION" = "ANALYSIS"): Promise<OcrConsentDecisionResult> {
   try {
     const locale = await getLocale();
-    const result = await decideRegistrationOcrConsent(vehicleId, decision, { ownerAuthorizationConfirmed, locale });
+    const result = await decideRegistrationOcrConsent(vehicleId, decision, { ownerAuthorizationConfirmed, locale, then });
     if (result.ok) revalidate();
     return result;
   } catch (error) {
@@ -38,4 +38,10 @@ export async function grantOcrConsentAction(vehicleId: string, ownerAuthorizatio
 /** The provider chooses manual entry; nothing is sent anywhere. */
 export async function declineOcrConsentAction(vehicleId: string): Promise<OcrConsentDecisionResult> {
   return decide(vehicleId, "DECLINED", false);
+}
+
+/** The provider agrees to external automatic reading so an INCOMPLETE local PDF reading can be
+ *  completed; the completion starts only after the decision is durably recorded. */
+export async function grantOcrConsentForCompletionAction(vehicleId: string, ownerAuthorizationConfirmed: boolean): Promise<OcrConsentDecisionResult> {
+  return decide(vehicleId, "GRANTED", ownerAuthorizationConfirmed === true, "COMPLETION");
 }

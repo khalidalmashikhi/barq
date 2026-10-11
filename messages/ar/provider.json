@@ -938,5 +938,20 @@
   "vehicleRegConsentAccuracy": "البيانات المستخرجة اقتراحات للمراجعة، ولا تثبت الملكية ولا تعني اعتماد المركبة.",
   "vehicleRegConsentDetailsToggle": "تفاصيل الخصوصية",
   "vehicleRegConsentPointRetention": "تستخدم برق النسخة المرسلة لهذه القراءة فقط. أما مدة احتفاظ مزود الخدمة بها فتحكمها شروط ذلك المزود؛ راجع سياسة الخصوصية.",
-  "vehicleRegConsentPrivacyPolicyLink": "سياسة الخصوصية"
+  "vehicleRegConsentPrivacyPolicyLink": "سياسة الخصوصية",
+  "vehicleRegRecoveryStale": "تتوفر طريقة أحدث لقراءة هذا المستند.",
+  "vehicleRegRereadButton": "إعادة قراءة المستند",
+  "vehicleRegRereadPending": "جارٍ إعادة القراءة…",
+  "vehicleRegRecoveryIncomplete": "تمت قراءة بعض البيانات فقط. يمكنك إكمال القراءة تلقائياً أو تعبئة الحقول المتبقية بنفسك.",
+  "vehicleRegRecoveryIncompleteManual": "تمت قراءة بعض البيانات فقط. يمكنك تعبئة الحقول المتبقية بنفسك.",
+  "vehicleRegCompleteReadingButton": "إكمال القراءة التلقائية",
+  "vehicleRegCompletionPending": "جارٍ إكمال القراءة…",
+  "vehicleRegCompletionInProgress": "جارٍ إكمال قراءة المستند. يمكنك متابعة التعبئة يدوياً في هذه الأثناء.",
+  "vehicleRegCompletionAppliedNotice": "أُكملت بعض البيانات بالقراءة التلقائية. راجعها قبل الحفظ.",
+  "vehicleRegCompletedBadge": "أُكمل تلقائياً — تأكّد منه",
+  "vehicleRegConsentIntroComplete": "تمت قراءة بعض بيانات ملف PDF محلياً. يمكن للنظام إكمال القراءة تلقائياً وتعبئة الحقول المتبقية لتراجعها قبل الحفظ، أو يمكنك إدخالها يدوياً.",
+  "vehicleRegCompletionConsentRequired": "يلزم اختيارك قبل إكمال القراءة التلقائية.",
+  "vehicleRegRecoveryStaleError": "تتوفر قراءة أحدث لهذا المستند. اختر «إعادة قراءة المستند» أولاً.",
+  "vehicleRegCompletionFailed": "تعذّر إكمال القراءة التلقائية. بقيت البيانات المقروءة كما هي، ويمكنك تعبئة الحقول المتبقية بنفسك.",
+  "vehicleRegCompletionNotAvailable": "إكمال القراءة التلقائية غير متاح لهذا المستند. يمكنك تعبئة الحقول المتبقية بنفسك."
 }

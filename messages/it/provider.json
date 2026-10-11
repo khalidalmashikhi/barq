@@ -938,5 +938,20 @@
   "vehicleRegConsentAccuracy": "I dati estratti sono suggerimenti da rivedere; non provano la proprietà e non significano che il veicolo sia approvato.",
   "vehicleRegConsentDetailsToggle": "Dettagli sulla privacy",
   "vehicleRegConsentPointRetention": "BARQ usa la copia inviata solo per questa lettura. Per quanto tempo il fornitore la conserva è regolato dai termini di quel fornitore; vedi l’informativa sulla privacy.",
-  "vehicleRegConsentPrivacyPolicyLink": "Informativa sulla privacy"
+  "vehicleRegConsentPrivacyPolicyLink": "Informativa sulla privacy",
+  "vehicleRegRecoveryStale": "È disponibile un modo più recente per leggere questo documento.",
+  "vehicleRegRereadButton": "Leggi di nuovo il documento",
+  "vehicleRegRereadPending": "Nuova lettura in corso…",
+  "vehicleRegRecoveryIncomplete": "È stato possibile leggere solo alcuni dati. Puoi completare la lettura automaticamente o compilare tu i campi rimanenti.",
+  "vehicleRegRecoveryIncompleteManual": "È stato possibile leggere solo alcuni dati. Compila tu i campi rimanenti.",
+  "vehicleRegCompleteReadingButton": "Completa la lettura automatica",
+  "vehicleRegCompletionPending": "Completamento della lettura…",
+  "vehicleRegCompletionInProgress": "La lettura del documento è in fase di completamento. Nel frattempo puoi continuare a compilare il modulo.",
+  "vehicleRegCompletionAppliedNotice": "Alcuni dati sono stati completati con la lettura automatica. Rivedili prima di salvare.",
+  "vehicleRegCompletedBadge": "Completato automaticamente — confermalo",
+  "vehicleRegConsentIntroComplete": "Alcuni dati sono stati letti localmente dal PDF. Il sistema può completare la lettura automaticamente e compilare i campi rimanenti perché tu li riveda prima di salvare, oppure puoi inserirli manualmente.",
+  "vehicleRegCompletionConsentRequired": "Serve una tua scelta prima che la lettura possa essere completata automaticamente.",
+  "vehicleRegRecoveryStaleError": "È disponibile una lettura più recente di questo documento. Scegli prima «Leggi di nuovo il documento».",
+  "vehicleRegCompletionFailed": "Non è stato possibile completare la lettura automatica. I dati già letti sono stati mantenuti e puoi compilare tu i campi rimanenti.",
+  "vehicleRegCompletionNotAvailable": "Il completamento della lettura automatica non è disponibile per questo documento. Puoi compilare tu i campi rimanenti."
 }

@@ -27,6 +27,8 @@ vi.mock("@/lib/vehicles/registration-extraction/ocr/ocr-consent", async (origina
 });
 const analyze = vi.fn();
 vi.mock("./run-registration-analysis", () => ({ runRegistrationAnalysis: (...a: unknown[]) => analyze(...a) }));
+const complete = vi.fn();
+vi.mock("./complete-registration-reading", () => ({ completeRegistrationReading: (...a: unknown[]) => complete(...a) }));
 
 const { decideRegistrationOcrConsent } = await import("./decide-ocr-consent");
 const { OcrConsentInputError } = await import("@/lib/vehicles/registration-extraction/ocr/ocr-consent");
@@ -125,5 +127,23 @@ describe("decideRegistrationOcrConsent", () => {
   it("auth errors propagate to the action adapter (which maps them) — the function itself never swallows them", async () => {
     requireApprovedProvider.mockRejectedValue(new Error("UNAUTHENTICATED"));
     await expect(decideRegistrationOcrConsent(VEH, "GRANTED", grant)).rejects.toThrow("UNAUTHENTICATED");
+  });
+
+  it("GRANTED for a COMPLETION (2026-10-09): the decision is written FIRST, then the completion starts — never the full reading", async () => {
+    const order: string[] = [];
+    record.mockImplementation(async () => (order.push("record"), { id: "consent-1" }));
+    complete.mockImplementation(async () => (order.push("complete"), { ok: true, outcome: "COMPLETED" }));
+    const res = await decideRegistrationOcrConsent(VEH, "GRANTED", { ...grant, then: "COMPLETION" });
+    expect(res).toEqual({ ok: true, decision: "GRANTED", analysis: null, completion: { ok: true, outcome: "COMPLETED" } });
+    expect(order).toEqual(["record", "complete"]);
+    expect(analyze).not.toHaveBeenCalled();
+  });
+
+  it("a DECLINE in the completion flow starts nothing; a completion that throws keeps the recorded consent and reports a safe code", async () => {
+    expect(await decideRegistrationOcrConsent(VEH, "DECLINED", { ownerAuthorizationConfirmed: false, locale: "ar", then: "COMPLETION" })).toEqual({ ok: true, decision: "DECLINED", analysis: null });
+    expect(complete).not.toHaveBeenCalled();
+    record.mockResolvedValue({ id: "consent-2" });
+    complete.mockRejectedValueOnce(new Error("boom"));
+    expect(await decideRegistrationOcrConsent(VEH, "GRANTED", { ...grant, then: "COMPLETION" })).toEqual({ ok: true, decision: "GRANTED", analysis: null, completion: { ok: false, code: "COMPLETION_FAILED" } });
   });
 });

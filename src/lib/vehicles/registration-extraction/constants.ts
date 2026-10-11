@@ -2,10 +2,24 @@
 // native-PDF-text extraction engine. Pure (no server-only): safe to import from
 // both the pure parser and the server-only service/adapter.
 
-/** Bumped whenever the parser's field/normalization/confidence rules change. Persisted
- *  on each extraction record so a re-run under the SAME version is idempotent and a
- *  later version can be re-processed deliberately. */
-export const REGISTRATION_PARSER_VERSION = "1.1.0"; // 1.1.0 (2026-10-09): Oman field-mapping contract — model-year routing, compound description, explicit seats
+/** The SEMANTIC-ANALYSIS VERSION of the deterministic stage — label mapping, normalization, the
+ *  manufacturer and body-style registries, the compound-description splitter, field precedence,
+ *  conflict handling and capacity mapping. It MUST be bumped whenever any of them can change the
+ *  output for the same input: `semantic-version.test.ts` fingerprints the output over a fixed
+ *  synthetic corpus and fails until the version and its fingerprint are updated together.
+ *
+ *  Persisted on every extraction row (`parserVersion`) and part of every reuse decision: a stored
+ *  result is reused only for the same provider, the same ORDERED SET hash and THIS version (plus,
+ *  for an OCR reading, the same engine/prompt identity in `ocrEngine` — a separate axis). A row
+ *  written under an older version is shown to the provider as STALE and is re-read locally only on
+ *  the provider's request (never on a page load, never in bulk).
+ *
+ *  1.1.0 (2026-10-09): Oman field-mapping contract — model-year routing, compound description, explicit seats.
+ *  1.2.0 (2026-10-09): staging native-PDF finding — 1.1.0 had silently changed meaning (registries +
+ *    fold-based splitter shipped without a bump, so pre-existing rows were reused as "current");
+ *    Persian/Arabic letter variants (ی ى → ي, ک → ك, ة → ه) fold alike; a manufacturer glued to its
+ *    model ("مازدا6", "MAZDA6", "مازدا-6") or broken by a PDF text-run gap ("ماز دا") is recovered. */
+export const REGISTRATION_PARSER_VERSION = "1.2.0";
 
 /** The only document layout this engine understands. */
 export const REGISTRATION_DOCUMENT_KIND = "OMAN_VEHICLE_REGISTRATION" as const;

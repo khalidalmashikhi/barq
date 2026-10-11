@@ -1,4 +1,7 @@
 import "server-only";
+import { REGISTRATION_PARSER_VERSION, MAX_OCR_CALLS_PER_DOCUMENT } from "@/lib/vehicles/registration-extraction/constants";
+import { COMPLETION_APPLIED_WARNING, COMPLETION_DIFFERS_WARNING, COMPLETION_FAILED_WARNING, FROM_COMPLETION_WARNING } from "@/lib/vehicles/registration-extraction/completion-merge";
+import { isCompletionInProgress } from "@/lib/vehicles/registration-extraction/completion-lease";
 import type { AssetDocumentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider } from "@/lib/auth";
@@ -56,6 +59,28 @@ export type RegistrationReviewFieldView = {
   /** The suggestion was DERIVED from the document's compound description (dictionary split) —
    *  always LOW confidence and flagged; the provider must confirm or correct it. */
   heuristic: boolean;
+  /** The suggestion was filled by the optional automatic completion of an incomplete PDF reading
+   *  (2026-10-09) — a suggestion like any other, flagged for review. */
+  completedAutomatically: boolean;
+};
+
+/**
+ * Recovery state of the reading, derived on the SERVER from the stored semantic version and the
+ * stored result — never from client state, never by re-reading on a GET (2026-10-09).
+ *   • STALE — stored under an older semantic-analysis version: "Read document again" re-reads it
+ *     LOCALLY (no external request).
+ *   • INCOMPLETE — current, but the manufacturer or the commercial model is missing: manual entry
+ *     is open; for a native-text PDF an optional, consent-gated automatic completion may be offered.
+ *   • null — current and sufficiently complete: no banner, nothing re-read on reload.
+ */
+export type RegistrationRecoveryView = {
+  state: "STALE" | "INCOMPLETE" | null;
+  /** The optional automatic completion can be offered (configured, PDF, local reading, budget left). */
+  completionAvailable: boolean;
+  completionInProgress: boolean;
+  completionApplied: boolean;
+  /** The last completion attempt failed; the local reading was kept. */
+  completionFailed: boolean;
 };
 
 /** The provider's standing decision about EXTERNAL automatic reading of THIS document set, and
@@ -100,6 +125,7 @@ export type RegistrationReviewView = {
    *  usage text — never pre-selected: the provider must choose explicitly. Null when nothing is
    *  recognizable. */
   vehicleTypeSuggestion: string | null;
+  recovery: RegistrationRecoveryView;
   /** Consent status for external reading of the current set (null = not available here). */
   ocrConsent: RegistrationOcrConsentView | null;
   reviewState: ReviewState;
@@ -115,6 +141,9 @@ const CONFIRMATION_COLUMN_SELECT = {
   vin: true, engineNumber: true, usageClassification: true, engineCapacity: true, emptyWeight: true,
   maximumLoad: true, axleCount: true, licenseValidFrom: true, licenseExpiry: true, firstRegistrationDate: true,
 } as const;
+
+/** The customer-visible identity, in confirmation-field keys (make + commercial model). */
+const IDENTITY_FIELD_KEYS = ["make", "model"] as const;
 
 const NO_SUGGESTIONS: ExtractedSuggestions = { values: {}, confidence: {}, warnings: {}, alternatives: {}, documentDescription: null };
 
@@ -136,7 +165,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
           mimeType: true,
           sizeBytes: true,
           registrationExtraction: {
-            select: { id: true, status: true, failureCode: true, documentSha256: true, parserVersion: true, source: true, processingExpiresAt: true, fields: true, lastAttemptedAt: true, lastSucceededAt: true },
+            select: { id: true, status: true, failureCode: true, documentSha256: true, parserVersion: true, source: true, processingExpiresAt: true, fields: true, lastAttemptedAt: true, lastSucceededAt: true, warnings: true, ocrCallCount: true },
           },
           registrationConfirmations: {
             where: { status: { not: "SUPERSEDED" } },
@@ -205,6 +234,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     const conflict = hasSuggestions && warnings.includes("CONFLICT");
     const alternatives = conflict ? (extracted.alternatives[key] ?? []) : [];
     const heuristic = hasSuggestions && extractedValue !== null && warnings.includes("HEURISTIC_SPLIT");
+    const completedAutomatically = hasSuggestions && warnings.includes(FROM_COMPLETION_WARNING);
     // The value the form starts with is the provider's own once they have entered or corrected it;
     // otherwise it is the document-derived suggestion; otherwise nothing.
     const providerOwned = confirmedValue !== null && (decision === null || !decision.matches || decision.source !== "EXTRACTED");
@@ -214,7 +244,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
         ? false
         : source === "UNRESOLVED"
           ? spec.required || conflict // a conflict is unresolved by design and must be looked at
-          : confidence !== "HIGH" || conflict || heuristic || warnings.includes("OCR_UNCLEAR");
+          : confidence !== "HIGH" || conflict || heuristic || completedAutomatically || warnings.includes("OCR_UNCLEAR") || warnings.includes(COMPLETION_DIFFERS_WARNING);
     return {
       key,
       group: spec.group,
@@ -230,6 +260,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
       conflict,
       alternatives,
       heuristic,
+      completedAutomatically,
     };
   });
 
@@ -243,6 +274,31 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     .join(" ");
   const vehicleTypeSuggestion = hasSuggestions ? suggestVehicleType(typeHint) : null;
 
+  // RECOVERY — from the stored semantic version and the stored result only.
+  const rowWarnings = extraction && Array.isArray(extraction.warnings) ? extraction.warnings.filter((w): w is string => typeof w === "string") : [];
+  const resultStale = hasSuggestions && extraction.parserVersion !== REGISTRATION_PARSER_VERSION;
+  const identityIncomplete = hasSuggestions && IDENTITY_FIELD_KEYS.some((k) => {
+    const f = fields.find((x) => x.key === k);
+    return !f || (f.extractedValue === null && !f.conflict);
+  });
+  const completionApplied = rowWarnings.includes(COMPLETION_APPLIED_WARNING);
+  const completionInProgress = !!extraction && isCompletionInProgress({ status: extraction.status, processingExpiresAt: extraction.processingExpiresAt });
+  const recoveryState: RegistrationRecoveryView["state"] = reviewState.locked ? null : resultStale ? "STALE" : identityIncomplete ? "INCOMPLETE" : null;
+  const recovery: RegistrationRecoveryView = {
+    state: recoveryState,
+    completionAvailable:
+      recoveryState === "INCOMPLETE" &&
+      setKind === "PDF" &&
+      extractionSource === "NATIVE_PDF_TEXT" &&
+      policy !== null &&
+      !completionApplied &&
+      !completionInProgress &&
+      (extraction?.ocrCallCount ?? 0) < MAX_OCR_CALLS_PER_DOCUMENT,
+    completionInProgress,
+    completionApplied,
+    completionFailed: !completionApplied && rowWarnings.includes(COMPLETION_FAILED_WARNING),
+  };
+
   return {
     vehicleId: asset.id,
     documentId: doc?.id ?? null,
@@ -254,6 +310,7 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     extractionSource,
     documentDescription,
     vehicleTypeSuggestion,
+    recovery,
     ocrConsent,
     reviewState,
     lastAttemptedAt: extraction?.lastAttemptedAt ?? null,
