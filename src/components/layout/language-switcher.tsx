@@ -8,6 +8,7 @@ import Link from "next/link";
 import { locales } from "@/i18n/locales";
 import { switchLocalePath } from "@/i18n/switch-locale-path";
 import { LOCALE_LABELS, resolveActiveLocale } from "@/i18n/active-locale";
+import { interceptLocaleSwitch } from "./locale-switch-guard";
 
 // Language switcher — Phase 2 navbar revision (Brand Identity Reset).
 //
@@ -117,9 +118,12 @@ export function LanguageSwitcher({ onSelect }: LanguageSwitcherProps = {}) {
               key={code}
               href={switchLocalePath(currentPath, code)}
               role="menuitem"
-              onClick={() => {
+              onClick={(event) => {
                 setOpen(false);
                 onSelect?.();
+                // A page with unsaved work that a remount would lose may take over (it shows its own
+                // "save before changing language" prompt); otherwise the link navigates as before.
+                if (code !== activeLocale && interceptLocaleSwitch(switchLocalePath(currentPath, code))) event.preventDefault();
               }}
               className={`flex items-center justify-between px-4 py-2 text-sm transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/15 ${
                 code === activeLocale ? "font-medium text-primary" : "text-foreground/70"

@@ -24,7 +24,7 @@ fields.makeDescription!.normalizedValue = "Toyota";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+  requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "user-1" }, provider: { id: "prov-1" } });
 });
 
 describe("getRegistrationReview", () => {

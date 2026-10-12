@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "Použít {value}",
   "vehicleRegUseSuggestionAria": "Použít návrh pro {field}: {value}",
   "vehicleRegStatusCurrent": "Aktuální hodnota",
-  "vehicleRegDiscardChanges": "Zahodit změny"
+  "vehicleRegDiscardChanges": "Zahodit změny",
+  "vehicleRegLocaleGuardTitle": "Neuložené změny",
+  "vehicleRegLocaleGuardMessage": "Máte neuložené změny. Před změnou jazyka uložte postup, abyste o ně nepřišli.",
+  "vehicleRegLocaleGuardStay": "Zůstat u tohoto jazyka",
+  "vehicleRegLocaleGuardSave": "Uložit postup a změnit jazyk"
 }

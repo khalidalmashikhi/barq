@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "Использовать {value}",
   "vehicleRegUseSuggestionAria": "Использовать предложение для поля {field}: {value}",
   "vehicleRegStatusCurrent": "Текущее значение",
-  "vehicleRegDiscardChanges": "Отменить изменения"
+  "vehicleRegDiscardChanges": "Отменить изменения",
+  "vehicleRegLocaleGuardTitle": "Несохранённые изменения",
+  "vehicleRegLocaleGuardMessage": "У вас есть несохранённые изменения. Сохраните прогресс перед сменой языка, чтобы не потерять их.",
+  "vehicleRegLocaleGuardStay": "Остаться на этом языке",
+  "vehicleRegLocaleGuardSave": "Сохранить прогресс и сменить язык"
 }

@@ -2,8 +2,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   applySuggestion,
   canApplySuggestion,
-  decodeAppliedSuggestions,
-  encodeAppliedSuggestions,
+  decodeTabMemory,
+  emptyTabMemory,
+  encodeTabMemory,
+  hasUnsavedPrivateChanges,
+  rememberField,
+  restoreTabMemory,
+  TAB_MEMORY_FIELD_KEYS,
+  type ReviewTabBinding,
   fieldStatus,
   initialFieldValue,
   isBlank,
@@ -11,7 +17,6 @@ import {
   hasUnsavedChanges,
   statusLabelKey,
   describesDocument,
-  restorableAppliedSuggestions,
   reviewFieldsSignature,
   suggestionText,
   syncUntouchedValues,
@@ -42,6 +47,8 @@ const STAGING: F[] = [
   f("licenseExpiry", { kind: "date", extractedValue: "2027-05-31", source: "NATIVE_PDF_TEXT" }),
 ];
 const byKey = (k: string, list = STAGING) => list.find((x) => x.key === k)!;
+/** Opaque server bindings (provider identity + reading) as the pages pass them. */
+const B1: ReviewTabBinding = { identity: "provider-a", source: "reading-1" };
 const start = (list = STAGING) => Object.fromEntries(list.map((x) => [x.key, initialFieldValue(x)]));
 
 describe("root cause (synthetic reproduction of the staging screen)", () => {
@@ -196,28 +203,29 @@ describe("22/23. persistence", () => {
     expect(syncUntouchedValues(typed, touched, STAGING)).toMatchObject({ make: "Mazda", model: "Typedmodel" });
   });
 
-  it("23. the language switch: applied suggestions round-trip through the session encoding and are restored only while they still equal the server's suggestion", () => {
-    const encoded = encodeAppliedSuggestions({ make: "Mazda", model: "6", vehicleType: "SEDAN", plateNumber: "T 99001" }, "reading-1");
-    expect(encoded).not.toBeNull();
-    const decoded = decodeAppliedSuggestions(encoded, "reading-1");
-    expect(decoded).toEqual({ make: "Mazda", model: "6" }); // only make / model are ever remembered
-    expect(restorableAppliedSuggestions(decoded, STAGING)).toEqual({ make: "Mazda", model: "6" });
+  it("23. the language switch: an applied suggestion round-trips through tab memory and comes back only while it still equals the server's suggestion", () => {
+    let mem = rememberField(emptyTabMemory(), byKey("make"), "Mazda", "APPLIED");
+    mem = rememberField(mem, byKey("model"), "6", "APPLIED");
+    const decoded = decodeTabMemory(encodeTabMemory(mem, B1, "ONBOARDING"), B1, "ONBOARDING");
+    expect(restoreTabMemory(decoded, STAGING)).toEqual({ values: { make: "Mazda", model: "6" }, applied: { make: true, model: true } });
     // a stale memory (the server now suggests something else) is dropped, never injected
-    expect(restorableAppliedSuggestions({ make: "Toyota" }, STAGING)).toEqual({});
-    // a field that already starts with the provider's own saved value is not overridden
+    const stale = rememberField(emptyTabMemory(), byKey("make"), "Toyota", "APPLIED");
+    expect(restoreTabMemory(stale, STAGING).values).toEqual({});
+    // an applied suggestion never overrides a field that starts with the provider's saved value
     const withDraft = STAGING.map((x) => (x.key === "make" ? { ...x, confirmedValue: "Testmake" } : x));
-    expect(restorableAppliedSuggestions({ make: "Mazda" }, withDraft)).toEqual({});
-    expect(decodeAppliedSuggestions("{not json", "reading-1")).toEqual({});
-    expect(encodeAppliedSuggestions({}, "reading-1")).toBeNull();
+    expect(restoreTabMemory(decoded, withDraft).values).toEqual({ model: "6" });
+    expect(decodeTabMemory("{not json", B1, "ONBOARDING")).toEqual(emptyTabMemory());
+    expect(encodeTabMemory(emptyTabMemory(), B1, "ONBOARDING")).toBeNull();
   });
 
-  it("13. a remembered suggestion is NEVER restored after its source reading changed (re-read, replaced document) — even if the text is the same", () => {
-    const encoded = encodeAppliedSuggestions({ make: "Mazda" }, "reading-1");
-    expect(decodeAppliedSuggestions(encoded, "reading-2")).toEqual({});
-    expect(decodeAppliedSuggestions(encoded, null)).toEqual({});
-    expect(encodeAppliedSuggestions({ make: "Mazda" }, null)).toBeNull(); // no reading → nothing remembered
-    // the unbound format written before 2026-10-12 is ignored, never injected
-    expect(decodeAppliedSuggestions(JSON.stringify({ make: "Mazda" }), "reading-1")).toEqual({});
+  it("13. a remembered value is NEVER restored after its source reading changed (re-read, replaced document) — even if the text is the same", () => {
+    const encoded = encodeTabMemory(rememberField(emptyTabMemory(), byKey("make"), "Mazda", "APPLIED"), B1, "ONBOARDING");
+    expect(decodeTabMemory(encoded, { ...B1, source: "reading-2" }, "ONBOARDING")).toEqual(emptyTabMemory());
+    expect(decodeTabMemory(encoded, null, "ONBOARDING")).toEqual(emptyTabMemory());
+    expect(encodeTabMemory(rememberField(emptyTabMemory(), byKey("make"), "Mazda", "APPLIED"), null, "ONBOARDING")).toBeNull(); // no binding → nothing remembered
+    // the unbound formats written before this correction are ignored, never injected
+    expect(decodeTabMemory(JSON.stringify({ make: "Mazda" }), B1, "ONBOARDING")).toEqual(emptyTabMemory());
+    expect(decodeTabMemory(JSON.stringify({ s: "reading-1", v: { make: "Mazda" } }), B1, "ONBOARDING")).toEqual(emptyTabMemory());
   });
 
   it("the re-sync trigger changes when the server data changes and not otherwise", () => {
@@ -309,5 +317,104 @@ describe("detail / onboarding parity — saved values, statuses and unsaved chan
   it("document chips apply only while the status describes the document", () => {
     expect(["SOURCE", "SUGGESTED", "APPLIED"].every((x) => describesDocument(x as never))).toBe(true);
     expect(["CURRENT", "PROVIDER", "NOT_ENTERED"].some((x) => describesDocument(x as never))).toBe(false);
+  });
+});
+
+// ── 2026-10-12 correction — unsaved values across a language switch (tab memory) ──────────────────
+describe("tab memory — non-sensitive values survive a language switch with their provenance", () => {
+  /** The detail page: saved make, derived model suggestion, saved colour; plus private fields. */
+  const DETAIL: F[] = [
+    f("make", { extractedValue: "Mazda", heuristic: true, confirmedValue: "Testmake", source: "PROVIDER" }),
+    f("model", { extractedValue: "6", heuristic: true, source: "NATIVE_PDF_TEXT" }),
+    f("modelYear", { kind: "int", extractedValue: 2019, confirmedValue: 2019, source: "NATIVE_PDF_TEXT" }),
+    f("color", { extractedValue: "أبيض", confirmedValue: "أحمر", source: "PROVIDER" }),
+    f("bookablePassengerCapacity", { kind: "int", confirmedValue: 4, source: "PROVIDER" }),
+    f("licensedPassengerCapacity", { kind: "int", extractedValue: 5, source: "NATIVE_PDF_TEXT" }),
+    f("plateNumber", { kind: "plate", extractedValue: "T 99002", source: "NATIVE_PDF_TEXT" }),
+    f("vin", { kind: "vin" }),
+    f("engineNumber"),
+    f("plateType"),
+    f("licenseExpiry", { kind: "date", extractedValue: "2027-05-31", source: "NATIVE_PDF_TEXT" }),
+  ];
+  const d = (k: string) => DETAIL.find((x) => x.key === k)!;
+  const startD = () => Object.fromEntries(DETAIL.map((x) => [x.key, initialFieldValue(x)]));
+  /** Simulates the remount after a language switch: encode in one locale, decode + restore in the other. */
+  const roundTrip = (mem: ReturnType<typeof emptyTabMemory>, binding: ReviewTabBinding | null = B1, flow: "ONBOARDING" | "DETAIL" = "DETAIL", decodeBinding: ReviewTabBinding | null = binding, decodeFlow = flow) =>
+    restoreTabMemory(decodeTabMemory(encodeTabMemory(mem, binding, flow), decodeBinding, decodeFlow), DETAIL);
+
+  it("1/4. a typed make survives Arabic → English and is still 'entered by you' (PROVIDER)", () => {
+    const back = roundTrip(rememberField(emptyTabMemory(), d("make"), "Typedmake", "TYPED"));
+    expect(back.values.make).toBe("Typedmake");
+    expect(back.applied.make).toBe(false);
+    expect(fieldStatus(d("make"), back.values.make, back.applied.make === true)).toBe("PROVIDER");
+  });
+
+  it("2/4. a typed model survives English → Arabic as PROVIDER (typing over a blank suggestion)", () => {
+    const back = roundTrip(rememberField(emptyTabMemory(), d("model"), "Typedmodel", "TYPED"));
+    expect(back.values.model).toBe("Typedmodel");
+    expect(fieldStatus(d("model"), back.values.model, back.applied.model === true)).toBe("PROVIDER");
+  });
+
+  it("3. applied make / model survive and keep 'selected the document suggestion' (APPLIED)", () => {
+    const onboarding = STAGING;
+    let mem = rememberField(emptyTabMemory(), byKey("make"), "Mazda", "APPLIED");
+    mem = rememberField(mem, byKey("model"), "6", "APPLIED");
+    const back = restoreTabMemory(decodeTabMemory(encodeTabMemory(mem, B1, "ONBOARDING"), B1, "ONBOARDING"), onboarding);
+    expect(fieldStatus(byKey("make"), back.values.make, back.applied.make === true)).toBe("APPLIED");
+    expect(fieldStatus(byKey("model"), back.values.model, back.applied.model === true)).toBe("APPLIED");
+  });
+
+  it("a typed non-sensitive capacity and a cleared field survive too; a typed value equal to the start is not an unsaved change", () => {
+    let mem = rememberField(emptyTabMemory(), d("bookablePassengerCapacity"), "3", "TYPED");
+    mem = rememberField(mem, d("color"), "", "TYPED"); // the provider cleared the saved colour
+    mem = rememberField(mem, d("modelYear"), "2019", "TYPED"); // same as the saved value → dropped
+    const back = roundTrip(mem);
+    expect(back.values).toEqual({ bookablePassengerCapacity: "3", color: "" });
+    expect(fieldStatus(d("color"), back.values.color, false)).toBe("SUGGESTED"); // blank is never PROVIDER: the document colour is offered again
+  });
+
+  it("5/7. never into another vehicle form or after the source token changed (the record is per vehicle + bound to the reading)", () => {
+    const mem = rememberField(emptyTabMemory(), d("make"), "Typedmake", "TYPED");
+    expect(roundTrip(mem, B1, "DETAIL", { ...B1, source: "reading-2" }).values).toEqual({});
+    expect(roundTrip(mem, B1, "DETAIL", B1, "ONBOARDING").values).toEqual({}); // another form never inherits it
+  });
+
+  it("6. never for another identity", () => {
+    const mem = rememberField(emptyTabMemory(), d("make"), "Typedmake", "TYPED");
+    expect(roundTrip(mem, B1, "DETAIL", { ...B1, identity: "provider-b" }).values).toEqual({});
+  });
+
+  it("11/12. plate, VIN, engine number (and every PRIVATE field) are never serialized — not even if a caller tries", () => {
+    let mem = emptyTabMemory();
+    for (const [k, v] of [["plateNumber", "T 99002"], ["vin", "QAVIN0000000000001"], ["engineNumber", "QAENG123"], ["plateType", "QA-PRIVATE"], ["licenseExpiry", "30/06/2028"], ["licensedPassengerCapacity", "7"]] as const)
+      mem = rememberField(mem, d(k), v, "TYPED");
+    expect(mem.fields).toEqual({}); // rememberField refuses non-allowlisted keys
+    // a hand-built memory with private keys is still filtered at encode time
+    const forced = { fields: { plateNumber: { origin: "TYPED" as const, value: "T 99002" }, vin: { origin: "TYPED" as const, value: "QAVIN0000000000001" }, make: { origin: "TYPED" as const, value: "Typedmake" } }, extras: { declarationAccepted: "1", vehicleType: "SEDAN" } };
+    const raw = encodeTabMemory(forced, B1, "DETAIL")!;
+    for (const secret of ["T 99002", "QAVIN0000000000001", "plateNumber", "vin", "declarationAccepted"]) expect(raw).not.toContain(secret);
+    // and at decode time (a tampered record)
+    const tampered = JSON.stringify({ v: 2, u: B1.identity, s: B1.source, k: "DETAIL", f: { engineNumber: ["T", "QAENG123"], make: ["T", "X"] }, x: { declarationAccepted: "1" } });
+    expect(decodeTabMemory(tampered, B1, "DETAIL")).toEqual({ fields: { make: { origin: "TYPED", value: "X" } }, extras: {} });
+    expect(TAB_MEMORY_FIELD_KEYS).toEqual(["make", "model", "modelYear", "color", "bookablePassengerCapacity"]);
+  });
+
+  it("13. unsaved PRIVATE changes are detected (they would be lost by a remount) — public ones are not", () => {
+    expect(hasUnsavedPrivateChanges(startD(), DETAIL)).toBe(false);
+    expect(hasUnsavedPrivateChanges({ ...startD(), make: "Typedmake", bookablePassengerCapacity: "3" }, DETAIL)).toBe(false);
+    expect(hasUnsavedPrivateChanges({ ...startD(), plateType: "QA-PRIVATE" }, DETAIL)).toBe(true);
+    expect(hasUnsavedPrivateChanges({ ...startD(), licenseExpiry: "30/06/2028" }, DETAIL)).toBe(true);
+    expect(hasUnsavedPrivateChanges({ ...startD(), vin: "QAVIN0000000000001" }, DETAIL)).toBe(true);
+  });
+
+  it("onboarding choices (type, public description, 4x4 claim) round-trip; the accuracy declaration never does", () => {
+    const mem = { fields: {}, extras: { vehicleType: "SEDAN", publicDescription: "QA public description", claimedFourByFour: "1", declarationAccepted: "1" } };
+    const back = decodeTabMemory(encodeTabMemory(mem, B1, "ONBOARDING"), B1, "ONBOARDING");
+    expect(back.extras).toEqual({ vehicleType: "SEDAN", publicDescription: "QA public description", claimedFourByFour: "1" });
+  });
+
+  it("an over-long value is simply not kept (bounded storage)", () => {
+    const mem = rememberField(emptyTabMemory(), d("make"), "x".repeat(2001), "TYPED");
+    expect(encodeTabMemory(mem, B1, "DETAIL")).toBeNull();
   });
 });

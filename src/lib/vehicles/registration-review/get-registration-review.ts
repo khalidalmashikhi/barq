@@ -6,6 +6,8 @@ import type { AssetDocumentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireApprovedProvider } from "@/lib/auth";
 import { isValidUuid } from "@/lib/uuid";
+import { reviewTabBinding } from "./review-tab-binding";
+import type { ReviewTabBinding } from "./review-field-state";
 import type { RegistrationFieldConfidence } from "@/lib/vehicles/registration-extraction/codes";
 import {
   CONFIRMATION_FIELD_KEYS,
@@ -133,6 +135,9 @@ export type RegistrationReviewView = {
   lastSucceededAt: Date | null;
   confirmation: { status: "DRAFT" | "SUBMITTED" | "SUPERSEDED"; submittedAt: Date | null } | null;
   fields: RegistrationReviewFieldView[];
+  /** Opaque binding for the review form's tab memory (provider identity + this reading) — two
+   *  server hashes, never a raw id or value. Provider pages only; never in a public DTO. */
+  tabBinding: ReviewTabBinding;
 };
 
 const CONFIRMATION_COLUMN_SELECT = {
@@ -149,7 +154,7 @@ const NO_SUGGESTIONS: ExtractedSuggestions = { values: {}, confidence: {}, warni
 
 export async function getRegistrationReview(vehicleId: string): Promise<RegistrationReviewView | null> {
   if (!isValidUuid(vehicleId)) return null;
-  const { provider } = await requireApprovedProvider();
+  const { barqUser, provider } = await requireApprovedProvider();
 
   const asset = await prisma.asset.findFirst({
     where: { id: vehicleId, providerId: provider.id, assetType: "VEHICLE" },
@@ -317,5 +322,12 @@ export async function getRegistrationReview(vehicleId: string): Promise<Registra
     lastSucceededAt: extraction?.lastSucceededAt ?? null,
     confirmation: confirmation ? { status: confirmation.status, submittedAt: confirmation.submittedAt } : null,
     fields,
+    tabBinding: reviewTabBinding({
+      providerId: provider.id,
+      userId: barqUser.id,
+      documentIds: pages.map((p) => p.documentId),
+      extraction: extraction ? { id: extraction.id, documentSha256: extraction.documentSha256, parserVersion: extraction.parserVersion, lastSucceededAt: extraction.lastSucceededAt } : null,
+      extractedValues: fields.map((f) => ({ key: f.key, extractedValue: f.extractedValue, alternatives: f.alternatives })),
+    }),
   };
 }

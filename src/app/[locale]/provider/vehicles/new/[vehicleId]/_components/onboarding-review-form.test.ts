@@ -96,8 +96,8 @@ describe("review form — nothing is finalized without the provider (8)", () => 
       "await finalizeVehicleAction(",
       "await saveOnboardingDraftAction(",
     ]);
-    const bodies = effects(FORM);
-    expect(bodies.length).toBeGreaterThanOrEqual(2);
+    const bodies = [...effects(FORM), ...effects(HOOK)];
+    expect(bodies.length).toBeGreaterThanOrEqual(3); // form: error focus; hook: re-sync + tab-memory restore
     for (const body of bodies) expect(body).not.toMatch(/Action\(|fetch\(|startTransition/);
   });
 
@@ -107,7 +107,9 @@ describe("review form — nothing is finalized without the provider (8)", () => 
   });
 
   it("the 4x4 declaration is NEVER pre-ticked from the document — it starts false and only the provider's click changes it", () => {
-    expect(FORM).toMatch(/const \[claimedFourByFour, setClaimedFourByFour\] = useState\(false\);/);
+    // held in the bound tab memory as "1" / "" — absent (false) until the provider ticks it
+    expect(FORM).toMatch(/const claimedFourByFour = extras\.claimedFourByFour === "1";/);
+    expect(FORM).toMatch(/const setClaimedFourByFour = \(on: boolean\) => setExtra\("claimedFourByFour", on \? "1" : ""\);/);
     expect((FORM.match(/setClaimedFourByFour\(/g) ?? []).length).toBe(1);
     expect(FORM).toMatch(/onChange=\{\(e\) => setClaimedFourByFour\(e\.target\.checked\)\}/);
   });
@@ -115,25 +117,27 @@ describe("review form — nothing is finalized without the provider (8)", () => 
 
 describe("review form — the vehicle TYPE is an explicit provider decision (3)", () => {
   it("starts UNCHOSEN; a suggestion is only OFFERED with a 'use this type' control; selecting is the provider's click", () => {
-    expect(FORM).toMatch(/useState<string>\(""\)/);
-    expect(FORM).not.toMatch(/useState<string>\(suggestedVehicleType/);
+    // unchosen ("") unless an EARLIER explicit choice is in the bound tab memory — never the suggestion
+    expect(FORM).toMatch(/const vehicleType = vehicleTypeOptions\.some\(\(o\) => o\.code === extras\.vehicleType\) \? extras\.vehicleType! : "";/);
+    expect(FORM).not.toMatch(/suggestedVehicleType\)\s*;|setExtra\("vehicleType", suggested/);
     expect(FORM).toMatch(/onClick=\{\(\) => setVehicleType\(suggestedOption\.code\)\}/);
     expect(FORM).toMatch(/t\("vehicleRegTypeUseSuggestion"\)/);
     expect(FORM).toMatch(/t\("vehicleRegTypeMustChoose"\)/);
     expect(FORM).toMatch(/onChange=\{\(e\) => setVehicleType\(e\.target\.value\)\}/);
     // Only the provider's two controls ever set the type (the restore effect reads an EARLIER explicit choice).
     expect((FORM.match(/setVehicleType\(/g) ?? []).length).toBe(2); // the select and the suggestion button — nothing else
-    expect(FORM).toMatch(/const setVehicleType = \(code: string\) => \{/);
+    expect(FORM).toMatch(/const setVehicleType = \(code: string\) => setExtra\("vehicleType", code\);/);
   });
 
   it("the choice survives a reload / language switch through the tab's session storage, scoped to the vehicle — never from the suggestion, never to the server", () => {
-    expect(FORM).toMatch(/const TYPE_STORAGE_PREFIX = "barq:vehicle-onboarding:type:";/);
-    const restore = effects(FORM).find((b) => b.includes("sessionStorage.getItem(TYPE_STORAGE_PREFIX + vehicleId)"))!;
+    // one bound record per vehicle (TAB_MEMORY_EXTRA_KEYS includes vehicleType); the old unbound key is removed
+    expect(STATE).toMatch(/export const TAB_MEMORY_EXTRA_KEYS: readonly string\[\] = \["vehicleType", "publicDescription", "claimedFourByFour"\];/);
+    expect(HOOK).toMatch(/"barq:vehicle-onboarding:type:"/);
+    const restore = effects(HOOK).find((b) => b.includes("decodeTabMemory("))!;
     expect(restore).toBeTruthy();
     expect(restore).not.toMatch(/suggested/);
-    expect(restore).toMatch(/vehicleTypeOptions\.some\(\(o\) => o\.code === stored\)/); // only a canonical code is restored
-    expect(FORM).toMatch(/window\.sessionStorage\.setItem\(TYPE_STORAGE_PREFIX \+ vehicleId, code\)/);
-    expect(FORM).not.toMatch(/localStorage/);
+    expect(FORM).toMatch(/vehicleTypeOptions\.some\(\(o\) => o\.code === extras\.vehicleType\)/); // only a canonical code is used
+    expect(FORM + HOOK).not.toMatch(/localStorage|document\.cookie/);
   });
 
   it("the submission carries the chosen type; without one the server refuses (finalize-vehicle.test proves REQUIRED)", () => {
@@ -154,7 +158,7 @@ describe("review form — dates (6)", () => {
   });
 
   it("the vehicle-detail confirmation form applies the same date rule (shared starting values, ISO submitted)", () => {
-    expect(DETAIL_FORM).toMatch(/useReviewFieldState\(\{ vehicleId, fields, sourceToken: suggestionSourceToken \}\)/);
+    expect(DETAIL_FORM).toMatch(/useReviewFieldState\(\{ vehicleId, fields, binding: tabBinding, flow: "DETAIL", enabled: !locked \}\)/);
     expect(DETAIL_FORM).toMatch(/dateFieldSubmissionValue\(v\)/);
     expect(DETAIL_FORM).toMatch(/dir=\{isDate \? "ltr" : undefined\}/);
     expect(DETAIL_FORM).not.toMatch(/"date" \? "date"/);
@@ -313,7 +317,7 @@ describe("review form — make / model suggestions are applied explicitly, one f
     expect(handler).not.toBe("");
     expect(handler).toMatch(/setValues\(\(v\) => applySuggestion\(v, f\)\)/);
     expect(handler).not.toMatch(/Action\(|fetch\(|startTransition|setVehicleType|setDeclaration|router\./);
-    expect(handler).toMatch(/remember\(f\.key, suggestion\)/); // tab-scoped memory only
+    expect(handler).toMatch(/persist\(rememberField\(memoryRef\.current, f, suggestion, "APPLIED"\)\)/); // tab-scoped memory only, origin kept
     expect(HOOK).not.toMatch(/fetch\(|Action\(|from "\.\.\/|registration-actions|onboarding-actions/);
   });
 
@@ -323,17 +327,19 @@ describe("review form — make / model suggestions are applied explicitly, one f
     expect(HOOK).toMatch(/useMemo\(\(\) => reviewFieldsSignature\(fields\), \[fields\]\)/);
   });
 
-  it("23. applied suggestions survive a language switch through the per-vehicle session storage — only for the SAME source reading — and are forgotten on create / cancel", () => {
-    expect(HOOK).toMatch(/export const APPLIED_STORAGE_PREFIX = "barq:vehicle-onboarding:applied:";/);
-    expect(HOOK).toMatch(/restorableAppliedSuggestions\(decodeAppliedSuggestions\(window\.sessionStorage\.getItem\(storageKey\), sourceToken\), fieldsRef\.current\)/);
-    expect(FORM).toMatch(/useReviewFieldState\(\{ vehicleId, fields, sourceToken: suggestionSourceToken \}\)/);
-    expect(FORM).toMatch(/fieldState\.forgetStored\(\);/);
+  it("23. applied and typed public values survive a language switch through the bound per-vehicle tab record — same provider, reading and form only — and are forgotten on create / cancel", () => {
+    expect(HOOK).toMatch(/export const TAB_MEMORY_STORAGE_PREFIX = "barq:vehicle-review:tab:";/);
+    expect(HOOK).toMatch(/const memory = decodeTabMemory\(raw, bindingRef\.current, flow\);/);
+    expect(HOOK).toMatch(/restoreTabMemory\(memory, fieldsRef\.current\)/);
+    expect(FORM).toMatch(/useReviewFieldState\(\{ vehicleId, fields, binding: tabBinding, flow: "ONBOARDING" \}\)/);
+    expect(FORM).toMatch(/const forgetStored = \(\) => fieldState\.forgetStored\(\);/);
+    expect((FORM.match(/^\s+forgetStored\(\);/gm) ?? []).length).toBe(2); // create + cancel
   });
 
   it("19/21. applied values travel in the SAME submit payload; Create still needs the local validator, an explicitly chosen type and the declaration", () => {
     expect(FORM).toMatch(/const payload = \(\) => \(\{ \.\.\.submissionValues\(\), vehicleType, claimedFourByFour, publicDescription, declarationAccepted: declaration \}\);/);
     expect(FORM).toMatch(/const canSubmit = localCheck\.ok && vehicleType !== "" && declaration && !pending;/);
-    expect(FORM).toMatch(/const \[vehicleType, setVehicleTypeState\] = useState<string>\(""\);/);
+    expect(FORM).toMatch(/const vehicleType = vehicleTypeOptions\.some/);
   });
 
   it("24/25. the suggestion row wraps on narrow screens and isolates the value's direction (RTL and LTR)", () => {

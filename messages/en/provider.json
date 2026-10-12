@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "Use {value}",
   "vehicleRegUseSuggestionAria": "Use the {field} suggestion {value}",
   "vehicleRegStatusCurrent": "Current value",
-  "vehicleRegDiscardChanges": "Discard changes"
+  "vehicleRegDiscardChanges": "Discard changes",
+  "vehicleRegLocaleGuardTitle": "Unsaved changes",
+  "vehicleRegLocaleGuardMessage": "You have unsaved changes. Save your progress before changing language so they are not lost.",
+  "vehicleRegLocaleGuardStay": "Stay on this language",
+  "vehicleRegLocaleGuardSave": "Save progress and change language"
 }

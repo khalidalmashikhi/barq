@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "Użyj {value}",
   "vehicleRegUseSuggestionAria": "Użyj propozycji pola {field}: {value}",
   "vehicleRegStatusCurrent": "Bieżąca wartość",
-  "vehicleRegDiscardChanges": "Odrzuć zmiany"
+  "vehicleRegDiscardChanges": "Odrzuć zmiany",
+  "vehicleRegLocaleGuardTitle": "Niezapisane zmiany",
+  "vehicleRegLocaleGuardMessage": "Masz niezapisane zmiany. Zapisz postęp przed zmianą języka, aby ich nie utracić.",
+  "vehicleRegLocaleGuardStay": "Pozostań przy tym języku",
+  "vehicleRegLocaleGuardSave": "Zapisz postęp i zmień język"
 }

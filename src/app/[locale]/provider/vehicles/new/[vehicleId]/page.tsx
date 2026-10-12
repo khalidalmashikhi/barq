@@ -243,7 +243,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
           documentDescription={review.documentDescription}
           noticeKey={noticeKey}
           noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
-          suggestionSourceToken={review.lastSucceededAt ? review.lastSucceededAt.toISOString() : null}
+          tabBinding={review.tabBinding}
         />
         </>
       )}

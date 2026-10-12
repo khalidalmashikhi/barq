@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "استخدام {value}",
   "vehicleRegUseSuggestionAria": "استخدام اقتراح {field} {value}",
   "vehicleRegStatusCurrent": "القيمة الحالية",
-  "vehicleRegDiscardChanges": "تجاهل التغييرات"
+  "vehicleRegDiscardChanges": "تجاهل التغييرات",
+  "vehicleRegLocaleGuardTitle": "تغييرات غير محفوظة",
+  "vehicleRegLocaleGuardMessage": "لديك تغييرات غير محفوظة. احفظ التقدم قبل تغيير اللغة حتى لا تفقدها.",
+  "vehicleRegLocaleGuardStay": "البقاء على هذه اللغة",
+  "vehicleRegLocaleGuardSave": "حفظ التقدم ثم تغيير اللغة"
 }

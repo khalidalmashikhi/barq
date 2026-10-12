@@ -14,6 +14,8 @@ import type { VehicleTypeOption } from "@/lib/vehicles/vehicle-type-options";
 import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/onboarding/onboarding-request-key-store";
 import { useReviewFieldState } from "@/components/provider/registration-review/use-review-field-state";
 import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/components/provider/registration-review/field-assist";
+import { useUnsavedLanguageGuard, UnsavedLanguageDialog } from "@/components/provider/registration-review/unsaved-language-guard";
+import type { ReviewTabBinding } from "@/lib/vehicles/registration-review/review-field-state";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2/3 (review & confirm),
@@ -78,10 +80,10 @@ type Props = {
   /** Localized notice shown above the fields (manual entry / failure reason / OCR caution), or null. */
   noticeKey: string | null;
   noticeVariant: "info" | "warning";
-  /** Opaque marker of the CURRENT source reading (when it last succeeded). Applied suggestions
-   *  remembered in the tab are restored only for the same reading — never after a re-read or a
-   *  replaced document. Not a value, never shown. */
-  suggestionSourceToken?: string | null;
+  /** Opaque server binding (signed-in provider + CURRENT document reading). Unsaved public values
+   *  remembered in the tab are restored only for the same provider, reading and form — never after a
+   *  re-read or a replaced document. Not a value, never shown. */
+  tabBinding?: ReviewTabBinding | null;
 };
 
 // scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
@@ -97,27 +99,32 @@ const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
   bookablePassengerCapacity: "vehicleOnboardBookableHint",
 };
 
-const TYPE_STORAGE_PREFIX = "barq:vehicle-onboarding:type:";
-
-export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant, suggestionSourceToken = null }: Props) {
+export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant, tabBinding = null }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string, values?: Record<string, string | number>) => string; // dynamic field-label/confidence/result keys (parity-guaranteed)
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   // ONE shared field-state machine (use-review-field-state.ts over review-field-state.ts): a derived
   // make/model suggestion is NOT pre-filled — it is applied with an explicit tap; untouched fields
-  // follow new server data; applied suggestions survive a language switch for the same reading.
-  const fieldState = useReviewFieldState({ vehicleId, fields, sourceToken: suggestionSourceToken });
-  const { values, typeInto, applyFieldSuggestion } = fieldState;
-  // The TYPE starts UNCHOSEN. A previous explicit choice for this vehicle (reload / language
-  // switch) is restored from the tab's session storage after mount — never from a suggestion.
-  const [vehicleType, setVehicleTypeState] = useState<string>("");
+  // follow new server data; unsaved public values (typed or applied, with that origin) survive a
+  // language switch for the same provider and reading. Private values never leave memory.
+  const fieldState = useReviewFieldState({ vehicleId, fields, binding: tabBinding, flow: "ONBOARDING" });
+  const { values, typeInto, applyFieldSuggestion, extras, setExtra } = fieldState;
+  // While PRIVATE values are unsaved, a language switch asks to save progress first.
+  const languageGuard = useUnsavedLanguageGuard(fieldState.privateDirty);
+  // The TYPE starts UNCHOSEN. A previous explicit choice for this vehicle (reload / language switch)
+  // comes back from the bound tab memory — never from a suggestion; an unknown code is ignored.
+  const vehicleType = vehicleTypeOptions.some((o) => o.code === extras.vehicleType) ? extras.vehicleType! : "";
+  const setVehicleType = (code: string) => setExtra("vehicleType", code);
+  const claimedFourByFour = extras.claimedFourByFour === "1";
+  const setClaimedFourByFour = (on: boolean) => setExtra("claimedFourByFour", on ? "1" : "");
+  const publicDescription = extras.publicDescription ?? "";
+  const setPublicDescription = (text: string) => setExtra("publicDescription", text);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  // The accuracy declaration is never remembered: it is affirmed again after a reload / switch.
   const [declaration, setDeclaration] = useState(false);
   const [errorCode, setErrorCode] = useState<OnboardingCode | null>(null);
   const [fieldErrors, setFieldErrors] = useState<OnboardingFieldError[]>([]);
-  const [claimedFourByFour, setClaimedFourByFour] = useState(false);
-  const [publicDescription, setPublicDescription] = useState("");
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [privateOpen, setPrivateOpen] = useState(false);
   const privateRef = useRef<HTMLDivElement>(null);
@@ -126,33 +133,8 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const privateFields = useMemo(() => fields.filter((f) => f.group === "PRIVATE"), [fields]);
   const kindOf = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f.kind])) as Record<string, FieldView["kind"]>, [fields]);
 
-  useEffect(() => {
-    // Restore ONLY an explicit earlier choice (no action is called here; nothing is submitted).
-    try {
-      const stored = window.sessionStorage.getItem(TYPE_STORAGE_PREFIX + vehicleId);
-      if (stored && vehicleTypeOptions.some((o) => o.code === stored)) setVehicleTypeState(stored);
-    } catch {
-      /* storage unavailable — the provider simply chooses again */
-    }
-  }, [vehicleId, vehicleTypeOptions]);
-
-  const setVehicleType = (code: string) => {
-    setVehicleTypeState(code);
-    try {
-      if (code) window.sessionStorage.setItem(TYPE_STORAGE_PREFIX + vehicleId, code);
-      else window.sessionStorage.removeItem(TYPE_STORAGE_PREFIX + vehicleId);
-    } catch {
-      /* ignore */
-    }
-  };
-  const forgetStoredType = () => {
-    try {
-      window.sessionStorage.removeItem(TYPE_STORAGE_PREFIX + vehicleId);
-    } catch {
-      /* ignore */
-    }
-    fieldState.forgetStored();
-  };
+  /** The flow is finished or cancelled: nothing of it may come back in this tab. */
+  const forgetStored = () => fieldState.forgetStored();
 
   // What the server receives: dates converted from the displayed day/month/year to canonical ISO.
   const submissionValues = (): Record<string, string> =>
@@ -178,15 +160,19 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     window.setTimeout(() => (document.getElementById(id) ?? privateRef.current)?.scrollIntoView({ block: "center", behavior: "smooth" }), 0);
   }, [fieldErrors, privateFields]);
 
-  const saveDraft = () => {
+  const saveDraft = (afterSave?: () => void) => {
     setErrorCode(null);
     setFieldErrors([]);
     startTransition(async () => {
       const res = await saveOnboardingDraftAction(vehicleId, submissionValues());
       if (res.ok) {
-        router.refresh();
+        // Saved: the saved fields' tab memory is cleared (choices the draft does not store stay).
+        fieldState.settle();
+        if (afterSave) afterSave();
+        else router.refresh();
         return;
       }
+      languageGuard.stay(); // a failed save never switches language: the values and errors stay here
       setErrorCode(res.code as OnboardingCode);
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
       if (res.code === "SUPERSEDED") router.refresh();
@@ -201,7 +187,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
       const res = await finalizeVehicleAction(vehicleId, payload());
       if (res.ok) {
         // Created (or already created): leave the wizard for the vehicle's detail page.
-        forgetStoredType();
+        forgetStored();
         router.push(`/provider/vehicles/${vehicleId}`);
         router.refresh();
         return;
@@ -220,7 +206,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         // The setup is gone and the server keeps a CANCELLED tombstone for its request; drop the
         // browser's copy of the key so the next "add vehicle" starts a new request.
         clearOnboardingRequestKey(safeSessionStorage());
-        forgetStoredType();
+        forgetStored();
         router.push("/provider/vehicles");
         router.refresh();
         return;
@@ -405,7 +391,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           <button type="button" onClick={finalize} disabled={!canSubmit} className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {pending ? t("vehicleOnboardCreating") : t("vehicleOnboardCreateButton")}
           </button>
-          <button type="button" onClick={saveDraft} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <button type="button" onClick={() => saveDraft()} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {pending ? t("vehicleRegSaving") : t("vehicleOnboardSaveProgressButton")}
           </button>
           {confirmingCancel ? null : (
@@ -428,6 +414,8 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           </div>
         )}
       </div>
+
+      <UnsavedLanguageDialog open={languageGuard.target !== null} pending={pending} onStay={languageGuard.stay} onSaveAndSwitch={() => saveDraft(languageGuard.continueToTarget)} />
     </div>
   );
 }

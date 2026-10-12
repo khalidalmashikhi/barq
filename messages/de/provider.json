@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "{value} übernehmen",
   "vehicleRegUseSuggestionAria": "Vorschlag für {field} übernehmen: {value}",
   "vehicleRegStatusCurrent": "Aktueller Wert",
-  "vehicleRegDiscardChanges": "Änderungen verwerfen"
+  "vehicleRegDiscardChanges": "Änderungen verwerfen",
+  "vehicleRegLocaleGuardTitle": "Nicht gespeicherte Änderungen",
+  "vehicleRegLocaleGuardMessage": "Sie haben nicht gespeicherte Änderungen. Speichern Sie Ihren Fortschritt, bevor Sie die Sprache wechseln, damit sie nicht verloren gehen.",
+  "vehicleRegLocaleGuardStay": "Bei dieser Sprache bleiben",
+  "vehicleRegLocaleGuardSave": "Fortschritt speichern und Sprache wechseln"
 }

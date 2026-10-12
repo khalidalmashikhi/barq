@@ -62,7 +62,7 @@ function setup(extraction: Record<string, unknown>, opts: { mime?: string; confi
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireApprovedProviderMock.mockResolvedValue({ provider: { id: "prov-1" } });
+  requireApprovedProviderMock.mockResolvedValue({ barqUser: { id: "user-1" }, provider: { id: "prov-1" } });
   policyMock.mockReturnValue(POLICY);
 });
 

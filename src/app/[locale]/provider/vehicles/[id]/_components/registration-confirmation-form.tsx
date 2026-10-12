@@ -12,6 +12,8 @@ import { dateFieldSubmissionValue, DATE_INPUT_PLACEHOLDER } from "@/lib/vehicles
 import type { ConfirmationFieldError } from "@/lib/vehicles/registration-review/confirmation-input";
 import { useReviewFieldState } from "@/components/provider/registration-review/use-review-field-state";
 import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/components/provider/registration-review/field-assist";
+import { useUnsavedLanguageGuard, UnsavedLanguageDialog } from "@/components/provider/registration-review/unsaved-language-guard";
+import type { ReviewTabBinding } from "@/lib/vehicles/registration-review/review-field-state";
 import { saveRegistrationDraftAction, submitRegistrationConfirmationAction } from "../registration-actions";
 
 // Phase 3C Slice 3A — provider confirmation form on the vehicle DETAIL page (client). Since the
@@ -56,21 +58,24 @@ type Props = {
   fields: FieldView[];
   canConfirm: boolean;
   locked: boolean;
-  /** Opaque marker of the current source reading (applied suggestions are restored only for it). */
-  suggestionSourceToken?: string | null;
+  /** Opaque server binding (provider + document reading) for the tab memory of unsaved public values. */
+  tabBinding?: ReviewTabBinding | null;
 };
 
 const INPUT_CLASS = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 const ACTION = "inline-flex min-h-11 items-center rounded-full px-5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
-export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, locked, suggestionSourceToken = null }: Props) {
+export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, locked, tabBinding = null }: Props) {
   const t = useTranslations("provider");
   // Localized escape for DYNAMICALLY-BUILT message keys (field labels, result codes) — every such key
   // is guaranteed to exist by the translation-completeness parity test.
   const td = t as unknown as (key: string, values?: Record<string, string | number>) => string;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const fieldState = useReviewFieldState({ vehicleId, fields, sourceToken: suggestionSourceToken });
+  const fieldState = useReviewFieldState({ vehicleId, fields, binding: tabBinding, flow: "DETAIL", enabled: !locked });
+  // Unsaved PRIVATE values are never kept in browser storage: while they exist, a language switch asks
+  // to save first (existing Save draft) instead of silently losing them.
+  const languageGuard = useUnsavedLanguageGuard(!locked && canConfirm && fieldState.privateDirty);
   const { values, typeInto, applyFieldSuggestion } = fieldState;
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [declaration, setDeclaration] = useState(false);
@@ -95,7 +100,7 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
     window.setTimeout(() => (document.getElementById(id) ?? privateRef.current)?.scrollIntoView({ block: "center", behavior: "smooth" }), 0);
   }, [fieldErrors, privateFields]);
 
-  const run = (mode: "DRAFT" | "SUBMIT") => {
+  const run = (mode: "DRAFT" | "SUBMIT", afterSave?: () => void) => {
     setErrorCode(null);
     setFieldErrors([]);
     const kinds = Object.fromEntries(fields.map((f) => [f.key, f.kind])) as Record<string, FieldView["kind"]>;
@@ -106,9 +111,11 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
       if (res.ok) {
         // Saved: the saved values become the starting point; temporary tab state is cleared.
         fieldState.settle();
-        router.refresh();
+        if (afterSave) afterSave();
+        else router.refresh();
         return;
       }
+      languageGuard.stay(); // a failed save never switches language: the values and errors stay here
       setErrorCode(res.code);
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
       // The document was replaced mid-edit: the stale claim was superseded server-side. Reload so the
@@ -244,6 +251,8 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
           </div>
         </div>
       )}
+
+      <UnsavedLanguageDialog open={languageGuard.target !== null} pending={pending} onStay={languageGuard.stay} onSaveAndSwitch={() => run("DRAFT", languageGuard.continueToTarget)} />
     </div>
   );
 }

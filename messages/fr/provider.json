@@ -960,5 +960,9 @@
   "vehicleRegUseSuggestion": "Utiliser {value}",
   "vehicleRegUseSuggestionAria": "Utiliser la suggestion pour {field} : {value}",
   "vehicleRegStatusCurrent": "Valeur actuelle",
-  "vehicleRegDiscardChanges": "Annuler les modifications"
+  "vehicleRegDiscardChanges": "Annuler les modifications",
+  "vehicleRegLocaleGuardTitle": "Modifications non enregistrées",
+  "vehicleRegLocaleGuardMessage": "Vous avez des modifications non enregistrées. Enregistrez votre progression avant de changer de langue pour ne pas les perdre.",
+  "vehicleRegLocaleGuardStay": "Rester dans cette langue",
+  "vehicleRegLocaleGuardSave": "Enregistrer la progression et changer de langue"
 }
