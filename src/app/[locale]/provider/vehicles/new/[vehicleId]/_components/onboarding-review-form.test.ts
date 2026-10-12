@@ -18,43 +18,42 @@ const strip = (rel: string) =>
 const FORM = strip("src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/onboarding-review-form.tsx");
 const DETAIL_FORM = strip("src/app/[locale]/provider/vehicles/[id]/_components/registration-confirmation-form.tsx");
 const PROGRESS = strip("src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/extraction-progress.tsx");
+// 2026-10-12 parity: the per-field review metadata, the field-state hook and the status contract are
+// SHARED by this form and the vehicle-detail confirmation form.
+const ASSIST = strip("src/components/provider/registration-review/field-assist.tsx");
+const HOOK = strip("src/components/provider/registration-review/use-review-field-state.ts");
+const STATE = strip("src/lib/vehicles/registration-review/review-field-state.ts");
 const LOCALES = ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"] as const;
 const messages = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", locale, "provider.json"), "utf8")) as Record<string, string>;
 /** The body of a `useEffect(() => { … }, [deps]);` block. */
 const effects = (src: string): string[] => Array.from(src.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)).map((m) => m[1]!);
 
 describe("review form — sources and 'check this'", () => {
-  it("every field shows where its value came from: the document, OCR, the provider, or nothing", () => {
-    expect(FORM).toMatch(/NATIVE_PDF_TEXT: "vehicleRegSourceDocument"/);
-    expect(FORM).toMatch(/OCR: "vehicleRegSourceOcr"/);
-    expect(FORM).toMatch(/PROVIDER: "vehicleRegSourceProvider"/);
-    expect(FORM).toMatch(/UNRESOLVED: "vehicleRegSourceUnresolved"/);
-    // 2026-10-11: the status line is TRUTHFUL for the current value (review-field-state.ts): the
-    // untouched starting value keeps its source wording; blank / suggested / applied / typed each
-    // have their own words.
-    expect(FORM).toMatch(/const status = fieldStatus\(f, values\[f\.key\], applied\[f\.key\] === true\);/);
-    expect(FORM).toMatch(/const statusLabel = status === "SOURCE" \? t\(SOURCE_LABEL_KEY\[f\.source\]\) : td\(STATUS_LABEL_KEY\[status\]\);/);
-    expect(FORM).toMatch(/NOT_ENTERED: "vehicleRegStatusNotEntered"/);
-    expect(FORM).toMatch(/SUGGESTED: "vehicleRegStatusSuggested"/);
-    expect(FORM).toMatch(/APPLIED: "vehicleRegStatusApplied"/);
-    expect(FORM).toMatch(/PROVIDER: "vehicleRegSourceProvider"/);
+  it("every field shows a TRUTHFUL status for its current value — one shared contract (review-field-state.ts) for both forms", () => {
+    expect(FORM).toMatch(/const status = fieldState\.status\(f\);/);
+    expect(HOOK).toMatch(/status: \(f: F\) => fieldStatus\(f, values\[f\.key\], applied\[f\.key\] === true\)/);
+    expect(ASSIST).toMatch(/td\(statusLabelKey\(status, f\.source\)\)/);
+    for (const [status, key] of [["NOT_ENTERED", "vehicleRegStatusNotEntered"], ["SUGGESTED", "vehicleRegStatusSuggested"], ["APPLIED", "vehicleRegStatusApplied"], ["PROVIDER", "vehicleRegSourceProvider"], ["CURRENT", "vehicleRegStatusCurrent"]]) {
+      expect(STATE).toMatch(new RegExp(`case "${status}":\\s*return "${key}";`));
+    }
+    expect(STATE).toMatch(/source === "NATIVE_PDF_TEXT" \? "vehicleRegSourceDocument" : source === "OCR" \? "vehicleRegSourceOcr" : "vehicleRegStatusCurrent"/);
   });
 
   it("once the provider changes a value it is THEIRS: the source becomes 'entered by you' and the flag is cleared", () => {
-    expect(FORM).toMatch(/const edited = status === "PROVIDER";/);
-    expect(FORM).toMatch(/const flagged = f\.needsReview && \(status === "SOURCE" \|\| status === "SUGGESTED" \|\| status === "NOT_ENTERED"\);/);
+    expect(ASSIST).toMatch(/const flagged = f\.needsReview && \(status === "SOURCE" \|\| status === "SUGGESTED" \|\| status === "NOT_ENTERED"\);/);
     // typing (or picking a conflict value) marks the field as the provider's — never re-filled by a suggestion
     expect(FORM).toMatch(/onChange=\{\(e\) => typeInto\(f\.key, e\.target\.value\)\}/);
   });
 
   it("ONE compact metadata row per field (source · confidence · check · derived) — not three separate lines", () => {
-    const row = /<p className="flex flex-wrap items-center gap-1\.5 text-\[11px\] text-foreground\/50">[\s\S]*?<\/p>/.exec(FORM)![0];
-    expect(row).toContain("{statusLabel}");
-    expect(row).toContain("confidenceKey(f.confidence)");
+    const row = /<p className="flex flex-wrap items-center gap-1\.5 text-\[11px\] text-foreground\/50">[\s\S]*?<\/p>/.exec(ASSIST)![0];
+    expect(row).toContain("td(statusLabelKey(status, f.source))");
+    expect(row).toContain("td(confidenceKey)");
     expect(row).toContain('t("vehicleOnboardNeedsReviewBadge")');
     expect(row).toContain('t("vehicleRegHeuristicBadge")');
-    // The document value is repeated once the provider typed something else (or cleared a field with no one-tap action).
-    expect(FORM).toMatch(/\{\(edited \|\| \(status === "SUGGESTED" && !offerApply\)\) && extractedDisplay !== null && \(/);
+    expect(FORM).toContain("<FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />");
+    // The document value stays visible once the field holds something else (typed or saved), or was cleared without a one-tap action.
+    expect(ASSIST).toMatch(/const showComparison = f\.extractedValue !== null && suggestion !== null && value !== suggestion && \(changed \|\| \(status === "SUGGESTED" && !canApplySuggestion\(f, value\)\)\);/);
   });
 
   it("a notice (manual entry / failure reason / OCR caution) is shown above the fields, and flagged fields are explained", () => {
@@ -144,7 +143,8 @@ describe("review form — the vehicle TYPE is an explicit provider decision (3)"
 
 describe("review form — dates (6)", () => {
   it("dates are displayed and typed as DD/MM/YYYY (Western digits) in an LTR isolate; the canonical ISO is what is submitted", () => {
-    expect(FORM).toMatch(/initialFieldValue\(f\)/); // the shared starting-value rule formats dates as DD/MM/YYYY (review-field-state.ts)
+    expect(HOOK).toMatch(/initialFieldValue\(f\)/); // the shared starting-value rule formats dates as DD/MM/YYYY (review-field-state.ts)
+    expect(STATE).toMatch(/f\.kind === "date" \? formatIsoDateForDisplay\(String\(v\)\) : String\(v\)/);
     expect(FORM).toMatch(/kindOf\[k\] === "date" \? dateFieldSubmissionValue\(v\) : v/);
     expect(FORM).toMatch(/dir=\{isDate \? "ltr" : undefined\}/);
     expect(FORM).toMatch(/placeholder=\{isDate \? DATE_INPUT_PLACEHOLDER : undefined\}/);
@@ -153,8 +153,8 @@ describe("review form — dates (6)", () => {
     expect(FORM).toMatch(/t\("vehicleRegDateFormatHint"\)/);
   });
 
-  it("the vehicle-detail confirmation form applies the same date rule", () => {
-    expect(DETAIL_FORM).toMatch(/formatIsoDateForDisplay\(String\(v\)\)/);
+  it("the vehicle-detail confirmation form applies the same date rule (shared starting values, ISO submitted)", () => {
+    expect(DETAIL_FORM).toMatch(/useReviewFieldState\(\{ vehicleId, fields, sourceToken: suggestionSourceToken \}\)/);
     expect(DETAIL_FORM).toMatch(/dateFieldSubmissionValue\(v\)/);
     expect(DETAIL_FORM).toMatch(/dir=\{isDate \? "ltr" : undefined\}/);
     expect(DETAIL_FORM).not.toMatch(/"date" \? "date"/);
@@ -199,15 +199,17 @@ describe("review form — phone layout (7, 19, 20)", () => {
 
 describe("review form — a field the document showed with TWO different values (front vs back, page 1 vs page 2)", () => {
   it("is offered as a choice: nothing is picked for the provider, one tap fills the input, typing still overrules", () => {
-    expect(FORM).toMatch(/f\.conflict && \(f\.alternatives\?\.length \?\? 0\) > 0 && !edited/);
-    expect(FORM).toMatch(/onClick=\{\(\) => typeInto\(f\.key, isDate \? formatIsoDateForDisplay\(String\(alt\)\) : String\(alt\)\)\}/);
-    expect(FORM).toMatch(/t\("vehicleRegConflictChoose"\)/);
-    expect(FORM).toMatch(/useState<Record<string, string>>\(\(\) => Object\.fromEntries\(fields\.map\(\(f\) => \[f\.key, initialFieldValue\(f\)\]\)\)\)/);
-    expect(FORM).not.toMatch(/alternatives\?\.\[0\]|alternatives!\[0\]|alternatives\[0\]/);
+    expect(ASSIST).toMatch(/const showConflict = f\.conflict === true && \(f\.alternatives\?\.length \?\? 0\) > 0 && status !== "PROVIDER";/);
+    expect(ASSIST).toMatch(/onClick=\{\(\) => onChoose\(isDate \? formatIsoDateForDisplay\(String\(alt\)\) : String\(alt\)\)\}/);
+    expect(FORM).toContain("onChoose={(v) => typeInto(f.key, v)}");
+    expect(ASSIST).toMatch(/t\("vehicleRegConflictChoose"\)/);
+    expect(HOOK).toMatch(/useState<Record<string, string>>\(\(\) => Object\.fromEntries\(fields\.map\(\(f\) => \[f\.key, initialFieldValue\(f\)\]\)\)\)/);
+    expect(ASSIST + FORM).not.toMatch(/alternatives\?\.\[0\]|alternatives!\[0\]|alternatives\[0\]/);
   });
 
   it("a sensitive alternative (plate / VIN / engine) stays masked until the provider reveals it", () => {
-    expect(FORM).toMatch(/f\.sensitive && !isRevealed \? maskSensitiveValue\(String\(alt\)\)/);
+    expect(ASSIST).toMatch(/f\.sensitive && !revealed \? maskSensitiveValue\(String\(v\)\)/);
+    expect(FORM).toContain("revealed={isRevealed}");
   });
 
   it("English conflict copy says none was chosen and that the provider picks or types the right value", () => {
@@ -290,41 +292,42 @@ describe("OCR review copy — complete and honest in all 8 languages", () => {
 });
 
 // ── 2026-10-11 — applying a make / model suggestion (review UX correction) ─────────────────────────
-describe("review form — make / model suggestions are applied explicitly, one field at a time", () => {
-  const button = /<button\s+type="button"\s+onClick=\{\(\) => applyFieldSuggestion\(f\)\}[\s\S]*?<\/button>/.exec(FORM)?.[0] ?? "";
-  const handler = /const applyFieldSuggestion = \(f: FieldView\) => \{[\s\S]*?\n  \};/.exec(FORM)?.[0] ?? "";
+describe("review form — make / model suggestions are applied explicitly, one field at a time (shared with the detail form)", () => {
+  const button = /<button type="button" onClick=\{apply\}[\s\S]*?<\/button>/.exec(ASSIST)?.[0] ?? "";
+  const handler = /const applyFieldSuggestion = \(f: F\) => \{[\s\S]*?\n  \};/.exec(HOOK)?.[0] ?? "";
 
   it("26. the action is a real button with type=button, a field+value accessible name, a 44px touch target and a visible focus ring", () => {
     expect(button).not.toBe("");
-    expect(button).toContain('aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion })}');
-    expect(button).toContain('td("vehicleRegUseSuggestion", { value: suggestion })');
-    expect(button).toMatch(/min-h-11/);
-    expect(button).toMatch(/focus-visible:ring-2/);
-    expect(button).toMatch(/max-w-full/); // long values truncate inside the button — no horizontal overflow
+    expect(button).toContain('aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion! })}');
+    expect(button).toContain('td("vehicleRegUseSuggestion", { value: suggestion! })');
+    expect(ASSIST).toMatch(/const APPLY = "[^"]*min-h-11[^"]*focus-visible:ring-2[^"]*"/);
+    expect(ASSIST).toMatch(/const APPLY = "[^"]*max-w-full/); // long values truncate inside the button — no horizontal overflow
   });
 
   it("1/2/11/12. it is offered only while the input is blank and a suggestion exists (canApplySuggestion), so typed text is never replaced", () => {
-    expect(FORM).toMatch(/const offerApply = canApplySuggestion\(f, values\[f\.key\]\);/);
-    expect(FORM).toMatch(/\{offerApply && suggestion !== null && \(/);
+    expect(ASSIST).toMatch(/const offerApply = canApplySuggestion\(f, value\) && suggestion !== null;/);
+    expect(ASSIST).toMatch(/\{offerApply && \(/);
   });
 
   it("3–10. the handler only updates LOCAL state for that one field — no server action, no fetch, no save, no vehicle type, no other field", () => {
     expect(handler).not.toBe("");
     expect(handler).toMatch(/setValues\(\(v\) => applySuggestion\(v, f\)\)/);
     expect(handler).not.toMatch(/Action\(|fetch\(|startTransition|setVehicleType|setDeclaration|router\./);
-    expect(handler).toMatch(/rememberApplied\(f\.key, suggestion\)/); // tab-scoped memory only
+    expect(handler).toMatch(/remember\(f\.key, suggestion\)/); // tab-scoped memory only
+    expect(HOOK).not.toMatch(/fetch\(|Action\(|from "\.\.\/|registration-actions|onboarding-actions/);
   });
 
   it("a derived make / model is NOT pre-filled; untouched fields follow new server data on an in-place refresh", () => {
-    expect(FORM).toMatch(/initialFieldValue\(f\)/);
-    expect(FORM).toMatch(/setValues\(\(prev\) => syncUntouchedValues\(prev, touchedRef\.current, fieldsRef\.current\)\)/);
-    expect(FORM).toMatch(/useMemo\(\(\) => reviewFieldsSignature\(fields\), \[fields\]\)/);
+    expect(HOOK).toMatch(/initialFieldValue\(f\)/);
+    expect(HOOK).toMatch(/setValues\(\(prev\) => syncUntouchedValues\(prev, touchedRef\.current, fieldsRef\.current\)\)/);
+    expect(HOOK).toMatch(/useMemo\(\(\) => reviewFieldsSignature\(fields\), \[fields\]\)/);
   });
 
-  it("23. applied suggestions survive a language switch through the established per-vehicle session storage, and are forgotten on create / cancel", () => {
-    expect(FORM).toMatch(/const APPLIED_STORAGE_PREFIX = "barq:vehicle-onboarding:applied:";/);
-    expect(FORM).toMatch(/restorableAppliedSuggestions\(decodeAppliedSuggestions\(window\.sessionStorage\.getItem\(APPLIED_STORAGE_PREFIX \+ vehicleId\)\), fieldsRef\.current\)/);
-    expect(FORM).toMatch(/window\.sessionStorage\.removeItem\(APPLIED_STORAGE_PREFIX \+ vehicleId\);/);
+  it("23. applied suggestions survive a language switch through the per-vehicle session storage — only for the SAME source reading — and are forgotten on create / cancel", () => {
+    expect(HOOK).toMatch(/export const APPLIED_STORAGE_PREFIX = "barq:vehicle-onboarding:applied:";/);
+    expect(HOOK).toMatch(/restorableAppliedSuggestions\(decodeAppliedSuggestions\(window\.sessionStorage\.getItem\(storageKey\), sourceToken\), fieldsRef\.current\)/);
+    expect(FORM).toMatch(/useReviewFieldState\(\{ vehicleId, fields, sourceToken: suggestionSourceToken \}\)/);
+    expect(FORM).toMatch(/fieldState\.forgetStored\(\);/);
   });
 
   it("19/21. applied values travel in the SAME submit payload; Create still needs the local validator, an explicitly chosen type and the declaration", () => {
@@ -334,8 +337,8 @@ describe("review form — make / model suggestions are applied explicitly, one f
   });
 
   it("24/25. the suggestion row wraps on narrow screens and isolates the value's direction (RTL and LTR)", () => {
-    expect(FORM).toMatch(/flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent\/40 bg-accent\/10 px-3 py-2/);
-    expect(FORM).toMatch(/<bdi className="font-medium text-foreground">\{suggestion\}<\/bdi>/);
+    expect(ASSIST).toMatch(/flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent\/40 bg-accent\/10 px-3 py-2/);
+    expect(ASSIST).toMatch(/<bdi className="font-medium text-foreground">\{suggestion\}<\/bdi>/);
   });
 });
 

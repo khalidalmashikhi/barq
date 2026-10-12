@@ -101,6 +101,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
           fields={review.fields as FieldView[]}
           canConfirm={reviewState.canConfirm}
           locked={reviewState.locked}
+          suggestionSourceToken={review.lastSucceededAt ? review.lastSucceededAt.toISOString() : null}
         />
       )}
     </section>

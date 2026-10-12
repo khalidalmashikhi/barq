@@ -8,6 +8,9 @@ import {
   initialFieldValue,
   isBlank,
   isSuggestionOnly,
+  hasUnsavedChanges,
+  statusLabelKey,
+  describesDocument,
   restorableAppliedSuggestions,
   reviewFieldsSignature,
   suggestionText,
@@ -157,9 +160,10 @@ describe("15–18. truthful status", () => {
     expect(fieldStatus(byKey("make"), "Mazda 3", true)).toBe("PROVIDER");
   });
 
-  it("a derived suggestion the provider saved in a draft earlier reads as APPLIED after a reload", () => {
+  it("a SAVED value equal to the document's current suggestion reads with the document wording (SOURCE) — 'selected' is reserved for an apply in THIS form", () => {
     const saved = f("make", { extractedValue: "Mazda", heuristic: true, confirmedValue: "Mazda", source: "NATIVE_PDF_TEXT" });
-    expect(fieldStatus(saved, initialFieldValue(saved), false)).toBe("APPLIED");
+    expect(fieldStatus(saved, initialFieldValue(saved), false)).toBe("SOURCE");
+    expect(fieldStatus(saved, "Mazda", true)).toBe("APPLIED"); // applied again in this form
   });
 
   it("18. a direct document value, untouched → SOURCE (the form keeps the existing document / OCR wording)", () => {
@@ -193,9 +197,9 @@ describe("22/23. persistence", () => {
   });
 
   it("23. the language switch: applied suggestions round-trip through the session encoding and are restored only while they still equal the server's suggestion", () => {
-    const encoded = encodeAppliedSuggestions({ make: "Mazda", model: "6", vehicleType: "SEDAN", plateNumber: "T 99001" });
+    const encoded = encodeAppliedSuggestions({ make: "Mazda", model: "6", vehicleType: "SEDAN", plateNumber: "T 99001" }, "reading-1");
     expect(encoded).not.toBeNull();
-    const decoded = decodeAppliedSuggestions(encoded);
+    const decoded = decodeAppliedSuggestions(encoded, "reading-1");
     expect(decoded).toEqual({ make: "Mazda", model: "6" }); // only make / model are ever remembered
     expect(restorableAppliedSuggestions(decoded, STAGING)).toEqual({ make: "Mazda", model: "6" });
     // a stale memory (the server now suggests something else) is dropped, never injected
@@ -203,13 +207,107 @@ describe("22/23. persistence", () => {
     // a field that already starts with the provider's own saved value is not overridden
     const withDraft = STAGING.map((x) => (x.key === "make" ? { ...x, confirmedValue: "Testmake" } : x));
     expect(restorableAppliedSuggestions({ make: "Mazda" }, withDraft)).toEqual({});
-    expect(decodeAppliedSuggestions("{not json")).toEqual({});
-    expect(encodeAppliedSuggestions({})).toBeNull();
+    expect(decodeAppliedSuggestions("{not json", "reading-1")).toEqual({});
+    expect(encodeAppliedSuggestions({}, "reading-1")).toBeNull();
+  });
+
+  it("13. a remembered suggestion is NEVER restored after its source reading changed (re-read, replaced document) — even if the text is the same", () => {
+    const encoded = encodeAppliedSuggestions({ make: "Mazda" }, "reading-1");
+    expect(decodeAppliedSuggestions(encoded, "reading-2")).toEqual({});
+    expect(decodeAppliedSuggestions(encoded, null)).toEqual({});
+    expect(encodeAppliedSuggestions({ make: "Mazda" }, null)).toBeNull(); // no reading → nothing remembered
+    // the unbound format written before 2026-10-12 is ignored, never injected
+    expect(decodeAppliedSuggestions(JSON.stringify({ make: "Mazda" }), "reading-1")).toEqual({});
   });
 
   it("the re-sync trigger changes when the server data changes and not otherwise", () => {
     const a = reviewFieldsSignature(STAGING);
     expect(reviewFieldsSignature(STAGING.map((x) => ({ ...x })))).toBe(a);
     expect(reviewFieldsSignature(STAGING.map((x) => (x.key === "make" ? { ...x, extractedValue: "Toyota" } : x)))).not.toBe(a);
+  });
+});
+
+// ── 2026-10-12 — one contract for the onboarding review AND the vehicle-detail confirmation form ─────
+describe("detail / onboarding parity — saved values, statuses and unsaved changes", () => {
+  /** The detail page: the provider's SAVED claim (confirmation) for some fields. */
+  const DETAIL: F[] = [
+    f("make", { extractedValue: "Mazda", heuristic: true, confirmedValue: "Testmake", source: "PROVIDER" }),
+    f("model", { extractedValue: "6", heuristic: true, source: "NATIVE_PDF_TEXT" }),
+    f("modelYear", { kind: "int", extractedValue: 2019, confirmedValue: 2019, source: "NATIVE_PDF_TEXT" }),
+    f("color", { extractedValue: "أبيض", confirmedValue: "أحمر", source: "PROVIDER" }),
+    f("bookablePassengerCapacity", { kind: "int", confirmedValue: 4, source: "PROVIDER" }),
+    f("licensedPassengerCapacity", { kind: "int", extractedValue: 5, source: "NATIVE_PDF_TEXT" }),
+    f("registeredSeats", { kind: "int" }),
+    f("licenseExpiry", { kind: "date", extractedValue: "2027-05-31", confirmedValue: "2027-05-31", source: "NATIVE_PDF_TEXT" }),
+  ];
+  const d = (k: string) => DETAIL.find((x) => x.key === k)!;
+  const detailStart = () => Object.fromEntries(DETAIL.map((x) => [x.key, initialFieldValue(x)]));
+
+  it("1. saved make / values stay FILLED and read 'Current value' — never 'entered by you', never cleared for lack of extraction", () => {
+    expect(detailStart()).toMatchObject({ make: "Testmake", color: "أحمر", bookablePassengerCapacity: "4" });
+    expect(fieldStatus(d("make"), "Testmake", false)).toBe("CURRENT");
+    expect(fieldStatus(d("color"), "أحمر", false)).toBe("CURRENT");
+    expect(fieldStatus(d("bookablePassengerCapacity"), "4", false)).toBe("CURRENT");
+    expect(statusLabelKey("CURRENT", "PROVIDER")).toBe("vehicleRegStatusCurrent");
+    // a saved value with no extraction at all stays filled too
+    expect(initialFieldValue(f("make", { confirmedValue: "Testmake", source: "PROVIDER" }))).toBe("Testmake");
+  });
+
+  it("a saved value that IS the document's current value keeps the document wording (reliable — compared live)", () => {
+    expect(fieldStatus(d("modelYear"), "2019", false)).toBe("SOURCE");
+    expect(statusLabelKey("SOURCE", "NATIVE_PDF_TEXT")).toBe("vehicleRegSourceDocument");
+    expect(statusLabelKey("SOURCE", "OCR")).toBe("vehicleRegSourceOcr");
+    expect(fieldStatus(d("licenseExpiry"), "31/05/2027", false)).toBe("SOURCE");
+  });
+
+  it("2/3/4. empty with no suggestion → NOT_ENTERED; empty with a suggestion → SUGGESTED; blank is never PROVIDER", () => {
+    expect(fieldStatus(d("registeredSeats"), "", false)).toBe("NOT_ENTERED");
+    expect(fieldStatus(d("model"), "", false)).toBe("SUGGESTED");
+    for (const x of DETAIL) for (const v of ["", "  ", undefined]) expect(fieldStatus(x, v, false)).not.toBe("PROVIDER");
+  });
+
+  it("5/6/8. applying model fills ONLY model; a saved make is never overwritten (no action offered)", () => {
+    const after = applySuggestion(detailStart(), d("model"));
+    expect(after.model).toBe("6");
+    for (const k of Object.keys(after)) if (k !== "model") expect(after[k], k).toBe(detailStart()[k]);
+    expect(canApplySuggestion(d("make"), "Testmake")).toBe(false);
+    expect(applySuggestion(detailStart(), d("make"))).toEqual(detailStart());
+  });
+
+  it("9/10. clearing an unsaved applied value restores the suggestion; typing produces 'entered by you'", () => {
+    expect(fieldStatus(d("model"), "6", true)).toBe("APPLIED");
+    expect(fieldStatus(d("model"), "", true)).toBe("SUGGESTED");
+    expect(canApplySuggestion(d("model"), "")).toBe(true);
+    expect(fieldStatus(d("make"), "Othermake", false)).toBe("PROVIDER");
+  });
+
+  it("11/12. a server refresh updates only UNTOUCHED fields and never overwrites provider edits", () => {
+    const edited = { ...detailStart(), color: "Typedcolour" };
+    const refreshed = DETAIL.map((x) => (x.key === "color" ? { ...x, confirmedValue: "Servercolour" } : x.key === "licensedPassengerCapacity" ? { ...x, extractedValue: 7 } : x));
+    const synced = syncUntouchedValues(edited, { color: true }, refreshed);
+    expect(synced.color).toBe("Typedcolour");
+    expect(synced.licensedPassengerCapacity).toBe("7");
+  });
+
+  it("15–17. unsaved-change detection drives Discard; a discarded / saved form is back to the server values", () => {
+    expect(hasUnsavedChanges(detailStart(), DETAIL)).toBe(false);
+    expect(hasUnsavedChanges({ ...detailStart(), model: "6" }, DETAIL)).toBe(true);
+    expect(hasUnsavedChanges({ ...detailStart(), color: "Typed" }, DETAIL)).toBe(true);
+  });
+
+  it("19. capacities are never filled from one another: a blank bookable / seats field gets no suggestion and no action", () => {
+    const blank = { ...detailStart(), bookablePassengerCapacity: "" };
+    expect(canApplySuggestion(d("bookablePassengerCapacity"), "")).toBe(false);
+    expect(canApplySuggestion(d("registeredSeats"), "")).toBe(false);
+    expect(applySuggestion(blank, d("bookablePassengerCapacity"))).toBe(blank);
+  });
+
+  it("20. dates start as DD/MM/YYYY from the canonical ISO (submission converts back — date-display tests)", () => {
+    expect(initialFieldValue(d("licenseExpiry"))).toBe("31/05/2027");
+  });
+
+  it("document chips apply only while the status describes the document", () => {
+    expect(["SOURCE", "SUGGESTED", "APPLIED"].every((x) => describesDocument(x as never))).toBe(true);
+    expect(["CURRENT", "PROVIDER", "NOT_ENTERED"].some((x) => describesDocument(x as never))).toBe(false);
   });
 });

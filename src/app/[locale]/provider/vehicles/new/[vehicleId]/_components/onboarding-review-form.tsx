@@ -8,23 +8,12 @@ import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { regFieldLabelKey, maskSensitiveValue, type ConfirmationFieldKey } from "@/lib/vehicles/registration-review/field-model";
 import { parseConfirmation } from "@/lib/vehicles/registration-review/confirmation-input";
-import { formatIsoDateForDisplay, dateFieldSubmissionValue, DATE_INPUT_PLACEHOLDER } from "@/lib/vehicles/registration-review/date-display";
+import { dateFieldSubmissionValue, DATE_INPUT_PLACEHOLDER } from "@/lib/vehicles/registration-review/date-display";
 import { onboardingMessageKey, type OnboardingCode, type OnboardingFieldError } from "@/lib/vehicles/onboarding/onboarding-result";
 import type { VehicleTypeOption } from "@/lib/vehicles/vehicle-type-options";
 import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/onboarding/onboarding-request-key-store";
-import {
-  applySuggestion,
-  canApplySuggestion,
-  fieldStatus,
-  initialFieldValue,
-  restorableAppliedSuggestions,
-  suggestionText,
-  syncUntouchedValues,
-  reviewFieldsSignature,
-  encodeAppliedSuggestions,
-  decodeAppliedSuggestions,
-  type ReviewFieldStatus,
-} from "@/lib/vehicles/registration-review/review-field-state";
+import { useReviewFieldState } from "@/components/provider/registration-review/use-review-field-state";
+import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/components/provider/registration-review/field-assist";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2/3 (review & confirm),
@@ -78,13 +67,6 @@ export type FieldView = {
   completedAutomatically?: boolean;
 };
 
-const SOURCE_LABEL_KEY = {
-  NATIVE_PDF_TEXT: "vehicleRegSourceDocument",
-  OCR: "vehicleRegSourceOcr",
-  PROVIDER: "vehicleRegSourceProvider",
-  UNRESOLVED: "vehicleRegSourceUnresolved",
-} as const;
-
 type Props = {
   vehicleId: string;
   fields: FieldView[];
@@ -96,12 +78,15 @@ type Props = {
   /** Localized notice shown above the fields (manual entry / failure reason / OCR caution), or null. */
   noticeKey: string | null;
   noticeVariant: "info" | "warning";
+  /** Opaque marker of the CURRENT source reading (when it last succeeded). Applied suggestions
+   *  remembered in the tab are restored only for the same reading — never after a re-read or a
+   *  replaced document. Not a value, never shown. */
+  suggestionSourceToken?: string | null;
 };
 
 // scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
 const INPUT_CLASS =
   "min-h-11 w-full scroll-mb-40 scroll-mt-24 rounded-lg border border-border bg-background px-3 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
-const CHIP = "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium";
 
 // Plain-language hints for the fields that are easiest to confuse.
 const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
@@ -113,31 +98,17 @@ const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
 };
 
 const TYPE_STORAGE_PREFIX = "barq:vehicle-onboarding:type:";
-/** Make/model suggestions the provider APPLIED in this tab (same mechanism as the type choice). */
-const APPLIED_STORAGE_PREFIX = "barq:vehicle-onboarding:applied:";
 
-// The status line of a field — truthful for its CURRENT value (review-field-state.ts). The SOURCE
-// state keeps the existing wording for an untouched starting value (document / OCR / own draft).
-const STATUS_LABEL_KEY: Record<Exclude<ReviewFieldStatus, "SOURCE">, string> = {
-  NOT_ENTERED: "vehicleRegStatusNotEntered",
-  SUGGESTED: "vehicleRegStatusSuggested",
-  APPLIED: "vehicleRegStatusApplied",
-  PROVIDER: "vehicleRegSourceProvider",
-};
-
-export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant }: Props) {
+export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant, suggestionSourceToken = null }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string, values?: Record<string, string | number>) => string; // dynamic field-label/confidence/result keys (parity-guaranteed)
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  // Dates are stored and submitted as ISO; the provider SEES and types day/month/year. A derived
-  // make/model suggestion is NOT pre-filled — it is applied with an explicit tap.
-  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, initialFieldValue(f)])));
-  // Which fields the provider has typed in / applied a suggestion to (local state only).
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [applied, setApplied] = useState<Record<string, boolean>>({});
-  const touchedRef = useRef(touched);
-  touchedRef.current = touched;
+  // ONE shared field-state machine (use-review-field-state.ts over review-field-state.ts): a derived
+  // make/model suggestion is NOT pre-filled — it is applied with an explicit tap; untouched fields
+  // follow new server data; applied suggestions survive a language switch for the same reading.
+  const fieldState = useReviewFieldState({ vehicleId, fields, sourceToken: suggestionSourceToken });
+  const { values, typeInto, applyFieldSuggestion } = fieldState;
   // The TYPE starts UNCHOSEN. A previous explicit choice for this vehicle (reload / language
   // switch) is restored from the tab's session storage after mount — never from a suggestion.
   const [vehicleType, setVehicleTypeState] = useState<string>("");
@@ -165,70 +136,6 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     }
   }, [vehicleId, vehicleTypeOptions]);
 
-  // The review re-rendered with NEW server data (e.g. after "Read document again" or a saved draft):
-  // fields the provider has not touched follow the server; their own values are kept.
-  const fieldsSignature = useMemo(() => reviewFieldsSignature(fields), [fields]);
-  const fieldsRef = useRef(fields);
-  fieldsRef.current = fields;
-  const firstSync = useRef(true);
-  useEffect(() => {
-    if (firstSync.current) {
-      firstSync.current = false;
-      return;
-    }
-    setValues((prev) => syncUntouchedValues(prev, touchedRef.current, fieldsRef.current));
-  }, [fieldsSignature]);
-
-  // Restore suggestions the provider APPLIED earlier in this tab (language switch / reload) — only
-  // while they still equal the server's current suggestion. Nothing is called or submitted here.
-  useEffect(() => {
-    try {
-      const restored = restorableAppliedSuggestions(decodeAppliedSuggestions(window.sessionStorage.getItem(APPLIED_STORAGE_PREFIX + vehicleId)), fieldsRef.current);
-      const keys = Object.keys(restored);
-      if (keys.length === 0) return;
-      setValues((prev) => {
-        const next = { ...prev };
-        for (const k of keys) if ((prev[k] ?? "").trim() === "" && !touchedRef.current[k]) next[k] = restored[k]!;
-        return next;
-      });
-      setTouched((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, true])) }));
-      setApplied((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k) => [k, true])) }));
-    } catch {
-      /* storage unavailable or unreadable — the provider simply applies again */
-    }
-  }, [vehicleId]);
-
-  const rememberApplied = (key: string, value: string | null) => {
-    try {
-      const current = decodeAppliedSuggestions(window.sessionStorage.getItem(APPLIED_STORAGE_PREFIX + vehicleId));
-      if (value === null) delete current[key];
-      else current[key] = value;
-      const encoded = encodeAppliedSuggestions(current);
-      if (encoded === null) window.sessionStorage.removeItem(APPLIED_STORAGE_PREFIX + vehicleId);
-      else window.sessionStorage.setItem(APPLIED_STORAGE_PREFIX + vehicleId, encoded);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  /** The provider TYPED in a field: it is theirs from now on (never replaced by a suggestion). */
-  const typeInto = (key: string, value: string) => {
-    setValues((v) => ({ ...v, [key]: value }));
-    setTouched((t) => ({ ...t, [key]: true }));
-    setApplied((a) => ({ ...a, [key]: false }));
-    rememberApplied(key, null);
-  };
-
-  /** "Use <suggestion>": fills ONLY this field in local state — no save, no server call, no type. */
-  const applyFieldSuggestion = (f: FieldView) => {
-    const suggestion = suggestionText(f);
-    if (suggestion === null) return;
-    setValues((v) => applySuggestion(v, f));
-    setTouched((t) => ({ ...t, [f.key]: true }));
-    setApplied((a) => ({ ...a, [f.key]: true }));
-    rememberApplied(f.key, suggestion);
-  };
-
   const setVehicleType = (code: string) => {
     setVehicleTypeState(code);
     try {
@@ -241,10 +148,10 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const forgetStoredType = () => {
     try {
       window.sessionStorage.removeItem(TYPE_STORAGE_PREFIX + vehicleId);
-      window.sessionStorage.removeItem(APPLIED_STORAGE_PREFIX + vehicleId);
     } catch {
       /* ignore */
     }
+    fieldState.forgetStored();
   };
 
   // What the server receives: dates converted from the displayed day/month/year to canonical ISO.
@@ -323,7 +230,6 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   };
 
   const fieldErrorFor = (key: string) => fieldErrors.find((e) => e.field === key);
-  const confidenceKey = (c: NonNullable<FieldView["confidence"]>) => `vehicleRegConfidence${c.charAt(0)}${c.slice(1).toLowerCase()}`;
 
   const renderField = (f: FieldView) => {
     const label = td(regFieldLabelKey(f.key));
@@ -331,17 +237,9 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     const isRevealed = revealed[f.key] === true;
     const isDate = f.kind === "date";
     const inputType = f.kind === "int" ? "number" : "text";
-    // The status line is derived from the CURRENT value (review-field-state.ts): a blank value is
-    // never "entered by you"; once the provider types, the value is theirs.
-    const status = fieldStatus(f, values[f.key], applied[f.key] === true);
-    const edited = status === "PROVIDER";
-    const describesDocument = status === "SOURCE" || status === "SUGGESTED" || status === "APPLIED";
-    const statusLabel = status === "SOURCE" ? t(SOURCE_LABEL_KEY[f.source]) : td(STATUS_LABEL_KEY[status]);
-    const flagged = f.needsReview && (status === "SOURCE" || status === "SUGGESTED" || status === "NOT_ENTERED");
-    const suggestion = suggestionText(f);
-    const offerApply = canApplySuggestion(f, values[f.key]);
-    const extractedDisplay =
-      f.extractedValue === null ? null : f.sensitive && !isRevealed ? maskSensitiveValue(String(f.extractedValue)) : isDate ? formatIsoDateForDisplay(String(f.extractedValue)) : String(f.extractedValue);
+    // The status line is derived from the CURRENT value (shared review-field-state.ts): a blank value
+    // is never "entered by you"; a saved value is never re-labelled as typed.
+    const status = fieldState.status(f);
     const hintKey = FIELD_HINT_KEY[f.key];
 
     return (
@@ -357,65 +255,12 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </span>
           )}
         </div>
-        {/* ONE compact metadata row: source · confidence · check — never three separate lines. */}
-        <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-foreground/50">
-          <span data-field-status={status}>{statusLabel}</span>
-          {describesDocument && f.confidence && f.extractedValue !== null && <span aria-label={td(confidenceKey(f.confidence))}>· {td(confidenceKey(f.confidence))}</span>}
-          {flagged && <span className={`${CHIP} bg-accent/20 text-accent-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
-          {f.heuristic && describesDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegHeuristicBadge")}</span>}
-          {f.completedAutomatically && describesDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegCompletedBadge")}</span>}
-        </p>
-        {offerApply && suggestion !== null && (
-          // A make/model SUGGESTION: shown beside a one-tap "Use <value>" that fills ONLY this input
-          // locally (no save, no server call, never the vehicle type). It disappears once the input
-          // holds anything, so it can never replace what the provider typed.
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
-            <span className="min-w-0 text-xs text-foreground/70">
-              {t("vehicleRegExtractedPrefix")}: <bdi className="font-medium text-foreground">{suggestion}</bdi>
-            </span>
-            <button
-              type="button"
-              onClick={() => applyFieldSuggestion(f)}
-              disabled={pending}
-              aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion })}
-              className="inline-flex min-h-11 max-w-full items-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
-            >
-              <span className="truncate">{td("vehicleRegUseSuggestion", { value: suggestion })}</span>
-            </button>
-          </div>
-        )}
+        {/* ONE compact metadata row + the one-tap make/model suggestion (shared with the detail form). */}
+        <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />
         {hintKey && <p className="text-xs text-foreground/60">{td(hintKey)}</p>}
         {isDate && <p className="text-xs text-foreground/60">{t("vehicleRegDateFormatHint")}</p>}
-        {f.conflict && (f.alternatives?.length ?? 0) > 0 && !edited && (
-          // CONFLICT: the document itself disagrees. Nothing was chosen; every value it showed is
-          // offered (masked like any sensitive value) and ONE tap puts it in the input — the
-          // provider can still overrule it by typing.
-          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent/10 p-3">
-            <p className="text-xs font-medium text-accent-foreground">{t("vehicleRegConflictLabel")}</p>
-            <p className="text-xs text-foreground/70">{t("vehicleRegConflictHint")}</p>
-            <div className="flex flex-wrap gap-2">
-              {f.alternatives!.map((alt, i) => (
-                <button
-                  key={`${f.key}-alt-${i}`}
-                  type="button"
-                  onClick={() => typeInto(f.key, isDate ? formatIsoDateForDisplay(String(alt)) : String(alt))}
-                  disabled={pending}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
-                >
-                  <bdi dir={isDate ? "ltr" : undefined} className="font-medium">{f.sensitive && !isRevealed ? maskSensitiveValue(String(alt)) : isDate ? formatIsoDateForDisplay(String(alt)) : String(alt)}</bdi>
-                  <span className="text-xs text-foreground/60">{t("vehicleRegConflictChoose")}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {/* The document value stays visible once the provider has typed something else (or cleared a
-            field that has no one-tap action). */}
-        {(edited || (status === "SUGGESTED" && !offerApply)) && extractedDisplay !== null && (
-          <p className="text-xs text-foreground/50">
-            {t("vehicleRegExtractedPrefix")}: <bdi dir={isDate ? "ltr" : undefined} className="text-foreground/70">{extractedDisplay}</bdi>
-          </p>
-        )}
+        {/* Conflict choices + the document value for comparison (shared with the detail form). */}
+        <FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />
         {f.sensitive && !isRevealed ? (
           <div className="flex items-center gap-2">
             <p className="text-sm text-foreground">{maskSensitiveValue(values[f.key] ?? "") || "—"}</p>

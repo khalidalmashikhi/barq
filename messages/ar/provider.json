@@ -958,5 +958,7 @@
   "vehicleRegStatusSuggested": "اقتراح من المستند — لم يتم تأكيده",
   "vehicleRegStatusApplied": "اخترت اقتراح المستند",
   "vehicleRegUseSuggestion": "استخدام {value}",
-  "vehicleRegUseSuggestionAria": "استخدام اقتراح {field} {value}"
+  "vehicleRegUseSuggestionAria": "استخدام اقتراح {field} {value}",
+  "vehicleRegStatusCurrent": "القيمة الحالية",
+  "vehicleRegDiscardChanges": "تجاهل التغييرات"
 }

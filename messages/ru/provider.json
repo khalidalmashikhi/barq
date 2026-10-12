@@ -958,5 +958,7 @@
   "vehicleRegStatusSuggested": "Предложение из документа — не подтверждено",
   "vehicleRegStatusApplied": "Выбрано предложение из документа",
   "vehicleRegUseSuggestion": "Использовать {value}",
-  "vehicleRegUseSuggestionAria": "Использовать предложение для поля {field}: {value}"
+  "vehicleRegUseSuggestionAria": "Использовать предложение для поля {field}: {value}",
+  "vehicleRegStatusCurrent": "Текущее значение",
+  "vehicleRegDiscardChanges": "Отменить изменения"
 }

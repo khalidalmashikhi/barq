@@ -958,5 +958,7 @@
   "vehicleRegStatusSuggested": "Suggestion du document — non confirmée",
   "vehicleRegStatusApplied": "Suggestion du document sélectionnée",
   "vehicleRegUseSuggestion": "Utiliser {value}",
-  "vehicleRegUseSuggestionAria": "Utiliser la suggestion pour {field} : {value}"
+  "vehicleRegUseSuggestionAria": "Utiliser la suggestion pour {field} : {value}",
+  "vehicleRegStatusCurrent": "Valeur actuelle",
+  "vehicleRegDiscardChanges": "Annuler les modifications"
 }

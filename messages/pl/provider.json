@@ -958,5 +958,7 @@
   "vehicleRegStatusSuggested": "Propozycja z dokumentu — niepotwierdzona",
   "vehicleRegStatusApplied": "Wybrano propozycję z dokumentu",
   "vehicleRegUseSuggestion": "Użyj {value}",
-  "vehicleRegUseSuggestionAria": "Użyj propozycji pola {field}: {value}"
+  "vehicleRegUseSuggestionAria": "Użyj propozycji pola {field}: {value}",
+  "vehicleRegStatusCurrent": "Bieżąca wartość",
+  "vehicleRegDiscardChanges": "Odrzuć zmiany"
 }

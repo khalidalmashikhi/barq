@@ -958,5 +958,7 @@
   "vehicleRegStatusSuggested": "Vorschlag aus dem Dokument — nicht bestätigt",
   "vehicleRegStatusApplied": "Vorschlag aus dem Dokument übernommen",
   "vehicleRegUseSuggestion": "{value} übernehmen",
-  "vehicleRegUseSuggestionAria": "Vorschlag für {field} übernehmen: {value}"
+  "vehicleRegUseSuggestionAria": "Vorschlag für {field} übernehmen: {value}",
+  "vehicleRegStatusCurrent": "Aktueller Wert",
+  "vehicleRegDiscardChanges": "Änderungen verwerfen"
 }

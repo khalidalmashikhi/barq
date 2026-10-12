@@ -958,5 +958,7 @@
   "vehicleRegStatusSuggested": "Návrh z dokladu — nepotvrzeno",
   "vehicleRegStatusApplied": "Vybrán návrh z dokladu",
   "vehicleRegUseSuggestion": "Použít {value}",
-  "vehicleRegUseSuggestionAria": "Použít návrh pro {field}: {value}"
+  "vehicleRegUseSuggestionAria": "Použít návrh pro {field}: {value}",
+  "vehicleRegStatusCurrent": "Aktuální hodnota",
+  "vehicleRegDiscardChanges": "Zahodit změny"
 }

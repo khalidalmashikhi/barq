@@ -203,6 +203,8 @@ describe("GET /api/v1/services/{id}", () => {
       for (const forbidden of [
         "registrationNumber", "claimedFourByFour", "fourByFourVerified", "objectKey",
         "vehicleId", "assetId", "isInPool", "blockers", "verificationStatus",
+        // provider-only registration-review state never reaches a public payload
+        "extractedValue", "confirmedValue", "suggestionSourceToken", "lastSucceededAt",
       ]) {
         expect(serialized).not.toContain(forbidden);
       }
