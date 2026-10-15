@@ -264,8 +264,10 @@ describe("RegistrationUploadForm — the registration document SET (one PDF | on
   });
 
   it("the actions stay above the phone browser's bottom toolbar (sticky, safe-area aware); layout uses logical (RTL-safe) spacing only", () => {
-    expect(CODE).toMatch(/sticky bottom-0/);
-    expect(CODE).toMatch(/safe-area-inset-bottom/);
+    // the shared StickyActionBar (sticky against the VIEWPORT; the page-scoped layout contract and
+    // scroll-owner proof live in sticky-action-bar.test.ts)
+    expect(CODE).toMatch(/<StickyActionBar className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
+    expect(CODE).not.toMatch(/className="[^"]*\bsticky bottom-0/);
     expect(CODE).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d/);
   });
 

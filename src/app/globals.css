@@ -156,3 +156,27 @@ body {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 }
+
+/* 2026-10-15 — Provider vehicle action bars (registration upload, onboarding review, vehicle-detail
+   confirmation; component: src/components/provider/registration-review/sticky-action-bar.tsx).
+   ROOT CAUSE this fixes: AppShell's `<main id="main-content">` carries `overflow-y-auto` but is never
+   height-constrained (the shell is `min-h-screen`), so it never scrolls — the DOCUMENT is the real
+   scroll owner on every viewport — yet it still became the sticky bar's containing scroll box, so
+   `sticky bottom-0` never engaged and the bar sat at the end of the form.
+   CONTRACT: only on a page that renders a marked action bar, `<main>` stops being a scroll box (no
+   vertical overflow handling, horizontal overflow clipped, can shrink); every other AppShell page —
+   including service previews whose own sticky elements must stay inert — is untouched. The document
+   stays the single vertical scroll owner; below `sm` (where the bar is sticky) the document's
+   scroll-padding reserves the bar's measured height (`--provider-action-bar-height`, published by the
+   bar; 12rem fallback) so a focused or scrolled-to field is never hidden behind it. */
+#main-content:has([data-provider-action-bar]) {
+  min-width: 0;
+  overflow: visible;
+  overflow-x: clip;
+}
+
+@media (max-width: 639px) {
+  html:has([data-provider-action-bar]) {
+    scroll-padding-bottom: calc(var(--provider-action-bar-height, 12rem) + 1rem);
+  }
+}

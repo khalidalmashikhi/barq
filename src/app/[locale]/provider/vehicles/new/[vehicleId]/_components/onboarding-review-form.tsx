@@ -15,6 +15,7 @@ import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/on
 import { useReviewFieldState } from "@/components/provider/registration-review/use-review-field-state";
 import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/components/provider/registration-review/field-assist";
 import { useUnsavedLanguageGuard, UnsavedLanguageDialog } from "@/components/provider/registration-review/unsaved-language-guard";
+import { StickyActionBar } from "@/components/provider/registration-review/sticky-action-bar";
 import type { ReviewTabBinding } from "@/lib/vehicles/registration-review/review-field-state";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
@@ -381,7 +382,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
       </Card>
 
       {/* 6. DECLARATION + ACTIONS — sticky, clear of the phone browser's toolbar. */}
-      <div className="sticky bottom-0 -mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-4">
+      <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:p-4">
         <label className="flex items-start gap-2 text-sm text-foreground">
           <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-1 min-h-5 min-w-5" />
           <span>{t("vehicleOnboardDeclaration")}</span>
@@ -413,7 +414,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </div>
           </div>
         )}
-      </div>
+      </StickyActionBar>
 
       <UnsavedLanguageDialog open={languageGuard.target !== null} pending={pending} onStay={languageGuard.stay} onSaveAndSwitch={() => saveDraft(languageGuard.continueToTarget)} />
     </div>

@@ -97,8 +97,10 @@ describe("detail form — privacy, dates, capacity, type, layout", () => {
   });
 
   it("the actions are sticky above the phone toolbar (safe-area aware); spacing is logical (RTL-safe)", () => {
-    expect(FORM).toMatch(/sticky bottom-0/);
-    expect(FORM).toMatch(/safe-area-inset-bottom/);
+    // the shared StickyActionBar (sticky against the VIEWPORT; the page-scoped layout contract and
+    // scroll-owner proof live in sticky-action-bar.test.ts)
+    expect(FORM).toMatch(/<StickyActionBar className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
+    expect(FORM).not.toMatch(/className="[^"]*\bsticky bottom-0/);
     expect(FORM).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d/);
     expect((FORM.match(/<button[\s\S]*?>/g) ?? []).every((b) => b.includes('type="button"'))).toBe(true);
   });
