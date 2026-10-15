@@ -228,7 +228,7 @@ describe("review form — a field the document showed with TWO different values 
 describe("'being read' state", () => {
   it("only refreshes the page on an interval, a bounded number of times — it starts no reading and sends no data", () => {
     expect(PROGRESS).toMatch(/router\.refresh\(\)/);
-    expect(PROGRESS).toMatch(/if \(count >= MAX_REFRESHES\) clearInterval\(timer\)/);
+    expect(PROGRESS).toMatch(/if \(count >= MAX_REFRESHES\) \{\s*clearInterval\(timer\);/);
     expect(PROGRESS).not.toMatch(/fetch\(|Action\(|analyze/i);
     expect(PROGRESS).toMatch(/role="status"/);
   });
@@ -237,7 +237,7 @@ describe("'being read' state", () => {
 describe("OCR review copy — complete and honest in all 8 languages", () => {
   const KEYS = [
     "vehicleRegStateProcessing", "vehicleRegExtractFailOcrUnavailable", "vehicleRegExtractFailOcrTimeout", "vehicleRegExtractFailOcrUnreadable",
-    "vehicleOnboardReadingNotice", "vehicleOnboardOcrNotice", "vehicleOnboardNeedsReviewBadge", "vehicleOnboardNeedsReviewHint",
+    "vehicleRegConsentReadingPending", "vehicleRegConsentReadingHint", "vehicleOnboardReadingSlow", "vehicleOnboardReadingRefresh", "vehicleOnboardOcrNotice", "vehicleOnboardNeedsReviewBadge", "vehicleOnboardNeedsReviewHint",
     "vehicleRegSourceDocument", "vehicleRegSourceOcr", "vehicleRegSourceProvider", "vehicleRegSourceUnresolved",
     "vehicleOnboardPreviewAlt", "vehicleOnboardFileHintOcr", "vehicleOnboardManualNotice", "vehicleOnboardDeclaration",
     "vehicleRegConflictLabel", "vehicleRegConflictHint", "vehicleRegConflictChoose", "vehicleOnboardBackPreviewAlt",

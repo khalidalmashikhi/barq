@@ -113,6 +113,19 @@
       "dataSharingTitle": "Sdílení údajů",
       "dataRetentionTitle": "Uchovávání údajů",
       "yourRightsTitle": "Vaše práva"
+    },
+    "automaticReading": {
+      "title": "Co se stane, když zvolíte automatické načtení",
+      "processor": "Celý technický průkaz — včetně všeho, co je na něm vytištěno, např. jména a civilního čísla vlastníka — se odešle externímu poskytovateli zpracování (Anthropic), který jej přečte jménem BARQ.",
+      "processorPdf": "Vybraný soubor PDF se odešle celý — kompletní technický průkaz včetně všeho, co je na něm vytištěno, např. jména a civilního čísla vlastníka — externímu poskytovateli zpracování (Anthropic), který jej přečte jménem BARQ.",
+      "processorImages": "Všechny vybrané obrázky se odešlou společně (přední i zadní strana) — kompletní technický průkaz včetně všeho, co je na něm vytištěno, např. jména a civilního čísla vlastníka — externímu poskytovateli zpracování (Anthropic), který je přečte jménem BARQ.",
+      "geoGlobal": "Zpracování probíhá mimo Omán a může se uskutečnit ve Spojených státech nebo v jiných zemích.",
+      "purpose": "Jediným účelem je navrhnout údaje o vozidle k vaší kontrole. Doklad se k ničemu jinému nepoužívá.",
+      "accuracy": "Návrhy mohou být nepřesné nebo neúplné. Každou hodnotu zkontrolujete a potvrdíte dříve, než se cokoli uloží.",
+      "decline": "Můžete odmítnout a zadat údaje sami. Odmítnutí nikdy nebrání přidání vozidla.",
+      "retention": "BARQ používá odeslanou kopii jen pro toto načtení. Dobu, po kterou ji poskytovatel uchovává, upravují podmínky tohoto poskytovatele; viz zásady ochrany soukromí.",
+      "limits": "Automatické čtení neověřuje vlastnictví, neschvaluje vozidlo a nenahrazuje kontrolu dokladů ze strany BARQ. Může vracet chybné hodnoty.",
+      "recorded": "Toto upozornění popisuje zpracování. Vaše volba se zaznamená s datem, tímto dokladem a verzí tohoto upozornění."
     }
   },
   "cookies": {

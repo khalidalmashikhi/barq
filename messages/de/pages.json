@@ -113,6 +113,19 @@
       "dataSharingTitle": "Datenweitergabe",
       "dataRetentionTitle": "Datenspeicherung",
       "yourRightsTitle": "Ihre Rechte"
+    },
+    "automaticReading": {
+      "title": "Was beim automatischen Lesen geschieht",
+      "processor": "Ihr vollständiger Fahrzeugschein — einschließlich allem, was darauf gedruckt ist, etwa Name und Zivilnummer des Halters — wird an einen externen Verarbeitungsdienstleister (Anthropic) gesendet, der ihn im Auftrag von BARQ liest.",
+      "processorPdf": "Die ausgewählte PDF-Datei wird vollständig — der komplette Fahrzeugschein mit allem, was darauf gedruckt ist, etwa Name und Zivilnummer des Halters — an einen externen Verarbeitungsdienstleister (Anthropic) gesendet, der sie im Auftrag von BARQ liest.",
+      "processorImages": "Alle ausgewählten Bilder werden zusammen (Vorder- und Rückseite) — der komplette Fahrzeugschein mit allem, was darauf gedruckt ist, etwa Name und Zivilnummer des Halters — an einen externen Verarbeitungsdienstleister (Anthropic) gesendet, der sie im Auftrag von BARQ liest.",
+      "geoGlobal": "Die Verarbeitung erfolgt außerhalb Omans und kann in den Vereinigten Staaten oder anderen Ländern stattfinden.",
+      "purpose": "Der einzige Zweck ist, Fahrzeugangaben zur Prüfung vorzuschlagen. Das Dokument wird für nichts anderes verwendet.",
+      "accuracy": "Die Vorschläge können ungenau oder unvollständig sein. Sie prüfen und bestätigen jeden Wert, bevor etwas gespeichert wird.",
+      "decline": "Sie können ablehnen und die Angaben selbst eintragen. Eine Ablehnung verhindert das Hinzufügen Ihres Fahrzeugs nie.",
+      "retention": "BARQ verwendet die gesendete Kopie nur für dieses Lesen. Wie lange der Dienstleister sie aufbewahrt, richtet sich nach dessen Bedingungen; siehe Datenschutzerklärung.",
+      "limits": "Das automatische Auslesen prüft weder das Eigentum noch genehmigt es das Fahrzeug, und es ersetzt nicht die Dokumentenprüfung durch BARQ. Es kann falsche Werte liefern.",
+      "recorded": "Dieser Hinweis beschreibt die Verarbeitung. Ihre Entscheidung wird mit Datum, diesem Dokument und der Version dieses Hinweises festgehalten."
     }
   },
   "cookies": {

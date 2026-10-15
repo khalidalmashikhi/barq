@@ -3,15 +3,26 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 // The standalone processing notice + choice step. Structural checks on the component (Vitest here
-// runs without a DOM) and content checks on the copy in every supported language. Since the
-// 2026-10-09 wording simplification the notice is LAYERED: the ordinary workflow speaks only of
-// "automatic reading" (neutral, no vendor, no "AI"), while the full notice — processor identity,
-// what is sent, geography, purpose, limits, retention, policy — sits behind "Privacy details".
+// runs without a DOM) and content checks on the copy in every supported language.
+//
+// 2026-10-16 presentation: the ordinary workflow carries ONE sentence (a copy of the document is used
+// to extract and SUGGEST the vehicle details; nothing is accepted before the provider reviews and
+// saves), a visible Privacy Policy link, the attestation and the two choices. "Privacy details" holds a
+// short neutral sentence about an external technical processing provider + the limits + what is
+// recorded. The FULL disclosure (processor identity, what is sent, geography, purpose, accuracy,
+// declining, retention) moved verbatim into the Privacy Policy's #automatic-reading section.
+// Tap feedback: in-flight guard, spinner + "Reading vehicle details…", live region, no percentage.
 
 const ROOT = process.cwd();
 const CODE = readFileSync(path.join(ROOT, "src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/ocr-consent-step.tsx"), "utf8");
+const stripComments = (src: string) => src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+const PROGRESS = readFileSync(path.join(ROOT, "src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/extraction-progress.tsx"), "utf8");
+const PRIVACY_PAGE = readFileSync(path.join(ROOT, "src/app/[locale]/privacy/page.tsx"), "utf8");
 const LOCALES = ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"] as const;
 const messages = Object.fromEntries(LOCALES.map((l) => [l, JSON.parse(readFileSync(path.join(ROOT, `messages/${l}/provider.json`), "utf8")) as Record<string, string>]));
+const policy = Object.fromEntries(
+  LOCALES.map((l) => [l, (JSON.parse(readFileSync(path.join(ROOT, `messages/${l}/pages.json`), "utf8")) as { privacy: { automaticReading: Record<string, string> } }).privacy.automaticReading]),
+);
 
 /** Copy the provider sees in the ORDINARY workflow (without opening "Privacy details"). */
 const ORDINARY_KEYS = [
@@ -19,43 +30,34 @@ const ORDINARY_KEYS = [
   "vehicleRegConsentIntro",
   "vehicleRegConsentIntroPdf",
   "vehicleRegConsentDisclosure",
-  "vehicleRegConsentAccuracy",
+  "vehicleRegConsentPrivacyPolicyLink",
   "vehicleRegConsentDetailsToggle",
   "vehicleRegConsentOwnerLabel",
   "vehicleRegConsentReadButton",
   "vehicleRegConsentManualButton",
   "vehicleRegConsentPending",
+  "vehicleRegConsentReadingPending",
+  "vehicleRegConsentReadingHint",
   "vehicleRegConsentDeclinedNotice",
   "vehicleRegConsentChangeMind",
   "vehicleRegConsentStaleNotice",
 ];
-/** Copy behind "Privacy details". */
-const DETAIL_KEYS = [
-  "vehicleRegConsentNoticeTitle",
-  "vehicleRegConsentPointProcessor",
-  "vehicleRegConsentPointProcessorPdf",
-  "vehicleRegConsentPointProcessorImages",
-  "vehicleRegConsentPointGeoUs",
-  "vehicleRegConsentPointGeoGlobal",
-  "vehicleRegConsentPointPurpose",
-  "vehicleRegConsentPointAccuracy",
-  "vehicleRegConsentPointDecline",
-  "vehicleRegConsentPointRetention",
-  "vehicleRegConsentLimits",
-  "vehicleRegConsentLegalNote",
-  "vehicleRegConsentPrivacyPolicyLink",
-];
+/** Copy behind "Privacy details" — short and neutral. */
+const DETAIL_KEYS = ["vehicleRegConsentDetailsExternal", "vehicleRegConsentLimits", "vehicleRegConsentLegalNote"];
 const NOTICE_KEYS = [...ORDINARY_KEYS, ...DETAIL_KEYS];
 const RESULT_KEYS = ["vehicleRegOcrNotAvailable", "vehicleRegConsentOwnerRequired", "vehicleRegStateAwaitingChoice", "vehicleRegExtractFailOcrRateLimited", "vehicleRegExtractFailOcrAttemptLimit"];
+/** The Privacy Policy's automatic-reading section (the full disclosure). */
+const POLICY_KEYS = ["title", "processor", "processorPdf", "processorImages", "geoGlobal", "purpose", "accuracy", "decline", "retention", "limits", "recorded"];
 
-// Vendor / technology / geography wording that must NOT appear in the ordinary workflow. The
-// technology abbreviations are matched CASE-SENSITIVELY (upper case only): "ai" is an ordinary
-// Italian word, "ia"/"si" occur in several languages.
-const TECH_ABBREVIATIONS = /AI|KI|IA|ИИ/;
-const VENDOR_OR_AI_WORDS = /anthropic|claude|الذكاء الاصطناعي|ذكاء اصطناعي|artificial intelligence|intelligence artificielle|künstliche intelligenz|intelligenza artificiale|sztuczn|umělá inteligence|искусственн|american servers|US servers|خوادم أمريكية|الخوادم الأمريكية|الولايات المتحدة|united states|vereinigten staaten|stati uniti|états-unis|stanach zjednoczonych|spojených státech|сша/i;
-const expectNoVendorOrAi = (value: string, label: string) => {
+// Vendor / technology / geography wording that must NOT appear ANYWHERE in the provider workflow now
+// (ordinary copy AND privacy details). Abbreviations are matched case-sensitively ("ai" is Italian).
+const TECH_ABBREVIATIONS = /\bAI\b|\bKI\b|\bIA\b|\bИИ\b/;
+const VENDOR_OR_AI_WORDS = /anthropic|claude|\bsonnet\b|\bopus\b|الذكاء الاصطناعي|ذكاء اصطناعي|artificial intelligence|intelligence artificielle|künstliche intelligenz|intelligenza artificiale|sztuczn|umělá inteligence|искусственн/i;
+const COUNTRY_OR_SERVER = /american servers|US servers|خوادم أمريكية|الخوادم الأمريكية|الولايات المتحدة|أمريك|خارج سلطنة|خارج عُمان|outside Oman|united states|vereinigten staaten|stati uniti|états-unis|stanach zjednoczonych|spojených státech|сша|außerhalb (von )?Oman|fuori dall'Oman|poza Omanem|hors d'Oman|mimo Omán|за пределами Омана/i;
+const expectNeutral = (value: string, label: string) => {
   expect(value, label).not.toMatch(TECH_ABBREVIATIONS);
   expect(value, label).not.toMatch(VENDOR_OR_AI_WORDS);
+  expect(value, label).not.toMatch(COUNTRY_OR_SERVER);
 };
 
 describe("OcrConsentStep — structure", () => {
@@ -66,15 +68,11 @@ describe("OcrConsentStep — structure", () => {
     expect(CODE).toContain("declineOcrConsentAction(vehicleId)");
   });
 
-  it("the 'continue with automatic reading' button stays disabled until the owner/authorized box is ticked; both buttons lock while pending", () => {
-    expect(CODE).toMatch(/disabled=\{pending \|\| !ownerAuthorized\}/);
-    expect(CODE).toMatch(/onClick=\{\(\) => run\("manual"\)\} disabled=\{pending\}/);
+  it("11. the 'read' button stays disabled until the owner/authorized box is ticked; the box starts UNTICKED", () => {
+    expect(CODE).toMatch(/const \[ownerAuthorized, setOwnerAuthorized\] = useState\(false\);/);
+    expect(CODE).toMatch(/disabled=\{pending \|\| busy !== null \|\| !ownerAuthorized\}/);
+    expect(CODE).toMatch(/if \(which === "read" && !ownerAuthorized\) return;/);
     expect(CODE).toMatch(/type="checkbox" checked=\{ownerAuthorized\}/);
-  });
-
-  it("chooses the geography sentence from the configured geography — never from a default", () => {
-    expect(CODE).toContain('inferenceGeo === "us" ? t("vehicleRegConsentPointGeoUs") : t("vehicleRegConsentPointGeoGlobal")');
-    expect(CODE).not.toMatch(/inferenceGeo\s*=\s*"us"|inferenceGeo \?\? /);
   });
 
   it("surfaces only localized result messages — never a raw code, engine name, model id or vendor endpoint", () => {
@@ -88,8 +86,6 @@ describe("OcrConsentStep — structure", () => {
 
   it("the consent is never implied: no auto-grant on mount, on upload, on reload or on retry — only the explicit 'read' click grants", () => {
     expect(CODE).not.toMatch(/useEffect/);
-    // Exactly one call of each grant action, both on the explicit "read" branch of run() — the
-    // regular reading, or (intent "complete") the completion of an incomplete PDF reading.
     expect((CODE.match(/grantOcrConsentAction\(/g) ?? []).length).toBe(1);
     expect((CODE.match(/grantOcrConsentForCompletionAction\(/g) ?? []).length).toBe(1);
     expect(CODE).toMatch(/which === "read"\s*\?\s*intent === "complete"\s*\?\s*await grantOcrConsentForCompletionAction\(vehicleId, ownerAuthorized\)\s*:\s*await grantOcrConsentAction\(vehicleId, ownerAuthorized\)\s*:\s*await declineOcrConsentAction\(vehicleId\)/);
@@ -97,39 +93,105 @@ describe("OcrConsentStep — structure", () => {
 
   it("the 'complete' intent reuses the SAME notice, attestation and buttons; only the intro differs and the grant starts the completion", () => {
     expect(CODE).toContain('intent === "complete" ? t("vehicleRegConsentIntroComplete")');
-    expect(CODE).toMatch(/intent = "read"/); // default — every existing caller keeps the regular reading
-    expect(CODE).toContain("if (which === \"manual\" && intent === \"complete\") onDeclined?.();");
+    expect(CODE).toMatch(/intent = "read"/);
+    expect(CODE).toMatch(/if \(which === "manual" && intent === "complete"\) \{\s*settle\(null\);\s*onDeclined\?\.\(\);\s*\}/);
     expect(CODE).toMatch(/res\.completion && !res\.completion\.ok/);
   });
 });
 
-describe("layering — the ordinary workflow vs. the privacy details", () => {
-  it("the short disclosure and the accuracy statement are rendered OUTSIDE the details element; the full notice is INSIDE it, behind the 'Privacy details' summary", () => {
-    const details = CODE.indexOf("<details");
-    const detailsEnd = CODE.indexOf("</details>");
-    expect(details).toBeGreaterThan(0);
-    expect(detailsEnd).toBeGreaterThan(details);
-    const summary = CODE.indexOf("<summary");
-    expect(summary).toBeGreaterThan(details);
-    expect(CODE.indexOf('t("vehicleRegConsentDetailsToggle")')).toBeGreaterThan(summary);
-    for (const key of ["vehicleRegConsentDisclosure", "vehicleRegConsentAccuracy", "vehicleRegConsentOwnerLabel", "vehicleRegConsentReadButton", "vehicleRegConsentManualButton", "vehicleRegConsentTitle"]) {
-      const at = CODE.indexOf(`t("${key}")`);
-      expect(at < details || at > detailsEnd, `${key} must be outside <details>`).toBe(true);
-    }
-    for (const key of ["vehicleRegConsentNoticeTitle", "vehicleRegConsentPointGeoUs", "vehicleRegConsentPointPurpose", "vehicleRegConsentPointRetention", "vehicleRegConsentLimits", "vehicleRegConsentLegalNote", "vehicleRegConsentPrivacyPolicyLink"]) {
-      const at = CODE.indexOf(`t("${key}")`);
-      expect(at > details && at < detailsEnd, `${key} must be inside <details>`).toBe(true);
-    }
-    expect(CODE.indexOf("t(PROCESSOR_POINT_KEY[setKind])")).toBeGreaterThan(details);
+describe("Correction A — immediate reading feedback, one request per tap", () => {
+  it("1/2. the tap enters the pending state in the SAME event: guard set, busy set, button disabled, spinner + 'Reading vehicle details…'", () => {
+    const run = CODE.slice(CODE.indexOf("const run = (which"), CODE.indexOf("startTransition(async"));
+    expect(run).toMatch(/if \(inFlight\.current\) return;/);
+    expect(run.indexOf("inFlight.current = true;")).toBeLessThan(run.indexOf("setBusy(which);"));
+    expect(CODE).toMatch(/const inFlight = useRef\(false\);/);
+    expect(CODE).toMatch(/\{reading \? <Loader2 [^>]*className="animate-spin motion-reduce:animate-none" \/>/);
+    expect(CODE).toMatch(/\{reading \? t\("vehicleRegConsentReadingPending"\) : t\("vehicleRegConsentReadButton"\)\}/);
+    // the busy primary button keeps its primary look instead of fading like a dead control
+    expect(CODE).toMatch(/\$\{reading \? "" : "disabled:opacity-50"\}/);
+    expect(CODE).not.toMatch(/const BUTTON = "[^"]*disabled:opacity-50/);
   });
 
-  it("the privacy details are reachable from the step itself (a native disclosure, no sign-in, no second page) and link to the privacy policy", () => {
-    expect(CODE).toMatch(/<details[^>]*open=\{mode === "stale"\}/); // closed by default; opened when the notice changed
-    expect(CODE).toContain('<Link href="/privacy"');
+  it("3. repeated taps create no duplicate request: the guard rejects every tap while one is in flight; both buttons lock", () => {
+    expect(CODE).toMatch(/disabled=\{pending \|\| busy !== null\} className=\{`\$\{BUTTON\} border border-border/);
+    expect(CODE).toMatch(/hover:bg-accent disabled:opacity-50`\}/);
+    expect((CODE.match(/inFlight\.current = true;/g) ?? []).length).toBe(1);
+    // the guard is released ONLY when the request ended without the page being replaced
+    expect(CODE).toMatch(/const settle = \(code: RegistrationReviewCode \| null\) => \{\s*inFlight\.current = false;\s*setBusy\(null\);/);
+  });
+
+  it("4. a rerender during processing creates no request: nothing starts a request outside the explicit tap (no effect, no render-time call)", () => {
+    expect(CODE).not.toMatch(/useEffect|useLayoutEffect/);
+    expect((CODE.match(/run\("read"\)/g) ?? []).length).toBe(1);
+    expect(CODE).toMatch(/onClick=\{\(\) => run\("read"\)\}/);
+  });
+
+  it("the state is announced (aria-live) and explained, the checkbox stays ticked and locked, the step reports aria-busy", () => {
+    expect(CODE).toMatch(/<div role="status" aria-live="polite"[^>]*>\s*\{reading \? t\("vehicleRegConsentReadingHint"\) : ""\}/);
+    expect(CODE).toMatch(/type="checkbox" checked=\{ownerAuthorized\} onChange=\{\(e\) => setOwnerAuthorized\(e\.target\.checked\)\} disabled=\{pending \|\| busy !== null\}/);
+    expect(CODE).toMatch(/aria-busy=\{pending \|\| busy !== null\}/);
+    expect(stripComments(CODE)).not.toMatch(/%|percent|progress=/i);
+  });
+
+  it("6. success keeps the pending state until the refreshed page replaces the step (no flash back to an idle button)", () => {
+    const after = CODE.slice(CODE.indexOf("if (res.completion && !res.completion.ok)"));
+    expect(after).toMatch(/router\.refresh\(\);\s*\}\);\s*\};/);
+    expect(CODE).not.toMatch(/const res =[\s\S]{0,400}setBusy\(null\);\s*if \(!res\.ok\)/); // the old unconditional reset is gone
+  });
+
+  it("7. failure / timeout / dropped request leaves the pending state with the honest error; both choices are usable again", () => {
+    expect(CODE).toMatch(/\} catch \{\s*\/\/[^\n]*\n\s*settle\("UNKNOWN_ERROR"\);\s*return;\s*\}/);
+    expect(CODE).toMatch(/if \(!res\.ok\) \{\s*settle\(res\.code\);\s*return;\s*\}/);
+    // consent recorded but no result (error / failure / still awaiting): pending ends, the page refreshes
+    expect(CODE).toMatch(/if \(analysis && !analysis\.ok\) \{\s*settle\(analysis\.code\);\s*router\.refresh\(\);\s*return;\s*\}/);
+    expect(CODE).toMatch(/if \(analysis && \(analysis\.status === "FAILED" \|\| analysis\.status === "AWAITING_CONSENT"\)\) \{\s*settle\(null\);\s*router\.refresh\(\);\s*return;\s*\}/);
+    expect(CODE).toMatch(/\{errorCode && <Alert variant="danger">\{td\(registrationReviewMessageKey\(errorCode\)\)\}<\/Alert>\}/);
+  });
+
+  it("the processing page shows the same spinner + copy, polls a bounded number of times and never stays 'reading' forever", () => {
+    expect(PROGRESS).toMatch(/const MAX_REFRESHES = 40;/);
+    expect(PROGRESS).toMatch(/if \(count >= MAX_REFRESHES\) \{\s*clearInterval\(timer\);\s*setGaveUp\(true\);\s*\}/);
+    expect(PROGRESS).toMatch(/t\("vehicleRegConsentReadingPending"\)/);
+    expect(PROGRESS).toMatch(/t\("vehicleRegConsentReadingHint"\)/);
+    expect(PROGRESS).toMatch(/t\("vehicleOnboardReadingSlow"\)/);
+    expect(PROGRESS).toMatch(/onClick=\{\(\) => router\.refresh\(\)\}/);
+    expect(stripComments(PROGRESS)).not.toMatch(/Action\(|fetch\(|%|percent/);
+  });
+
+  it("Arabic and English pending copy is exactly the approved wording", () => {
+    expect(messages.ar!.vehicleRegConsentReadingPending).toBe("جارٍ قراءة بيانات المركبة…");
+    expect(messages.en!.vehicleRegConsentReadingPending).toBe("Reading vehicle details…");
+    expect(messages.ar!.vehicleRegConsentReadingHint).toBe("قد تستغرق القراءة بضع ثوانٍ. لا تغلق الصفحة.");
+    expect(messages.en!.vehicleRegConsentReadingHint).toBe("Reading may take a few seconds. Keep this page open.");
   });
 });
 
-describe("the ordinary workflow copy — neutral 'automatic reading' wording, in every language", () => {
+describe("Correction B — simpler consent presentation", () => {
+  it("the ordinary sentence + the Privacy Policy link are OUTSIDE <details>; only the neutral sentence, limits and record note are inside", () => {
+    const details = CODE.indexOf("<details");
+    const detailsEnd = CODE.indexOf("</details>");
+    expect(details).toBeGreaterThan(0);
+    for (const key of ["vehicleRegConsentDisclosure", "vehicleRegConsentPrivacyPolicyLink", "vehicleRegConsentOwnerLabel", "vehicleRegConsentReadButton", "vehicleRegConsentManualButton", "vehicleRegConsentTitle"]) {
+      const at = CODE.indexOf(`t("${key}")`);
+      expect(at < details || at > detailsEnd, `${key} must be outside <details>`).toBe(true);
+    }
+    for (const key of DETAIL_KEYS) {
+      const at = CODE.indexOf(`t("${key}")`);
+      expect(at > details && at < detailsEnd, `${key} must be inside <details>`).toBe(true);
+    }
+    expect(CODE).toMatch(/<details[^>]*open=\{mode === "stale"\}/); // collapsed by default; opened when the notice changed
+  });
+
+  it("10. the Privacy Policy link stays visible and points at the full automatic-reading section", () => {
+    expect(CODE).toMatch(/export const AUTOMATIC_READING_POLICY_HREF = "\/privacy#automatic-reading";/);
+    expect(CODE).toMatch(/<Link href=\{AUTOMATIC_READING_POLICY_HREF\}/);
+    expect(PRIVACY_PAGE).toMatch(/<section id="automatic-reading"/);
+  });
+
+  it("the step no longer renders processor, set or geography sentences (they live in the policy)", () => {
+    expect(CODE).not.toMatch(/PROCESSOR_POINT_KEY|vehicleRegConsentPoint|inferenceGeo ===/);
+  });
+
   it.each(LOCALES)("%s has every notice and result key, non-empty", (locale) => {
     for (const key of [...NOTICE_KEYS, ...RESULT_KEYS]) {
       expect(typeof messages[locale]![key], `${locale}.${key}`).toBe("string");
@@ -137,162 +199,79 @@ describe("the ordinary workflow copy — neutral 'automatic reading' wording, in
     }
   });
 
-  it.each(LOCALES)("%s: no vendor name, no 'AI', no engine, no 'American servers' / country in the ordinary workflow keys or the state/result labels", (locale) => {
-    const m = messages[locale]!;
-    const ordinary = [...ORDINARY_KEYS, ...RESULT_KEYS, "vehicleOnboardOcrNotice", "vehicleOnboardManualNotice", "vehicleRegReviewSubtitle", "vehicleRegReviewErrExtraction"];
-    for (const key of ordinary) {
-      if (typeof m[key] !== "string") continue;
-      expectNoVendorOrAi(m[key]!, `${locale}.${key}`);
+  it.each(LOCALES)("8. %s: no vendor, model, 'AI', country or server location anywhere in the provider workflow (ordinary copy AND privacy details)", (locale) => {
+    for (const [key, value] of Object.entries(messages[locale]!)) {
+      if (!/^(vehicleReg|vehicleOnboard|vehicleDoc)/.test(key)) continue;
+      expectNeutral(value, `${locale}.${key}`);
     }
   });
 
-  it("every provider-workflow key (vehicleReg*/vehicleOnboard*/vehicleDoc*) outside the privacy details is free of vendor / AI wording — in every language", () => {
-    for (const locale of LOCALES) {
-      for (const [key, value] of Object.entries(messages[locale]!)) {
-        if (!/^(vehicleReg|vehicleOnboard|vehicleDoc)/.test(key) || DETAIL_KEYS.includes(key)) continue;
-        expectNoVendorOrAi(value, `${locale}.${key}`);
-      }
-    }
+  it("9. the details stay honest: an external technical processing provider may be used, under the Privacy Policy; declining and manual entry remain open", () => {
+    expect(messages.ar!.vehicleRegConsentDetailsExternal).toBe("قد نستخدم مزود معالجة تقنيًا خارجيًا لتنفيذ القراءة التلقائية وفق سياسة الخصوصية. يمكنك رفض القراءة التلقائية وإدخال البيانات يدويًا في أي وقت.");
+    expect(messages.en!.vehicleRegConsentDetailsExternal).toBe("An external technical processing provider may be used to perform automatic reading under the Privacy Policy. You may decline automatic reading and enter the details manually at any time.");
+    for (const l of LOCALES) expect(messages[l]!.vehicleRegConsentDetailsExternal!.length, l).toBeGreaterThan(40);
   });
 
-  it("Arabic uses exactly the approved wording: heading, explanation, attestation, both buttons, disclosure and accuracy", () => {
-    const ar = messages.ar!;
-    expect(ar.vehicleRegConsentTitle).toBe("قراءة بيانات المركبة تلقائياً");
-    expect(ar.vehicleRegConsentIntro).toBe("يمكن للنظام قراءة بيانات المركبة من المستند وتعبئة النموذج لتراجعه قبل الحفظ. يمكنك بدلاً من ذلك إدخال البيانات يدوياً.");
-    expect(ar.vehicleRegConsentOwnerLabel).toBe("أؤكد أنني مالك المركبة أو مخوّل باستخدام مستندها لإضافة المركبة.");
-    expect(ar.vehicleRegConsentReadButton).toBe("متابعة القراءة التلقائية");
-    expect(ar.vehicleRegConsentManualButton).toBe("إدخال البيانات يدوياً");
-    expect(ar.vehicleRegConsentDisclosure).toBe("عند اختيار القراءة التلقائية، ستُعالج نسخة المستند لاستخراج بيانات المركبة، وقد تتم المعالجة عبر مزود خدمة خارجي خارج سلطنة عُمان. راجع البيانات قبل الحفظ.");
-    expect(ar.vehicleRegConsentAccuracy).toBe("البيانات المستخرجة اقتراحات للمراجعة، ولا تثبت الملكية ولا تعني اعتماد المركبة.");
-    expect(ar.vehicleRegConsentDetailsToggle).toBe("تفاصيل الخصوصية");
-    for (const key of NOTICE_KEYS) expect(ar[key], key).toMatch(/[؀-ۿ]/);
-    expect(JSON.stringify(ar)).not.toContain("بارق");
+  it("the ordinary disclosure is exactly the approved Arabic / English wording", () => {
+    expect(messages.ar!.vehicleRegConsentDisclosure).toBe("سنستخدم نسخة المستند لاستخراج بيانات المركبة واقتراحها لك للمراجعة. لن يتم اعتماد أي بيانات قبل مراجعتك وحفظها.");
+    expect(messages.en!.vehicleRegConsentDisclosure).toBe("A copy of the document will be used to extract vehicle details and suggest them for your review. No information is accepted until you review and save it.");
   });
 
-  it("English: neutral 'automatic reading' heading and buttons; the disclosure says a copy is processed, possibly by an external service provider outside Oman; the accuracy line disclaims ownership and approval", () => {
-    const en = messages.en!;
-    expect(en.vehicleRegConsentTitle).toMatch(/automatically/i);
-    expect(en.vehicleRegConsentReadButton).toBe("Continue with automatic reading");
-    expect(en.vehicleRegConsentManualButton).toBe("Enter the details manually");
-    expect(en.vehicleRegConsentDetailsToggle).toBe("Privacy details");
-    expect(en.vehicleRegConsentDisclosure).toMatch(/copy of the document is processed/);
-    expect(en.vehicleRegConsentDisclosure).toMatch(/external service provider outside Oman/);
-    expect(en.vehicleRegConsentDisclosure).toMatch(/Review the details before saving/);
-    expect(en.vehicleRegConsentAccuracy).toMatch(/do not prove ownership/);
-    expect(en.vehicleRegConsentAccuracy).toMatch(/do not mean the vehicle is approved/);
-    expect(en.vehicleRegConsentOwnerLabel).toMatch(/owner or authorized/);
+  it.each(LOCALES)("%s: nothing claims local / Oman-only processing, ownership verification, approval or guaranteed accuracy", (locale) => {
+    const all = [...NOTICE_KEYS.map((k) => messages[locale]![k]!), ...POLICY_KEYS.map((k) => policy[locale]![k]!)].join("\n");
+    expect(all).not.toMatch(/only (in|within) Oman|exclusively in Oman|processed locally|nur in Oman|solo in Oman|uniquement (en|à) Oman|tylko w Omanie|pouze v Ománu|только в Омане|فقط داخل (سلطنة )?عُ?مان|داخل (سلطنة )?عُ?مان فقط|محليًا فقط/i);
+    expect(messages[locale]!.vehicleRegConsentDisclosure).not.toMatch(/verif(y|ies) ownership|approv(e|es) the vehicle|guarantee|accurate/i);
   });
 
-  it.each(LOCALES)("%s: nothing claims the processing happens only in Oman, or that BARQ performs all of it", (locale) => {
-    const all = NOTICE_KEYS.map((k) => messages[locale]![k]!).join("\n");
-    expect(all).not.toMatch(/only (in|within) Oman|exclusively in Oman|nur in Oman|solo in Oman|uniquement (en|à) Oman|tylko w Omanie|pouze v Ománu|только в Омане|فقط داخل (سلطنة )?عُ?مان|داخل (سلطنة )?عُ?مان فقط/i);
-    expect(all).not.toMatch(/BARQ (performs|does|carries out) all|entirely by BARQ|برق وحدها|بالكامل داخل برق/i);
+  it("12. manual entry needs no consent and no attestation", () => {
+    expect(CODE).toMatch(/onClick=\{\(\) => run\("manual"\)\} disabled=\{pending \|\| busy !== null\}/);
+    expect(CODE).not.toMatch(/run\("manual"\)[^\n]*ownerAuthorized/);
   });
 
   it("the declined notice promises only what the server guarantees: the document is not SENT for automatic reading", () => {
     expect(messages.en!.vehicleRegConsentDeclinedNotice).toMatch(/not sent for automatic reading/);
   });
 
-  it("the 'awaiting choice' state label is not a failure word", () => {
-    expect(messages.en!.vehicleRegStateAwaitingChoice).not.toMatch(/fail|error|could not/i);
-  });
-
   it("a PDF reaches this step only when local reading found nothing usable — its intro says so and still offers manual entry", () => {
     expect(CODE).toContain('setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")');
     expect(messages.en!.vehicleRegConsentIntroPdf).toMatch(/could not be read locally/);
-    expect(messages.en!.vehicleRegConsentIntroPdf).toMatch(/enter the details manually/);
   });
 });
 
-describe("the privacy details — accurate and complete, in every language", () => {
-  it("English states each required point: the external processing provider by legal name, what is sent, outside Oman, single purpose, may be wrong + provider confirms, decline allowed and never blocking, retention governed by the provider's terms", () => {
-    const en = messages.en!;
-    expect(en.vehicleRegConsentPointProcessor).toMatch(/external processing provider \(Anthropic\)/);
-    expect(en.vehicleRegConsentPointProcessor).toMatch(/complete registration document/);
-    expect(en.vehicleRegConsentPointProcessor).toMatch(/owner's name and civil number/);
-    expect(en.vehicleRegConsentPointGeoUs).toMatch(/outside Oman/);
-    expect(en.vehicleRegConsentPointGeoUs).toMatch(/United States/);
-    expect(en.vehicleRegConsentPointGeoGlobal).toMatch(/outside Oman/);
-    expect(en.vehicleRegConsentPointGeoGlobal).toMatch(/other countries/);
-    expect(en.vehicleRegConsentPointPurpose).toMatch(/only purpose/);
-    expect(en.vehicleRegConsentPointAccuracy).toMatch(/inaccurate/);
-    expect(en.vehicleRegConsentPointAccuracy).toMatch(/confirm every value/);
-    expect(en.vehicleRegConsentPointDecline).toMatch(/decline/);
-    expect(en.vehicleRegConsentPointDecline).toMatch(/never blocks/);
-    expect(en.vehicleRegConsentPointRetention).toMatch(/this reading only/);
-    expect(en.vehicleRegConsentPointRetention).toMatch(/provider's terms/);
+describe("the full disclosure — the Privacy Policy's automatic-reading section (moved verbatim)", () => {
+  it.each(LOCALES)("%s carries every policy point, non-empty", (locale) => {
+    for (const key of POLICY_KEYS) expect(policy[locale]![key]!.trim().length, `${locale}.${key}`).toBeGreaterThan(0);
   });
 
-  it("the retention sentence states no retention tier or period (precondition 3 of the privacy gate is still open) — it defers to the provider's terms", () => {
-    for (const locale of LOCALES) expect(messages[locale]!.vehicleRegConsentPointRetention, locale).not.toMatch(/30|zero[- ]data|ZDR|\bdays\b|يوماً|Tage|giorni|\bdni\b|jours|dnů|дней/i);
-  });
-
-  it("the processor sentences never call the provider an 'AI processor' (vendor identity is kept; the technology label is not); the geography sentence names no 'servers'", () => {
-    for (const locale of LOCALES) {
-      for (const key of ["vehicleRegConsentPointProcessor", "vehicleRegConsentPointProcessorPdf", "vehicleRegConsentPointProcessorImages"]) {
-        expect(messages[locale]![key], `${locale}.${key}`).not.toMatch(/\bAI\b|\bKI\b|\bIA\b|\bИИ\b|الذكاء الاصطناعي/);
-      }
+  it("English names the processor, what is sent (incl. owner data), outside Oman, single purpose, accuracy, declining, retention", () => {
+    const en = policy.en!;
+    for (const k of ["processor", "processorPdf", "processorImages"]) {
+      expect(en[k], k).toMatch(/external processing provider \(Anthropic\)/);
+      expect(en[k], k).toMatch(/owner's name and civil number/);
     }
-    expect(messages.en!.vehicleRegConsentPointGeoUs).not.toMatch(/servers/);
-    expect(messages.ar!.vehicleRegConsentPointGeoUs).not.toMatch(/خوادم/);
+    expect(en.geoGlobal).toMatch(/outside Oman/);
+    expect(en.geoGlobal).toMatch(/United States or other countries/);
+    expect(en.purpose).toMatch(/only purpose/);
+    expect(en.accuracy).toMatch(/inaccurate/);
+    expect(en.decline).toMatch(/never blocks/);
+    expect(en.retention).toMatch(/provider's terms/);
+    expect(en.limits).toMatch(/does not verify ownership/);
   });
 
-  it("English says what automatic reading does NOT do: verify ownership, approve the vehicle, replace BARQ's review — and that it can be wrong", () => {
-    const limits = messages.en!.vehicleRegConsentLimits!;
-    expect(limits).toMatch(/does not verify ownership/);
-    expect(limits).toMatch(/does not approve the vehicle/);
-    expect(limits).toMatch(/does not replace BARQ's review/);
-    expect(limits).toMatch(/incorrect values/);
+  it("the policy page renders every point (the broader geography sentence — true for every configured region) and never imports the reader factory", () => {
+    expect(PRIVACY_PAGE).toMatch(/const reading = \["processor", "processorPdf", "processorImages", "geoGlobal", "purpose", "accuracy", "decline", "retention", "limits", "recorded"\] as const;/);
+    expect(PRIVACY_PAGE).not.toMatch(/get-registration-document-reader|claude-vision-reader|process\.env/);
   });
 
-  it("the legal note is cautious: it describes the processing and the record; it does not claim the notice makes anything lawful or compliant", () => {
-    for (const locale of LOCALES) {
-      expect(messages[locale]!.vehicleRegConsentLegalNote).not.toMatch(/compliant|compliance|lawful|legally binding|GDPR|PDPL/i);
-    }
+  it("the retention point states no retention tier or period (privacy-gate precondition still open)", () => {
+    for (const l of LOCALES) expect(policy[l]!.retention, l).not.toMatch(/30|zero[- ]data|ZDR|\bdays\b|يوماً|Tage|giorni|\bdni\b|jours|dnů|дней/i);
   });
 
-  it("Arabic details are real Arabic and name the processor and Oman; the brand spelling is kept", () => {
-    const ar = messages.ar!;
-    for (const key of DETAIL_KEYS) expect(ar[key], key).toMatch(/[؀-ۿ]/);
-    expect(ar.vehicleRegConsentPointProcessor).toContain("Anthropic");
-    expect(ar.vehicleRegConsentPointGeoUs).toMatch(/عُمان|عمان/);
-    expect(ar.vehicleRegConsentPointProcessor).toContain("برق");
-    expect(JSON.stringify(ar)).not.toContain("بارق");
-  });
-});
-
-describe("OcrConsentStep — the notice names exactly what would be sent (the set)", () => {
-  it("chooses the processor sentence from the set kind — the selected PDF, the photo, or ALL selected photos together", () => {
-    expect(CODE).toContain('PDF: "vehicleRegConsentPointProcessorPdf"');
-    expect(CODE).toContain('IMAGE: "vehicleRegConsentPointProcessor"');
-    expect(CODE).toContain('IMAGES: "vehicleRegConsentPointProcessorImages"');
-    expect(CODE).toContain("t(PROCESSOR_POINT_KEY[setKind])");
-    expect(CODE).toMatch(/setKind: "PDF" \| "IMAGE" \| "IMAGES";/); // required — never defaulted to a generic sentence
-  });
-
-  it("English: the PDF variant names the selected PDF; the photos variant says all selected images are sent together (front and back); each still names the processor and the owner data", () => {
-    const en = messages.en!;
-    expect(en.vehicleRegConsentPointProcessorPdf).toMatch(/selected PDF/);
-    expect(en.vehicleRegConsentPointProcessorImages).toMatch(/All selected images are sent together/);
-    expect(en.vehicleRegConsentPointProcessorImages).toMatch(/front and back/);
-    for (const key of ["vehicleRegConsentPointProcessorPdf", "vehicleRegConsentPointProcessorImages", "vehicleRegConsentPointProcessor"]) {
-      expect(en[key], key).toMatch(/external processing provider \(Anthropic\)/);
-      expect(en[key], key).toMatch(/owner's name and civil number/);
-    }
-  });
-
-  it.each(LOCALES)("%s: the three processor sentences differ from each other and all name the processor", (locale) => {
-    const m = messages[locale]!;
-    const three = [m.vehicleRegConsentPointProcessor!, m.vehicleRegConsentPointProcessorPdf!, m.vehicleRegConsentPointProcessorImages!];
-    expect(new Set(three).size).toBe(3);
-    for (const s of three) expect(s).toContain("Anthropic");
-  });
-
-  it("Arabic variants are real Arabic, mention the PDF / both sides, and keep the brand spelling", () => {
-    const ar = messages.ar!;
-    expect(ar.vehicleRegConsentPointProcessorPdf).toMatch(/[؀-ۿ]/);
-    expect(ar.vehicleRegConsentPointProcessorPdf).toContain("PDF");
-    expect(ar.vehicleRegConsentPointProcessorImages).toMatch(/الوجه الأمامي والخلفي/);
+  it("Arabic policy points are real Arabic, name the processor and Oman, keep the brand spelling", () => {
+    const ar = policy.ar!;
+    expect(ar.processor).toContain("Anthropic");
+    expect(ar.processor).toContain("برق");
+    expect(ar.geoGlobal).toMatch(/عُمان|عمان/);
     expect(JSON.stringify(ar)).not.toContain("بارق");
   });
 });

@@ -106,10 +106,13 @@ describe("recovery copy — every language", () => {
     expect(en.vehicleRegRecoveryIncomplete).toMatch(/complete the reading automatically or fill in the remaining fields yourself/);
   });
 
-  it("37. the completion consent intro still leads to the same, complete privacy details (shared consent step)", () => {
+  it("37. the completion consent intro still leads to the same privacy details and the same full disclosure (shared consent step → Privacy Policy section)", () => {
     for (const l of LOCALES) {
       expect(messages[l]!.vehicleRegConsentDetailsToggle!.length).toBeGreaterThan(0);
-      expect(messages[l]!.vehicleRegConsentPointProcessorPdf).toContain("Anthropic");
+      expect(messages[l]!.vehicleRegConsentDetailsExternal!.length).toBeGreaterThan(0);
+      // the full disclosure for a PDF (incl. the processor) now lives in the Privacy Policy's automatic-reading section
+      const pages = JSON.parse(readFileSync(path.join(process.cwd(), `messages/${l}/pages.json`), "utf8")) as { privacy: { automaticReading: Record<string, string> } };
+      expect(pages.privacy.automaticReading.processorPdf).toContain("Anthropic");
     }
   });
 });

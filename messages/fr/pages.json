@@ -113,6 +113,19 @@
       "dataSharingTitle": "Partage des données",
       "dataRetentionTitle": "Conservation des données",
       "yourRightsTitle": "Vos droits"
+    },
+    "automaticReading": {
+      "title": "Ce qui se passe lorsque vous choisissez la lecture automatique",
+      "processor": "Votre carte grise complète — y compris tout ce qui y est imprimé, comme le nom et le numéro civil du propriétaire — est envoyée à un prestataire de traitement externe (Anthropic) qui la lit pour le compte de BARQ.",
+      "processorPdf": "Le PDF sélectionné est envoyé dans son intégralité — la carte grise complète, avec tout ce qui y est imprimé, comme le nom et le numéro civil du propriétaire — à un prestataire de traitement externe (Anthropic) qui le lit pour le compte de BARQ.",
+      "processorImages": "Toutes les images sélectionnées sont envoyées ensemble (recto et verso) — la carte grise complète, avec tout ce qui y est imprimé, comme le nom et le numéro civil du propriétaire — à un prestataire de traitement externe (Anthropic) qui les lit pour le compte de BARQ.",
+      "geoGlobal": "Le traitement a lieu hors d’Oman et peut avoir lieu aux États-Unis ou dans d’autres pays.",
+      "purpose": "Le seul objectif est de suggérer les informations du véhicule pour votre vérification. Le document n'est utilisé à aucune autre fin.",
+      "accuracy": "Les suggestions peuvent être inexactes ou incomplètes. Vous contrôlez et confirmez chaque valeur avant tout enregistrement.",
+      "decline": "Vous pouvez refuser et saisir les informations vous-même. Refuser n'empêche jamais d'ajouter votre véhicule.",
+      "retention": "BARQ n’utilise la copie envoyée que pour cette lecture. Sa durée de conservation par le prestataire est régie par les conditions de ce prestataire ; voir la politique de confidentialité.",
+      "limits": "La lecture automatique ne vérifie pas la propriété, n'approuve pas le véhicule et ne remplace pas l'examen de vos documents par BARQ. Elle peut produire des valeurs erronées.",
+      "recorded": "Cet avis décrit le traitement. Votre choix est enregistré avec la date, ce document et la version de cet avis."
     }
   },
   "cookies": {

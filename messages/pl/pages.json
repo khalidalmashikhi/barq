@@ -113,6 +113,19 @@
       "dataSharingTitle": "Udostępnianie danych",
       "dataRetentionTitle": "Przechowywanie danych",
       "yourRightsTitle": "Twoje prawa"
+    },
+    "automaticReading": {
+      "title": "Co się dzieje po wybraniu odczytu automatycznego",
+      "processor": "Cały dowód rejestracyjny — wraz ze wszystkim, co jest na nim wydrukowane, np. nazwiskiem i numerem cywilnym właściciela — jest wysyłany do zewnętrznego dostawcy przetwarzania (Anthropic), który odczytuje go w imieniu BARQ.",
+      "processorPdf": "Wybrany plik PDF jest wysyłany w całości — kompletny dowód rejestracyjny wraz ze wszystkim, co jest na nim wydrukowane, np. nazwiskiem i numerem cywilnym właściciela — do zewnętrznego dostawcy przetwarzania (Anthropic), który odczytuje go w imieniu BARQ.",
+      "processorImages": "Wszystkie wybrane obrazy są wysyłane razem (przód i tył) — kompletny dowód rejestracyjny wraz ze wszystkim, co jest na nim wydrukowane, np. nazwiskiem i numerem cywilnym właściciela — do zewnętrznego dostawcy przetwarzania (Anthropic), który odczytuje je w imieniu BARQ.",
+      "geoGlobal": "Przetwarzanie odbywa się poza Omanem i może mieć miejsce w Stanach Zjednoczonych lub innych krajach.",
+      "purpose": "Jedynym celem jest zaproponowanie danych pojazdu do Twojego sprawdzenia. Dokument nie jest używany do niczego innego.",
+      "accuracy": "Propozycje mogą być niedokładne lub niepełne. Sprawdzasz i potwierdzasz każdą wartość, zanim cokolwiek zostanie zapisane.",
+      "decline": "Możesz odmówić i wpisać dane samodzielnie. Odmowa nigdy nie blokuje dodania pojazdu.",
+      "retention": "BARQ używa wysłanej kopii wyłącznie do tego odczytu. Czas jej przechowywania przez dostawcę określają warunki tego dostawcy; zobacz politykę prywatności.",
+      "limits": "Odczyt automatyczny nie weryfikuje własności, nie zatwierdza pojazdu i nie zastępuje weryfikacji dokumentów przez BARQ. Może dawać błędne wartości.",
+      "recorded": "Ta informacja opisuje przetwarzanie. Twoja decyzja jest zapisywana wraz z datą, tym dokumentem i wersją tej informacji."
     }
   },
   "cookies": {

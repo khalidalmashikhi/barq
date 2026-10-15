@@ -113,6 +113,19 @@
       "dataSharingTitle": "Condivisione dei dati",
       "dataRetentionTitle": "Conservazione dei dati",
       "yourRightsTitle": "I tuoi diritti"
+    },
+    "automaticReading": {
+      "title": "Cosa succede quando scegli la lettura automatica",
+      "processor": "Il tuo libretto completo — compreso tutto ciò che vi è stampato, come il nome e il numero civile del proprietario — viene inviato a un fornitore di elaborazione esterno (Anthropic) che lo legge per conto di BARQ.",
+      "processorPdf": "Il PDF selezionato viene inviato per intero — il libretto completo, con tutto ciò che vi è stampato come il nome e il numero civile del proprietario — a un fornitore di elaborazione esterno (Anthropic) che lo legge per conto di BARQ.",
+      "processorImages": "Tutte le immagini selezionate vengono inviate insieme (fronte e retro) — il libretto completo, con tutto ciò che vi è stampato come il nome e il numero civile del proprietario — a un fornitore di elaborazione esterno (Anthropic) che le legge per conto di BARQ.",
+      "geoGlobal": "L’elaborazione avviene fuori dall’Oman e può svolgersi negli Stati Uniti o in altri paesi.",
+      "purpose": "L'unico scopo è suggerire i dati del veicolo per la tua revisione. Il documento non viene usato per nient'altro.",
+      "accuracy": "I suggerimenti possono essere imprecisi o incompleti. Controlli e confermi ogni valore prima che qualcosa venga salvato.",
+      "decline": "Puoi rifiutare e inserire i dati tu. Rifiutare non impedisce mai di aggiungere il veicolo.",
+      "retention": "BARQ usa la copia inviata solo per questa lettura. Per quanto tempo il fornitore la conserva è regolato dai termini di quel fornitore; vedi l’informativa sulla privacy.",
+      "limits": "La lettura automatica non verifica la proprietà, non approva il veicolo e non sostituisce la revisione dei documenti da parte di BARQ. Può produrre valori errati.",
+      "recorded": "Questa informativa descrive il trattamento. La tua scelta viene registrata con la data, questo documento e la versione di questa informativa."
     }
   },
   "cookies": {

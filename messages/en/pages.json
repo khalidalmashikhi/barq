@@ -113,6 +113,19 @@
       "dataSharingTitle": "Data Sharing",
       "dataRetentionTitle": "Data Retention",
       "yourRightsTitle": "Your Rights"
+    },
+    "automaticReading": {
+      "title": "What happens when you choose automatic reading",
+      "processor": "Your complete registration document — including everything printed on it, such as the owner's name and civil number — is sent to an external processing provider (Anthropic) that reads it on BARQ's behalf.",
+      "processorPdf": "The selected PDF is sent in full — the complete registration document, including everything printed on it such as the owner's name and civil number — to an external processing provider (Anthropic) that reads it on BARQ's behalf.",
+      "processorImages": "All selected images are sent together (front and back) — the complete registration document, including everything printed on it such as the owner's name and civil number — to an external processing provider (Anthropic) that reads them on BARQ's behalf.",
+      "geoGlobal": "Processing takes place outside Oman and may occur in the United States or other countries.",
+      "purpose": "The only purpose is to suggest the vehicle details for your review. The document is not used for anything else.",
+      "accuracy": "The suggestions may be inaccurate or incomplete. You check and confirm every value before anything is saved.",
+      "decline": "You can decline and enter the details yourself. Declining never blocks adding your vehicle.",
+      "retention": "BARQ uses the sent copy for this reading only. How long the service provider keeps it is governed by that provider's terms; see the privacy policy.",
+      "limits": "Automatic reading does not verify ownership, does not approve the vehicle and does not replace BARQ's review of your documents. It can produce incorrect values.",
+      "recorded": "This notice describes the processing. Your choice is recorded with the date, this document and the version of this notice."
     }
   },
   "cookies": {
