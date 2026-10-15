@@ -34,7 +34,7 @@ export async function BookingPreviewList({ title, icon: Icon, items, emptyMessag
           <Icon size={16} strokeWidth={1.75} />
           {title}
         </h2>
-        <Link href={viewAllHref} className="rounded text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+        <Link href={viewAllHref} className="inline-flex min-h-11 items-center rounded text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
           {viewAllLabel}
         </Link>
       </div>

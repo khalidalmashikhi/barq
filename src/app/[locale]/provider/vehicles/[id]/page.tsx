@@ -106,7 +106,7 @@ export default async function VehicleDetailPage({
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
       <Link
         href="/provider/vehicles"
-        className="inline-flex w-fit items-center gap-2 text-sm text-foreground/60 hover:text-foreground"
+        className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground"
       >
         <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
         {t("backToVehiclesLabel")}
@@ -133,12 +133,12 @@ export default async function VehicleDetailPage({
         <dl className="flex flex-col divide-y divide-border">
           {rows.map((row) => (
             <div key={row.label} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-              <dt className="text-xs font-medium uppercase tracking-wide text-foreground/60">{row.label}</dt>
+              <dt className="text-sm font-medium text-foreground/70">{row.label}</dt>
               <dd className="text-sm text-foreground sm:text-end">{row.value ?? "—"}</dd>
             </div>
           ))}
           <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-            <dt className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleStatusLabel")}</dt>
+            <dt className="text-sm font-medium text-foreground/70">{t("vehicleStatusLabel")}</dt>
             <dd className="sm:text-end">
               <Badge variant={getVehicleStatusBadgeVariant(vehicle.status)}>{t(getVehicleStatusTranslationKey(vehicle.status))}</Badge>
             </dd>

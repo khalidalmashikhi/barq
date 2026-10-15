@@ -154,7 +154,7 @@ export function CountryPicker({ open, selectedIso, onSelect, onClose }: CountryP
                     </span>
                   </span>
                   {disabled ? (
-                    <span className="shrink-0 rounded-full bg-accent/50 px-2 py-0.5 text-[11px] font-medium text-foreground/60">
+                    <span className="shrink-0 rounded-full bg-accent/50 px-2 py-0.5 text-xs font-medium text-foreground/70">
                       {t("comingSoon")}
                     </span>
                   ) : (

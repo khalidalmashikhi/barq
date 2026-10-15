@@ -51,8 +51,68 @@
   --color-danger: #ef4444;
 }
 
+/*
+  Typography scale (2026-10-16 readability pass) — consumed by tailwind.config.ts `fontSize`, so every
+  text-xs … text-3xl class in the app follows these tokens. Phones first (an iPhone is the primary
+  provider device): body 17 px, helper/status 16 px, metadata never below 15 px. From 1024 px the scale
+  calms down so desktop text is not oversized (body 16, helper 15, metadata 14). rem-based, so browser
+  zoom and the user's text-size setting still scale everything. Arabic gets looser leading.
+*/
+:root {
+  --text-xs: 0.9375rem;   /* 15px — metadata, chips */
+  --text-sm: 1rem;        /* 16px — helper / status / secondary */
+  --text-base: 1.0625rem; /* 17px — body */
+  --text-lg: 1.1875rem;   /* 19px — card titles */
+  --text-xl: 1.375rem;    /* 22px — section headings */
+  --text-2xl: 1.625rem;   /* 26px — section / page headings */
+  --text-3xl: 1.875rem;   /* 30px — page titles */
+  --leading-xs: 1.45;
+  --leading-sm: 1.55;
+  --leading-base: 1.6;
+  --leading-lg: 1.45;
+  --leading-xl: 1.35;
+  --leading-2xl: 1.3;
+  --leading-3xl: 1.25;
+  /* primary form labels (.form-label) */
+  --text-label: 1.0625rem; /* 17px */
+}
+@media (min-width: 1024px) {
+  :root {
+    --text-xs: 0.875rem;   /* 14px */
+    --text-sm: 0.9375rem;  /* 15px */
+    --text-base: 1rem;     /* 16px */
+    --text-lg: 1.125rem;   /* 18px */
+    --text-xl: 1.25rem;    /* 20px */
+    --text-2xl: 1.5rem;    /* 24px */
+    --text-3xl: 1.875rem;  /* 30px */
+    --text-label: 0.9375rem;
+  }
+}
+/* Arabic script needs more vertical room than Latin at the same size. */
+html[lang="ar"] {
+  --leading-xs: 1.6;
+  --leading-sm: 1.7;
+  --leading-base: 1.75;
+  --leading-lg: 1.6;
+  --leading-xl: 1.5;
+  --leading-2xl: 1.4;
+  --leading-3xl: 1.35;
+}
+
 body {
   background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* A primary form label: readable, semibold, never shouted in small capitals. */
+.form-label {
+  font-size: var(--text-label);
+  line-height: 1.4;
+  font-weight: 600;
   color: var(--color-foreground);
 }
 
@@ -75,7 +135,7 @@ body {
    prose (not headings/controls, which carry their own line-height) to lift
    Arabic paragraph readability without changing layout density. */
 [dir="rtl"] p {
-  line-height: 1.85;
+  line-height: 1.75;
 }
 
 /* Premium surface treatments — Visual Identity Redesign.

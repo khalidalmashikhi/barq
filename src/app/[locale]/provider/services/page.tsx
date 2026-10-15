@@ -132,7 +132,7 @@ export default async function ProviderServicesPage({
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-foreground">{item.name}</p>
                   {item.hasNoUpcomingAvailability && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-[0.65rem] font-semibold text-danger">
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
                       <AlertTriangle size={11} strokeWidth={2} />
                       {t("noUpcomingAvailabilityLabel")}
                     </span>

@@ -32,7 +32,7 @@ export type AssistField = ReviewFieldStateInput & {
   alternatives?: (string | number)[];
 };
 
-const CHIP = "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium";
+const CHIP = "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
 const CHOICE = "inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
 const APPLY = "inline-flex min-h-11 max-w-full items-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
 
@@ -54,7 +54,7 @@ export function FieldStatusAndSuggestion({ field: f, label, status, value, pendi
   const confidenceKey = f.confidence ? `vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}` : null;
   return (
     <>
-      <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-foreground/50">
+      <p className="flex flex-wrap items-center gap-1.5 text-sm text-foreground/70">
         <span data-field-status={status}>{td(statusLabelKey(status, f.source))}</span>
         {onDocument && confidenceKey && f.extractedValue !== null && <span aria-label={td(confidenceKey)}>· {td(confidenceKey)}</span>}
         {flagged && <span className={`${CHIP} bg-accent/20 text-accent-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
@@ -95,14 +95,14 @@ export function FieldConflictAndComparison({ field: f, status, value, revealed, 
             {f.alternatives!.map((alt, i) => (
               <button key={`${f.key}-alt-${i}`} type="button" onClick={() => onChoose(isDate ? formatIsoDateForDisplay(String(alt)) : String(alt))} disabled={pending} className={CHOICE}>
                 <bdi dir={isDate ? "ltr" : undefined} className="font-medium">{show(alt)}</bdi>
-                <span className="text-xs text-foreground/60">{t("vehicleRegConflictChoose")}</span>
+                <span className="text-xs text-foreground/70">{t("vehicleRegConflictChoose")}</span>
               </button>
             ))}
           </div>
         </div>
       )}
       {showComparison && (
-        <p className="text-xs text-foreground/50">
+        <p className="text-xs text-foreground/70">
           {t("vehicleRegExtractedPrefix")}: <bdi dir={isDate ? "ltr" : undefined} className="text-foreground/70">{show(f.extractedValue!)}</bdi>
         </p>
       )}

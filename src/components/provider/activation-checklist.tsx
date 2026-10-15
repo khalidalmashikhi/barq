@@ -96,7 +96,7 @@ export async function ProviderActivationChecklist({ activation }: { activation: 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-foreground">{t(STEP_TITLE_KEY[step.key])}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${STATUS_BADGE_CLASS[step.status]}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[step.status]}`}
                   >
                     {t(STATUS_LABEL_KEY[step.status])}
                   </span>

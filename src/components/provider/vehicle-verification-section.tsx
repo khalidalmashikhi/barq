@@ -58,7 +58,7 @@ export async function VehicleVerificationSection({
         {hasExpiredDoc && <Alert variant="danger">{t("vehicleNotEligibleExpiredNote")}</Alert>}
 
         <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleRequiredDocumentsTitle")}</h3>
+          <h3 className="text-sm font-medium text-foreground/70">{t("vehicleRequiredDocumentsTitle")}</h3>
           <ul className="flex flex-col divide-y divide-border">
             {data.items.map((item) => (
               <li key={item.type} className="flex flex-col gap-2 py-3">
@@ -102,7 +102,7 @@ export async function VehicleVerificationSection({
                 {/* VEHICLE-LC5 — an already-approved vehicle whose required document has
                     expired (or whose renewal was rejected) may replace JUST that document;
                     it returns to BARQ review before the vehicle is customer-eligible again. */}
-                {item.isRemediable && <p className="text-xs text-foreground/60">{t("vehicleDocRenewHint")}</p>}
+                {item.isRemediable && <p className="text-xs text-foreground/70">{t("vehicleDocRenewHint")}</p>}
 
                 <div className="flex flex-wrap items-center gap-2">
                   {item.canView && item.documentId && (
@@ -110,7 +110,7 @@ export async function VehicleVerificationSection({
                       href={`${base}/documents/${item.documentId}/view`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-9 items-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground hover:bg-foreground/5"
+                      className="inline-flex min-h-11 items-center rounded-full border border-border px-4 py-1.5 text-sm font-semibold text-foreground hover:bg-foreground/5"
                     >
                       {t("vehicleDocViewButton")}
                     </a>
@@ -133,12 +133,12 @@ export async function VehicleVerificationSection({
                           type="date"
                           name="claimedExpiryDate"
                           aria-label={t("vehicleDocClaimedExpiryLabel")}
-                          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                          className="min-h-11 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground"
                         />
                       )}
                       <button
                         type="submit"
-                        className="inline-flex min-h-9 items-center rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                        className="inline-flex min-h-11 items-center rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
                       >
                         {t("vehicleDocUploadButton")}
                       </button>
@@ -167,12 +167,12 @@ export async function VehicleVerificationSection({
                           name="claimedExpiryDate"
                           defaultValue={item.claimedExpiryDate ?? ""}
                           aria-label={t("vehicleDocClaimedExpiryLabel")}
-                          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                          className="min-h-11 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground"
                         />
                       )}
                       <button
                         type="submit"
-                        className="inline-flex min-h-9 items-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground hover:bg-foreground/5"
+                        className="inline-flex min-h-11 items-center rounded-full border border-border px-4 py-1.5 text-sm font-semibold text-foreground hover:bg-foreground/5"
                       >
                         {t("vehicleDocReplaceButton")}
                       </button>
@@ -184,7 +184,7 @@ export async function VehicleVerificationSection({
                       <input type="hidden" name="locale" value={locale} />
                       <button
                         type="submit"
-                        className="inline-flex min-h-9 items-center rounded-full border border-danger/30 px-4 py-1.5 text-xs font-medium text-danger hover:bg-danger/5"
+                        className="inline-flex min-h-11 items-center rounded-full border border-danger/30 px-4 py-1.5 text-sm font-semibold text-danger hover:bg-danger/5"
                       >
                         {t("vehicleDocDeleteButton")}
                       </button>
@@ -192,9 +192,9 @@ export async function VehicleVerificationSection({
                   )}
                 </div>
 
-                {item.canUpload && <p className="text-[11px] text-foreground/60">{t("vehicleDocFileHint")}</p>}
+                {item.canUpload && <p className="text-sm text-foreground/70">{t("vehicleDocFileHint")}</p>}
                 {item.supportsExpiry && (item.canUpload || item.canReplace) && (
-                  <p className="text-[11px] text-foreground/60">{t("vehicleDocClaimedExpiryHint")}</p>
+                  <p className="text-sm text-foreground/70">{t("vehicleDocClaimedExpiryHint")}</p>
                 )}
               </li>
             ))}

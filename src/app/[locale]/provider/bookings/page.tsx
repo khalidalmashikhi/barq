@@ -159,7 +159,7 @@ export default async function ProviderBookingsPage({
                     <div className="flex items-center gap-2">
                       <p className="truncate font-medium text-foreground hover:underline">{item.serviceName}</p>
                       {needsAction && (
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-[0.65rem] font-semibold text-accent-foreground">
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent-foreground">
                           <AlertCircle size={11} strokeWidth={2} />
                           {t("needsActionLabel")}
                         </span>

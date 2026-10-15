@@ -134,7 +134,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
           >
             <Download size={16} strokeWidth={1.75} />
             <span>{t("downloadLabel")}</span>
-            <span className="text-[0.65rem] font-normal text-foreground/25">{t("comingSoonLabel")}</span>
+            <span className="text-xs font-normal text-foreground/60">{t("comingSoonLabel")}</span>
           </button>
           <ShareButton
             url={buildPublicUrl(locale, `/services/${booking.serviceId}`)}
@@ -156,7 +156,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
           >
             <MessageCircle size={16} strokeWidth={1.75} />
             <span>{t("contactProviderShortLabel")}</span>
-            <span className="text-[0.65rem] font-normal text-foreground/25">{t("comingSoonLabel")}</span>
+            <span className="text-xs font-normal text-foreground/60">{t("comingSoonLabel")}</span>
           </button>
         </div>
 

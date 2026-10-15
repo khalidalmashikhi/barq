@@ -57,7 +57,7 @@ export function AdminQueueCard({ icon: Icon, title, count, items, emptyMessage, 
         </ul>
       )}
 
-      <Link href={viewAllHref} className="mt-auto text-xs font-medium text-primary hover:underline">
+      <Link href={viewAllHref} className="mt-auto inline-flex min-h-11 items-center text-sm font-medium text-primary hover:underline">
         {viewAllLabel}
       </Link>
     </Card>

@@ -375,7 +375,7 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
 
       {/* SLOT 1 — the front side, or the PDF. The two inputs are shared with the back slot. */}
       <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-border bg-accent/10 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-foreground/60">{singleFile ? t("vehicleOnboardFileLabel") : t("vehicleOnboardFrontSlotLabel")}</p>
+        <p className="form-label">{singleFile ? t("vehicleOnboardFileLabel") : t("vehicleOnboardFrontSlotLabel")}</p>
         {!front && (
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className={`${CHOICE_CLASS} ${busy ? "pointer-events-none opacity-60" : ""}`}>
@@ -400,10 +400,10 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
               <img src={previews.front} alt={t("vehicleOnboardPreviewAlt")} className="max-h-56 w-full rounded-xl border border-border bg-background object-contain" />
             ) : null}
             <p className="break-words text-sm text-foreground/80" aria-live="polite">
-              <span className="text-foreground/60">{frontIsPdf ? t("vehicleOnboardPdfSelected") : t("vehicleOnboardSelectedFileLabel")}: </span>
+              <span className="text-foreground/70">{frontIsPdf ? t("vehicleOnboardPdfSelected") : t("vehicleOnboardSelectedFileLabel")}: </span>
               <bdi>{front.name}</bdi>
-              <span className="text-foreground/60"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(front.size) })}</span>
-              {frontIsPdf && <span className="text-foreground/60"> · {pdfPagesLabel}</span>}
+              <span className="text-foreground/70"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(front.size) })}</span>
+              {frontIsPdf && <span className="text-foreground/70"> · {pdfPagesLabel}</span>}
             </p>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => open("camera", "front")} disabled={busy} className={SMALL_BUTTON}>
@@ -422,12 +422,12 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
           </div>
         )}
         {!front && (
-          <p className="text-sm text-foreground/50" aria-live="polite">
+          <p className="text-sm text-foreground/70" aria-live="polite">
             {t("vehicleOnboardNoFileSelected")}
           </p>
         )}
-        <p className="text-xs text-foreground/60">{ocrAvailable ? t("vehicleOnboardFileHintOcr") : t("vehicleOnboardFileHint")}</p>
-        {frontIsPdf && !singleFile && <p className="text-xs text-foreground/60">{t("vehicleOnboardPdfExclusive")}</p>}
+        <p className="text-xs text-foreground/70">{ocrAvailable ? t("vehicleOnboardFileHintOcr") : t("vehicleOnboardFileHint")}</p>
+        {frontIsPdf && !singleFile && <p className="text-xs text-foreground/70">{t("vehicleOnboardPdfExclusive")}</p>}
       </div>
 
       {/* SLOT 2 — the optional back side (photo only), shown once a front PHOTO is in place. */}
@@ -439,7 +439,7 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
       )}
       {canAddBack && (showBack || back) && (
         <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-border bg-accent/10 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleOnboardBackSlotLabel")}</p>
+          <p className="form-label">{t("vehicleOnboardBackSlotLabel")}</p>
           {back ? (
             <div className="flex flex-col gap-3">
               {previews.back ? (
@@ -447,9 +447,9 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
                 <img src={previews.back} alt={t("vehicleOnboardBackPreviewAlt")} className="max-h-56 w-full rounded-xl border border-border bg-background object-contain" />
               ) : null}
               <p className="break-words text-sm text-foreground/80" aria-live="polite">
-                <span className="text-foreground/60">{t("vehicleOnboardSelectedFileLabel")}: </span>
+                <span className="text-foreground/70">{t("vehicleOnboardSelectedFileLabel")}: </span>
                 <bdi>{back.name}</bdi>
-                <span className="text-foreground/60"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(back.size) })}</span>
+                <span className="text-foreground/70"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(back.size) })}</span>
               </p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => open("camera", "back")} disabled={busy} className={SMALL_BUTTON}>

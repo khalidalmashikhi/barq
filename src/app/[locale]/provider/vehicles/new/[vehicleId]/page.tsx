@@ -89,7 +89,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
 
   const header = (
     <>
-      <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/60 hover:text-foreground">
+      <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground">
         <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
         {t("backToVehiclesLabel")}
       </Link>
@@ -164,10 +164,10 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm text-foreground/70">{t("vehicleRegDocumentLabel")}</span>
-            <span className="text-xs text-foreground/60">{t(SET_SUMMARY_KEY[setKind])}</span>
+            <span className="text-xs text-foreground/70">{t(SET_SUMMARY_KEY[setKind])}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleRegExtractionStatusLabel")}</span>
+            <span className="text-sm font-medium text-foreground/70">{t("vehicleRegExtractionStatusLabel")}</span>
             <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "warning" : "default"}>
               {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
             </Badge>
@@ -182,7 +182,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
               return (
                 <li key={page.documentId} className="flex flex-col gap-2 rounded-xl border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-foreground/60">{setKind === "PDF" ? t("vehicleRegPagePdf") : t(PAGE_LABEL_KEY[page.role])}</span>
+                    <span className="text-sm font-medium text-foreground/70">{setKind === "PDF" ? t("vehicleRegPagePdf") : t(PAGE_LABEL_KEY[page.role])}</span>
                     <a href={viewHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded text-sm text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                       {t("vehicleDocViewButton")}
                     </a>

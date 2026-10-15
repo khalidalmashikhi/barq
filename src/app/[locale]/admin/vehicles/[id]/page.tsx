@@ -308,7 +308,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
             </SubmitButton>
           </form>
         </div>
-        <p className="mt-2 text-[11px] text-foreground/60">{t("vehicleFourByFourReviewHint")}</p>
+        <p className="mt-2 text-sm text-foreground/70">{t("vehicleFourByFourReviewHint")}</p>
       </Card>
 
       {/* Verification documents — REVIEW-FIRST, before the overall decision. */}
@@ -418,7 +418,7 @@ export default async function AdminVehicleReviewPage({ params, searchParams }: P
                     </div>
 
                     {doc.status === "PENDING" && doc.supportsExpiry && (
-                      <p className="mt-1 text-[11px] text-foreground/60">{t("documentConfirmExpiryHint")}</p>
+                      <p className="mt-1 text-sm text-foreground/70">{t("documentConfirmExpiryHint")}</p>
                     )}
 
                     {doc.status === "PENDING" && (

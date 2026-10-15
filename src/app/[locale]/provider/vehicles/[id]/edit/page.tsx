@@ -50,7 +50,7 @@ export default async function EditVehiclePage({ params, searchParams }: Props) {
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-8">
       <Link
         href={`/provider/vehicles/${vehicle.id}`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-foreground/60 hover:text-foreground"
+        className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground"
       >
         <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
         {t("backToVehiclesLabel")}

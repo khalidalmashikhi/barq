@@ -89,6 +89,20 @@ const config: Config = {
         // silently ambiguous in the codebase.
         sans: ["var(--font-plex-arabic)", "var(--font-plex-latin)", "sans-serif"],
       },
+      // 2026-10-16 readability pass — the text scale is driven by CSS custom properties defined in
+      // globals.css ("Typography scale"): larger on phones (body 17 px, helper 16 px, never below
+      // 15 px), calmer from 1024 px (body 16 px, helper 15 px, metadata 14 px), with Arabic getting
+      // looser leading. Every existing text-xs…text-3xl class follows the tokens — no per-file edits.
+      // 4xl and above (marketing display sizes) keep Tailwind's defaults.
+      fontSize: {
+        xs: ["var(--text-xs)", { lineHeight: "var(--leading-xs)" }],
+        sm: ["var(--text-sm)", { lineHeight: "var(--leading-sm)" }],
+        base: ["var(--text-base)", { lineHeight: "var(--leading-base)" }],
+        lg: ["var(--text-lg)", { lineHeight: "var(--leading-lg)" }],
+        xl: ["var(--text-xl)", { lineHeight: "var(--leading-xl)" }],
+        "2xl": ["var(--text-2xl)", { lineHeight: "var(--leading-2xl)" }],
+        "3xl": ["var(--text-3xl)", { lineHeight: "var(--leading-3xl)" }],
+      },
       borderRadius: {
         xl: "0.875rem",
         "2xl": "1.25rem",

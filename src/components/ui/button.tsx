@@ -46,7 +46,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         className={clsx(
-          "inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-medium",
+          "inline-flex min-h-11 items-center justify-center rounded-xl px-5 py-2.5 text-base font-semibold",
           "transition-all duration-200 ease-out",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-50",

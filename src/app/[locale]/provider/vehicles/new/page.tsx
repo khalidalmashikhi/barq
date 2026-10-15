@@ -55,7 +55,7 @@ export default async function NewVehiclePage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-32 pt-6 sm:px-6 sm:pt-8">
-      <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/60 hover:text-foreground">
+      <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground">
         <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
         {t("backToVehiclesLabel")}
       </Link>

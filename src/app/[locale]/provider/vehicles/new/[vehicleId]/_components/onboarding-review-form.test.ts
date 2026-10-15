@@ -46,7 +46,8 @@ describe("review form — sources and 'check this'", () => {
   });
 
   it("ONE compact metadata row per field (source · confidence · check · derived) — not three separate lines", () => {
-    const row = /<p className="flex flex-wrap items-center gap-1\.5 text-\[11px\] text-foreground\/50">[\s\S]*?<\/p>/.exec(ASSIST)![0];
+    // readable status row (2026-10-16 typography pass: token text-sm, AA-plus /70 contrast — never an 11px line)
+    const row = /<p className="flex flex-wrap items-center gap-1\.5 text-sm text-foreground\/70">[\s\S]*?<\/p>/.exec(ASSIST)![0];
     expect(row).toContain("td(statusLabelKey(status, f.source))");
     expect(row).toContain("td(confidenceKey)");
     expect(row).toContain('t("vehicleOnboardNeedsReviewBadge")');

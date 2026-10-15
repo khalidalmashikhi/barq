@@ -32,9 +32,9 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
     return (
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-foreground">{t("vehicleRegReviewTitle")}</h2>
-        <p className="text-sm text-foreground/60">{t("vehicleRegReviewSubtitle")}</p>
+        <p className="text-sm text-foreground/70">{t("vehicleRegReviewSubtitle")}</p>
         <Card hoverLift={false}>
-          <p className="text-sm text-foreground/60">{t("vehicleRegNoDocument")}</p>
+          <p className="text-sm text-foreground/70">{t("vehicleRegNoDocument")}</p>
         </Card>
       </section>
     );
@@ -45,7 +45,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold text-foreground">{t("vehicleRegReviewTitle")}</h2>
-      <p className="text-sm text-foreground/60">{t("vehicleRegReviewSubtitle")}</p>
+      <p className="text-sm text-foreground/70">{t("vehicleRegReviewSubtitle")}</p>
 
       <Card hoverLift={false}>
         <div className="flex flex-col gap-3">
@@ -57,7 +57,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-foreground/60">{t("vehicleRegExtractionStatusLabel")}</span>
+            <span className="text-sm font-medium text-foreground/70">{t("vehicleRegExtractionStatusLabel")}</span>
             <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "danger" : "default"}>
               {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
             </Badge>
@@ -66,7 +66,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
           {reviewState.failureLabelKey && <Alert variant="warning">{td(reviewState.failureLabelKey)}</Alert>}
 
           {review.lastAttemptedAt && (
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-foreground/70">
               {t("vehicleRegLastAttempted")}: {review.lastAttemptedAt.toISOString().slice(0, 10)}
               {review.lastSucceededAt ? ` · ${t("vehicleRegLastSucceeded")}: ${review.lastSucceededAt.toISOString().slice(0, 10)}` : ""}
             </p>
@@ -89,7 +89,7 @@ export async function RegistrationReviewSection({ vehicleId, review }: { vehicle
         <Card hoverLift={false}>
           <Alert variant="success">{t("vehicleRegConfSubmitted")}</Alert>
           {review.confirmation.submittedAt && (
-            <p className="mt-2 text-xs text-foreground/50">{t("vehicleRegSubmittedOn")}: {review.confirmation.submittedAt.toISOString().slice(0, 10)}</p>
+            <p className="mt-2 text-xs text-foreground/70">{t("vehicleRegSubmittedOn")}: {review.confirmation.submittedAt.toISOString().slice(0, 10)}</p>
           )}
           <p className="mt-2 text-sm text-foreground/70">{t("vehicleRegAwaitingAdmin")}</p>
         </Card>

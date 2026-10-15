@@ -91,7 +91,7 @@ export async function NotificationsPanel({ unreadCount, items, viewAllHref, high
 
       <Link
         href={viewAllHref}
-        className="mt-3 block rounded text-center text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        className="mt-3 flex min-h-11 items-center justify-center rounded text-center text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         {tProvider("viewAllLabel")}
       </Link>

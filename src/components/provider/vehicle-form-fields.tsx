@@ -29,7 +29,7 @@ function labelSpan(text: string, hint?: string) {
   return (
     <span className="flex flex-wrap items-center gap-2">
       <span className="text-xs font-medium text-foreground/70">{text}</span>
-      {hint ? <span className="text-[0.7rem] font-normal text-foreground/60">{hint}</span> : null}
+      {hint ? <span className="text-sm font-normal text-foreground/70">{hint}</span> : null}
     </span>
   );
 }
@@ -91,13 +91,13 @@ export async function VehicleFormFields({ defaults }: { defaults?: VehicleFieldD
           </label>
         </div>
         {/* Slice B — the bookable-passengers helper: capacity is a customer/safety maximum, NOT a billing multiplier. */}
-        <p className="text-[0.7rem] text-foreground/60">{t("vehicleBookablePassengersHint")}</p>
+        <p className="text-sm text-foreground/70">{t("vehicleBookablePassengersHint")}</p>
         {/* TOUR-VEHICLE-CAP — provider's advisory 4x4 declaration (subject to BARQ verification). */}
         <label className="flex items-start gap-2">
           <input type="checkbox" name="claimedFourByFour" value="true" defaultChecked={defaults?.claimedFourByFour === true} className="mt-1" />
           <span className="flex flex-col gap-0.5">
             <span className="text-sm text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
-            <span className="text-[0.7rem] text-foreground/60">{t("vehicleClaimedFourByFourHint")}</span>
+            <span className="text-sm text-foreground/70">{t("vehicleClaimedFourByFourHint")}</span>
           </span>
         </label>
       </fieldset>

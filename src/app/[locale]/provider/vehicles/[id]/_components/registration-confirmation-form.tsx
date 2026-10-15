@@ -145,12 +145,12 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
     return (
       <div key={f.key} className="flex flex-col gap-1.5 py-3 border-t border-border first:border-t-0">
         <div className="flex items-center justify-between gap-2">
-          <label htmlFor={`rf-${f.key}`} className="text-xs font-medium uppercase tracking-wide text-foreground/60">
+          <label htmlFor={`rf-${f.key}`} className="form-label">
             {label}
             {f.required && <span className="text-danger"> *</span>}
           </label>
           {f.decision && (
-            <span className={`text-[11px] ${f.decision.matches ? "text-foreground/50" : "text-primary"}`}>
+            <span className={`text-sm ${f.decision.matches ? "text-foreground/70" : "text-primary"}`}>
               {f.decision.source === "MANUAL" ? t("vehicleRegDecisionManual") : f.decision.matches ? t("vehicleRegDecisionMatches") : t("vehicleRegDecisionCorrected")}
             </span>
           )}
@@ -161,7 +161,7 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
           <>
             {/* ONE compact status row + the one-tap make/model suggestion (shared with onboarding). */}
             <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`rf-${f.key}`} />
-            {isDate && <p className="text-xs text-foreground/60">{t("vehicleRegDateFormatHint")}</p>}
+            {isDate && <p className="text-xs text-foreground/70">{t("vehicleRegDateFormatHint")}</p>}
             {/* Conflict choices + the document value for comparison (shared with onboarding). */}
             <FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />
             {f.sensitive && !isRevealed ? (
@@ -186,7 +186,7 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
                   className={`${INPUT_CLASS} ${isDate ? "[unicode-bidi:isolate] text-start" : ""}`}
                 />
                 {f.sensitive && (
-                  <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 items-center gap-1 text-xs text-foreground/60 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                  <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 items-center gap-1 text-xs text-foreground/70 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                     <EyeOff size={14} aria-hidden /> {t("vehicleRegHideButton")}
                   </button>
                 )}
@@ -218,9 +218,9 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
               {privateOpen ? t("vehicleRegPrivateToggleHide") : t("vehicleRegPrivateToggleShow")}
             </button>
           </div>
-          <p className="text-xs text-foreground/50">{t("vehicleRegGroupPrivateHint")}</p>
+          <p className="text-xs text-foreground/70">{t("vehicleRegGroupPrivateHint")}</p>
           {!locked && (
-            <p className={`text-xs ${pendingPrivate > 0 ? "font-medium text-accent-foreground" : "text-foreground/60"}`} role="status">
+            <p className={`text-xs ${pendingPrivate > 0 ? "font-medium text-accent-foreground" : "text-foreground/70"}`} role="status">
               {pendingPrivate > 0 ? td("vehicleRegPrivatePending", { count: pendingPrivate }) : t("vehicleRegPrivateComplete")}
             </p>
           )}
@@ -232,25 +232,28 @@ export function RegistrationConfirmationForm({ vehicleId, fields, canConfirm, lo
       </Card>
 
       {!locked && canConfirm && (
+        <>
+        {/* The declaration sits in normal flow right above the actions; the sticky bar stays compact. */}
+        <label className="flex items-start gap-3 text-sm text-foreground">
+          <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
+          <span>{t("vehicleRegDeclaration")}</span>
+        </label>
         <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:p-4">
-          <label className="flex items-start gap-2 text-sm text-foreground">
-            <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-1 min-h-5 min-w-5" />
-            <span>{t("vehicleRegDeclaration")}</span>
-          </label>
-          <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => run("DRAFT")} disabled={pending} className={`${ACTION} border border-border`}>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+            <button type="button" onClick={() => run("DRAFT")} disabled={pending} className={`${ACTION} justify-center border border-border`}>
               {pending ? t("vehicleRegSaving") : t("vehicleRegSaveDraftButton")}
             </button>
-            <button type="button" onClick={() => run("SUBMIT")} disabled={pending || !declaration} className={`${ACTION} bg-primary text-primary-foreground`}>
+            <button type="button" onClick={() => run("SUBMIT")} disabled={pending || !declaration} className={`${ACTION} justify-center bg-primary text-primary-foreground`}>
               {pending ? t("vehicleRegSubmitting") : t("vehicleRegSubmitButton")}
             </button>
             {fieldState.dirty && (
-              <button type="button" onClick={discardChanges} disabled={pending} className={`${ACTION} text-foreground/70 hover:bg-accent`}>
+              <button type="button" onClick={discardChanges} disabled={pending} className={`${ACTION} col-span-2 justify-center text-foreground/70 hover:bg-accent`}>
                 {t("vehicleRegDiscardChanges")}
               </button>
             )}
           </div>
         </StickyActionBar>
+        </>
       )}
 
       <UnsavedLanguageDialog open={languageGuard.target !== null} pending={pending} onStay={languageGuard.stay} onSaveAndSwitch={() => run("DRAFT", languageGuard.continueToTarget)} />

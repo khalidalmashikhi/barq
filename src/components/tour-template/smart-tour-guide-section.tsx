@@ -98,7 +98,7 @@ export function SmartTourGuideSection({ config, guideProfile, initialState, malf
             {guideProfile.activityLabel && <span>{guideProfile.activityLabel}</span>}
           </span>
         </div>
-        <Link href="/provider/settings" className="ms-auto shrink-0 text-xs font-medium text-primary hover:underline">
+        <Link href="/provider/settings" className="ms-auto inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-primary hover:underline">
           {t("tourEditProfileLink")}
         </Link>
       </div>

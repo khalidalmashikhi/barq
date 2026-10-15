@@ -144,7 +144,7 @@ export default async function ReviewsPage({ searchParams }: Props) {
                     </span>
                     <Link
                       href={`/bookings/${review.bookingId}`}
-                      className="rounded text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className="inline-flex min-h-11 items-center rounded text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     >
                       {t("viewBookingLabel")}
                     </Link>

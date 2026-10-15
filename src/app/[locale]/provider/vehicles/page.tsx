@@ -109,7 +109,7 @@ export default async function ProviderVehiclesPage() {
                     )}
                   </div>
 
-                  {facts.length > 0 && <p className="text-sm text-foreground/60">{facts.join(" · ")}</p>}
+                  {facts.length > 0 && <p className="text-sm text-foreground/70">{facts.join(" · ")}</p>}
 
                   {v.passengerCapacity ? (
                     <span className="flex items-center gap-1 text-xs text-foreground/70">
@@ -119,7 +119,7 @@ export default async function ProviderVehiclesPage() {
                   ) : null}
 
                   {v.registrationNumber ? (
-                    <span className="mt-auto text-xs text-foreground/60">
+                    <span className="mt-auto text-xs text-foreground/70">
                       {t("vehicleRegistrationLabel")}: {v.registrationNumber}
                     </span>
                   ) : null}

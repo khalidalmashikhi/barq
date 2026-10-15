@@ -232,20 +232,20 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     return (
       <div key={f.key} className="flex flex-col gap-1.5 border-t border-border py-3 first:border-t-0">
         <div className="flex items-center justify-between gap-2">
-          <label htmlFor={`of-${f.key}`} className="text-xs font-medium uppercase tracking-wide text-foreground/60">
+          <label htmlFor={`of-${f.key}`} className="form-label">
             {label}
             {f.required && <span className="text-danger"> *</span>}
           </label>
           {f.decision && (
-            <span className={`text-[11px] ${f.decision.matches ? "text-foreground/50" : "text-primary"}`}>
+            <span className={`text-sm ${f.decision.matches ? "text-foreground/70" : "text-primary"}`}>
               {f.decision.source === "MANUAL" ? t("vehicleRegDecisionManual") : f.decision.matches ? t("vehicleRegDecisionMatches") : t("vehicleRegDecisionCorrected")}
             </span>
           )}
         </div>
         {/* ONE compact metadata row + the one-tap make/model suggestion (shared with the detail form). */}
         <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />
-        {hintKey && <p className="text-xs text-foreground/60">{td(hintKey)}</p>}
-        {isDate && <p className="text-xs text-foreground/60">{t("vehicleRegDateFormatHint")}</p>}
+        {hintKey && <p className="text-xs text-foreground/70">{td(hintKey)}</p>}
+        {isDate && <p className="text-xs text-foreground/70">{t("vehicleRegDateFormatHint")}</p>}
         {/* Conflict choices + the document value for comparison (shared with the detail form). */}
         <FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />
         {f.sensitive && !isRevealed ? (
@@ -270,7 +270,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               className={`${INPUT_CLASS} ${isDate ? "[unicode-bidi:isolate] text-start" : ""}`}
             />
             {f.sensitive && (
-              <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 items-center gap-1 rounded text-xs text-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+              <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 items-center gap-1 rounded text-xs text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                 <EyeOff size={14} aria-hidden /> {t("vehicleRegHideButton")}
               </button>
             )}
@@ -295,13 +295,13 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         <h3 className="mb-1 text-sm font-semibold text-foreground">{t("vehicleRegGroupCustomer")}</h3>
         {documentDescription && (
           <div className="mb-2 rounded-xl border border-border bg-accent/10 p-3">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">{t("vehicleRegDocumentDescriptionLabel")}</p>
+            <p className="text-sm font-medium text-foreground/70">{t("vehicleRegDocumentDescriptionLabel")}</p>
             <p className="mt-1 text-sm text-foreground"><bdi>{documentDescription}</bdi></p>
-            <p className="mt-1 text-xs text-foreground/60">{t("vehicleRegDocumentDescriptionHint")}</p>
+            <p className="mt-1 text-xs text-foreground/70">{t("vehicleRegDocumentDescriptionHint")}</p>
           </div>
         )}
         <div className="flex flex-col gap-1.5 py-3">
-          <label htmlFor="of-vehicleType" className="text-xs font-medium uppercase tracking-wide text-foreground/60">
+          <label htmlFor="of-vehicleType" className="form-label">
             {t("vehicleTypeLabel")}
             <span className="text-danger"> *</span>
           </label>
@@ -327,10 +327,10 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
                   </button>
                 </div>
               )}
-              <p className="text-xs text-foreground/60">{t("vehicleRegTypeMustChoose")}</p>
+              <p className="text-xs text-foreground/70">{t("vehicleRegTypeMustChoose")}</p>
             </>
           ) : (
-            <p className="text-[11px] text-foreground/50">{t("vehicleRegTypeChosenNote")}</p>
+            <p className="text-sm text-foreground/70">{t("vehicleRegTypeChosenNote")}</p>
           )}
           {fieldErrorFor("vehicleType") && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
         </div>
@@ -347,8 +347,8 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               {privateOpen ? t("vehicleRegPrivateToggleHide") : t("vehicleRegPrivateToggleShow")}
             </button>
           </div>
-          <p className="text-xs text-foreground/50">{t("vehicleRegGroupPrivateHint")}</p>
-          <p className={`text-xs ${pendingPrivate > 0 ? "font-medium text-accent-foreground" : "text-foreground/60"}`} role="status">
+          <p className="text-xs text-foreground/70">{t("vehicleRegGroupPrivateHint")}</p>
+          <p className={`text-xs ${pendingPrivate > 0 ? "font-medium text-accent-foreground" : "text-foreground/70"}`} role="status">
             {pendingPrivate > 0 ? td("vehicleRegPrivatePending", { count: pendingPrivate }) : t("vehicleRegPrivateComplete")}
           </p>
         </div>
@@ -367,12 +367,12 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               <input type="checkbox" checked={claimedFourByFour} onChange={(e) => setClaimedFourByFour(e.target.checked)} disabled={pending} className="mt-1 min-h-5 min-w-5" />
               <span className="flex flex-col">
                 <span className="text-sm text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
-                <span className="text-xs text-foreground/60">{t("vehicleClaimedFourByFourHint")}</span>
+                <span className="text-xs text-foreground/70">{t("vehicleClaimedFourByFourHint")}</span>
               </span>
             </label>
           )}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="of-publicDescription" className="text-xs font-medium uppercase tracking-wide text-foreground/60">
+            <label htmlFor="of-publicDescription" className="form-label">
               {t("vehiclePublicDescriptionLabel")}
             </label>
             <textarea id="of-publicDescription" rows={3} maxLength={500} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} disabled={pending} className={`${INPUT_CLASS} py-2`} />
@@ -382,21 +382,26 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
       </Card>
 
       {/* 6. DECLARATION + ACTIONS — sticky, clear of the phone browser's toolbar. */}
-      <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:p-4">
-        <label className="flex items-start gap-2 text-sm text-foreground">
-          <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-1 min-h-5 min-w-5" />
+      {/* The declaration (and why "Create" may still be disabled) sit in normal flow right above the
+          actions: always reachable, read before acting — the sticky bar itself stays compact. */}
+      <div className="flex flex-col gap-2">
+        <label className="flex items-start gap-3 text-sm text-foreground">
+          <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
           <span>{t("vehicleOnboardDeclaration")}</span>
         </label>
-        {!canSubmit && !pending && <p className="text-xs text-foreground/60">{t("vehicleRegSubmitBlockedHint")}</p>}
-        <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={finalize} disabled={!canSubmit} className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+        {!canSubmit && !pending && <p className="text-sm text-foreground/70">{t("vehicleRegSubmitBlockedHint")}</p>}
+      </div>
+
+      <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:p-4">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+          <button type="button" onClick={finalize} disabled={!canSubmit} className="col-span-2 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-5 text-base font-semibold text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {pending ? t("vehicleOnboardCreating") : t("vehicleOnboardCreateButton")}
           </button>
-          <button type="button" onClick={() => saveDraft()} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <button type="button" onClick={() => saveDraft()} disabled={pending} className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {pending ? t("vehicleRegSaving") : t("vehicleOnboardSaveProgressButton")}
           </button>
           {confirmingCancel ? null : (
-            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
               {t("vehicleOnboardCancelButton")}
             </button>
           )}
