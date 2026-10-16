@@ -44,6 +44,9 @@ const { RegistrationUploadForm } = await import("../_components/registration-upl
 const { ExtractionProgress } = await import("./_components/extraction-progress");
 const { OcrConsentStep } = await import("./_components/ocr-consent-step");
 const { AnalyzeRegistrationButton } = await import("@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button");
+const { VehicleJourneySteps } = await import("@/components/provider/vehicle-journey/journey-steps");
+/** The current step of the journey header (2026-10-16 visual checkpoint). */
+const stepOf = (el: unknown) => (findAll(el, (e) => e.type === VehicleJourneySteps)[0]?.props.current as number | undefined);
 
 type AnyEl = { type: unknown; props: Record<string, unknown> };
 function findAll(el: unknown, pred: (e: AnyEl) => boolean, acc: AnyEl[] = []): AnyEl[] {
@@ -114,8 +117,10 @@ describe("OnboardingReviewPage", () => {
     );
     const el = await OnboardingReviewPage(call());
     const form = findAll(el, (e) => e.type === OnboardingReviewForm)[0]!;
-    // The precise (localized) failure reason is what the provider sees — and manual entry is open.
-    expect(form.props).toMatchObject({ noticeKey: "vehicleRegFailNoText", noticeVariant: "warning", suggestedVehicleType: null });
+    // The precise (localized) failure reason is what the provider sees (the failure panel) — and manual entry is open.
+    expect(strings(el)).toContain("vehicleRegFailNoText");
+    expect(form.props).toMatchObject({ noticeKey: null, suggestedVehicleType: null });
+    expect(stepOf(el)).toBe(3);
     expect((form.props.fields as { extractedValue: unknown }[]).every((f) => f.extractedValue === null)).toBe(true);
   });
 
@@ -173,7 +178,7 @@ describe("OnboardingReviewPage", () => {
     expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(1);
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
-    expect(strings(el)).toContain("vehicleRegStateProcessing");
+    expect(stepOf(el)).toBe(2); // the journey header says "read details"; the progress panel says what is happening
   });
 
   it.each([
@@ -187,7 +192,9 @@ describe("OnboardingReviewPage", () => {
     const el = await OnboardingReviewPage(call());
     const form = findAll(el, (e) => e.type === OnboardingReviewForm);
     expect(form).toHaveLength(1); // manual entry on the SAME shell
-    expect(form[0]!.props).toMatchObject({ vehicleId: VEH, noticeKey: labelKey, noticeVariant: "warning" });
+    expect(form[0]!.props).toMatchObject({ vehicleId: VEH, noticeKey: null }); // the reason is in the failure panel, not repeated
+    expect(strings(el)).toContain(labelKey);
+    expect(strings(el)).toContain("vehicleJourneyReadingFailedManual");
     const retry = findAll(el, (e) => e.type === AnalyzeRegistrationButton);
     expect(retry).toHaveLength(1);
     expect(retry[0]!.props).toMatchObject({ vehicleId: VEH, retry: true });
@@ -235,7 +242,7 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(0);
-    expect(strings(el)).toContain("vehicleRegStateAwaitingChoice");
+    expect(stepOf(el)).toBe(2); // step 2 "read details" — the consent step itself is the content
   });
 
   it("the notice changed since the last consent → the step in 'stale' mode (asked again)", async () => {
@@ -263,7 +270,8 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     );
     const el = await OnboardingReviewPage(call());
     expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
-    expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: "vehicleRegExtractFailOcrUnavailable", noticeVariant: "warning" });
+    expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: null });
+    expect(strings(el)).toContain("vehicleRegExtractFailOcrUnavailable"); // shown in the failure panel, with retry
   });
 
   it("the passage from consent to suggestions: GRANTED + reading in flight → the progress wait; GRANTED + read → the OCR-caution form", async () => {

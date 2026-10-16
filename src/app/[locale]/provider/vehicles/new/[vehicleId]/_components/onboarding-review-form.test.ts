@@ -175,11 +175,11 @@ describe("review form — phone layout (7, 19, 20)", () => {
 
   it("the private section is collapsible but NEVER dropped: the fields stay mounted (hidden), and a visible summary counts the required private fields still empty", () => {
     expect(FORM).toMatch(/const \[privateOpen, setPrivateOpen\] = useState\(false\);/);
-    expect(FORM).toMatch(/<div id="of-private-section" hidden=\{!privateOpen\} className=\{privateOpen \? "flex flex-col" : "hidden"\}>\s*\{privateFields\.map\(renderField\)\}/);
+    expect(FORM).toMatch(/<div id="of-private-section" hidden=\{!privateOpen\} className=\{privateOpen \? "mt-4 flex flex-col border-t border-border pt-4" : "hidden"\}>\s*\{privateFields\.map\(renderField\)\}/);
     expect(FORM).toMatch(/aria-expanded=\{privateOpen\} aria-controls="of-private-section"/);
     expect(FORM).toMatch(/const pendingPrivate = privateFields\.filter\(\(f\) => f\.required && \(values\[f\.key\] \?\? ""\)\.trim\(\) === ""\)\.length;/);
     expect(FORM).toMatch(/td\("vehicleRegPrivatePending", \{ count: pendingPrivate \}\) : t\("vehicleRegPrivateComplete"\)/);
-    expect(FORM).toMatch(/role="status"/);
+    expect(FORM).toMatch(/<span role="status" className=\{pendingPrivate > 0 \? JOURNEY_CHIP_REVIEW : JOURNEY_CHIP_SUGGESTION\}>/); // amber only when something needs attention
   });
 
   it("a validation error on a private field (or the capacity chain) opens the section and scrolls to the field; errors never clear the provider's values", () => {
@@ -346,17 +346,18 @@ describe("review form — make / model suggestions are applied explicitly, one f
   });
 
   it("24/25. the suggestion row wraps on narrow screens and isolates the value's direction (RTL and LTR)", () => {
-    expect(ASSIST).toMatch(/flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent\/40 bg-accent\/10 px-3 py-2/);
+    // 2026-10-16 visual checkpoint: a document-assisted suggestion is TEAL (amber is reserved for "needs review")
+    expect(ASSIST).toMatch(/flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary\/30 bg-secondary\/5 px-3 py-2/);
     expect(ASSIST).toMatch(/<bdi className="font-medium text-foreground">\{suggestion\}<\/bdi>/);
   });
 });
 
 describe("apply-suggestion and status copy — every language", () => {
   const KEYS = ["vehicleRegStatusNotEntered", "vehicleRegStatusSuggested", "vehicleRegStatusApplied", "vehicleRegUseSuggestion", "vehicleRegUseSuggestionAria"];
-  it.each(LOCALES)("%s has every key; the action copy carries the {value} placeholder and the accessible name the {field} too", (l) => {
+  it.each(LOCALES)("%s has every key; the visible action is a short 'use suggestion' (the value is shown beside it) and the accessible name carries {field} + {value}", (l) => {
     const m = messages(l);
     for (const k of KEYS) expect(m[k]?.trim().length ?? 0, `${l}.${k}`).toBeGreaterThan(0);
-    expect(m.vehicleRegUseSuggestion).toContain("{value}");
+    expect(m.vehicleRegUseSuggestion).not.toContain("{");
     expect(m.vehicleRegUseSuggestionAria).toContain("{value}");
     expect(m.vehicleRegUseSuggestionAria).toContain("{field}");
   });
@@ -364,17 +365,17 @@ describe("apply-suggestion and status copy — every language", () => {
   it("Arabic and English use exactly the approved wording", () => {
     const ar = messages("ar");
     expect(ar.vehicleRegStatusNotEntered).toBe("لم يتم إدخاله");
-    expect(ar.vehicleRegStatusSuggested).toBe("اقتراح من المستند — لم يتم تأكيده");
+    expect(ar.vehicleRegStatusSuggested).toBe("اقتراح من المستند — يحتاج مراجعتك");
     expect(ar.vehicleRegSourceProvider).toBe("أدخلته أنت");
     expect(ar.vehicleRegStatusApplied).toBe("اخترت اقتراح المستند");
-    expect(ar.vehicleRegUseSuggestion!.replace("{value}", "Mazda")).toBe("استخدام Mazda");
+    expect(ar.vehicleRegUseSuggestion).toBe("استخدام الاقتراح");
     expect(ar.vehicleRegUseSuggestionAria!.replace("{field}", ar.vehicleRegFieldMake!).replace("{value}", "Mazda")).toBe("استخدام اقتراح الماركة Mazda");
     expect(ar.vehicleRegUseSuggestionAria!.replace("{field}", ar.vehicleRegFieldModel!).replace("{value}", "6")).toBe("استخدام اقتراح الطراز 6");
     const en = messages("en");
     expect(en.vehicleRegStatusNotEntered).toBe("Not entered");
-    expect(en.vehicleRegStatusSuggested).toBe("Document suggestion — not confirmed");
+    expect(en.vehicleRegStatusSuggested).toBe("Document suggestion — needs your review");
     expect(en.vehicleRegSourceProvider).toBe("Entered by you");
     expect(en.vehicleRegStatusApplied).toBe("Document suggestion selected");
-    expect(en.vehicleRegUseSuggestion!.replace("{value}", "Mazda")).toBe("Use Mazda");
+    expect(en.vehicleRegUseSuggestion).toBe("Use suggestion");
   });
 });

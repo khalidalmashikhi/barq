@@ -3,11 +3,12 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { ScanLine, PencilLine, ShieldCheck, ChevronDown, Loader2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { ScanLine, PencilLine, ShieldCheck, ChevronDown, CheckCircle2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib/vehicles/registration-review/registration-review-result";
 import { grantOcrConsentAction, grantOcrConsentForCompletionAction, declineOcrConsentAction } from "../consent-actions";
+import { ReadingStatusPanel } from "@/components/provider/vehicle-journey/reading-status-panel";
+import { JOURNEY_CARD, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C (registration OCR privacy gate) — the STANDALONE processing-notice + choice step shown
 // after a photo/scan (or a PDF whose text could not be read locally) is uploaded and BEFORE any
@@ -31,10 +32,11 @@ import { grantOcrConsentAction, grantOcrConsentForCompletionAction, declineOcrCo
 // TAP FEEDBACK (2026-10-16): the grant action records the consent and then WAITS for the reading
 // (an external request of several seconds) before it returns. The tap is therefore acknowledged in
 // the same frame — a synchronous in-flight guard (a second tap is ignored, so no second request and
-// no second consent row), the button keeps its primary look with a spinner and "Reading vehicle
-// details…", a polite live region announces it, and the checkbox stays ticked and locked. The
-// pending state lasts until the result page replaces this step; a failure or a dropped request ends
-// it with the honest error and both choices available again. No fabricated progress percentage.
+// no second consent row) and the step is replaced by the shared calm reading panel (pulsing document
+// mark, "Reading vehicle details…", what is being read, a polite live region; 2026-10-16 visual
+// checkpoint) — no button remains to tap twice. The pending state lasts until the result page
+// replaces this step; a failure or a dropped request ends it with the honest error and both choices
+// available again (the checkbox stays ticked). No fabricated progress percentage.
 //
 // The choice is recorded on the server with the time, the complete document set, the purpose, the
 // locale, the configured geography and the notice version. Nothing here claims the notice alone
@@ -64,7 +66,10 @@ type Props = {
   onDeclined?: () => void;
 };
 
-const BUTTON = "inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-base font-semibold transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+// What is being read, shown in the reading state (the same set summaries as the page).
+const SET_SUMMARY_KEY = { PDF: "vehicleOnboardSetSummaryPdf", IMAGE: "vehicleOnboardSetSummaryImage", IMAGES: "vehicleOnboardSetSummaryImages" } as const;
+/** Three short reassurances shown above the choice. */
+const TRUST_KEYS = ["vehicleJourneyTrust1", "vehicleJourneyTrust2", "vehicleJourneyTrust3"] as const;
 
 /** Where the full automatic-reading disclosure lives (the Privacy Policy section anchor). */
 export const AUTOMATIC_READING_POLICY_HREF = "/privacy#automatic-reading";
@@ -145,80 +150,91 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
 
   if (!expanded) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-accent/10 px-4 py-3">
+      <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-base text-foreground/80">{t("vehicleRegConsentDeclinedNotice")}</p>
-        <button type="button" onClick={() => setExpanded(true)} className="text-sm inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-          <ScanLine size={15} strokeWidth={1.75} aria-hidden />
+        <button type="button" onClick={() => setExpanded(true)} className={JOURNEY_SECONDARY}>
+          <ScanLine size={18} strokeWidth={1.75} aria-hidden />
           {t("vehicleRegConsentChangeMind")}
         </button>
       </div>
     );
   }
 
+  const readDisabled = pending || busy !== null || !ownerAuthorized;
+
   return (
-    <Card hoverLift={false}>
-      <div className="flex flex-col gap-4" aria-busy={pending || busy !== null}>
-        <div className="flex flex-col gap-1.5">
-          <h2 className="text-xl font-semibold text-foreground">{t("vehicleRegConsentTitle")}</h2>
-          {/* A PDF only reaches this step when its text could not be read locally — say so. */}
-          <p className="text-base text-foreground/80">{intent === "complete" ? t("vehicleRegConsentIntroComplete") : setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")}</p>
-        </div>
+    <section className={JOURNEY_CARD} aria-labelledby={reading ? undefined : "consent-title"} aria-busy={pending || busy !== null}>
+      {reading ? (
+        // The tap was accepted: a dedicated, calm reading state replaces the choice — nothing to tap twice.
+        <ReadingStatusPanel summary={t(SET_SUMMARY_KEY[setKind])} />
+      ) : (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <h2 id="consent-title" className="text-xl font-semibold text-primary">
+              {t("vehicleRegConsentTitle")}
+            </h2>
+            {/* A PDF only reaches this step when its text could not be read locally — say so. */}
+            {(intent === "complete" || setKind === "PDF") && <p className="text-sm text-foreground/70">{intent === "complete" ? t("vehicleRegConsentIntroComplete") : setKind === "PDF" ? t("vehicleRegConsentIntroPdf") : t("vehicleRegConsentIntro")}</p>}
+            <p className="text-base text-foreground">{t("vehicleRegConsentDisclosure")}</p>
+          </div>
 
-        {mode === "stale" && <Alert variant="warning">{t("vehicleRegConsentStaleNotice")}</Alert>}
+          {mode === "stale" && <Alert variant="warning">{t("vehicleRegConsentStaleNotice")}</Alert>}
 
-        {/* The ONE ordinary-workflow sentence + the always-visible Privacy Policy link. */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-accent/10 p-4">
-          <p className="text-base flex items-start gap-2 text-foreground">
-            <ShieldCheck size={18} strokeWidth={1.75} aria-hidden className="mt-1 shrink-0" />
-            <span>{t("vehicleRegConsentDisclosure")}</span>
-          </p>
-          <Link href={AUTOMATIC_READING_POLICY_HREF} className="text-sm inline-flex min-h-11 items-center self-start font-medium text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-            {t("vehicleRegConsentPrivacyPolicyLink")}
-          </Link>
+          {/* Three short reassurances — what this step does NOT do. */}
+          <ul className="flex flex-col gap-2.5 rounded-2xl bg-secondary/5 p-4">
+            {TRUST_KEYS.map((key) => (
+              <li key={key} className="flex items-start gap-2.5 text-sm text-foreground">
+                <CheckCircle2 size={18} strokeWidth={1.9} aria-hidden className="mt-0.5 shrink-0 text-secondary-700" />
+                <span>{t(key)}</span>
+              </li>
+            ))}
+          </ul>
 
           {/* Layered privacy information — short and neutral; the full disclosure is the linked policy section. */}
-          <details className="group rounded-xl border border-border bg-background/60" open={mode === "stale"}>
-            <summary className="text-sm flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-3 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-              <span>{t("vehicleRegConsentDetailsToggle")}</span>
-              <ChevronDown size={18} strokeWidth={1.75} aria-hidden className="shrink-0 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="text-sm flex flex-col gap-3 border-t border-border px-3 py-3 text-foreground/80">
-              <p>{t("vehicleRegConsentDetailsExternal")}</p>
-              <p>{t("vehicleRegConsentLimits")}</p>
-              <p className="text-foreground/70">{t("vehicleRegConsentLegalNote")}</p>
-            </div>
-          </details>
+          <div className="flex flex-col gap-1">
+            <details className="group rounded-2xl border border-border" open={mode === "stale"}>
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <ShieldCheck size={18} strokeWidth={1.75} aria-hidden className="text-foreground/60" />
+                  {t("vehicleRegConsentDetailsToggle")}
+                </span>
+                <ChevronDown size={18} strokeWidth={1.75} aria-hidden className="shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-foreground/80">
+                <p>{t("vehicleRegConsentDetailsExternal")}</p>
+                <p>{t("vehicleRegConsentLimits")}</p>
+                <p className="text-foreground/70">{t("vehicleRegConsentLegalNote")}</p>
+              </div>
+            </details>
+            <Link href={AUTOMATIC_READING_POLICY_HREF} className="inline-flex min-h-11 items-center self-start rounded text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+              {t("vehicleRegConsentPrivacyPolicyLink")}
+            </Link>
+          </div>
+
+          <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-base text-foreground has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+            <input type="checkbox" checked={ownerAuthorized} onChange={(e) => setOwnerAuthorized(e.target.checked)} disabled={pending || busy !== null} className="mt-0.5 size-6 shrink-0 accent-primary" />
+            <span>{t("vehicleRegConsentOwnerLabel")}</span>
+          </label>
+
+          {errorCode && <Alert variant="danger">{td(registrationReviewMessageKey(errorCode))}</Alert>}
+
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={() => run("read")} disabled={readDisabled} aria-disabled={readDisabled} aria-describedby={!ownerAuthorized ? "consent-needs-authorization" : undefined} className={`${JOURNEY_PRIMARY} w-full`}>
+              <ScanLine size={20} strokeWidth={1.75} aria-hidden />
+              {t("vehicleRegConsentReadButton")}
+            </button>
+            {!ownerAuthorized && (
+              <p id="consent-needs-authorization" className="text-center text-sm text-foreground/70">
+                {t("vehicleJourneyConsentNeedsAuthorization")}
+              </p>
+            )}
+            <button type="button" onClick={() => run("manual")} disabled={pending || busy !== null} className={`${JOURNEY_TERTIARY} w-full`}>
+              <PencilLine size={18} strokeWidth={1.75} aria-hidden />
+              {busy === "manual" ? t("vehicleRegConsentPending") : t("vehicleRegConsentManualButton")}
+            </button>
+          </div>
         </div>
-
-        <label className="text-base flex items-start gap-3 text-foreground">
-          <input type="checkbox" checked={ownerAuthorized} onChange={(e) => setOwnerAuthorized(e.target.checked)} disabled={pending || busy !== null} className="mt-1 size-6 shrink-0 accent-primary" />
-          <span>{t("vehicleRegConsentOwnerLabel")}</span>
-        </label>
-
-        {errorCode && <Alert variant="danger">{td(registrationReviewMessageKey(errorCode))}</Alert>}
-
-        {/* Announced the moment the tap is accepted; stays until the result page replaces this step. */}
-        <div role="status" aria-live="polite" className="text-sm text-foreground/80">
-          {reading ? t("vehicleRegConsentReadingHint") : ""}
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => run("read")}
-            disabled={pending || busy !== null || !ownerAuthorized}
-            aria-disabled={pending || busy !== null || !ownerAuthorized}
-            className={`${BUTTON} bg-primary text-primary-foreground hover:opacity-90 ${reading ? "" : "disabled:opacity-50"}`}
-          >
-            {reading ? <Loader2 size={18} strokeWidth={2} aria-hidden className="animate-spin motion-reduce:animate-none" /> : <ScanLine size={18} strokeWidth={1.75} aria-hidden />}
-            {reading ? t("vehicleRegConsentReadingPending") : t("vehicleRegConsentReadButton")}
-          </button>
-          <button type="button" onClick={() => run("manual")} disabled={pending || busy !== null} className={`${BUTTON} border border-border text-foreground hover:bg-accent disabled:opacity-50`}>
-            <PencilLine size={18} strokeWidth={1.75} aria-hidden />
-            {busy === "manual" ? t("vehicleRegConsentPending") : t("vehicleRegConsentManualButton")}
-          </button>
-        </div>
-      </div>
-    </Card>
+      )}
+    </section>
   );
 }

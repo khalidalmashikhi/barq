@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, FileUp, Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Camera, ChevronDown, FileText, FileUp, Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Alert } from "@/components/ui/alert";
 import { prepareFileForUpload } from "@/lib/vehicles/documents/client-upload-file";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/vehicles/onboarding/onboarding-request-key-store";
 import { cancelOnboardingRequestAction } from "../upload-actions";
 import { StickyActionBar } from "@/components/provider/registration-review/sticky-action-bar";
+import { JOURNEY_CARD, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_SMALL, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C Slice 3B — the registration-document upload step (client island). This is the FIRST and
 // ONLY thing a provider sees when adding a vehicle: no make/model/capacity field exists before a
@@ -74,11 +75,6 @@ type Props = {
 const ACCEPT_FILE = "application/pdf,image/jpeg,image/png";
 const ACCEPT_IMAGE_FILE = "image/jpeg,image/png";
 const ACCEPT_CAMERA = "image/jpeg,image/png";
-const CHOICE_CLASS =
-  "inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-within:ring-2 focus-within:ring-primary/40";
-const SMALL_BUTTON =
-  "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
-
 type Phase = "idle" | "processing" | "uploading" | "done";
 type Slot = "front" | "back";
 
@@ -124,6 +120,8 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
   const [phase, setPhase] = useState<Phase>("idle");
   const [percent, setPercent] = useState(0);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  // Which file an error belongs to (shown next to it); null = a general / server error near the action.
+  const [errorSlot, setErrorSlot] = useState<Slot | null>(null);
   const [requestCancelled, setRequestCancelled] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -183,10 +181,14 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
     const slot = targetRef.current;
     targetRef.current = "front";
     setErrorKey(null);
+    setErrorSlot(null);
     if (slot === "back") {
       // The back side is a photo only; the input is cleared so a native post never carries it.
       event.target.value = "";
-      if (chosen.type === "application/pdf") return setErrorKey("vehicleDocErrorInvalidDocumentSet");
+      if (chosen.type === "application/pdf") {
+        setErrorSlot("back");
+        return setErrorKey("vehicleDocErrorInvalidDocumentSet");
+      }
       setBack(chosen);
       return;
     }
@@ -204,7 +206,10 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
         .then((bytes) => {
           const pages = countPdfPages(bytes);
           setPdfPages(pages);
-          if (pages !== null && pages > MAX_REGISTRATION_PDF_PAGES) setErrorKey("vehicleDocErrorPdfTooManyPages");
+          if (pages !== null && pages > MAX_REGISTRATION_PDF_PAGES) {
+            setErrorSlot("front");
+            setErrorKey("vehicleDocErrorPdfTooManyPages");
+          }
         })
         .catch(() => setPdfPages(null));
     } else {
@@ -244,6 +249,7 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
     setPhase("idle");
     setPercent(0);
     if (code === "ONBOARDING_CANCELLED") setRequestCancelled(true); // terminal for THIS key
+    setErrorSlot(null);
     setErrorKey(
       isAssetDocumentErrorCode(code)
         ? getAssetDocumentErrorTranslationKey(code)
@@ -364,6 +370,8 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
 
   const pdfPagesLabel = pdfPages === null ? t("vehicleOnboardPdfPagesUnknown") : pdfPages === 1 ? t("vehicleOnboardPdfPagesOne") : pdfPages === 2 ? t("vehicleOnboardPdfPagesTwo") : td("vehicleOnboardPdfPagesMany", { count: pdfPages });
   const canAddBack = !singleFile && front !== null && !frontIsPdf;
+  // A file-specific problem is shown next to that file; anything else (network, server) next to the action.
+  const slotError = (slot: Slot) => (errorKey && errorSlot === slot ? <Alert variant="danger">{td(errorKey)}</Alert> : null);
 
   return (
     <form action={action} method="post" encType="multipart/form-data" onSubmit={onSubmit} aria-busy={busy} className="flex flex-col gap-5">
@@ -371,159 +379,186 @@ export function RegistrationUploadForm({ action, locale, requestKey, keyScope, h
       {activeKey && <input type="hidden" name="requestKey" value={activeKey} />}
       {hiddenFields && Object.entries(hiddenFields).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
 
-      <p className="text-sm font-medium text-foreground">{singleFile ? t("vehicleOnboardFileLabel") : t("vehicleOnboardSetInstruction")}</p>
-
-      {/* SLOT 1 — the front side, or the PDF. The two inputs are shared with the back slot. */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-border bg-accent/10 p-4">
-        <p className="form-label">{singleFile ? t("vehicleOnboardFileLabel") : t("vehicleOnboardFrontSlotLabel")}</p>
-        {!front && (
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <label className={`${CHOICE_CLASS} ${busy ? "pointer-events-none opacity-60" : ""}`}>
-              <Camera size={18} strokeWidth={1.75} aria-hidden />
-              {t("vehicleOnboardTakePhoto")}
-              <input ref={cameraRef} type="file" accept={ACCEPT_CAMERA} capture="environment" name={source === "camera" ? "file" : undefined} onChange={pick("camera")} className="sr-only" />
-            </label>
-            <label className={`${CHOICE_CLASS} ${busy ? "pointer-events-none opacity-60" : ""}`}>
-              <FileUp size={18} strokeWidth={1.75} aria-hidden />
-              {t("vehicleOnboardChooseFile")}
-              <input ref={fileRef} type="file" accept={ACCEPT_FILE} name={source === "camera" ? undefined : "file"} onChange={pick("file")} className="sr-only" />
-            </label>
+      <section className={JOURNEY_CARD} aria-labelledby="upload-title">
+        {!front ? (
+          // THE first action: one calm upload zone. Both choices are real <label>s around the file inputs
+          // (camera → the phone's camera; choose → photo library or files).
+          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-secondary/40 bg-secondary/5 px-4 py-7 text-center">
+            <span aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-card text-secondary-700 shadow-sm">
+              <FileText size={28} strokeWidth={1.6} />
+            </span>
+            <h2 id="upload-title" className="text-lg font-semibold text-foreground">
+              {t("vehicleJourneyUploadTitle")}
+            </h2>
+            <p className="max-w-sm text-sm text-foreground/70">{t("vehicleJourneyUploadHint")}</p>
+            <div className="mt-1 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <label className={`${JOURNEY_PRIMARY} cursor-pointer focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-2 sm:min-w-56 ${busy ? "pointer-events-none opacity-60" : ""}`}>
+                <FileUp size={20} strokeWidth={1.75} aria-hidden />
+                {t("vehicleOnboardChooseFile")}
+                <input ref={fileRef} type="file" accept={ACCEPT_FILE} name={source === "camera" ? undefined : "file"} onChange={pick("file")} className="sr-only" />
+              </label>
+              <label className={`${JOURNEY_SECONDARY} cursor-pointer focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-2 ${busy ? "pointer-events-none opacity-60" : ""}`}>
+                <Camera size={20} strokeWidth={1.75} aria-hidden />
+                {t("vehicleOnboardTakePhoto")}
+                <input ref={cameraRef} type="file" accept={ACCEPT_CAMERA} capture="environment" name={source === "camera" ? "file" : undefined} onChange={pick("camera")} className="sr-only" />
+              </label>
+            </div>
+            <p className="sr-only" aria-live="polite">
+              {t("vehicleOnboardNoFileSelected")}
+            </p>
+            {slotError("front")}
           </div>
-        )}
-        {front && (
-          <div className="flex flex-col gap-3">
+        ) : (
+          // The chosen set, in ORDER: 1 front (or the PDF), 2 back (optional, photo only).
+          <div className="flex flex-col gap-5">
+            <h2 id="upload-title" className="text-lg font-semibold text-foreground">
+              {t("vehicleJourneyUploadTitle")}
+            </h2>
             {/* The inputs stay mounted (and never disabled) so a replace can reuse them. */}
             <input ref={cameraRef} type="file" accept={ACCEPT_CAMERA} capture="environment" name={source === "camera" ? "file" : undefined} onChange={pick("camera")} className="sr-only" tabIndex={-1} />
             <input ref={fileRef} type="file" accept={ACCEPT_FILE} name={source === "camera" ? undefined : "file"} onChange={pick("file")} className="sr-only" tabIndex={-1} />
-            {previews.front ? (
-              // eslint-disable-next-line @next/next/no-img-element -- a local object URL preview of the chosen photo, never uploaded through the image optimizer
-              <img src={previews.front} alt={t("vehicleOnboardPreviewAlt")} className="max-h-56 w-full rounded-xl border border-border bg-background object-contain" />
-            ) : null}
-            <p className="break-words text-sm text-foreground/80" aria-live="polite">
-              <span className="text-foreground/70">{frontIsPdf ? t("vehicleOnboardPdfSelected") : t("vehicleOnboardSelectedFileLabel")}: </span>
-              <bdi>{front.name}</bdi>
-              <span className="text-foreground/70"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(front.size) })}</span>
-              {frontIsPdf && <span className="text-foreground/70"> · {pdfPagesLabel}</span>}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => open("camera", "front")} disabled={busy} className={SMALL_BUTTON}>
-                <Camera size={14} strokeWidth={1.75} aria-hidden />
-                {t("vehicleOnboardTakePhoto")}
-              </button>
-              <button type="button" onClick={() => open("file", "front")} disabled={busy} className={SMALL_BUTTON}>
-                <RefreshCw size={14} strokeWidth={1.75} aria-hidden />
-                {t("vehicleOnboardReplaceFile")}
-              </button>
-              <button type="button" onClick={() => removeSlot("front")} disabled={busy} className={SMALL_BUTTON}>
-                <Trash2 size={14} strokeWidth={1.75} aria-hidden />
-                {t("vehicleOnboardRemoveFile")}
-              </button>
-            </div>
+            <ol className="flex flex-col gap-4">
+              {/* SLOT 1 — the front side, or the PDF. */}
+              <li className="flex flex-col gap-3">
+                <p className="flex items-center gap-2">
+                  <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">1</span>
+                  <span className="form-label">{singleFile ? t("vehicleOnboardFileLabel") : t("vehicleOnboardFrontSlotLabel")}</span>
+                </p>
+                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-3">
+                  {previews.front ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- a local object URL preview of the chosen photo, never uploaded through the image optimizer
+                    <img src={previews.front} alt={t("vehicleOnboardPreviewAlt")} className="max-h-48 w-full rounded-xl bg-card object-contain" />
+                  ) : null}
+                  <p className="flex items-start gap-2 break-words text-sm text-foreground/80" aria-live="polite">
+                    <FileText size={18} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-secondary-700" />
+                    <span>
+                      <span className="sr-only">{frontIsPdf ? t("vehicleOnboardPdfSelected") : t("vehicleOnboardSelectedFileLabel")}: </span>
+                      <bdi className="font-medium text-foreground">{front.name}</bdi>
+                      <span className="text-foreground/70"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(front.size) })}</span>
+                      {frontIsPdf && <span className="text-foreground/70"> · {pdfPagesLabel}</span>}
+                    </span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => open("file", "front")} disabled={busy} className={JOURNEY_SMALL}>
+                      <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
+                      {t("vehicleOnboardReplaceFile")}
+                    </button>
+                    <button type="button" onClick={() => open("camera", "front")} disabled={busy} className={JOURNEY_SMALL}>
+                      <Camera size={16} strokeWidth={1.75} aria-hidden />
+                      {t("vehicleOnboardTakePhoto")}
+                    </button>
+                    <button type="button" onClick={() => removeSlot("front")} disabled={busy} className={`${JOURNEY_SMALL} text-danger`}>
+                      <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+                      {t("vehicleOnboardRemoveFile")}
+                    </button>
+                  </div>
+                  {frontIsPdf && !singleFile && <p className="text-sm text-foreground/70">{t("vehicleOnboardPdfExclusive")}</p>}
+                </div>
+                {slotError("front")}
+              </li>
+
+              {/* SLOT 2 — the optional back side (photo only), once a front PHOTO is in place. */}
+              {canAddBack && (
+                <li className="flex flex-col gap-3">
+                  <p className="flex items-center gap-2">
+                    <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-full border border-foreground/20 text-xs font-semibold text-foreground/70">2</span>
+                    <span className="form-label">{t("vehicleOnboardBackSlotLabel")}</span>
+                  </p>
+                  {!showBack && !back ? (
+                    <button type="button" onClick={() => setShowBack(true)} disabled={busy} className={`${JOURNEY_SECONDARY} border-dashed`}>
+                      <Plus size={18} strokeWidth={1.75} aria-hidden />
+                      {t("vehicleOnboardAddBackSide")}
+                    </button>
+                  ) : back ? (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-3">
+                      {previews.back ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- a local object URL preview of the chosen photo
+                        <img src={previews.back} alt={t("vehicleOnboardBackPreviewAlt")} className="max-h-48 w-full rounded-xl bg-card object-contain" />
+                      ) : null}
+                      <p className="flex items-start gap-2 break-words text-sm text-foreground/80" aria-live="polite">
+                        <FileText size={18} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-secondary-700" />
+                        <span>
+                          <span className="sr-only">{t("vehicleOnboardSelectedFileLabel")}: </span>
+                          <bdi className="font-medium text-foreground">{back.name}</bdi>
+                          <span className="text-foreground/70"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(back.size) })}</span>
+                        </span>
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => open("file", "back")} disabled={busy} className={JOURNEY_SMALL}>
+                          <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
+                          {t("vehicleOnboardReplaceFile")}
+                        </button>
+                        <button type="button" onClick={() => open("camera", "back")} disabled={busy} className={JOURNEY_SMALL}>
+                          <Camera size={16} strokeWidth={1.75} aria-hidden />
+                          {t("vehicleOnboardTakePhoto")}
+                        </button>
+                        <button type="button" onClick={() => removeSlot("back")} disabled={busy} className={`${JOURNEY_SMALL} text-danger`}>
+                          <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+                          {t("vehicleOnboardRemoveFile")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button type="button" onClick={() => open("file", "back")} disabled={busy} className={JOURNEY_SECONDARY}>
+                        <FileUp size={18} strokeWidth={1.75} aria-hidden />
+                        {t("vehicleOnboardChooseFile")}
+                      </button>
+                      <button type="button" onClick={() => open("camera", "back")} disabled={busy} className={JOURNEY_SECONDARY}>
+                        <Camera size={18} strokeWidth={1.75} aria-hidden />
+                        {t("vehicleOnboardTakePhoto")}
+                      </button>
+                    </div>
+                  )}
+                  {slotError("back")}
+                </li>
+              )}
+            </ol>
           </div>
         )}
-        {!front && (
-          <p className="text-sm text-foreground/70" aria-live="polite">
-            {t("vehicleOnboardNoFileSelected")}
-          </p>
-        )}
-        <p className="text-xs text-foreground/70">{ocrAvailable ? t("vehicleOnboardFileHintOcr") : t("vehicleOnboardFileHint")}</p>
-        {frontIsPdf && !singleFile && <p className="text-xs text-foreground/70">{t("vehicleOnboardPdfExclusive")}</p>}
-      </div>
+      </section>
 
-      {/* SLOT 2 — the optional back side (photo only), shown once a front PHOTO is in place. */}
-      {canAddBack && !showBack && !back && (
-        <button type="button" onClick={() => setShowBack(true)} disabled={busy} className="inline-flex min-h-12 w-fit items-center gap-2 rounded-full border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
-          <Plus size={16} strokeWidth={1.75} aria-hidden />
-          {t("vehicleOnboardAddBackSide")}
-        </button>
-      )}
-      {canAddBack && (showBack || back) && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-border bg-accent/10 p-4">
-          <p className="form-label">{t("vehicleOnboardBackSlotLabel")}</p>
-          {back ? (
-            <div className="flex flex-col gap-3">
-              {previews.back ? (
-                // eslint-disable-next-line @next/next/no-img-element -- a local object URL preview of the chosen photo
-                <img src={previews.back} alt={t("vehicleOnboardBackPreviewAlt")} className="max-h-56 w-full rounded-xl border border-border bg-background object-contain" />
-              ) : null}
-              <p className="break-words text-sm text-foreground/80" aria-live="polite">
-                <span className="text-foreground/70">{t("vehicleOnboardSelectedFileLabel")}: </span>
-                <bdi>{back.name}</bdi>
-                <span className="text-foreground/70"> · {td("vehicleOnboardFileSizeMb", { size: megabytes(back.size) })}</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => open("camera", "back")} disabled={busy} className={SMALL_BUTTON}>
-                  <Camera size={14} strokeWidth={1.75} aria-hidden />
-                  {t("vehicleOnboardTakePhoto")}
-                </button>
-                <button type="button" onClick={() => open("file", "back")} disabled={busy} className={SMALL_BUTTON}>
-                  <RefreshCw size={14} strokeWidth={1.75} aria-hidden />
-                  {t("vehicleOnboardReplaceFile")}
-                </button>
-                <button type="button" onClick={() => removeSlot("back")} disabled={busy} className={SMALL_BUTTON}>
-                  <Trash2 size={14} strokeWidth={1.75} aria-hidden />
-                  {t("vehicleOnboardRemoveFile")}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="button" onClick={() => open("camera", "back")} disabled={busy} className={CHOICE_CLASS}>
-                <Camera size={18} strokeWidth={1.75} aria-hidden />
-                {t("vehicleOnboardTakePhoto")}
-              </button>
-              <button type="button" onClick={() => open("file", "back")} disabled={busy} className={CHOICE_CLASS}>
-                <FileUp size={18} strokeWidth={1.75} aria-hidden />
-                {t("vehicleOnboardChooseFile")}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <p className="flex items-start gap-2 text-xs text-foreground/70">
-        <Lock size={14} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0" />
+      {/* Secondary information: one reassuring line, and the file requirements on request. */}
+      <p className="flex items-start gap-2 text-sm text-foreground/70">
+        <Lock size={16} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0" />
         <span>{t("vehicleOnboardPrivacyNote")}</span>
       </p>
+      <details className="group rounded-2xl border border-border bg-card">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+          <span>{t("vehicleJourneyFileRequirements")}</span>
+          <ChevronDown size={18} strokeWidth={1.75} aria-hidden className="shrink-0 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-sm text-foreground/80">
+          <p>{singleFile ? t("vehicleOnboardFileLabel") : t("vehicleOnboardSetInstruction")}</p>
+          <p>{ocrAvailable ? t("vehicleOnboardFileHintOcr") : t("vehicleOnboardFileHint")}</p>
+        </div>
+      </details>
 
       {/* The danger Alert is itself role="alert" (announced once); this wrapper only anchors the scroll. */}
       <div ref={errorRef} className="flex scroll-mb-40 scroll-mt-24 flex-col gap-3">
-        {errorKey && <Alert variant="danger">{td(errorKey)}</Alert>}
+        {errorKey && errorSlot === null && <Alert variant="danger">{td(errorKey)}</Alert>}
         {requestCancelled && (
-          <button
-            type="button"
-            onClick={startNewSetup}
-            className="inline-flex min-h-12 w-fit items-center rounded-full border border-border px-6 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
+          <button type="button" onClick={startNewSetup} className={`${JOURNEY_SECONDARY} w-fit`}>
             {t("vehicleOnboardStartNew")}
           </button>
         )}
       </div>
 
       {phase === "uploading" || phase === "done" ? (
-        <div className="flex flex-col gap-1" role="status" aria-live="polite">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-accent/30">
-            <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent}%` }} />
+        <div className="flex flex-col gap-1.5" role="status" aria-live="polite">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary/15">
+            <div className="h-full rounded-full bg-secondary transition-[width]" style={{ width: `${percent}%` }} />
           </div>
-          <p className="text-xs text-foreground/70">{td("vehicleOnboardUploadProgress", { percent })}</p>
+          <p className="text-sm text-foreground/70">{td("vehicleOnboardUploadProgress", { percent })}</p>
         </div>
       ) : null}
 
       {/* Sticky on phones: the actions stay clear of the browser's bottom toolbar. */}
-      <StickyActionBar className="-mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
-        <button
-          type="submit"
-          disabled={!front || busy || requestCancelled || leaving}
-          className="inline-flex min-h-12 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
-        >
+      <StickyActionBar className="-mx-4 flex flex-col gap-2 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0">
+        <button type="submit" disabled={!front || busy || requestCancelled || leaving} className={`${JOURNEY_PRIMARY} w-full sm:w-auto sm:min-w-56`}>
           {phase === "processing" ? t("vehicleOnboardProcessingImage") : phase === "uploading" || phase === "done" ? t("vehicleOnboardUploading") : t("vehicleOnboardUploadButton")}
         </button>
-        <Link
-          href={cancelHref}
-          onClick={onCancel}
-          aria-disabled={leaving}
-          className={`inline-flex min-h-12 items-center rounded-full border border-border px-6 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${leaving ? "pointer-events-none opacity-60" : ""}`}
-        >
+        <Link href={cancelHref} onClick={onCancel} aria-disabled={leaving} className={`${JOURNEY_TERTIARY} ${leaving ? "pointer-events-none opacity-60" : ""}`}>
           {t("vehicleCancelLabel")}
         </Link>
       </StickyActionBar>

@@ -32,9 +32,11 @@ export type AssistField = ReviewFieldStateInput & {
   alternatives?: (string | number)[];
 };
 
-const CHIP = "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
-const CHOICE = "inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
-const APPLY = "inline-flex min-h-11 max-w-full items-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
+// 2026-10-16 visual checkpoint: teal = document-assisted suggestion, amber = genuinely needs review
+// (the "check this" chips and a conflict the provider must resolve).
+const CHIP = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
+const CHOICE = "inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm text-foreground hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
+const APPLY = "inline-flex min-h-11 max-w-full items-center rounded-xl border border-primary/30 bg-card px-4 text-sm font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
 
 type Td = (key: string, values?: Record<string, string | number>) => string;
 
@@ -57,13 +59,13 @@ export function FieldStatusAndSuggestion({ field: f, label, status, value, pendi
       <p className="flex flex-wrap items-center gap-1.5 text-sm text-foreground/70">
         <span data-field-status={status}>{td(statusLabelKey(status, f.source))}</span>
         {onDocument && confidenceKey && f.extractedValue !== null && <span aria-label={td(confidenceKey)}>· {td(confidenceKey)}</span>}
-        {flagged && <span className={`${CHIP} bg-accent/20 text-accent-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
+        {flagged && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
         {f.heuristic && onDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegHeuristicBadge")}</span>}
         {f.completedAutomatically && onDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegCompletedBadge")}</span>}
       </p>
       {offerApply && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
-          <span className="min-w-0 text-xs text-foreground/70">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/30 bg-secondary/5 px-3 py-2">
+          <span className="min-w-0 text-sm text-secondary-700">
             {t("vehicleRegExtractedPrefix")}: <bdi className="font-medium text-foreground">{suggestion}</bdi>
           </span>
           <button type="button" onClick={apply} disabled={pending} aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion! })} className={APPLY}>
@@ -88,8 +90,8 @@ export function FieldConflictAndComparison({ field: f, status, value, revealed, 
   return (
     <>
       {showConflict && (
-        <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent/10 p-3">
-          <p className="text-xs font-medium text-accent-foreground">{t("vehicleRegConflictLabel")}</p>
+        <div className="flex flex-col gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3">
+          <p className="text-xs font-semibold text-foreground">{t("vehicleRegConflictLabel")}</p>
           <p className="text-xs text-foreground/70">{t("vehicleRegConflictHint")}</p>
           <div className="flex flex-wrap gap-2">
             {f.alternatives!.map((alt, i) => (

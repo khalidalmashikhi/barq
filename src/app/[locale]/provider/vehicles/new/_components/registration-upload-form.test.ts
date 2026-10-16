@@ -122,7 +122,9 @@ describe("RegistrationUploadForm — submission", () => {
 
   it("the error is announced and scrolled into view above the action buttons (not hidden behind browser chrome)", () => {
     // A danger Alert is role="alert" — announced once; the wrapper must not be a second live region.
-    expect(CODE).toMatch(/\{errorKey && <Alert variant="danger">\{td\(errorKey\)\}<\/Alert>\}/);
+    // general / server errors next to the action; a file-specific error next to THAT file (2026-10-16)
+    expect(CODE).toMatch(/\{errorKey && errorSlot === null && <Alert variant="danger">\{td\(errorKey\)\}<\/Alert>\}/);
+    expect(CODE).toMatch(/const slotError = \(slot: Slot\) => \(errorKey && errorSlot === slot \? <Alert variant="danger">\{td\(errorKey\)\}<\/Alert> : null\);/);
     expect(CODE).not.toMatch(/aria-live="assertive"/);
     expect(CODE).toMatch(/scrollIntoView/);
     expect(CODE.indexOf("ref={errorRef}")).toBeLessThan(CODE.indexOf('type="submit"'));
@@ -223,7 +225,7 @@ describe("RegistrationUploadForm — the registration document SET (one PDF | on
     expect(CODE).toMatch(/const ACCEPT_IMAGE_FILE = "image\/jpeg,image\/png"/);
     expect(CODE).toMatch(/const canAddBack = !singleFile && front !== null && !frontIsPdf;/);
     expect(CODE).toMatch(/input\.accept = slot === "back" \|\| \(front && !frontIsPdf\) \|\| back \? ACCEPT_IMAGE_FILE : ACCEPT_FILE;/);
-    expect(fn("pick")).toMatch(/if \(chosen\.type === "application\/pdf"\) return setErrorKey\("vehicleDocErrorInvalidDocumentSet"\);/);
+    expect(fn("pick")).toMatch(/if \(chosen\.type === "application\/pdf"\) \{\s*setErrorSlot\("back"\);\s*return setErrorKey\("vehicleDocErrorInvalidDocumentSet"\);\s*\}/); // shown next to the back photo
     expect(CODE).toMatch(/t\("vehicleOnboardAddBackSide"\)/);
   });
 
@@ -253,7 +255,7 @@ describe("RegistrationUploadForm — the registration document SET (one PDF | on
     expect(CODE).toMatch(/countPdfPages\(bytes\)/);
     expect(CODE).toMatch(/t\("vehicleOnboardPdfPagesOne"\)/);
     expect(CODE).toMatch(/t\("vehicleOnboardPdfPagesTwo"\)/);
-    expect(CODE).toMatch(/pages > MAX_REGISTRATION_PDF_PAGES\) setErrorKey\("vehicleDocErrorPdfTooManyPages"\)/);
+    expect(CODE).toMatch(/pages > MAX_REGISTRATION_PDF_PAGES\) \{\s*setErrorSlot\("front"\);\s*setErrorKey\("vehicleDocErrorPdfTooManyPages"\);/); // shown next to the PDF
     expect(CODE).toMatch(/td\("vehicleOnboardFileSizeMb", \{ size: megabytes\((front|back)\.size\) \}\)/);
   });
 

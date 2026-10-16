@@ -17,6 +17,8 @@ const ROOT = process.cwd();
 const CODE = readFileSync(path.join(ROOT, "src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/ocr-consent-step.tsx"), "utf8");
 const stripComments = (src: string) => src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
 const PROGRESS = readFileSync(path.join(ROOT, "src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/extraction-progress.tsx"), "utf8");
+// 2026-10-16 visual checkpoint: the reading state is ONE shared panel used by the step and the processing page.
+const PANEL = readFileSync(path.join(ROOT, "src/components/provider/vehicle-journey/reading-status-panel.tsx"), "utf8");
 const PRIVACY_PAGE = readFileSync(path.join(ROOT, "src/app/[locale]/privacy/page.tsx"), "utf8");
 const LOCALES = ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"] as const;
 const messages = Object.fromEntries(LOCALES.map((l) => [l, JSON.parse(readFileSync(path.join(ROOT, `messages/${l}/provider.json`), "utf8")) as Record<string, string>]));
@@ -63,14 +65,18 @@ const expectNeutral = (value: string, label: string) => {
 describe("OcrConsentStep — structure", () => {
   it("is a client island that renders every notice key and offers exactly the two choices", () => {
     expect(CODE).toMatch(/^"use client";/);
-    for (const key of NOTICE_KEYS) expect(CODE, key).toContain(`"${key}"`);
+    for (const key of NOTICE_KEYS) expect(CODE + PANEL, key).toContain(`"${key}"`);
     expect(CODE).toContain("grantOcrConsentAction(vehicleId, ownerAuthorized)");
     expect(CODE).toContain("declineOcrConsentAction(vehicleId)");
   });
 
   it("11. the 'read' button stays disabled until the owner/authorized box is ticked; the box starts UNTICKED", () => {
     expect(CODE).toMatch(/const \[ownerAuthorized, setOwnerAuthorized\] = useState\(false\);/);
-    expect(CODE).toMatch(/disabled=\{pending \|\| busy !== null \|\| !ownerAuthorized\}/);
+    expect(CODE).toMatch(/const readDisabled = pending \|\| busy !== null \|\| !ownerAuthorized;/);
+    expect(CODE).toMatch(/onClick=\{\(\) => run\("read"\)\} disabled=\{readDisabled\} aria-disabled=\{readDisabled\}/);
+    // the reason the button is unavailable is said next to it (not only by a greyed button)
+    expect(CODE).toMatch(/aria-describedby=\{!ownerAuthorized \? "consent-needs-authorization" : undefined\}/);
+    expect(CODE).toMatch(/\{!ownerAuthorized && \(\s*<p id="consent-needs-authorization"/);
     expect(CODE).toMatch(/if \(which === "read" && !ownerAuthorized\) return;/);
     expect(CODE).toMatch(/type="checkbox" checked=\{ownerAuthorized\}/);
   });
@@ -105,16 +111,18 @@ describe("Correction A — immediate reading feedback, one request per tap", () 
     expect(run).toMatch(/if \(inFlight\.current\) return;/);
     expect(run.indexOf("inFlight.current = true;")).toBeLessThan(run.indexOf("setBusy(which);"));
     expect(CODE).toMatch(/const inFlight = useRef\(false\);/);
-    expect(CODE).toMatch(/\{reading \? <Loader2 [^>]*className="animate-spin motion-reduce:animate-none" \/>/);
-    expect(CODE).toMatch(/\{reading \? t\("vehicleRegConsentReadingPending"\) : t\("vehicleRegConsentReadButton"\)\}/);
-    // the busy primary button keeps its primary look instead of fading like a dead control
-    expect(CODE).toMatch(/\$\{reading \? "" : "disabled:opacity-50"\}/);
-    expect(CODE).not.toMatch(/const BUTTON = "[^"]*disabled:opacity-50/);
+    // the accepted tap replaces the choice with the calm reading panel — no button remains to tap twice
+    expect(CODE).toMatch(/const reading = busy === "read";/);
+    expect(CODE).toMatch(/\{reading \? \(\s*(\/\/[^\n]*\n\s*)?<ReadingStatusPanel summary=\{t\(SET_SUMMARY_KEY\[setKind\]\)\} \/>/);
+    expect(PANEL).toMatch(/t\("vehicleRegConsentReadingPending"\)/);
+    expect(stripComments(PANEL)).not.toMatch(/<button|onClick|Action\(|fetch\(/);
+    // the pulse stands still for reduced motion
+    expect(PANEL).toMatch(/motion-safe:animate-ping/);
+    expect(PANEL).not.toMatch(/(?<!motion-safe:)animate-(spin|ping|pulse)/);
   });
 
   it("3. repeated taps create no duplicate request: the guard rejects every tap while one is in flight; both buttons lock", () => {
-    expect(CODE).toMatch(/disabled=\{pending \|\| busy !== null\} className=\{`\$\{BUTTON\} border border-border/);
-    expect(CODE).toMatch(/hover:bg-accent disabled:opacity-50`\}/);
+    expect(CODE).toMatch(/onClick=\{\(\) => run\("manual"\)\} disabled=\{pending \|\| busy !== null\} className=\{`\$\{JOURNEY_TERTIARY\} w-full`\}/);
     expect((CODE.match(/inFlight\.current = true;/g) ?? []).length).toBe(1);
     // the guard is released ONLY when the request ended without the page being replaced
     expect(CODE).toMatch(/const settle = \(code: RegistrationReviewCode \| null\) => \{\s*inFlight\.current = false;\s*setBusy\(null\);/);
@@ -127,10 +135,14 @@ describe("Correction A — immediate reading feedback, one request per tap", () 
   });
 
   it("the state is announced (aria-live) and explained, the checkbox stays ticked and locked, the step reports aria-busy", () => {
-    expect(CODE).toMatch(/<div role="status" aria-live="polite"[^>]*>\s*\{reading \? t\("vehicleRegConsentReadingHint"\) : ""\}/);
+    expect(PANEL).toMatch(/<div role="status" aria-live="polite"/);
+    expect(PANEL).toMatch(/t\("vehicleRegConsentReadingHint"\)/);
+    // the label points at the heading only while the heading is rendered
+    expect(CODE).toMatch(/aria-labelledby=\{reading \? undefined : "consent-title"\}/);
     expect(CODE).toMatch(/type="checkbox" checked=\{ownerAuthorized\} onChange=\{\(e\) => setOwnerAuthorized\(e\.target\.checked\)\} disabled=\{pending \|\| busy !== null\}/);
     expect(CODE).toMatch(/aria-busy=\{pending \|\| busy !== null\}/);
     expect(stripComments(CODE)).not.toMatch(/%|percent|progress=/i);
+    expect(stripComments(PANEL)).not.toMatch(/%|percent|progress=/i);
   });
 
   it("6. success keeps the pending state until the refreshed page replaces the step (no flash back to an idle button)", () => {
@@ -151,8 +163,9 @@ describe("Correction A — immediate reading feedback, one request per tap", () 
   it("the processing page shows the same spinner + copy, polls a bounded number of times and never stays 'reading' forever", () => {
     expect(PROGRESS).toMatch(/const MAX_REFRESHES = 40;/);
     expect(PROGRESS).toMatch(/if \(count >= MAX_REFRESHES\) \{\s*clearInterval\(timer\);\s*setGaveUp\(true\);\s*\}/);
-    expect(PROGRESS).toMatch(/t\("vehicleRegConsentReadingPending"\)/);
-    expect(PROGRESS).toMatch(/t\("vehicleRegConsentReadingHint"\)/);
+    expect(PROGRESS).toMatch(/<ReadingStatusPanel summary=\{summary\} \/>/); // the same panel as the step
+    expect(PANEL).toMatch(/t\("vehicleRegConsentReadingPending"\)/);
+    expect(PANEL).toMatch(/t\("vehicleRegConsentReadingHint"\)/);
     expect(PROGRESS).toMatch(/t\("vehicleOnboardReadingSlow"\)/);
     expect(PROGRESS).toMatch(/onClick=\{\(\) => router\.refresh\(\)\}/);
     expect(stripComments(PROGRESS)).not.toMatch(/Action\(|fetch\(|%|percent/);

@@ -5,13 +5,14 @@ import { getLocale } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
-import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { resolveVehicleCreateAccess } from "@/lib/vehicles/onboarding/vehicle-create-access";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
 import { isOnboardingRequestErrorCode, getOnboardingRequestErrorTranslationKey } from "@/lib/vehicles/onboarding/onboarding-request-errors";
 import { isRegistrationOcrOperational } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { RegistrationUploadForm } from "./_components/registration-upload-form";
+import { VehicleJourneySteps } from "@/components/provider/vehicle-journey/journey-steps";
+import { JOURNEY_PAGE } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Add Vehicle — DOCUMENT-FIRST for every provider who may register a vehicle (Phase 3C Slice 3B).
 //
@@ -54,26 +55,26 @@ export default async function NewVehiclePage({ searchParams }: Props) {
   const keyScope = createHash("sha256").update(`barq:vehicle-onboarding:${access.providerId}`).digest("hex").slice(0, 32);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-32 pt-6 sm:px-6 sm:pt-8">
+    <div className={JOURNEY_PAGE}>
       <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground">
-        <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
+        <ArrowRight size={16} strokeWidth={1.75} aria-hidden className="rtl:rotate-0 ltr:rotate-180" />
         {t("backToVehiclesLabel")}
       </Link>
 
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-foreground">{t("addVehicleButton")}</h1>
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-2xl font-semibold text-primary">{t("addVehicleButton")}</h1>
         <p className="text-sm text-foreground/70">{t("vehicleOnboardUploadSubtitle")}</p>
       </div>
 
+      <VehicleJourneySteps current={1} />
+
       {uploadErrorMessage && <Alert variant="danger">{uploadErrorMessage}</Alert>}
 
-      <Card hoverLift={false}>
-        {/* The server records every request key durably (per provider), so repeated submissions with
-            one key create only one setup. The rendered key is the no-JavaScript fallback; the
-            hydrated form keeps ONE key per attempt in the tab's session storage, scoped to this
-            provider by an opaque tag (a hash — the provider id itself is not sent to the browser). */}
-        <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} keyScope={keyScope} cancelHref="/provider/vehicles" ocrAvailable={isRegistrationOcrOperational()} />
-      </Card>
+      {/* The server records every request key durably (per provider), so repeated submissions with
+          one key create only one setup. The rendered key is the no-JavaScript fallback; the
+          hydrated form keeps ONE key per attempt in the tab's session storage, scoped to this
+          provider by an opaque tag (a hash — the provider id itself is not sent to the browser). */}
+      <RegistrationUploadForm action="/api/provider/vehicles/onboarding/upload" locale={locale} requestKey={randomUUID()} keyScope={keyScope} cancelHref="/provider/vehicles" ocrAvailable={isRegistrationOcrOperational()} />
     </div>
   );
 }

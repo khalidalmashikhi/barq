@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
-import { ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, FileText } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { getServerTranslator } from "@/lib/i18n/get-server-translator";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import type { Locale } from "@/i18n/locales";
@@ -19,6 +18,8 @@ import { OnboardingReviewForm, type FieldView } from "./_components/onboarding-r
 import { ExtractionProgress } from "./_components/extraction-progress";
 import { OcrConsentStep } from "./_components/ocr-consent-step";
 import { RegistrationRecoveryBanner } from "./_components/registration-recovery-banner";
+import { VehicleJourneySteps, type JourneyStep } from "@/components/provider/vehicle-journey/journey-steps";
+import { JOURNEY_CARD, JOURNEY_PAGE } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2: review the extracted (or
 // manually-entered) registration details and explicitly confirm to finish the vehicle.
@@ -87,16 +88,20 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   // Already confirmed (claim locked) → the vehicle is finished; continue on its detail page.
   if (review.confirmation?.status === "SUBMITTED") redirect({ href: `/provider/vehicles/${vehicleId}`, locale });
 
-  const header = (
+  const backLink = (
+    <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground">
+      <ArrowRight size={16} strokeWidth={1.75} aria-hidden className="ltr:rotate-180" />
+      {t("backToVehiclesLabel")}
+    </Link>
+  );
+  const pageHeader = (title: string, subtitle: string | null, step: JourneyStep) => (
     <>
-      <Link href="/provider/vehicles" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-foreground/70 hover:text-foreground">
-        <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
-        {t("backToVehiclesLabel")}
-      </Link>
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-foreground">{t("vehicleOnboardReviewTitle")}</h1>
-        <p className="text-sm text-foreground/70">{t("vehicleOnboardReviewSubtitle")}</p>
+      {backLink}
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-2xl font-semibold text-primary">{title}</h1>
+        {subtitle && <p className="text-sm text-foreground/70">{subtitle}</p>}
       </div>
+      <VehicleJourneySteps current={step} />
     </>
   );
 
@@ -109,21 +114,19 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
         : t("vehicleOnboardUploadFailed")
       : null;
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-32 pt-6 sm:px-6 sm:pt-8">
-        {header}
+      <div className={JOURNEY_PAGE}>
+        {pageHeader(t("addVehicleButton"), null, 1)}
         <Alert variant="info">{t("vehicleOnboardMissingDocument")}</Alert>
         {docErrorMessage && <Alert variant="danger">{docErrorMessage}</Alert>}
-        <Card hoverLift={false}>
-          <RegistrationUploadForm
-            action={`/api/provider/vehicles/${vehicleId}/documents`}
-            locale={locale}
-            hiddenFields={{ type: "VEHICLE_REGISTRATION" }}
-            successHref={`/provider/vehicles/new/${vehicleId}`}
-            cancelHref="/provider/vehicles"
-            ocrAvailable={isRegistrationOcrOperational()}
-            singleFile
-          />
-        </Card>
+        <RegistrationUploadForm
+          action={`/api/provider/vehicles/${vehicleId}/documents`}
+          locale={locale}
+          hiddenFields={{ type: "VEHICLE_REGISTRATION" }}
+          successHref={`/provider/vehicles/new/${vehicleId}`}
+          cancelHref="/provider/vehicles"
+          ocrAvailable={isRegistrationOcrOperational()}
+          singleFile
+        />
       </div>
     );
   }
@@ -138,115 +141,135 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   const awaitingChoice = reviewState.extraction === "AWAITING_CONSENT" && consent !== null;
   const declined = awaitingChoice && consent.state === "DECLINED";
   const setKind = review.setKind ?? "IMAGE";
+  const setSummary = t(SET_SUMMARY_KEY[setKind]);
   const viewHrefFor = (page: RegistrationReviewPageView) => `/api/provider/vehicles/${vehicleId}/documents/${page.documentId}/view`;
+  // A reading that FAILED (and may be retried) gets its own concise panel — retry or enter manually —
+  // instead of a notice buried above the form.
+  const readingFailed = reviewState.extraction === "FAILED" && reviewState.canAnalyze;
   // What the form should say above the fields: the precise failure reason when there is one, the
   // OCR caution when the values were read from a photo/scan, otherwise the generic manual notice.
   const noticeKey = declined
     ? "vehicleRegConsentDeclinedNotice"
-    : isManual
-      ? (reviewState.failureLabelKey ?? "vehicleOnboardManualNotice")
-      : review.extractionSource === "OCR"
-        ? "vehicleOnboardOcrNotice"
-        : null;
+    : readingFailed
+      ? null
+      : isManual
+        ? (reviewState.failureLabelKey ?? "vehicleOnboardManualNotice")
+        : review.extractionSource === "OCR"
+          ? "vehicleOnboardOcrNotice"
+          : null;
 
   // The body-style suggestion and the printed description come from the read model; the form only
   // OFFERS the suggestion — the provider chooses the type explicitly.
   const suggestedVehicleType = review.vehicleTypeSuggestion;
 
+  // Step 2 (read details) while the provider decides or the reading runs; step 3 (review) otherwise.
+  if (isReading || (awaitingChoice && !declined)) {
+    return (
+      <div className={JOURNEY_PAGE}>
+        {pageHeader(t("addVehicleButton"), null, 2)}
+        {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}
+        {isReading ? (
+          // Another request is reading the document right now: wait for it (bounded) instead of
+          // opening an empty form whose suggestions are about to arrive.
+          <ExtractionProgress summary={setSummary} />
+        ) : (
+          // Nothing has been sent anywhere. The provider reads the processing notice and chooses;
+          // "enter manually" opens the review form as the manual path.
+          <OcrConsentStep vehicleId={vehicleId} mode={consent!.state === "STALE" ? "stale" : "choose"} inferenceGeo={consent!.inferenceGeo} setKind={setKind} />
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-40 pt-6 sm:px-6 sm:pt-8">
-      {header}
+    <div className={JOURNEY_PAGE}>
+      {/* The subtitle speaks of document suggestions — only when there are some (never after a failed or declined reading). */}
+      {pageHeader(t("vehicleOnboardReviewTitle"), isManual ? null : t("vehicleOnboardReviewSubtitle"), 3)}
 
       {/* A repeated/replayed upload request was answered with this existing setup (idempotency). */}
       {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}
 
-      <Card hoverLift={false}>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm text-foreground/70">{t("vehicleRegDocumentLabel")}</span>
-            <span className="text-xs text-foreground/70">{t(SET_SUMMARY_KEY[setKind])}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-foreground/70">{t("vehicleRegExtractionStatusLabel")}</span>
-            <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "warning" : "default"}>
-              {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
-            </Badge>
-          </div>
-          {/* Every stored side, in order. A photo is previewed inline through the SAME owner-checked,
-              short-lived signed view route (never a public URL, never the storage key); a PDF keeps a
-              safe "view" link with its name and size. */}
-          <ul className="flex flex-col gap-3">
-            {review.pages.map((page) => {
-              const viewHref = viewHrefFor(page);
-              const isImage = page.mimeType.startsWith("image/");
-              return (
-                <li key={page.documentId} className="flex flex-col gap-2 rounded-xl border border-border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-foreground/70">{setKind === "PDF" ? t("vehicleRegPagePdf") : t(PAGE_LABEL_KEY[page.role])}</span>
-                    <a href={viewHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded text-sm text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-                      {t("vehicleDocViewButton")}
-                    </a>
-                  </div>
-                  {isImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- a private, signed, short-lived document view; it must not go through the public image optimizer
-                    <img
-                      src={viewHref}
-                      alt={t(PREVIEW_ALT_KEY[page.role])}
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      className="max-h-72 w-full rounded-xl border border-border bg-accent/10 object-contain"
-                    />
-                  ) : (
-                    <p className="break-words text-sm text-foreground/80">
+      {/* Compact document summary: every stored side, in order, through the SAME owner-checked,
+          short-lived signed view route (never a public URL, never the storage key). */}
+      <section aria-label={t("vehicleRegDocumentLabel")} className={`${JOURNEY_CARD} flex flex-col gap-3`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <FileText size={20} strokeWidth={1.75} aria-hidden className="text-secondary-700" />
+            {t("vehicleRegDocumentLabel")}
+          </p>
+          <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "warning" : "default"}>
+            <span className="sr-only">{t("vehicleRegExtractionStatusLabel")}: </span>
+            {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
+          </Badge>
+        </div>
+        <p className="text-sm text-foreground/70">{setSummary}</p>
+        <ul className="flex flex-wrap gap-3">
+          {review.pages.map((page) => {
+            const viewHref = viewHrefFor(page);
+            const isImage = page.mimeType.startsWith("image/");
+            return (
+              <li key={page.documentId} className="flex min-w-0 flex-1 basis-36 flex-col gap-1.5 rounded-2xl border border-border bg-background p-2">
+                {isImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a private, signed, short-lived document view; it must not go through the public image optimizer
+                  <img src={viewHref} alt={t(PREVIEW_ALT_KEY[page.role])} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-24 w-full rounded-xl bg-card object-cover" />
+                ) : (
+                  <p className="flex min-h-24 items-center justify-center gap-2 rounded-xl bg-card px-2 py-3 text-center text-sm text-foreground/80">
+                    <FileText size={20} strokeWidth={1.6} aria-hidden className="shrink-0 text-secondary-700" />
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
                       {page.filename && <bdi>{page.filename}</bdi>}
                       {page.filename && " · "}
                       {td("vehicleOnboardFileSizeMb", { size: megabytes(page.sizeBytes) })}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {/* Re-run the automatic read (owner-scoped, idempotent) — e.g. after a transient failure. */}
-          {reviewState.canAnalyze && <AnalyzeRegistrationButton vehicleId={vehicleId} retry={reviewState.extraction === "FAILED"} />}
-        </div>
-      </Card>
+                    </span>
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-x-2 px-1">
+                  <span className="text-sm font-medium text-foreground/80">{setKind === "PDF" ? t("vehicleRegPagePdf") : t(PAGE_LABEL_KEY[page.role])}</span>
+                  <a href={viewHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                    {t("vehicleDocViewButton")}
+                  </a>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {/* Re-run the automatic read (owner-scoped, idempotent) when it is offered and not covered by the failure panel. */}
+        {reviewState.canAnalyze && !readingFailed && <AnalyzeRegistrationButton vehicleId={vehicleId} retry={false} />}
+      </section>
 
-      {isReading ? (
-        // Another request is reading the document right now: wait for it (bounded) instead of
-        // opening an empty form whose suggestions are about to arrive.
-        <ExtractionProgress />
-      ) : awaitingChoice && !declined ? (
-        // Nothing has been sent anywhere. The provider reads the processing notice and chooses;
-        // "enter manually" opens the same form below as the manual path.
-        <OcrConsentStep vehicleId={vehicleId} mode={consent.state === "STALE" ? "stale" : "choose"} inferenceGeo={consent.inferenceGeo} setKind={setKind} />
-      ) : (
-        <>
-        {declined && <OcrConsentStep vehicleId={vehicleId} mode="declined" inferenceGeo={consent.inferenceGeo} setKind={setKind} />}
-        {/* Recovery of a stale or incomplete reading — state derived on the server (never on the client). */}
-        <RegistrationRecoveryBanner
-          vehicleId={vehicleId}
-          state={review.recovery.state}
-          completionAvailable={review.recovery.completionAvailable}
-          completionInProgress={review.recovery.completionInProgress}
-          completionApplied={review.recovery.completionApplied}
-          completionFailed={review.recovery.completionFailed}
-          consentState={review.ocrConsent?.state ?? null}
-          inferenceGeo={review.ocrConsent?.inferenceGeo ?? "us"}
-        />
-        <OnboardingReviewForm
-          vehicleId={vehicleId}
-          fields={review.fields as FieldView[]}
-          vehicleTypeOptions={vehicleTypeOptions(locale)}
-          suggestedVehicleType={suggestedVehicleType}
-          documentDescription={review.documentDescription}
-          noticeKey={noticeKey}
-          noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
-          tabBinding={review.tabBinding}
-        />
-        </>
+      {readingFailed && (
+        // Concise failure: what happened, retry (when allowed) and the manual path right below.
+        <section role="status" className={`${JOURNEY_CARD} flex flex-col gap-3 border-warning/40`}>
+          <p className="flex items-start gap-2 text-base font-semibold text-foreground">
+            <AlertTriangle size={20} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-warning" />
+            <span>{td(reviewState.failureLabelKey ?? "vehicleOnboardManualNotice")}</span>
+          </p>
+          <AnalyzeRegistrationButton vehicleId={vehicleId} retry />
+          <p className="text-sm text-foreground/70">{t("vehicleJourneyReadingFailedManual")}</p>
+        </section>
       )}
+
+      {declined && <OcrConsentStep vehicleId={vehicleId} mode="declined" inferenceGeo={consent!.inferenceGeo} setKind={setKind} />}
+      {/* Recovery of a stale or incomplete reading — state derived on the server (never on the client). */}
+      <RegistrationRecoveryBanner
+        vehicleId={vehicleId}
+        state={review.recovery.state}
+        completionAvailable={review.recovery.completionAvailable}
+        completionInProgress={review.recovery.completionInProgress}
+        completionApplied={review.recovery.completionApplied}
+        completionFailed={review.recovery.completionFailed}
+        consentState={review.ocrConsent?.state ?? null}
+        inferenceGeo={review.ocrConsent?.inferenceGeo ?? "us"}
+      />
+      <OnboardingReviewForm
+        vehicleId={vehicleId}
+        fields={review.fields as FieldView[]}
+        vehicleTypeOptions={vehicleTypeOptions(locale)}
+        suggestedVehicleType={suggestedVehicleType}
+        documentDescription={review.documentDescription}
+        noticeKey={noticeKey}
+        noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
+        tabBinding={review.tabBinding}
+      />
     </div>
   );
 }

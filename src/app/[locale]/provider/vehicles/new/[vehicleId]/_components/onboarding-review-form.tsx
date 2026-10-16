@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Eye, EyeOff, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Eye, EyeOff, ChevronDown, ChevronUp, Lock, Sparkles } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { regFieldLabelKey, maskSensitiveValue, type ConfirmationFieldKey } from "@/lib/vehicles/registration-review/field-model";
 import { parseConfirmation } from "@/lib/vehicles/registration-review/confirmation-input";
@@ -17,6 +16,7 @@ import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/componen
 import { useUnsavedLanguageGuard, UnsavedLanguageDialog } from "@/components/provider/registration-review/unsaved-language-guard";
 import { StickyActionBar } from "@/components/provider/registration-review/sticky-action-bar";
 import type { ReviewTabBinding } from "@/lib/vehicles/registration-review/review-field-state";
+import { JOURNEY_CARD, JOURNEY_CHIP_REVIEW, JOURNEY_CHIP_SUGGESTION, JOURNEY_PANEL, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_SMALL, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2/3 (review & confirm),
@@ -89,7 +89,7 @@ type Props = {
 
 // scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
 const INPUT_CLASS =
-  "min-h-11 w-full scroll-mb-40 scroll-mt-24 rounded-lg border border-border bg-background px-3 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+  "min-h-12 w-full scroll-mb-40 scroll-mt-24 rounded-xl border border-foreground/15 bg-card px-3 text-base focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 aria-[invalid=true]:border-danger";
 
 // Plain-language hints for the fields that are easiest to confuse.
 const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
@@ -228,9 +228,11 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     // is never "entered by you"; a saved value is never re-labelled as typed.
     const status = fieldState.status(f);
     const hintKey = FIELD_HINT_KEY[f.key];
+    const errorId = `of-${f.key}-error`;
 
+    // ONE field pattern: label → value → status / suggestion → (hint) → (comparison) → (error).
     return (
-      <div key={f.key} className="flex flex-col gap-1.5 border-t border-border py-3 first:border-t-0">
+      <div key={f.key} className="flex flex-col gap-2 border-t border-border py-4 first:border-t-0 first:pt-0">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor={`of-${f.key}`} className="form-label">
             {label}
@@ -242,17 +244,13 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </span>
           )}
         </div>
-        {/* ONE compact metadata row + the one-tap make/model suggestion (shared with the detail form). */}
-        <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />
-        {hintKey && <p className="text-xs text-foreground/70">{td(hintKey)}</p>}
-        {isDate && <p className="text-xs text-foreground/70">{t("vehicleRegDateFormatHint")}</p>}
-        {/* Conflict choices + the document value for comparison (shared with the detail form). */}
-        <FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />
         {f.sensitive && !isRevealed ? (
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-foreground">{maskSensitiveValue(values[f.key] ?? "") || "—"}</p>
-            <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: true }))} className="inline-flex min-h-11 items-center gap-1 rounded text-xs text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-              <Eye size={14} aria-hidden /> {t("vehicleRegRevealButton")}
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3">
+            <p className="min-h-11 py-2.5 text-base text-foreground" dir="ltr">
+              {maskSensitiveValue(values[f.key] ?? "") || "—"}
+            </p>
+            <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: true }))} className="inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+              <Eye size={16} aria-hidden /> {t("vehicleRegRevealButton")}
             </button>
           </div>
         ) : (
@@ -267,16 +265,27 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               onChange={(e) => typeInto(f.key, e.target.value)}
               disabled={pending}
               aria-invalid={err ? true : undefined}
+              aria-describedby={err ? errorId : undefined}
               className={`${INPUT_CLASS} ${isDate ? "[unicode-bidi:isolate] text-start" : ""}`}
             />
             {f.sensitive && (
-              <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 items-center gap-1 rounded text-xs text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-                <EyeOff size={14} aria-hidden /> {t("vehicleRegHideButton")}
+              <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: false }))} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded text-sm text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                <EyeOff size={16} aria-hidden /> {t("vehicleRegHideButton")}
               </button>
             )}
           </div>
         )}
-        {err && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
+        {/* ONE compact metadata row + the one-tap make/model suggestion (shared with the detail form). */}
+        <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />
+        {hintKey && <p className="text-sm text-foreground/70">{td(hintKey)}</p>}
+        {isDate && <p className="text-sm text-foreground/70">{t("vehicleRegDateFormatHint")}</p>}
+        {/* Conflict choices + the document value for comparison (shared with the detail form). */}
+        <FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />
+        {err && (
+          <p id={errorId} className="text-sm font-medium text-danger">
+            {t("vehicleRegFieldError")}
+          </p>
+        )}
       </div>
     );
   };
@@ -284,28 +293,49 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const suggestedOption = suggestedVehicleType ? (vehicleTypeOptions.find((o) => o.code === suggestedVehicleType) ?? null) : null;
 
   return (
-    <div className="flex flex-col gap-4 pb-28">
+    <div className="flex flex-col gap-5 pb-28">
       {noticeKey && <Alert variant={noticeVariant}>{td(noticeKey)}</Alert>}
-      {anyNeedsReview && <p className="text-xs text-foreground/70">{t("vehicleOnboardNeedsReviewHint")}</p>}
       {errorCode && <Alert variant="danger">{td(onboardingMessageKey(errorCode))}</Alert>}
       {fieldErrors.some((e) => e.field === "capacity") && <Alert variant="danger">{t("vehicleRegCapacityError")}</Alert>}
 
-      {/* 3. CUSTOMER-VISIBLE DETAILS */}
-      <Card hoverLift={false}>
-        <h3 className="mb-1 text-sm font-semibold text-foreground">{t("vehicleRegGroupCustomer")}</h3>
+      {/* CUSTOMER-VISIBLE DETAILS — the most important card, first. */}
+      <section className={JOURNEY_CARD} aria-labelledby="of-customer-title">
+        <div className="mb-4 flex flex-col gap-1.5">
+          <h2 id="of-customer-title" className="text-lg font-semibold text-foreground">
+            {t("vehicleRegGroupCustomer")}
+          </h2>
+          {/* Shared guidance ONCE, not under every field. */}
+          {anyNeedsReview && <p className="text-sm text-foreground/70">{t("vehicleOnboardNeedsReviewHint")}</p>}
+        </div>
+
         {documentDescription && (
-          <div className="mb-2 rounded-xl border border-border bg-accent/10 p-3">
-            <p className="text-sm font-medium text-foreground/70">{t("vehicleRegDocumentDescriptionLabel")}</p>
-            <p className="mt-1 text-sm text-foreground"><bdi>{documentDescription}</bdi></p>
-            <p className="mt-1 text-xs text-foreground/70">{t("vehicleRegDocumentDescriptionHint")}</p>
+          // The printed description, for comparison — private and visually secondary.
+          <div className={`${JOURNEY_PANEL} mb-4 flex flex-col gap-1.5`}>
+            <p className="flex items-center gap-1.5 text-sm font-medium text-foreground/70">
+              <Lock size={14} strokeWidth={1.75} aria-hidden />
+              {t("vehicleRegDocumentDescriptionLabel")}
+            </p>
+            <p className="text-base font-medium text-foreground">
+              <bdi>{documentDescription}</bdi>
+            </p>
+            <p className="text-sm text-foreground/70">{t("vehicleRegDocumentDescriptionHint")}</p>
           </div>
         )}
-        <div className="flex flex-col gap-1.5 py-3">
+
+        <div className="flex flex-col gap-2 pb-4">
           <label htmlFor="of-vehicleType" className="form-label">
             {t("vehicleTypeLabel")}
             <span className="text-danger"> *</span>
           </label>
-          <select id="of-vehicleType" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} disabled={pending} aria-invalid={fieldErrorFor("vehicleType") ? true : undefined} className={INPUT_CLASS}>
+          <select
+            id="of-vehicleType"
+            value={vehicleType}
+            onChange={(e) => setVehicleType(e.target.value)}
+            disabled={pending}
+            aria-invalid={fieldErrorFor("vehicleType") ? true : undefined}
+            aria-describedby={fieldErrorFor("vehicleType") ? "of-vehicleType-error" : undefined}
+            className={INPUT_CLASS}
+          >
             <option value="">{t("vehicleTypeSelectPlaceholder")}</option>
             {vehicleTypeOptions.map((o) => (
               <option key={o.code} value={o.code}>
@@ -317,103 +347,124 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             <>
               {suggestedOption && (
                 // A body-style SUGGESTION from the document — offered, never applied by itself.
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-accent/10 px-3 py-2">
-                  <p className="flex items-center gap-1.5 text-xs text-foreground/80">
-                    <Sparkles size={14} strokeWidth={1.75} aria-hidden />
-                    <span>{t("vehicleRegTypeSuggestionLabel")}: <span className="font-medium text-foreground">{suggestedOption.label}</span></span>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/30 bg-secondary/5 px-3 py-2">
+                  <p className="flex items-center gap-1.5 text-sm text-secondary-700">
+                    <Sparkles size={16} strokeWidth={1.75} aria-hidden />
+                    <span>
+                      {t("vehicleRegTypeSuggestionLabel")}: <span className="font-semibold">{suggestedOption.label}</span>
+                    </span>
                   </p>
-                  <button type="button" onClick={() => setVehicleType(suggestedOption.code)} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border bg-background px-4 text-xs font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
+                  <button type="button" onClick={() => setVehicleType(suggestedOption.code)} disabled={pending} className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 bg-card px-4 text-sm font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
                     {t("vehicleRegTypeUseSuggestion")}
                   </button>
                 </div>
               )}
-              <p className="text-xs text-foreground/70">{t("vehicleRegTypeMustChoose")}</p>
+              <p className="text-sm text-foreground/70">{t("vehicleRegTypeMustChoose")}</p>
             </>
           ) : (
             <p className="text-sm text-foreground/70">{t("vehicleRegTypeChosenNote")}</p>
           )}
-          {fieldErrorFor("vehicleType") && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
+          {fieldErrorFor("vehicleType") && (
+            <p id="of-vehicleType-error" className="text-sm font-medium text-danger">
+              {t("vehicleRegFieldError")}
+            </p>
+          )}
         </div>
-        <div className="flex flex-col">{customer.map(renderField)}</div>
-      </Card>
+        <div className="flex flex-col border-t border-border pt-4">{customer.map(renderField)}</div>
+      </section>
 
-      {/* 4. PRIVATE REGISTRATION DETAILS — collapsible, never dropped, summary always visible. */}
-      <Card hoverLift={false}>
+      {/* PRIVATE REGISTRATION DETAILS — collapsed by default, never dropped, summary always visible. */}
+      <section className={JOURNEY_CARD} aria-labelledby="of-private-title">
         <div ref={privateRef} className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-foreground">{t("vehicleRegGroupPrivate")}</h3>
-            <button type="button" onClick={() => setPrivateOpen((o) => !o)} aria-expanded={privateOpen} aria-controls="of-private-section" className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-              {privateOpen ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
-              {privateOpen ? t("vehicleRegPrivateToggleHide") : t("vehicleRegPrivateToggleShow")}
-            </button>
+            <h2 id="of-private-title" className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Lock size={18} strokeWidth={1.75} aria-hidden className="text-foreground/60" />
+              {t("vehicleRegGroupPrivate")}
+            </h2>
+            <span role="status" className={pendingPrivate > 0 ? JOURNEY_CHIP_REVIEW : JOURNEY_CHIP_SUGGESTION}>
+              {pendingPrivate > 0 ? td("vehicleRegPrivatePending", { count: pendingPrivate }) : t("vehicleRegPrivateComplete")}
+            </span>
           </div>
-          <p className="text-xs text-foreground/70">{t("vehicleRegGroupPrivateHint")}</p>
-          <p className={`text-xs ${pendingPrivate > 0 ? "font-medium text-accent-foreground" : "text-foreground/70"}`} role="status">
-            {pendingPrivate > 0 ? td("vehicleRegPrivatePending", { count: pendingPrivate }) : t("vehicleRegPrivateComplete")}
-          </p>
+          <p className="text-sm text-foreground/70">{t("vehicleRegGroupPrivateHint")}</p>
+          <button type="button" onClick={() => setPrivateOpen((o) => !o)} aria-expanded={privateOpen} aria-controls="of-private-section" className={`${JOURNEY_SMALL} self-start`}>
+            {privateOpen ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
+            {privateOpen ? t("vehicleRegPrivateToggleHide") : t("vehicleRegPrivateToggleShow")}
+          </button>
         </div>
         {/* Collapsed = display:none via the class (a utility `flex` would override the `hidden`
             attribute); the fields stay MOUNTED so nothing is dropped and errors can target them. */}
-        <div id="of-private-section" hidden={!privateOpen} className={privateOpen ? "flex flex-col" : "hidden"}>
+        <div id="of-private-section" hidden={!privateOpen} className={privateOpen ? "mt-4 flex flex-col border-t border-border pt-4" : "hidden"}>
           {privateFields.map(renderField)}
         </div>
-      </Card>
+      </section>
 
-      {/* 5. OPTIONAL DESCRIPTION + 4x4 declaration */}
-      <Card hoverLift={false}>
+      {/* OPTIONAL DESCRIPTION + 4x4 declaration */}
+      <section className={JOURNEY_CARD}>
         <div className="flex flex-col gap-4">
           {vehicleType === "FOUR_BY_FOUR" && (
-            <label className="flex items-start gap-2">
-              <input type="checkbox" checked={claimedFourByFour} onChange={(e) => setClaimedFourByFour(e.target.checked)} disabled={pending} className="mt-1 min-h-5 min-w-5" />
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={claimedFourByFour} onChange={(e) => setClaimedFourByFour(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
               <span className="flex flex-col">
-                <span className="text-sm text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
-                <span className="text-xs text-foreground/70">{t("vehicleClaimedFourByFourHint")}</span>
+                <span className="text-base text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
+                <span className="text-sm text-foreground/70">{t("vehicleClaimedFourByFourHint")}</span>
               </span>
             </label>
           )}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <label htmlFor="of-publicDescription" className="form-label">
               {t("vehiclePublicDescriptionLabel")}
             </label>
-            <textarea id="of-publicDescription" rows={3} maxLength={500} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} disabled={pending} className={`${INPUT_CLASS} py-2`} />
-            {fieldErrorFor("publicDescription") && <p className="text-xs text-danger">{t("vehicleRegFieldError")}</p>}
+            <textarea
+              id="of-publicDescription"
+              rows={3}
+              maxLength={500}
+              value={publicDescription}
+              onChange={(e) => setPublicDescription(e.target.value)}
+              disabled={pending}
+              aria-describedby={fieldErrorFor("publicDescription") ? "of-publicDescription-error" : undefined}
+              className={`${INPUT_CLASS} py-2`}
+            />
+            {fieldErrorFor("publicDescription") && (
+              <p id="of-publicDescription-error" className="text-sm font-medium text-danger">
+                {t("vehicleRegFieldError")}
+              </p>
+            )}
           </div>
         </div>
-      </Card>
+      </section>
 
-      {/* 6. DECLARATION + ACTIONS — sticky, clear of the phone browser's toolbar. */}
       {/* The declaration (and why "Create" may still be disabled) sit in normal flow right above the
           actions: always reachable, read before acting — the sticky bar itself stays compact. */}
       <div className="flex flex-col gap-2">
-        <label className="flex items-start gap-3 text-sm text-foreground">
+        <label className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-base text-foreground has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
           <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
           <span>{t("vehicleOnboardDeclaration")}</span>
         </label>
         {!canSubmit && !pending && <p className="text-sm text-foreground/70">{t("vehicleRegSubmitBlockedHint")}</p>}
       </div>
 
-      <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:p-4">
+      <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-3xl sm:border sm:bg-card sm:p-4">
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          <button type="button" onClick={finalize} disabled={!canSubmit} className="col-span-2 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-5 text-base font-semibold text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <button type="button" onClick={finalize} disabled={!canSubmit} className={`${JOURNEY_PRIMARY} col-span-2 sm:min-w-56`}>
             {pending ? t("vehicleOnboardCreating") : t("vehicleOnboardCreateButton")}
           </button>
-          <button type="button" onClick={() => saveDraft()} disabled={pending} className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <button type="button" onClick={() => saveDraft()} disabled={pending} className={JOURNEY_SECONDARY}>
             {pending ? t("vehicleRegSaving") : t("vehicleOnboardSaveProgressButton")}
           </button>
           {confirmingCancel ? null : (
-            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className={JOURNEY_TERTIARY}>
               {t("vehicleOnboardCancelButton")}
             </button>
           )}
         </div>
         {confirmingCancel && (
-          <div className="flex flex-col gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4">
-            <p className="text-sm text-foreground">{t("vehicleOnboardCancelConfirm")}</p>
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={cancel} disabled={pending} className="inline-flex min-h-11 items-center rounded-full bg-danger px-5 text-sm font-medium text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40">
+          <div className="flex flex-col gap-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
+            <p className="text-base text-foreground">{t("vehicleOnboardCancelConfirm")}</p>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+              <button type="button" onClick={cancel} disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-danger px-5 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40">
                 {pending ? t("vehicleRegSaving") : t("vehicleOnboardCancelConfirmYes")}
               </button>
-              <button type="button" onClick={() => setConfirmingCancel(false)} disabled={pending} className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium text-foreground/70 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+              <button type="button" onClick={() => setConfirmingCancel(false)} disabled={pending} className={JOURNEY_SECONDARY}>
                 {t("vehicleOnboardKeepEditing")}
               </button>
             </div>

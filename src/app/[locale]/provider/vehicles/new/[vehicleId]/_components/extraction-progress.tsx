@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { Alert } from "@/components/ui/alert";
+import { ReadingStatusPanel } from "@/components/provider/vehicle-journey/reading-status-panel";
+import { JOURNEY_CARD, JOURNEY_SECONDARY } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C (registration OCR) — shown while the registration document is being read (another
 // request holds the extraction lease, typically an OCR call in flight). It only WAITS: it re-renders
@@ -20,7 +22,7 @@ import { Alert } from "@/components/ui/alert";
 const INTERVAL_MS = 3000;
 const MAX_REFRESHES = 40; // ~2 minutes, longer than the server-side lease
 
-export function ExtractionProgress() {
+export function ExtractionProgress({ summary = null }: { summary?: string | null }) {
   const t = useTranslations("provider");
   const router = useRouter();
   const [gaveUp, setGaveUp] = useState(false);
@@ -40,13 +42,9 @@ export function ExtractionProgress() {
 
   if (gaveUp) {
     return (
-      <div role="status" aria-live="polite" className="flex flex-col gap-3">
+      <div role="status" aria-live="polite" className={`${JOURNEY_CARD} flex flex-col gap-4`}>
         <Alert variant="warning">{t("vehicleOnboardReadingSlow")}</Alert>
-        <button
-          type="button"
-          onClick={() => router.refresh()}
-          className="inline-flex min-h-12 items-center justify-center gap-2 self-start rounded-full border border-border px-5 text-base font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
+        <button type="button" onClick={() => router.refresh()} className={`${JOURNEY_SECONDARY} self-start`}>
           <RefreshCw size={18} strokeWidth={1.75} aria-hidden />
           {t("vehicleOnboardReadingRefresh")}
         </button>
@@ -55,12 +53,8 @@ export function ExtractionProgress() {
   }
 
   return (
-    <div role="status" aria-live="polite" className="flex items-start gap-3 rounded-2xl border border-border bg-accent/10 p-4">
-      <Loader2 size={22} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
-      <div className="flex flex-col gap-1">
-        <p className="text-base font-semibold text-foreground">{t("vehicleRegConsentReadingPending")}</p>
-        <p className="text-sm text-foreground/80">{t("vehicleRegConsentReadingHint")}</p>
-      </div>
-    </div>
+    <section className={JOURNEY_CARD}>
+      <ReadingStatusPanel summary={summary} />
+    </section>
   );
 }
