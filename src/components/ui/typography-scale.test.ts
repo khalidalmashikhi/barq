@@ -81,7 +81,7 @@ describe("15–17. wrapping, touch targets, direction", () => {
     const UI = readFileSync(path.join(ROOT, "src/components/provider/vehicle-journey/journey-ui.ts"), "utf8");
     for (const name of ["JOURNEY_PRIMARY", "JOURNEY_SECONDARY", "JOURNEY_TERTIARY"]) expect(UI, name).toMatch(new RegExp(`export const ${name} = \`inline-flex min-h-12 [^\`]*text-base font-(semibold|medium)`));
     expect(UI).toMatch(/export const JOURNEY_SMALL = `inline-flex min-h-11 /);
-    expect(CONSENT).toMatch(/className=\{`\$\{JOURNEY_PRIMARY\} w-full`\}/);
+    expect(CONSENT).toMatch(/className=\{`\$\{JOURNEY_PRIMARY\} \$\{CONSENT_PRIMARY_WIDTH\}`\}/);
     expect(CONSENT).toMatch(/className="mt-0\.5 size-6 shrink-0 accent-primary"/); // a 24 px checkbox inside a full-width label
   });
 

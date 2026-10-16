@@ -18,10 +18,13 @@ const messages = Object.fromEntries(LOCALES.map((l) => [l, JSON.parse(read(`mess
 
 let locale: (typeof LOCALES)[number] = "ar";
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => messages[locale]![key] ?? `MISSING:${key}`,
+  useTranslations: () => (key: string, values?: Record<string, string | number>) =>
+    Object.entries(values ?? {}).reduce((text, [k, v]) => text.replace(`{${k}}`, String(v)), messages[locale]![key] ?? `MISSING:${key}`),
 }));
 
 const { VehicleJourneySteps } = await import("./journey-steps");
+const { journeyStepStates } = await import("./journey-progress");
+type JourneyProgress = import("./journey-progress").JourneyProgress;
 const { ReadingStatusPanel } = await import("./reading-status-panel");
 
 const UI = read("src/components/provider/vehicle-journey/journey-ui.ts");
@@ -43,6 +46,8 @@ const NEW_KEYS = [
   "vehicleJourneyStep3",
   "vehicleJourneyStep4",
   "vehicleJourneyStepDone",
+  "vehicleJourneyStepFailed",
+  "vehicleJourneyStepNotRead",
   "vehicleJourneyUploadTitle",
   "vehicleJourneyUploadHint",
   "vehicleJourneyFileRequirements",
@@ -58,9 +63,17 @@ beforeEach(() => {
 });
 
 describe("1. the shared four-step journey header", () => {
+  const render = (progress: JourneyProgress) => renderToStaticMarkup(createElement(VehicleJourneySteps, { progress }));
+  /** state, aria-current and announced status text of each of the four steps. */
+  const parse = (html: string) =>
+    [...html.matchAll(/<li /g)].map((m, n) => {
+      const li = html.slice(m.index!, html.indexOf("</li>", m.index!));
+      return { state: li.match(/data-step-state="([a-z]+)"/)![1], current: li.includes('aria-current="step"'), sr: li.match(/<span class="sr-only"> — ([^<]+)<\/span>/)?.[1] ?? null, step: n + 1, html: li };
+    });
+
   it("Arabic: the approved step names, in order, inside a labelled nav with an ordered list", () => {
-    const html = renderToStaticMarkup(createElement(VehicleJourneySteps, { current: 1 }));
-    expect(html).toMatch(/^<nav aria-label="خطوات إضافة المركبة"><ol /);
+    const html = render({ stage: "upload" });
+    expect(html).toMatch(/^<nav aria-label="خطوات إضافة المركبة" class="journey-steps text-xs"><ol /);
     const labels = ["رفع الملكية", "قراءة البيانات", "مراجعة البيانات", "إنشاء المركبة"];
     let at = 0;
     for (const label of labels) {
@@ -73,35 +86,109 @@ describe("1. the shared four-step journey header", () => {
 
   it("English: Upload document / Read details / Review details / Create vehicle", () => {
     locale = "en";
-    const html = renderToStaticMarkup(createElement(VehicleJourneySteps, { current: 2 }));
+    const html = render({ stage: "read" });
     for (const label of ["Upload document", "Read details", "Review details", "Create vehicle"]) expect(html).toContain(label);
     expect(html).toContain('aria-label="Steps to add a vehicle"');
   });
 
-  it("exactly one step is current (aria-current=step); earlier steps say 'done' to assistive technology; later steps are upcoming", () => {
-    for (const current of [1, 2, 3, 4] as const) {
-      const html = renderToStaticMarkup(createElement(VehicleJourneySteps, { current }));
-      expect((html.match(/aria-current="step"/g) ?? []).length).toBe(1);
-      expect((html.match(/data-step-state="done"/g) ?? []).length).toBe(current - 1);
-      expect((html.match(/data-step-state="upcoming"/g) ?? []).length).toBe(4 - current);
-      expect((html.match(/class="sr-only"> — مكتملة<\/span>/g) ?? []).length).toBe(current - 1);
+  // Every state, Arabic and English: [name, progress, per-step states, current step, AR announced, EN announced]
+  const CASES: [string, JourneyProgress, string[], number, (string | null)[], (string | null)[]][] = [
+    ["upload", { stage: "upload" }, ["current", "upcoming", "upcoming", "upcoming"], 1, [null, null, null, null], [null, null, null, null]],
+    ["reading in progress", { stage: "read" }, ["completed", "current", "upcoming", "upcoming"], 2, ["مكتملة", null, null, null], ["done", null, null, null]],
+    ["reading failed before review opens", { stage: "read", failed: true }, ["completed", "error", "upcoming", "upcoming"], 2, ["مكتملة", "لم تنجح القراءة", null, null], ["done", "reading unsuccessful", null, null]],
+    ["reading succeeded", { stage: "review", reading: "succeeded" }, ["completed", "completed", "current", "upcoming"], 3, ["مكتملة", "مكتملة", null, null], ["done", "done", null, null]],
+    ["reading failed, manual review open", { stage: "review", reading: "failed" }, ["completed", "error", "current", "upcoming"], 3, ["مكتملة", "لم تنجح القراءة", null, null], ["done", "reading unsuccessful", null, null]],
+    ["not read (declined / not analysed), manual review", { stage: "review", reading: "skipped" }, ["completed", "skipped", "current", "upcoming"], 3, ["مكتملة", "لم تتم القراءة — إدخال يدوي", null, null], ["done", "not read — entered manually", null, null]],
+  ];
+
+  it.each(CASES)("%s — Arabic and English: exact states, ONE current step, honest announced status", (_name, progress, states, current, srAr, srEn) => {
+    for (const [lang, sr] of [["ar", srAr], ["en", srEn]] as const) {
+      locale = lang;
+      const steps = parse(render(progress));
+      expect(steps.map((x) => x.state), lang).toEqual(states);
+      expect(steps.filter((x) => x.current).map((x) => x.step), lang).toEqual([current]);
+      expect(steps.map((x) => x.sr), lang).toEqual(sr);
     }
   });
 
-  it("the circles and connectors are decorative (aria-hidden); 'done' never claims BARQ verified anything", () => {
-    expect(STEPS).toMatch(/aria-hidden className=\{`absolute start-0 end-1\/2/);
-    expect(STEPS).toMatch(/aria-hidden className=\{`absolute start-1\/2 end-0/);
-    for (const l of LOCALES) expect(messages[l]!.vehicleJourneyStepDone, l).not.toMatch(/verif|تحقق|موثق|geprüft|vérifi|verific|zweryfik|ověř|провер/i);
+  it("1. a failed reading is NEVER completed: no check mark, never announced 'done', in either stage", () => {
+    for (const progress of [{ stage: "read", failed: true }, { stage: "review", reading: "failed" }] as JourneyProgress[]) {
+      expect(journeyStepStates(progress)[1]!.status).toBe("error");
+      for (const lang of ["ar", "en"] as const) {
+        locale = lang;
+        const step2 = parse(render(progress))[1]!;
+        expect(step2.sr).toBe(messages[lang]!.vehicleJourneyStepFailed);
+        expect(step2.html).not.toContain(messages[lang]!.vehicleJourneyStepDone);
+        expect(step2.html).not.toMatch(/lucide-check/);
+        expect(step2.html).toMatch(/lucide-(triangle-alert|alert-triangle)/);
+      }
+    }
   });
 
-  it("each screen shows the right step: upload 1, consent / reading 2, review 3 (and 1 again when the document is missing)", () => {
-    expect(UPLOAD_PAGE).toMatch(/<VehicleJourneySteps current=\{1\} \/>/);
-    expect(PAGE).toMatch(/pageHeader\(t\("addVehicleButton"\), null, 1\)/);
-    expect(PAGE).toMatch(/pageHeader\(t\("addVehicleButton"\), null, 2\)/);
+  it("2. manual fallback after a failure makes REVIEW the current step (step 2 stays an error, never a success)", () => {
+    const s = journeyStepStates({ stage: "review", reading: "failed" });
+    expect(s.find((x) => x.current)!.step).toBe(3);
+    expect(s[1]).toEqual({ step: 2, status: "error", current: false });
+  });
+
+  it("states are told apart by SHAPE and announced text, not colour alone; no status claims BARQ verified anything", () => {
+    expect(render({ stage: "review", reading: "succeeded" })).toMatch(/lucide-check/); // completed → check
+    expect(render({ stage: "review", reading: "skipped" })).toMatch(/lucide-minus/); // skipped → dash
+    expect(render({ stage: "read", failed: true })).toMatch(/lucide-(triangle-alert|alert-triangle)/); // error → warning mark
+    expect(render({ stage: "read" })).toMatch(/ring-4 ring-primary\/15/); // current → ring + bold label
+    expect(STEPS).toMatch(/aria-hidden className=\{`absolute start-0 end-1\/2/);
+    expect(STEPS).toMatch(/aria-hidden className=\{`absolute start-1\/2 end-0/);
+    expect(STEPS).toMatch(/error: "border-2 border-warning bg-warning\/15 text-foreground"/); // restrained amber
+    for (const l of LOCALES) {
+      for (const k of ["vehicleJourneyStepDone", "vehicleJourneyStepFailed", "vehicleJourneyStepNotRead"]) {
+        expect(messages[l]![k]?.trim().length ?? 0, `${l}.${k}`).toBeGreaterThan(0);
+        expect(messages[l]![k], `${l}.${k}`).not.toMatch(/verified|verificat|تحقق|موثق|geprüft|vérifi|zweryfik|ověř|провер/i);
+      }
+    }
+  });
+
+  it("200 % text: when four labels cannot fit, ONE 'Step n of 4' line replaces them (labels stay announced); normal sizes unchanged", () => {
+    const CSS = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(CSS).toMatch(/\.journey-steps \{\s*container: journey-steps \/ inline-size;\s*\}/);
+    expect(CSS).toMatch(/\.journey-steps-compact \{\s*display: none;\s*\}/);
+    expect(CSS).toMatch(/@container journey-steps \(max-width: 19em\) \{\s*\.journey-steps-label \{\s*position: absolute;[\s\S]*?clip: rect\(0, 0, 0, 0\);[\s\S]*?\.journey-steps-compact \{\s*display: block;/);
+    // visually-hidden (not display:none) — the step names stay in the accessibility tree
+    expect(CSS.slice(CSS.indexOf("@container journey-steps"))).not.toMatch(/\.journey-steps-label \{[^}]*display: none/);
+    for (const [lang, text] of [["ar", "الخطوة 3 من 4: مراجعة البيانات — "], ["en", "Step 3 of 4: Review details"]] as const) {
+      locale = lang;
+      const html = render({ stage: "review", reading: "failed" });
+      expect(html).toMatch(/<p aria-hidden="true" class="journey-steps-compact /);
+      expect(html).toContain(lang === "ar" ? "الخطوة 3 من 4: مراجعة البيانات" : text);
+      expect((html.match(/class="journey-steps-label /g) ?? []).length).toBe(4);
+    }
+    locale = "ar";
+    expect(render({ stage: "read", failed: true })).toContain("الخطوة 2 من 4: قراءة البيانات — لم تنجح القراءة");
+    for (const l of LOCALES) expect(messages[l]!.vehicleJourneyStepOf, l).toMatch(/\{step\}[\s\S]*\{name\}/);
+  });
+
+  it("a connector is teal only after a COMPLETED step — never leading out of a failed or skipped reading", () => {
+    expect(STEPS).toMatch(/const prevCompleted = i > 0 && states\[i - 1\]!\.status === "completed";/);
+    expect(STEPS).toMatch(/\$\{status === "completed" \? "bg-secondary" : "bg-border"\}/);
+  });
+
+  it("each screen passes the right progress: upload, read (consent / reading), review with the honest reading outcome", () => {
+    expect(UPLOAD_PAGE).toMatch(/<VehicleJourneySteps progress=\{\{ stage: "upload" \}\} \/>/);
+    expect(PAGE).toMatch(/pageHeader\(t\("addVehicleButton"\), null, \{ stage: "upload" \}\)/);
+    expect(PAGE).toMatch(/pageHeader\(t\("addVehicleButton"\), null, \{ stage: "read" \}\)/);
     // the review subtitle mentions document suggestions, so it is shown only when there are some
-    expect(PAGE).toMatch(/pageHeader\(t\("vehicleOnboardReviewTitle"\), isManual \? null : t\("vehicleOnboardReviewSubtitle"\), 3\)/);
-    // step 4 is never marked reached in this journey — creating the vehicle leaves for its detail page
-    expect(`${UPLOAD_PAGE}\n${PAGE}`).not.toMatch(/current=\{4\}|, 4\)/);
+    expect(PAGE).toMatch(/pageHeader\(t\("vehicleOnboardReviewTitle"\), isManual \? null : t\("vehicleOnboardReviewSubtitle"\), \{ stage: "review", reading: readingOutcome \}\)/);
+    expect(PAGE).toMatch(/const readingOutcome: "succeeded" \| "failed" \| "skipped" = !isManual \? "succeeded" : reviewState\.extraction === "FAILED" \? "failed" : "skipped";/);
+    // step 4 is never reached on these screens — creating the vehicle leaves for its detail page
+    expect(journeyStepStates({ stage: "review", reading: "succeeded" })[3]!.status).toBe("upcoming");
+  });
+
+  it("11. an in-step failure reaches the header only through the client-only journey status (no request, no storage)", () => {
+    expect(STEPS).toMatch(/const effective: JourneyProgress = progress\.stage === "read" && live\?\.readingFailed \? \{ stage: "read", failed: true \} : progress;/);
+    const STATUS = read("src/components/provider/vehicle-journey/journey-status.tsx");
+    const PROG = read("src/components/provider/vehicle-journey/journey-progress.ts");
+    for (const src of [STATUS, PROG, STEPS]) expect(stripComments(src)).not.toMatch(/Action\(|fetch\(|sessionStorage|localStorage|useEffect|router/);
+    // without a provider (every other screen) nothing changes
+    expect(render({ stage: "read" })).toContain('data-step-state="current"');
   });
 });
 
@@ -163,8 +250,8 @@ describe("4–5. consent and reading", () => {
 
   it("4. one strong primary (read) and a quieter manual choice; the authorization box starts UNTICKED and gates only 'read'", () => {
     expect(CONSENT).toMatch(/const \[ownerAuthorized, setOwnerAuthorized\] = useState\(false\);/);
-    expect(CONSENT).toMatch(/className=\{`\$\{JOURNEY_PRIMARY\} w-full`\}/);
-    expect(CONSENT).toMatch(/className=\{`\$\{JOURNEY_TERTIARY\} w-full`\}/);
+    expect(CONSENT).toMatch(/className=\{`\$\{JOURNEY_PRIMARY\} \$\{CONSENT_PRIMARY_WIDTH\}`\}/);
+    expect(CONSENT).toMatch(/className=\{`\$\{JOURNEY_TERTIARY\} \$\{CONSENT_SECONDARY_WIDTH\}`\}/);
     // manual entry never requires the attestation (no consent is given by choosing it)
     expect(CONSENT).toMatch(/if \(which === "read" && !ownerAuthorized\) return;/);
     expect(CONSENT).not.toMatch(/which === "manual" && !ownerAuthorized/);
@@ -205,7 +292,14 @@ describe("6–8. review screen", () => {
     expect(messages.ar!.vehicleRegStatusApplied).toBe("اخترت اقتراح المستند");
     expect(messages.ar!.vehicleRegSourceProvider).toBe("أدخلته أنت");
     expect(messages.ar!.vehicleRegStatusNotEntered).toBe("لم يتم إدخاله");
-    expect(messages.en!.vehicleRegStatusSuggested).toBe("Document suggestion — needs your review");
+    expect(messages.en!.vehicleRegStatusSuggested).toBe("Document suggestion — review required");
+    expect(messages.en!.vehicleRegStatusApplied).toBe("Document suggestion selected");
+    expect(messages.en!.vehicleRegStatusNotEntered).toBe("Not entered");
+    // 2026-10-16 correction: the "read automatically" / "from the document" labels are gone in every language
+    for (const l of LOCALES) {
+      expect(messages[l]!.vehicleRegSourceOcr, l).toBeUndefined();
+      expect(messages[l]!.vehicleRegSourceDocument, l).toBeUndefined();
+    }
     expect(messages.en!.vehicleRegSourceProvider).toBe("Entered by you");
     expect(messages.ar!.vehicleRegUseSuggestion).toBe("استخدام الاقتراح");
     expect(messages.ar!.vehicleOnboardReviewTitle).toBe("راجع بيانات المركبة");
@@ -284,9 +378,12 @@ describe("10–11. no behaviour hidden in the visuals", () => {
   });
 
   it("11. the new files import nothing server-side and reach no private data (no DB, env, storage, reader, DTO)", () => {
-    for (const src of [UI, STEPS, PANEL]) {
-      expect(src).not.toMatch(/@\/lib\/db|@prisma|process\.env|storage|reader|server-only|@\/lib\/vehicles/);
+    const STATUS = read("src/components/provider/vehicle-journey/journey-status.tsx");
+    const PROG = read("src/components/provider/vehicle-journey/journey-progress.ts");
+    for (const src of [UI, STEPS, PANEL, STATUS, PROG]) {
+      expect(stripComments(src)).not.toMatch(/@\/lib\/db|@prisma|process\.env|storage|reader|server-only|@\/lib\/vehicles/);
     }
+    expect(STATUS).toMatch(/^"use client";/);
     expect(STEPS).toMatch(/^"use client";/);
     expect(PANEL).toMatch(/^"use client";/);
   });

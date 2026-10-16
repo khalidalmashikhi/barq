@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "تمت قراءة هذه البيانات تلقائيًا من صورتك أو المسح الضوئي. قد تخطئ القراءة التلقائية — راجع كل حقل وقارنه بالوثيقة قبل التأكيد.",
   "vehicleOnboardNeedsReviewBadge": "راجع هذا الحقل",
   "vehicleOnboardNeedsReviewHint": "الحقول المعلَّمة بـ«راجع هذا الحقل» لم تُقرأ بشكل مؤكد أو أنها ناقصة. قارنها بوثيقتك.",
-  "vehicleRegSourceDocument": "من الوثيقة",
-  "vehicleRegSourceOcr": "قُرئ تلقائيًا",
   "vehicleRegSourceProvider": "أدخلته أنت",
   "vehicleRegSourceUnresolved": "لم يُعثر عليه — يرجى إدخاله",
   "vehicleOnboardPreviewAlt": "وثيقة تسجيل مركبتك",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "لا يتم إنشاء المركبة تلقائيًا",
   "vehicleJourneyTrust3": "يمكنك إدخال البيانات يدويًا",
   "vehicleJourneyConsentNeedsAuthorization": "أكِّد أعلاه أنك المالك أو مخوَّل لتفعيل القراءة.",
-  "vehicleJourneyReadingFailedManual": "أو أدخل البيانات يدويًا أدناه."
+  "vehicleJourneyReadingFailedManual": "أو أدخل البيانات يدويًا أدناه.",
+  "vehicleJourneyStepFailed": "لم تنجح القراءة",
+  "vehicleJourneyStepNotRead": "لم تتم القراءة — إدخال يدوي",
+  "vehicleJourneyStepOf": "الخطوة {step} من 4: {name}"
 }

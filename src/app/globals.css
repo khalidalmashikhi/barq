@@ -240,3 +240,33 @@ body {
     scroll-padding-bottom: calc(var(--provider-action-bar-height, 12rem) + 1rem);
   }
 }
+
+/* Vehicle journey header (2026-10-16 correction) — four step labels side by side only while they FIT.
+   The header is a size container; its font size is the label size, so `em` here follows the label
+   text (and the provider's text-size / zoom setting). Below 19 label-ems (e.g. a 375 px phone with
+   text at 150–200 %), long single words such as «البيانات» or "document" cannot fit a quarter of
+   the width and would collide — so the per-step labels become visually hidden (still read by
+   assistive technology) and ONE visible "Step n of 4: <name>" line replaces them. Normal sizes are
+   unchanged (375 px at default size ≈ 23 label-ems). */
+.journey-steps {
+  container: journey-steps / inline-size;
+}
+.journey-steps-compact {
+  display: none;
+}
+@container journey-steps (max-width: 19em) {
+  .journey-steps-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .journey-steps-compact {
+    display: block;
+  }
+}

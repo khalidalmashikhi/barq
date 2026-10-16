@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "These details were read automatically from your photo or scan. Automatic reading can make mistakes — check every field against the document before you confirm.",
   "vehicleOnboardNeedsReviewBadge": "Check this",
   "vehicleOnboardNeedsReviewHint": "Fields marked “Check this” were not read with certainty or are missing. Compare them with your document.",
-  "vehicleRegSourceDocument": "From the document",
-  "vehicleRegSourceOcr": "Read automatically",
   "vehicleRegSourceProvider": "Entered by you",
   "vehicleRegSourceUnresolved": "Not found — please enter",
   "vehicleOnboardPreviewAlt": "Your registration document",
@@ -943,7 +941,7 @@
   "vehicleRegCompletionFailed": "The automatic reading could not be completed. The details already read were kept, and you can fill in the remaining fields yourself.",
   "vehicleRegCompletionNotAvailable": "Completing the automatic reading is not available for this document. You can fill in the remaining fields yourself.",
   "vehicleRegStatusNotEntered": "Not entered",
-  "vehicleRegStatusSuggested": "Document suggestion — needs your review",
+  "vehicleRegStatusSuggested": "Document suggestion — review required",
   "vehicleRegStatusApplied": "Document suggestion selected",
   "vehicleRegUseSuggestion": "Use suggestion",
   "vehicleRegUseSuggestionAria": "Use the {field} suggestion {value}",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "The vehicle is not created automatically",
   "vehicleJourneyTrust3": "You can enter the details manually",
   "vehicleJourneyConsentNeedsAuthorization": "Confirm above that you are the owner or authorized to enable reading.",
-  "vehicleJourneyReadingFailedManual": "Or enter the details manually below."
+  "vehicleJourneyReadingFailedManual": "Or enter the details manually below.",
+  "vehicleJourneyStepFailed": "reading unsuccessful",
+  "vehicleJourneyStepNotRead": "not read — entered manually",
+  "vehicleJourneyStepOf": "Step {step} of 4: {name}"
 }

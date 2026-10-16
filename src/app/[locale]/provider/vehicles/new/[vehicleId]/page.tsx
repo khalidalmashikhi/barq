@@ -18,7 +18,8 @@ import { OnboardingReviewForm, type FieldView } from "./_components/onboarding-r
 import { ExtractionProgress } from "./_components/extraction-progress";
 import { OcrConsentStep } from "./_components/ocr-consent-step";
 import { RegistrationRecoveryBanner } from "./_components/registration-recovery-banner";
-import { VehicleJourneySteps, type JourneyStep } from "@/components/provider/vehicle-journey/journey-steps";
+import { VehicleJourneySteps, type JourneyProgress } from "@/components/provider/vehicle-journey/journey-steps";
+import { JourneyStatusProvider } from "@/components/provider/vehicle-journey/journey-status";
 import { JOURNEY_CARD, JOURNEY_PAGE } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2: review the extracted (or
@@ -94,14 +95,14 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
       {t("backToVehiclesLabel")}
     </Link>
   );
-  const pageHeader = (title: string, subtitle: string | null, step: JourneyStep) => (
+  const pageHeader = (title: string, subtitle: string | null, progress: JourneyProgress) => (
     <>
       {backLink}
       <div className="flex flex-col gap-1.5">
         <h1 className="text-2xl font-semibold text-primary">{title}</h1>
         {subtitle && <p className="text-sm text-foreground/70">{subtitle}</p>}
       </div>
-      <VehicleJourneySteps current={step} />
+      <VehicleJourneySteps progress={progress} />
     </>
   );
 
@@ -115,7 +116,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
       : null;
     return (
       <div className={JOURNEY_PAGE}>
-        {pageHeader(t("addVehicleButton"), null, 1)}
+        {pageHeader(t("addVehicleButton"), null, { stage: "upload" })}
         <Alert variant="info">{t("vehicleOnboardMissingDocument")}</Alert>
         {docErrorMessage && <Alert variant="danger">{docErrorMessage}</Alert>}
         <RegistrationUploadForm
@@ -162,21 +163,28 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   // OFFERS the suggestion — the provider chooses the type explicitly.
   const suggestedVehicleType = review.vehicleTypeSuggestion;
 
+  // What the header may say about step 2 on the review page: completed ONLY after a real reading;
+  // a failed reading is an error (never a check mark); a declined / not-analysed document was not read.
+  const readingOutcome: "succeeded" | "failed" | "skipped" = !isManual ? "succeeded" : reviewState.extraction === "FAILED" ? "failed" : "skipped";
+
   // Step 2 (read details) while the provider decides or the reading runs; step 3 (review) otherwise.
   if (isReading || (awaitingChoice && !declined)) {
     return (
       <div className={JOURNEY_PAGE}>
-        {pageHeader(t("addVehicleButton"), null, 2)}
-        {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}
-        {isReading ? (
-          // Another request is reading the document right now: wait for it (bounded) instead of
-          // opening an empty form whose suggestions are about to arrive.
-          <ExtractionProgress summary={setSummary} />
-        ) : (
-          // Nothing has been sent anywhere. The provider reads the processing notice and chooses;
-          // "enter manually" opens the review form as the manual path.
-          <OcrConsentStep vehicleId={vehicleId} mode={consent!.state === "STALE" ? "stale" : "choose"} inferenceGeo={consent!.inferenceGeo} setKind={setKind} />
-        )}
+        {/* The consent step can report a failed attempt to the header (step 2: current + error). */}
+        <JourneyStatusProvider>
+          {pageHeader(t("addVehicleButton"), null, { stage: "read" })}
+          {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}
+          {isReading ? (
+            // Another request is reading the document right now: wait for it (bounded) instead of
+            // opening an empty form whose suggestions are about to arrive.
+            <ExtractionProgress summary={setSummary} />
+          ) : (
+            // Nothing has been sent anywhere. The provider reads the processing notice and chooses;
+            // "enter manually" opens the review form as the manual path.
+            <OcrConsentStep vehicleId={vehicleId} mode={consent!.state === "STALE" ? "stale" : "choose"} inferenceGeo={consent!.inferenceGeo} setKind={setKind} />
+          )}
+        </JourneyStatusProvider>
       </div>
     );
   }
@@ -184,7 +192,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   return (
     <div className={JOURNEY_PAGE}>
       {/* The subtitle speaks of document suggestions — only when there are some (never after a failed or declined reading). */}
-      {pageHeader(t("vehicleOnboardReviewTitle"), isManual ? null : t("vehicleOnboardReviewSubtitle"), 3)}
+      {pageHeader(t("vehicleOnboardReviewTitle"), isManual ? null : t("vehicleOnboardReviewSubtitle"), { stage: "review", reading: readingOutcome })}
 
       {/* A repeated/replayed upload request was answered with this existing setup (idempotency). */}
       {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}

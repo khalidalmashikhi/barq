@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "Te dane zostały odczytane automatycznie ze zdjęcia lub skanu. Automatyczny odczyt może się mylić — przed potwierdzeniem sprawdź każde pole z dokumentem.",
   "vehicleOnboardNeedsReviewBadge": "Sprawdź",
   "vehicleOnboardNeedsReviewHint": "Pola oznaczone „Sprawdź” nie zostały odczytane z pewnością lub ich brakuje. Porównaj je z dokumentem.",
-  "vehicleRegSourceDocument": "Z dokumentu",
-  "vehicleRegSourceOcr": "Odczytano automatycznie",
   "vehicleRegSourceProvider": "Wpisane przez Ciebie",
   "vehicleRegSourceUnresolved": "Nie znaleziono — wpisz",
   "vehicleOnboardPreviewAlt": "Twój dokument rejestracyjny",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "Pojazd nie jest tworzony automatycznie",
   "vehicleJourneyTrust3": "Możesz wprowadzić dane ręcznie",
   "vehicleJourneyConsentNeedsAuthorization": "Potwierdź powyżej, że jesteś właścicielem lub osobą upoważnioną, aby włączyć odczyt.",
-  "vehicleJourneyReadingFailedManual": "Lub wprowadź dane ręcznie poniżej."
+  "vehicleJourneyReadingFailedManual": "Lub wprowadź dane ręcznie poniżej.",
+  "vehicleJourneyStepFailed": "odczyt nieudany",
+  "vehicleJourneyStepNotRead": "nie odczytano — wprowadzanie ręczne",
+  "vehicleJourneyStepOf": "Krok {step} z 4: {name}"
 }

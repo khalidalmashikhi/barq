@@ -39,6 +39,26 @@ describe("ONE shared field-state contract for both forms", () => {
   });
 });
 
+describe("7. the detail form receives the SAME honest field-source wording (2026-10-16 correction)", () => {
+  const ASSIST = strip("src/components/provider/registration-review/field-assist.tsx");
+  const STATE = strip("src/lib/vehicles/registration-review/review-field-state.ts");
+  it("its status line comes from the ONE shared mapping, where an untouched document value is a suggestion that needs review", () => {
+    expect(ASSIST).toMatch(/<span data-field-status=\{status\}>\{td\(statusLabelKey\(status, f\.source\)\)\}<\/span>/);
+    expect(STATE).toMatch(/case "SOURCE":\s*return source === "NATIVE_PDF_TEXT" \|\| source === "OCR" \? "vehicleRegStatusSuggested" : "vehicleRegStatusCurrent";/);
+    expect(FORM + ASSIST).not.toMatch(/vehicleRegSourceOcr|vehicleRegSourceDocument/);
+  });
+  it("Arabic and English read exactly as approved on the detail form too", () => {
+    expect(messages("ar").vehicleRegStatusSuggested).toBe("اقتراح من المستند — يحتاج مراجعتك");
+    expect(messages("en").vehicleRegStatusSuggested).toBe("Document suggestion — review required");
+    expect(messages("ar").vehicleRegStatusApplied).toBe("اخترت اقتراح المستند");
+    expect(messages("en").vehicleRegStatusApplied).toBe("Document suggestion selected");
+    expect(messages("ar").vehicleRegSourceProvider).toBe("أدخلته أنت");
+    expect(messages("en").vehicleRegSourceProvider).toBe("Entered by you");
+    expect(messages("ar").vehicleRegStatusNotEntered).toBe("لم يتم إدخاله");
+    expect(messages("en").vehicleRegStatusNotEntered).toBe("Not entered");
+  });
+});
+
 describe("detail form — save authority, failure, discard", () => {
   it("nothing is persisted except through the existing session-derived Save draft / Submit actions; success settles the temporary state", () => {
     expect(FORM).toMatch(/const action = mode === "SUBMIT" \? submitRegistrationConfirmationAction : saveRegistrationDraftAction;/);

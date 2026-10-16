@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "Ces informations ont été lues automatiquement à partir de votre photo ou de votre scan. La lecture automatique peut se tromper — vérifiez chaque champ sur le document avant de confirmer.",
   "vehicleOnboardNeedsReviewBadge": "À vérifier",
   "vehicleOnboardNeedsReviewHint": "Les champs marqués « À vérifier » n'ont pas été lus avec certitude ou sont manquants. Comparez-les avec votre document.",
-  "vehicleRegSourceDocument": "Issu du document",
-  "vehicleRegSourceOcr": "Lu automatiquement",
   "vehicleRegSourceProvider": "Saisi par vous",
   "vehicleRegSourceUnresolved": "Introuvable — à saisir",
   "vehicleOnboardPreviewAlt": "Votre document d'immatriculation",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "Le véhicule n'est pas créé automatiquement",
   "vehicleJourneyTrust3": "Vous pouvez saisir les informations manuellement",
   "vehicleJourneyConsentNeedsAuthorization": "Confirmez ci-dessus que vous êtes le propriétaire ou autorisé pour activer la lecture.",
-  "vehicleJourneyReadingFailedManual": "Ou saisissez les informations manuellement ci-dessous."
+  "vehicleJourneyReadingFailedManual": "Ou saisissez les informations manuellement ci-dessous.",
+  "vehicleJourneyStepFailed": "lecture non aboutie",
+  "vehicleJourneyStepNotRead": "non lu — saisie manuelle",
+  "vehicleJourneyStepOf": "Étape {step} sur 4 : {name}"
 }

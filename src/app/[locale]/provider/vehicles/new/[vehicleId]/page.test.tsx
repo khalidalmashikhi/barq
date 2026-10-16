@@ -46,7 +46,8 @@ const { OcrConsentStep } = await import("./_components/ocr-consent-step");
 const { AnalyzeRegistrationButton } = await import("@/app/[locale]/provider/vehicles/[id]/_components/analyze-registration-button");
 const { VehicleJourneySteps } = await import("@/components/provider/vehicle-journey/journey-steps");
 /** The current step of the journey header (2026-10-16 visual checkpoint). */
-const stepOf = (el: unknown) => (findAll(el, (e) => e.type === VehicleJourneySteps)[0]?.props.current as number | undefined);
+const progressOf = (el: unknown) => findAll(el, (e) => e.type === VehicleJourneySteps)[0]?.props.progress as Record<string, unknown> | undefined;
+const { JourneyStatusProvider } = await import("@/components/provider/vehicle-journey/journey-status");
 
 type AnyEl = { type: unknown; props: Record<string, unknown> };
 function findAll(el: unknown, pred: (e: AnyEl) => boolean, acc: AnyEl[] = []): AnyEl[] {
@@ -120,7 +121,8 @@ describe("OnboardingReviewPage", () => {
     // The precise (localized) failure reason is what the provider sees (the failure panel) — and manual entry is open.
     expect(strings(el)).toContain("vehicleRegFailNoText");
     expect(form.props).toMatchObject({ noticeKey: null, suggestedVehicleType: null });
-    expect(stepOf(el)).toBe(3);
+    // 1/2. a failed reading is never "completed": the manual form makes review current, reading is an error
+    expect(progressOf(el)).toEqual({ stage: "review", reading: "failed" });
     expect((form.props.fields as { extractedValue: unknown }[]).every((f) => f.extractedValue === null)).toBe(true);
   });
 
@@ -128,6 +130,7 @@ describe("OnboardingReviewPage", () => {
     getRegistrationReviewMock.mockResolvedValue(review({ documentId: null, fields: [] }));
     const el = await OnboardingReviewPage(call({ docError: "TOO_LARGE" }));
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
+    expect(progressOf(el)).toEqual({ stage: "upload" });
     const upload = findAll(el, (e) => e.type === RegistrationUploadForm);
     expect(upload).toHaveLength(1);
     expect(upload[0]!.props).toMatchObject({ action: `/api/provider/vehicles/${VEH}/documents`, hiddenFields: { type: "VEHICLE_REGISTRATION" }, successHref: `/provider/vehicles/new/${VEH}` });
@@ -178,7 +181,7 @@ describe("OnboardingReviewPage", () => {
     expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(1);
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
-    expect(stepOf(el)).toBe(2); // the journey header says "read details"; the progress panel says what is happening
+    expect(progressOf(el)).toEqual({ stage: "read" }); // the header says "read details" (current); the panel says what is happening
   });
 
   it.each([
@@ -205,8 +208,10 @@ describe("OnboardingReviewPage", () => {
     getRegistrationReviewMock.mockResolvedValue(
       review({ extractionSource: null, reviewState: { extraction: "NOT_ANALYZED", confirmation: "NONE", canAnalyze: true, canConfirm: false, locked: false, failureLabelKey: null }, fields: [field("make", null)] }),
     );
-    const form = findAll(await OnboardingReviewPage(call()), (e) => e.type === OnboardingReviewForm)[0]!;
+    const el = await OnboardingReviewPage(call());
+    const form = findAll(el, (e) => e.type === OnboardingReviewForm)[0]!;
     expect(form.props).toMatchObject({ noticeKey: "vehicleOnboardManualNotice", noticeVariant: "info" });
+    expect(progressOf(el)).toEqual({ stage: "review", reading: "skipped" }); // nothing was read — never "completed"
   });
 
   it("an already-confirmed vehicle leaves the wizard for its detail page", async () => {
@@ -242,7 +247,12 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === AnalyzeRegistrationButton)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === ExtractionProgress)).toHaveLength(0);
-    expect(stepOf(el)).toBe(2); // step 2 "read details" — the consent step itself is the content
+    expect(progressOf(el)).toEqual({ stage: "read" }); // step 2 "read details" — the consent step itself is the content
+    // the step can report an in-step failure to the header: both live inside ONE journey status
+    const provider = findAll(el, (e) => e.type === JourneyStatusProvider);
+    expect(provider).toHaveLength(1);
+    expect(findAll(provider[0], (e) => e.type === VehicleJourneySteps)).toHaveLength(1);
+    expect(findAll(provider[0], (e) => e.type === OcrConsentStep)).toHaveLength(1);
   });
 
   it("the notice changed since the last consent → the step in 'stale' mode (asked again)", async () => {
@@ -262,6 +272,7 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     const step = findAll(el, (e) => e.type === OcrConsentStep);
     expect(step).toHaveLength(1);
     expect(step[0]!.props).toMatchObject({ mode: "declined" });
+    expect(progressOf(el)).toEqual({ stage: "review", reading: "skipped" }); // declined: not read, never "completed"
   });
 
   it("automatic reading switched off (no consent facts) → never a consent step; the honest manual review as before", async () => {
@@ -272,6 +283,7 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: null });
     expect(strings(el)).toContain("vehicleRegExtractFailOcrUnavailable"); // shown in the failure panel, with retry
+    expect(progressOf(el)).toEqual({ stage: "review", reading: "failed" });
   });
 
   it("the passage from consent to suggestions: GRANTED + reading in flight → the progress wait; GRANTED + read → the OCR-caution form", async () => {
@@ -283,6 +295,7 @@ describe("OnboardingReviewPage — the OCR privacy gate (consent step)", () => {
     el = await OnboardingReviewPage(call());
     expect(findAll(el, (e) => e.type === OnboardingReviewForm)[0]!.props).toMatchObject({ noticeKey: "vehicleOnboardOcrNotice" });
     expect(findAll(el, (e) => e.type === OcrConsentStep)).toHaveLength(0);
+    expect(progressOf(el)).toEqual({ stage: "review", reading: "succeeded" }); // only a real reading completes step 2
   });
 });
 

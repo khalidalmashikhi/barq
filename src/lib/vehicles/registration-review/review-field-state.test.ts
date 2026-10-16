@@ -167,13 +167,13 @@ describe("15–18. truthful status", () => {
     expect(fieldStatus(byKey("make"), "Mazda 3", true)).toBe("PROVIDER");
   });
 
-  it("a SAVED value equal to the document's current suggestion reads with the document wording (SOURCE) — 'selected' is reserved for an apply in THIS form", () => {
+  it("a SAVED value equal to the document's current suggestion is SOURCE (still a suggestion) — 'selected' is reserved for an apply in THIS form", () => {
     const saved = f("make", { extractedValue: "Mazda", heuristic: true, confirmedValue: "Mazda", source: "NATIVE_PDF_TEXT" });
     expect(fieldStatus(saved, initialFieldValue(saved), false)).toBe("SOURCE");
     expect(fieldStatus(saved, "Mazda", true)).toBe("APPLIED"); // applied again in this form
   });
 
-  it("18. a direct document value, untouched → SOURCE (the form keeps the existing document / OCR wording)", () => {
+  it("18. a direct document value, untouched → SOURCE (internally distinct; labelled as a suggestion that needs review)", () => {
     expect(fieldStatus(byKey("color"), "أبيض", false)).toBe("SOURCE");
     expect(fieldStatus(byKey("modelYear"), "2019", false)).toBe("SOURCE");
     expect(fieldStatus(byKey("licenseExpiry"), "31/05/2027", false)).toBe("SOURCE");
@@ -261,10 +261,10 @@ describe("detail / onboarding parity — saved values, statuses and unsaved chan
     expect(initialFieldValue(f("make", { confirmedValue: "Testmake", source: "PROVIDER" }))).toBe("Testmake");
   });
 
-  it("a saved value that IS the document's current value keeps the document wording (reliable — compared live)", () => {
+  it("a saved value that IS the document's current value stays a document SUGGESTION (reliable — compared live; saving a draft is not acceptance)", () => {
     expect(fieldStatus(d("modelYear"), "2019", false)).toBe("SOURCE");
-    expect(statusLabelKey("SOURCE", "NATIVE_PDF_TEXT")).toBe("vehicleRegSourceDocument");
-    expect(statusLabelKey("SOURCE", "OCR")).toBe("vehicleRegSourceOcr");
+    expect(statusLabelKey("SOURCE", "NATIVE_PDF_TEXT")).toBe("vehicleRegStatusSuggested");
+    expect(statusLabelKey("SOURCE", "OCR")).toBe("vehicleRegStatusSuggested");
     expect(fieldStatus(d("licenseExpiry"), "31/05/2027", false)).toBe("SOURCE");
   });
 
@@ -416,5 +416,62 @@ describe("tab memory — non-sensitive values survive a language switch with the
   it("an over-long value is simply not kept (bounded storage)", () => {
     const mem = rememberField(emptyTabMemory(), d("make"), "x".repeat(2001), "TYPED");
     expect(encodeTabMemory(mem, B1, "DETAIL")).toBeNull();
+  });
+});
+
+// 2026-10-16 correction — the field-SOURCE wording. A document value the provider has not accepted
+// is a SUGGESTION that needs review — whether the input is blank (SUGGESTED) or pre-filled and
+// untouched (SOURCE); "selected" only after an explicit apply; "entered by you" only for typing;
+// blank is "not entered" (or a suggestion). Provenance stays distinct INTERNALLY (SOURCE ≠ SUGGESTED).
+describe("field-source wording — honest labels, provenance kept", () => {
+  const LOCALES = ["ar", "en", "de", "it", "pl", "fr", "cs", "ru"] as const;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const msgs = (l: string) => require(`../../../../messages/${l}/provider.json`) as Record<string, string>;
+  const ar = msgs("ar");
+  const en = msgs("en");
+  const label = (x: F, v: string | undefined, applied = false, lang = ar) => lang[statusLabelKey(fieldStatus(x, v, applied), x.source)];
+
+  it("3. a populated, untouched document value (native PDF text or OCR) reads 'suggestion — review required' in Arabic and English", () => {
+    for (const source of ["NATIVE_PDF_TEXT", "OCR"] as const) {
+      const color = f("color", { extractedValue: "أبيض", source });
+      expect(fieldStatus(color, initialFieldValue(color), false)).toBe("SOURCE"); // provenance kept internally
+      expect(label(color, initialFieldValue(color))).toBe("اقتراح من المستند — يحتاج مراجعتك");
+      expect(label(color, initialFieldValue(color), false, en)).toBe("Document suggestion — review required");
+    }
+  });
+
+  it("4. applying a suggestion changes ONLY that field's value and status ('selected'); every other field and status is untouched", () => {
+    const values = start();
+    const before = Object.fromEntries(STAGING.map((x) => [x.key, fieldStatus(x, values[x.key], false)]));
+    const next = applySuggestion(values, byKey("make"));
+    expect(Object.keys(next).filter((k) => next[k] !== values[k])).toEqual(["make"]);
+    expect(label(byKey("make"), next.make, true)).toBe("اخترت اقتراح المستند");
+    expect(label(byKey("make"), next.make, true, en)).toBe("Document suggestion selected");
+    for (const x of STAGING.filter((y) => y.key !== "make")) expect(fieldStatus(x, next[x.key], false), x.key).toBe(before[x.key]);
+  });
+
+  it("5. typing (or changing a document value) reads 'entered by you'", () => {
+    expect(label(byKey("color"), "أحمر")).toBe("أدخلته أنت");
+    expect(label(byKey("model"), "CX-5", false, en)).toBe("Entered by you");
+    expect(label(f("registeredSeats", { kind: "int" }), "7")).toBe("أدخلته أنت");
+  });
+
+  it("6. a blank field never counts as provider-entered: 'not entered' without a suggestion, the suggestion wording with one", () => {
+    for (const v of ["", "   ", undefined]) {
+      expect(label(f("registeredSeats", { kind: "int" }), v)).toBe("لم يتم إدخاله");
+      expect(label(f("registeredSeats", { kind: "int" }), v, false, en)).toBe("Not entered");
+      expect(label(byKey("make"), v)).toBe("اقتراح من المستند — يحتاج مراجعتك");
+    }
+  });
+
+  it("no source label claims the value is verified, confirmed, accurate, or merely 'read' — in any language — and the old labels are gone", () => {
+    const keys = new Set((["NOT_ENTERED", "SUGGESTED", "APPLIED", "SOURCE", "CURRENT", "PROVIDER"] as const).flatMap((st) => (["NATIVE_PDF_TEXT", "OCR", "PROVIDER", "UNRESOLVED"] as const).map((src) => statusLabelKey(st, src))));
+    expect([...keys].sort()).toEqual(["vehicleRegSourceProvider", "vehicleRegStatusApplied", "vehicleRegStatusCurrent", "vehicleRegStatusNotEntered", "vehicleRegStatusSuggested"]);
+    for (const l of LOCALES) {
+      const m = msgs(l);
+      expect(m.vehicleRegSourceOcr, l).toBeUndefined();
+      expect(m.vehicleRegSourceDocument, l).toBeUndefined();
+      for (const k of keys) expect(m[k], `${l}.${k}`).not.toMatch(/verified|confirmed|accurate|تم التحقق|مؤكد|مؤكَّد|دقيق|موثق|قُرئ|bestätigt|geprüft|vérifié|confirmé|verificato|confermato|zweryfikowan|potwierdzon|ověřen|potvrzen|проверено|подтвержден/i);
+    }
   });
 });

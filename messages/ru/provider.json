@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "Эти данные были автоматически прочитаны с вашего фото или скана. Автоматическое чтение может ошибаться — перед подтверждением сверьте каждое поле с документом.",
   "vehicleOnboardNeedsReviewBadge": "Проверьте",
   "vehicleOnboardNeedsReviewHint": "Поля с пометкой «Проверьте» прочитаны неуверенно или отсутствуют. Сверьте их с документом.",
-  "vehicleRegSourceDocument": "Из документа",
-  "vehicleRegSourceOcr": "Прочитано автоматически",
   "vehicleRegSourceProvider": "Введено вами",
   "vehicleRegSourceUnresolved": "Не найдено — введите",
   "vehicleOnboardPreviewAlt": "Ваш регистрационный документ",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "Транспортное средство не создаётся автоматически",
   "vehicleJourneyTrust3": "Вы можете ввести данные вручную",
   "vehicleJourneyConsentNeedsAuthorization": "Подтвердите выше, что вы владелец или уполномоченное лицо, чтобы включить чтение.",
-  "vehicleJourneyReadingFailedManual": "Или введите данные вручную ниже."
+  "vehicleJourneyReadingFailedManual": "Или введите данные вручную ниже.",
+  "vehicleJourneyStepFailed": "чтение не удалось",
+  "vehicleJourneyStepNotRead": "не прочитано — ручной ввод",
+  "vehicleJourneyStepOf": "Шаг {step} из 4: {name}"
 }

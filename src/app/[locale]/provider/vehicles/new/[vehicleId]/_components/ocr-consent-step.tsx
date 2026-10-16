@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib/vehicles/registration-review/registration-review-result";
 import { grantOcrConsentAction, grantOcrConsentForCompletionAction, declineOcrConsentAction } from "../consent-actions";
 import { ReadingStatusPanel } from "@/components/provider/vehicle-journey/reading-status-panel";
+import { useJourneyStatus } from "@/components/provider/vehicle-journey/journey-status";
 import { JOURNEY_CARD, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C (registration OCR privacy gate) — the STANDALONE processing-notice + choice step shown
@@ -71,6 +72,10 @@ const SET_SUMMARY_KEY = { PDF: "vehicleOnboardSetSummaryPdf", IMAGE: "vehicleOnb
 /** Three short reassurances shown above the choice. */
 const TRUST_KEYS = ["vehicleJourneyTrust1", "vehicleJourneyTrust2", "vehicleJourneyTrust3"] as const;
 
+/** Action widths: full width on phones; bounded on wider screens so the pair never stretches across the card. */
+export const CONSENT_PRIMARY_WIDTH = "w-full sm:w-auto sm:min-w-[17.5rem] sm:max-w-80";
+export const CONSENT_SECONDARY_WIDTH = "w-full sm:w-auto sm:min-w-56 sm:max-w-[17.5rem] sm:border sm:border-primary/25";
+
 /** Where the full automatic-reading disclosure lives (the Privacy Policy section anchor). */
 export const AUTOMATIC_READING_POLICY_HREF = "/privacy#automatic-reading";
 
@@ -86,6 +91,8 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
   // Synchronous re-entry guard: set in the SAME event as the tap, before React re-renders, so a
   // double tap can never start a second request (or record a second consent).
   const inFlight = useRef(false);
+  // On the "read details" page the header mirrors a failed attempt (step 2: current + error); null elsewhere.
+  const journey = useJourneyStatus();
 
   const run = (which: "read" | "manual") => {
     if (inFlight.current) return;
@@ -93,10 +100,13 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
     inFlight.current = true;
     setErrorCode(null);
     setBusy(which);
+    if (which === "read") journey?.setReadingFailed(false);
     const settle = (code: RegistrationReviewCode | null) => {
       inFlight.current = false;
       setBusy(null);
       if (code) setErrorCode(code);
+      // presentation only: a reading attempt that ended with an error is never shown as in progress / done
+      if (which === "read" && code) journey?.setReadingFailed(true);
     };
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof declineOcrConsentAction>>;
@@ -218,17 +228,19 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
 
           {errorCode && <Alert variant="danger">{td(registrationReviewMessageKey(errorCode))}</Alert>}
 
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={() => run("read")} disabled={readDisabled} aria-disabled={readDisabled} aria-describedby={!ownerAuthorized ? "consent-needs-authorization" : undefined} className={`${JOURNEY_PRIMARY} w-full`}>
+          {/* Phones: full-width stack (primary, manual, hint). From 640 px: one centred row with bounded
+              widths — primary 280–320 px, manual 224–280 px — and the hint on its own line below. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
+            <button type="button" onClick={() => run("read")} disabled={readDisabled} aria-disabled={readDisabled} aria-describedby={!ownerAuthorized ? "consent-needs-authorization" : undefined} className={`${JOURNEY_PRIMARY} ${CONSENT_PRIMARY_WIDTH}`}>
               <ScanLine size={20} strokeWidth={1.75} aria-hidden />
               {t("vehicleRegConsentReadButton")}
             </button>
             {!ownerAuthorized && (
-              <p id="consent-needs-authorization" className="text-center text-sm text-foreground/70">
+              <p id="consent-needs-authorization" className="text-center text-sm text-foreground/70 sm:order-last sm:basis-full">
                 {t("vehicleJourneyConsentNeedsAuthorization")}
               </p>
             )}
-            <button type="button" onClick={() => run("manual")} disabled={pending || busy !== null} className={`${JOURNEY_TERTIARY} w-full`}>
+            <button type="button" onClick={() => run("manual")} disabled={pending || busy !== null} className={`${JOURNEY_TERTIARY} ${CONSENT_SECONDARY_WIDTH}`}>
               <PencilLine size={18} strokeWidth={1.75} aria-hidden />
               {busy === "manual" ? t("vehicleRegConsentPending") : t("vehicleRegConsentManualButton")}
             </button>

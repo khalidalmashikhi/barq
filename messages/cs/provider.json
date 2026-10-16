@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "Tyto údaje byly automaticky přečteny z vaší fotografie nebo skenu. Automatické čtení se může mýlit — před potvrzením zkontrolujte každé pole podle dokumentu.",
   "vehicleOnboardNeedsReviewBadge": "Zkontrolujte",
   "vehicleOnboardNeedsReviewHint": "Pole označená „Zkontrolujte“ nebyla přečtena s jistotou nebo chybí. Porovnejte je s dokumentem.",
-  "vehicleRegSourceDocument": "Z dokumentu",
-  "vehicleRegSourceOcr": "Přečteno automaticky",
   "vehicleRegSourceProvider": "Zadáno vámi",
   "vehicleRegSourceUnresolved": "Nenalezeno — zadejte",
   "vehicleOnboardPreviewAlt": "Váš registrační dokument",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "Vozidlo se nevytvoří automaticky",
   "vehicleJourneyTrust3": "Údaje můžete zadat ručně",
   "vehicleJourneyConsentNeedsAuthorization": "Pro zapnutí čtení výše potvrďte, že jste vlastník nebo oprávněná osoba.",
-  "vehicleJourneyReadingFailedManual": "Nebo zadejte údaje ručně níže."
+  "vehicleJourneyReadingFailedManual": "Nebo zadejte údaje ručně níže.",
+  "vehicleJourneyStepFailed": "načtení se nezdařilo",
+  "vehicleJourneyStepNotRead": "nenačteno — ruční zadání",
+  "vehicleJourneyStepOf": "Krok {step} ze 4: {name}"
 }

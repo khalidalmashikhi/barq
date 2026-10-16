@@ -122,7 +122,7 @@ describe("Correction A — immediate reading feedback, one request per tap", () 
   });
 
   it("3. repeated taps create no duplicate request: the guard rejects every tap while one is in flight; both buttons lock", () => {
-    expect(CODE).toMatch(/onClick=\{\(\) => run\("manual"\)\} disabled=\{pending \|\| busy !== null\} className=\{`\$\{JOURNEY_TERTIARY\} w-full`\}/);
+    expect(CODE).toMatch(/onClick=\{\(\) => run\("manual"\)\} disabled=\{pending \|\| busy !== null\} className=\{`\$\{JOURNEY_TERTIARY\} \$\{CONSENT_SECONDARY_WIDTH\}`\}/);
     expect((CODE.match(/inFlight\.current = true;/g) ?? []).length).toBe(1);
     // the guard is released ONLY when the request ended without the page being replaced
     expect(CODE).toMatch(/const settle = \(code: RegistrationReviewCode \| null\) => \{\s*inFlight\.current = false;\s*setBusy\(null\);/);
@@ -286,5 +286,37 @@ describe("the full disclosure — the Privacy Policy's automatic-reading section
     expect(ar.processor).toContain("برق");
     expect(ar.geoGlobal).toMatch(/عُمان|عمان/);
     expect(JSON.stringify(ar)).not.toContain("بارق");
+  });
+});
+
+describe("2026-10-16 correction — bounded desktop actions, honest header on failure", () => {
+  it("8. from 640 px the two actions form ONE centred row with bounded widths: primary 280–320 px, manual 224–280 px; the hint takes its own line", () => {
+    expect(CODE).toMatch(/export const CONSENT_PRIMARY_WIDTH = "w-full sm:w-auto sm:min-w-\[17\.5rem\] sm:max-w-80";/); // 280 / 320 px
+    expect(CODE).toMatch(/export const CONSENT_SECONDARY_WIDTH = "w-full sm:w-auto sm:min-w-56 sm:max-w-\[17\.5rem\] sm:border sm:border-primary\/25";/); // 224 / 280 px
+    expect(CODE).toMatch(/<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">/);
+    expect(CODE).toMatch(/className=\{`\$\{JOURNEY_PRIMARY\} \$\{CONSENT_PRIMARY_WIDTH\}`\}/);
+    expect(CODE).toMatch(/<p id="consent-needs-authorization" className="text-center text-sm text-foreground\/70 sm:order-last sm:basis-full">/);
+    // no truncation: labels wrap rather than being cut
+    expect(stripComments(CODE)).not.toMatch(/truncate|whitespace-nowrap|text-ellipsis/);
+  });
+
+  it("9. under 640 px nothing changes: both actions full width, primary first, manual below, 48 px", () => {
+    expect(CODE).toMatch(/CONSENT_PRIMARY_WIDTH = "w-full /);
+    expect(CODE).toMatch(/CONSENT_SECONDARY_WIDTH = "w-full /);
+    const actions = CODE.slice(CODE.indexOf("<div className=\"flex flex-col gap-2 sm:flex-row"));
+    expect(actions.indexOf('run("read")')).toBeLessThan(actions.indexOf('run("manual")'));
+    // the bounded widths only ever apply from the sm breakpoint
+    for (const w of [/CONSENT_PRIMARY_WIDTH = "([^"]*)"/, /CONSENT_SECONDARY_WIDTH = "([^"]*)"/]) {
+      const classes = CODE.match(w)![1]!.split(" ").filter((c) => c !== "w-full");
+      for (const c of classes) expect(c, c).toMatch(/^sm:/);
+    }
+  });
+
+  it("1. a failed attempt INSIDE the step is mirrored by the header (step 2 current + error) — presentation only, no request", () => {
+    expect(CODE).toMatch(/const journey = useJourneyStatus\(\);/);
+    expect(CODE).toMatch(/if \(which === "read"\) journey\?\.setReadingFailed\(false\);/);
+    expect(CODE).toMatch(/if \(which === "read" && code\) journey\?\.setReadingFailed\(true\);/);
+    // a decline error is not a reading failure
+    expect((CODE.match(/setReadingFailed\(true\)/g) ?? []).length).toBe(1);
   });
 });

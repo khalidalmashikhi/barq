@@ -19,7 +19,10 @@
 //       SUGGESTED   — blank and a document suggestion exists ("not confirmed")
 //       APPLIED     — the provider applied the suggestion IN THIS FORM and it is unchanged
 //       SOURCE      — the untouched value IS the document's current value (reliable: compared live
-//                     with the current reading) → the existing document / OCR wording
+//                     with the current reading). Still only a SUGGESTION until the provider applies,
+//                     types or confirms it — labelled exactly like SUGGESTED (2026-10-16 correction:
+//                     the former "read automatically" / "from the document" labels looked confirmed).
+//                     The status itself is kept, so provenance stays distinct internally.
 //       CURRENT     — an untouched SAVED value that the current reading does not confirm: the
 //                     persisted record cannot prove who typed it (a re-read may have changed the
 //                     reading since), so it is shown neutrally as "Current value"
@@ -92,8 +95,10 @@ export function fieldStatus(f: ReviewFieldStateInput, value: string | undefined,
   return f.confirmedValue !== null && f.confirmedValue !== undefined ? "CURRENT" : "SOURCE";
 }
 
-/** The ONE message key for a status (both forms). SOURCE keeps the document / OCR wording; a SOURCE
- *  without a document source (cannot normally happen) falls back to the neutral "Current value". */
+/** The ONE message key for a status (both forms). A document value the provider has not accepted —
+ *  blank with a suggestion (SUGGESTED) or pre-filled and untouched (SOURCE) — always reads
+ *  "Document suggestion — review required"; never verified, confirmed or accurate. A SOURCE without a
+ *  document source (cannot normally happen) falls back to the neutral "Current value". */
 export function statusLabelKey(status: ReviewFieldStatus, source: ReviewFieldStateInput["source"]): string {
   switch (status) {
     case "NOT_ENTERED":
@@ -107,7 +112,7 @@ export function statusLabelKey(status: ReviewFieldStatus, source: ReviewFieldSta
     case "CURRENT":
       return "vehicleRegStatusCurrent";
     case "SOURCE":
-      return source === "NATIVE_PDF_TEXT" ? "vehicleRegSourceDocument" : source === "OCR" ? "vehicleRegSourceOcr" : "vehicleRegStatusCurrent";
+      return source === "NATIVE_PDF_TEXT" || source === "OCR" ? "vehicleRegStatusSuggested" : "vehicleRegStatusCurrent";
   }
 }
 

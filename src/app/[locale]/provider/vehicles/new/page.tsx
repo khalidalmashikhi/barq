@@ -66,7 +66,7 @@ export default async function NewVehiclePage({ searchParams }: Props) {
         <p className="text-sm text-foreground/70">{t("vehicleOnboardUploadSubtitle")}</p>
       </div>
 
-      <VehicleJourneySteps current={1} />
+      <VehicleJourneySteps progress={{ stage: "upload" }} />
 
       {uploadErrorMessage && <Alert variant="danger">{uploadErrorMessage}</Alert>}
 

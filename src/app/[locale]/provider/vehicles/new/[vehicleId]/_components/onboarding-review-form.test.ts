@@ -36,7 +36,9 @@ describe("review form — sources and 'check this'", () => {
     for (const [status, key] of [["NOT_ENTERED", "vehicleRegStatusNotEntered"], ["SUGGESTED", "vehicleRegStatusSuggested"], ["APPLIED", "vehicleRegStatusApplied"], ["PROVIDER", "vehicleRegSourceProvider"], ["CURRENT", "vehicleRegStatusCurrent"]]) {
       expect(STATE).toMatch(new RegExp(`case "${status}":\\s*return "${key}";`));
     }
-    expect(STATE).toMatch(/source === "NATIVE_PDF_TEXT" \? "vehicleRegSourceDocument" : source === "OCR" \? "vehicleRegSourceOcr" : "vehicleRegStatusCurrent"/);
+    // 2026-10-16 correction: an untouched document value is still only a suggestion — same wording as SUGGESTED
+    expect(STATE).toMatch(/case "SOURCE":\s*return source === "NATIVE_PDF_TEXT" \|\| source === "OCR" \? "vehicleRegStatusSuggested" : "vehicleRegStatusCurrent";/);
+    expect(STATE).not.toMatch(/vehicleRegSourceOcr|vehicleRegSourceDocument/);
   });
 
   it("once the provider changes a value it is THEIRS: the source becomes 'entered by you' and the flag is cleared", () => {
@@ -239,7 +241,7 @@ describe("OCR review copy — complete and honest in all 8 languages", () => {
   const KEYS = [
     "vehicleRegStateProcessing", "vehicleRegExtractFailOcrUnavailable", "vehicleRegExtractFailOcrTimeout", "vehicleRegExtractFailOcrUnreadable",
     "vehicleRegConsentReadingPending", "vehicleRegConsentReadingHint", "vehicleOnboardReadingSlow", "vehicleOnboardReadingRefresh", "vehicleOnboardOcrNotice", "vehicleOnboardNeedsReviewBadge", "vehicleOnboardNeedsReviewHint",
-    "vehicleRegSourceDocument", "vehicleRegSourceOcr", "vehicleRegSourceProvider", "vehicleRegSourceUnresolved",
+    "vehicleRegSourceProvider", "vehicleRegSourceUnresolved",
     "vehicleOnboardPreviewAlt", "vehicleOnboardFileHintOcr", "vehicleOnboardManualNotice", "vehicleOnboardDeclaration",
     "vehicleRegConflictLabel", "vehicleRegConflictHint", "vehicleRegConflictChoose", "vehicleOnboardBackPreviewAlt",
     // Oman field-mapping & mobile review correction
@@ -373,7 +375,7 @@ describe("apply-suggestion and status copy — every language", () => {
     expect(ar.vehicleRegUseSuggestionAria!.replace("{field}", ar.vehicleRegFieldModel!).replace("{value}", "6")).toBe("استخدام اقتراح الطراز 6");
     const en = messages("en");
     expect(en.vehicleRegStatusNotEntered).toBe("Not entered");
-    expect(en.vehicleRegStatusSuggested).toBe("Document suggestion — needs your review");
+    expect(en.vehicleRegStatusSuggested).toBe("Document suggestion — review required");
     expect(en.vehicleRegSourceProvider).toBe("Entered by you");
     expect(en.vehicleRegStatusApplied).toBe("Document suggestion selected");
     expect(en.vehicleRegUseSuggestion).toBe("Use suggestion");

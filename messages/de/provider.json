@@ -857,8 +857,6 @@
   "vehicleOnboardOcrNotice": "Diese Angaben wurden automatisch aus Ihrem Foto oder Scan gelesen. Automatisches Lesen kann Fehler machen – prüfen Sie jedes Feld anhand des Dokuments, bevor Sie bestätigen.",
   "vehicleOnboardNeedsReviewBadge": "Bitte prüfen",
   "vehicleOnboardNeedsReviewHint": "Felder mit „Bitte prüfen“ wurden nicht sicher gelesen oder fehlen. Vergleichen Sie sie mit Ihrem Dokument.",
-  "vehicleRegSourceDocument": "Aus dem Dokument",
-  "vehicleRegSourceOcr": "Automatisch gelesen",
   "vehicleRegSourceProvider": "Von Ihnen eingegeben",
   "vehicleRegSourceUnresolved": "Nicht gefunden – bitte eingeben",
   "vehicleOnboardPreviewAlt": "Ihr Zulassungsdokument",
@@ -971,5 +969,8 @@
   "vehicleJourneyTrust2": "Das Fahrzeug wird nicht automatisch angelegt",
   "vehicleJourneyTrust3": "Sie können die Angaben manuell eingeben",
   "vehicleJourneyConsentNeedsAuthorization": "Bestätigen Sie oben, dass Sie Eigentümer oder berechtigt sind, um das Lesen zu aktivieren.",
-  "vehicleJourneyReadingFailedManual": "Oder geben Sie die Angaben unten manuell ein."
+  "vehicleJourneyReadingFailedManual": "Oder geben Sie die Angaben unten manuell ein.",
+  "vehicleJourneyStepFailed": "Lesen nicht erfolgreich",
+  "vehicleJourneyStepNotRead": "nicht gelesen — manuelle Eingabe",
+  "vehicleJourneyStepOf": "Schritt {step} von 4: {name}"
 }
