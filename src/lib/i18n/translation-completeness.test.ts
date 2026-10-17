@@ -23,6 +23,7 @@ const NAMESPACES = [
   "provider",
   "seo",
   "services",
+  "trips",
 ] as const;
 
 function loadNamespace(locale: string, namespace: string): Record<string, unknown> {

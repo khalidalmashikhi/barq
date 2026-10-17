@@ -52,3 +52,11 @@ Surfaced by AUTH-PROVIDER-LINK gate 3A.1 and resolved **only** for the provider-
 - **signUpOnVerification orphan TOCTOU.** `auth.api.verifyPhoneNumber` (used by customer convergence and add-phone) can take its `signUpOnVerification` `!user` branch and create an orphan AuthUser if P becomes unowned in the window between an ownership check and the verify. `signUpOnVerification` is required for legitimate phone signup and cannot be disabled per-call. Provider credential linking no longer calls `verifyPhoneNumber` at all (structural fix). Customer convergence and add-phone still carry this (small-window) risk.
 
 Proposed next gate: migrate customer convergence (and, separately, add-phone where applicable) to the same BARQ-owned purpose-bound proof, or bind purpose into the Better Auth verification identifier. Higher blast radius than provider-link (both are already live/deployed), so it needs its own scoped gate with its own regression pass. No schema change was needed for the provider-link fix; a broader migration may or may not need one — assess at that gate.
+
+## Trip planner — AI enablement, persistence, travel time (2026-10-17)
+
+The «خطط رحلتك» planner ships deterministic and stateless (owner decisions, 2026-10-17). Open, each needing its own approved phase:
+- **AI enablement.** Which provider, under which dedicated key (never `ANTHROPIC_API_KEY` from registration reading; `LLM_GATEWAY_API_KEY` is reserved for the AI Center), with which ADR-0008 audit record per call, cost ceiling and data-residency position? The request contract already carries no names, ids, prices or provider data; the validator already rehydrates every fact and fails closed.
+- **Save / share / archive.** Needs a persisted, owner-scoped plan (cross-user access tests, share-link scope, retention). States SAVED / ARCHIVED are reserved, unused.
+- **Travel time / distances.** No authoritative source exists; until one is approved the planner says "not available".
+- **Interest → category coverage.** Family, food and shopping map to no approved category today, so they only shape general suggestions; the local DB carries only `activities` / `desert-safari`, so interest ranking is unit-tested only.

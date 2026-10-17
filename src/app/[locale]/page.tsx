@@ -9,6 +9,7 @@ import { getHomeDiscovery } from "@/lib/discovery/get-home-discovery";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { HomeHero } from "@/components/home/home-hero";
+import { PlanTripCard } from "@/components/home/plan-trip-card";
 import { DiscoveryGrid } from "@/components/home/discovery-grid";
 import { SelectedForYou } from "@/components/home/selected-for-you";
 import { ExploreOman } from "@/components/home/explore-oman";
@@ -66,6 +67,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <Navbar />
       <main id="main-content" className="flex-1">
         <HomeHero governorates={discovery.governorates} selectedGovernorate={discovery.selectedGovernorate} />
+        <PlanTripCard />
         <DiscoveryGrid region={discovery.selectedGovernorate} />
         <SelectedForYou items={discovery.recommended} />
         <ExploreOman destinations={discovery.destinations} />

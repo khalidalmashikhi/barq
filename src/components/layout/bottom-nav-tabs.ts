@@ -24,6 +24,7 @@ const CUSTOMER_BOTTOM_NAV_PREFIXES = [
   "/dashboard", // customer account + settings
   "/payments",
   "/reviews",
+  "/trips", // the public trip planner (customer journey)
 ] as const;
 
 /** Whether the shared customer bottom navigation should render for this (locale-stripped) pathname. */

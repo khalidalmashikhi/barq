@@ -37,6 +37,7 @@ type Messages = {
   pages: typeof import("../../messages/en/pages.json");
   admin: typeof import("../../messages/en/admin.json");
   payments: typeof import("../../messages/en/payments.json");
+  trips: typeof import("../../messages/en/trips.json");
 };
 
 declare module "use-intl" {
