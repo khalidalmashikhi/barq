@@ -42,7 +42,9 @@ describe("review form — sources and 'check this'", () => {
   });
 
   it("once the provider changes a value it is THEIRS: the source becomes 'entered by you' and the flag is cleared", () => {
-    expect(ASSIST).toMatch(/const flagged = f\.needsReview && \(status === "SOURCE" \|\| status === "SUGGESTED" \|\| status === "NOT_ENTERED"\);/);
+    // ONE "check this" rule (review-field-state.ts), shared by the field chip and the final card's readiness summary
+    expect(ASSIST).toMatch(/const flagged = isFlaggedForReview\(f, status\);/);
+    expect(STATE).toMatch(/return f\.needsReview && \(status === "SOURCE" \|\| status === "SUGGESTED" \|\| status === "NOT_ENTERED"\);/);
     // typing (or picking a conflict value) marks the field as the provider's — never re-filled by a suggestion
     expect(FORM).toMatch(/onChange=\{\(e\) => typeInto\(f\.key, e\.target\.value\)\}/);
   });
@@ -90,7 +92,9 @@ describe("review form — nothing is finalized without the provider (8)", () => 
     expect(FORM).toMatch(/onClick=\{finalize\} disabled=\{!canSubmit\}/);
     expect(FORM).toMatch(/if \(!canSubmit\) return;/);
     expect(FORM).toMatch(/declarationAccepted: declaration/);
-    expect(FORM).toMatch(/t\("vehicleRegSubmitBlockedHint"\)/);
+    // the final card explains what is missing; it never claims "complete" while the validator still refuses
+    expect(FORM).toMatch(/const allComplete = readiness\.missing\.length === 0 && localCheck\.ok;/);
+    expect(FORM).toMatch(/const invalidValues = readiness\.missing\.length === 0 && !localCheck\.ok;/);
   });
 
   it("the form only PREFILLS: the only writers are the explicit save / create / cancel actions; no effect calls an action", () => {
@@ -169,15 +173,15 @@ describe("review form — dates (6)", () => {
 });
 
 describe("review form — phone layout (7, 19, 20)", () => {
-  it("groups the screen in the required order: notice → customer-visible (type, make, model, year, colour, bookable) → private (collapsible) → description → declaration + actions", () => {
-    const order = ['t("vehicleRegGroupCustomer")', 'id="of-vehicleType"', "customer.map(renderField)", 't("vehicleRegGroupPrivate")', "privateFields.map(renderField)", 'id="of-publicDescription"', 't("vehicleOnboardDeclaration")', "onClick={finalize}"];
+  it("groups the screen into cards in the required order: shown to customers → capacity & operation → private (collapsible) → description → final review + declaration → actions", () => {
+    const order = ['t("vehicleCardCustomerTitle")', 'id="of-vehicleType"', "customer.map((f) => renderField(f))", 't("vehicleCardCapacityTitle")', 't("vehicleRegGroupPrivate")', "privateFields.map((f) => renderField(f))", 'id="of-publicDescription"', 't("vehicleCardFinalTitle")', 't("vehicleOnboardDeclaration")', "onClick={finalize}"];
     const idx = order.map((s) => FORM.indexOf(s));
     for (let i = 1; i < idx.length; i++) expect(idx[i], order[i]).toBeGreaterThan(idx[i - 1]!);
   });
 
   it("the private section is collapsible but NEVER dropped: the fields stay mounted (hidden), and a visible summary counts the required private fields still empty", () => {
     expect(FORM).toMatch(/const \[privateOpen, setPrivateOpen\] = useState\(false\);/);
-    expect(FORM).toMatch(/<div id="of-private-section" hidden=\{!privateOpen\} className=\{privateOpen \? "mt-4 flex flex-col border-t border-border pt-4" : "hidden"\}>\s*\{privateFields\.map\(renderField\)\}/);
+    expect(FORM).toMatch(/<div id="of-private-section" hidden=\{!privateOpen\} className=\{privateOpen \? "mt-4 flex flex-col border-t border-border pt-4" : "hidden"\}>\s*\{privateFields\.map\(\(f\) => renderField\(f\)\)\}/);
     expect(FORM).toMatch(/aria-expanded=\{privateOpen\} aria-controls="of-private-section"/);
     expect(FORM).toMatch(/const pendingPrivate = privateFields\.filter\(\(f\) => f\.required && \(values\[f\.key\] \?\? ""\)\.trim\(\) === ""\)\.length;/);
     expect(FORM).toMatch(/td\("vehicleRegPrivatePending", \{ count: pendingPrivate \}\) : t\("vehicleRegPrivateComplete"\)/);

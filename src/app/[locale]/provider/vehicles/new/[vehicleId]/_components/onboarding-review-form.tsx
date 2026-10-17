@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Eye, EyeOff, ChevronDown, ChevronUp, Lock, Sparkles } from "lucide-react";
+import { Eye, EyeOff, ChevronDown, ChevronUp, Lock, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { regFieldLabelKey, maskSensitiveValue, type ConfirmationFieldKey } from "@/lib/vehicles/registration-review/field-model";
 import { parseConfirmation } from "@/lib/vehicles/registration-review/confirmation-input";
@@ -16,7 +16,8 @@ import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/componen
 import { useUnsavedLanguageGuard, UnsavedLanguageDialog } from "@/components/provider/registration-review/unsaved-language-guard";
 import { StickyActionBar } from "@/components/provider/registration-review/sticky-action-bar";
 import type { ReviewTabBinding } from "@/lib/vehicles/registration-review/review-field-state";
-import { JOURNEY_CARD, JOURNEY_CHIP_REVIEW, JOURNEY_CHIP_SUGGESTION, JOURNEY_PANEL, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_SMALL, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
+import { JOURNEY_CARD, JOURNEY_CARD_TITLE, JOURNEY_CHIP_NEUTRAL, JOURNEY_CHIP_REVIEW, JOURNEY_CHIP_SUGGESTION, JOURNEY_INPUT, JOURNEY_LABEL, JOURNEY_PANEL, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_SMALL, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
+import { CAPACITY_CARD_KEYS, CAPACITY_SHOWN_TO_CUSTOMERS, CUSTOMER_CARD_KEYS, PRIVATE_CARD_KEYS, isCardFieldShown, reviewReadiness } from "@/components/provider/vehicle-journey/review-cards";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2/3 (review & confirm),
@@ -88,8 +89,7 @@ type Props = {
 };
 
 // scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
-const INPUT_CLASS =
-  "min-h-12 w-full scroll-mb-40 scroll-mt-24 rounded-xl border border-foreground/15 bg-card px-3 text-base focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 aria-[invalid=true]:border-danger";
+const INPUT_CLASS = JOURNEY_INPUT;
 
 // Plain-language hints for the fields that are easiest to confuse.
 const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
@@ -99,6 +99,11 @@ const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
   registeredSeats: "vehicleOnboardRegisteredSeatsHint",
   bookablePassengerCapacity: "vehicleOnboardBookableHint",
 };
+
+/** The fields of one card, in the card's own order. */
+function fieldsInCard(fields: FieldView[], keys: readonly string[]): FieldView[] {
+  return fields.filter((f) => keys.includes(f.key)).sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
+}
 
 export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant, tabBinding = null }: Props) {
   const t = useTranslations("provider");
@@ -130,8 +135,10 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const [privateOpen, setPrivateOpen] = useState(false);
   const privateRef = useRef<HTMLDivElement>(null);
 
-  const customer = useMemo(() => fields.filter((f) => f.group === "CUSTOMER"), [fields]);
-  const privateFields = useMemo(() => fields.filter((f) => f.group === "PRIVATE"), [fields]);
+  // Card assignment (review-cards.ts): customer-visible · capacity & operation · private registration.
+  const customer = useMemo(() => fieldsInCard(fields, CUSTOMER_CARD_KEYS), [fields]);
+  const capacityFields = useMemo(() => fieldsInCard(fields, CAPACITY_CARD_KEYS), [fields]);
+  const privateFields = useMemo(() => fieldsInCard(fields, PRIVATE_CARD_KEYS), [fields]);
   const kindOf = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f.kind])) as Record<string, FieldView["kind"]>, [fields]);
 
   /** The flow is finished or cancelled: nothing of it may come back in this tab. */
@@ -156,7 +163,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     const privateKeys = new Set(privateFields.map((f) => f.key as string));
     const first = fieldErrors.find((e) => privateKeys.has(e.field) || e.field === "capacity");
     if (!first) return;
-    setPrivateOpen(true);
+    if (privateKeys.has(first.field)) setPrivateOpen(true);
     const id = first.field === "capacity" ? "of-licensedPassengerCapacity" : `of-${first.field}`;
     window.setTimeout(() => (document.getElementById(id) ?? privateRef.current)?.scrollIntoView({ block: "center", behavior: "smooth" }), 0);
   }, [fieldErrors, privateFields]);
@@ -218,7 +225,8 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
 
   const fieldErrorFor = (key: string) => fieldErrors.find((e) => e.field === key);
 
-  const renderField = (f: FieldView) => {
+  /** One field row. `visibility` (capacity card only) says whether customers will see the value. */
+  const renderField = (f: FieldView, visibility?: "SHOWN" | "NOT_SHOWN") => {
     const label = td(regFieldLabelKey(f.key));
     const err = fieldErrorFor(f.key);
     const isRevealed = revealed[f.key] === true;
@@ -233,13 +241,14 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
     // ONE field pattern: label → value → status / suggestion → (hint) → (comparison) → (error).
     return (
       <div key={f.key} className="flex flex-col gap-2 border-t border-border py-4 first:border-t-0 first:pt-0">
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor={`of-${f.key}`} className="form-label">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <label htmlFor={`of-${f.key}`} className={JOURNEY_LABEL}>
             {label}
             {f.required && <span className="text-danger"> *</span>}
           </label>
+          {visibility && <span className={visibility === "SHOWN" ? JOURNEY_CHIP_SUGGESTION : JOURNEY_CHIP_NEUTRAL}>{visibility === "SHOWN" ? t("vehicleCardShownToCustomers") : t("vehicleCardNotShownToCustomers")}</span>}
           {f.decision && (
-            <span className={`text-sm ${f.decision.matches ? "text-foreground/70" : "text-primary"}`}>
+            <span className={`ms-auto text-sm ${f.decision.matches ? "text-foreground/70" : "text-primary"}`}>
               {f.decision.source === "MANUAL" ? t("vehicleRegDecisionManual") : f.decision.matches ? t("vehicleRegDecisionMatches") : t("vehicleRegDecisionCorrected")}
             </span>
           )}
@@ -292,38 +301,64 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
 
   const suggestedOption = suggestedVehicleType ? (vehicleTypeOptions.find((o) => o.code === suggestedVehicleType) ?? null) : null;
 
+  // The final card's summary (review-cards.ts) — informative; "Create" stays governed by canSubmit.
+  const readiness = reviewReadiness({ fields, values, statusOf: (f) => fieldState.status(f), vehicleType, declaration });
+  const bookableValue = (values[CAPACITY_SHOWN_TO_CUSTOMERS] ?? "").trim();
+  // Nothing missing yet the shared validator still refuses (an impossible date, bookable above
+  // licensed…): never claim "complete" — say values need correcting. Create follows canSubmit only.
+  const allComplete = readiness.missing.length === 0 && localCheck.ok;
+  const invalidValues = readiness.missing.length === 0 && !localCheck.ok;
+  // The values the shared validator rejects (not merely empty), so the provider can jump to each;
+  // the capacity-chain rule points at the bookable capacity, the value the provider sets.
+  const invalidItems: ConfirmationFieldKey[] = localCheck.ok
+    ? []
+    : [...new Set(localCheck.errors.filter((e) => e.code !== "REQUIRED" && e.field !== "declaration").map((e) => (e.field === "capacity" ? CAPACITY_SHOWN_TO_CUSTOMERS : e.field)))].filter((k): k is ConfirmationFieldKey => fields.some((f) => f.key === k));
+  /** Take the provider to a missing item (opens the private card when the item lives there). */
+  const goTo = (item: (typeof readiness.missing)[number] | ConfirmationFieldKey) => {
+    const id = item === "vehicleType" ? "of-vehicleType" : item === "declaration" ? "of-declaration" : `of-${item}`;
+    if (privateFields.some((f) => f.key === item)) setPrivateOpen(true);
+    window.setTimeout(() => {
+      const el = document.getElementById(id);
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      el?.focus({ preventScroll: true });
+    }, 0);
+  };
+  const missingLabel = (item: (typeof readiness.missing)[number] | ConfirmationFieldKey) =>
+    item === "vehicleType" ? t("vehicleTypeLabel") : item === "declaration" ? t("vehicleCardDeclarationItem") : td(regFieldLabelKey(item));
+
   return (
-    <div className="flex flex-col gap-5 pb-28">
+    <div className="flex flex-col gap-5">
       {noticeKey && <Alert variant={noticeVariant}>{td(noticeKey)}</Alert>}
       {errorCode && <Alert variant="danger">{td(onboardingMessageKey(errorCode))}</Alert>}
       {fieldErrors.some((e) => e.field === "capacity") && <Alert variant="danger">{t("vehicleRegCapacityError")}</Alert>}
 
-      {/* CUSTOMER-VISIBLE DETAILS — the most important card, first. */}
+      {/* CARD 2 — what customers will see (once BARQ approves the vehicle). */}
       <section className={JOURNEY_CARD} aria-labelledby="of-customer-title">
         <div className="mb-4 flex flex-col gap-1.5">
-          <h2 id="of-customer-title" className="text-lg font-semibold text-foreground">
-            {t("vehicleRegGroupCustomer")}
+          <h2 id="of-customer-title" className={JOURNEY_CARD_TITLE}>
+            {t("vehicleCardCustomerTitle")}
           </h2>
+          <p className="text-sm text-foreground/75">{t("vehicleCardCustomerHint")}</p>
           {/* Shared guidance ONCE, not under every field. */}
-          {anyNeedsReview && <p className="text-sm text-foreground/70">{t("vehicleOnboardNeedsReviewHint")}</p>}
+          {anyNeedsReview && <p className="text-sm text-foreground/75">{t("vehicleOnboardNeedsReviewHint")}</p>}
         </div>
 
         {documentDescription && (
           // The printed description, for comparison — private and visually secondary.
           <div className={`${JOURNEY_PANEL} mb-4 flex flex-col gap-1.5`}>
-            <p className="flex items-center gap-1.5 text-sm font-medium text-foreground/70">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-foreground/75">
               <Lock size={14} strokeWidth={1.75} aria-hidden />
               {t("vehicleRegDocumentDescriptionLabel")}
             </p>
             <p className="text-base font-medium text-foreground">
               <bdi>{documentDescription}</bdi>
             </p>
-            <p className="text-sm text-foreground/70">{t("vehicleRegDocumentDescriptionHint")}</p>
+            <p className="text-sm text-foreground/75">{t("vehicleRegDocumentDescriptionHint")}</p>
           </div>
         )}
 
         <div className="flex flex-col gap-2 pb-4">
-          <label htmlFor="of-vehicleType" className="form-label">
+          <label htmlFor="of-vehicleType" className={JOURNEY_LABEL}>
             {t("vehicleTypeLabel")}
             <span className="text-danger"> *</span>
           </label>
@@ -359,10 +394,10 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
                   </button>
                 </div>
               )}
-              <p className="text-sm text-foreground/70">{t("vehicleRegTypeMustChoose")}</p>
+              <p className="text-sm text-foreground/75">{t("vehicleRegTypeMustChoose")}</p>
             </>
           ) : (
-            <p className="text-sm text-foreground/70">{t("vehicleRegTypeChosenNote")}</p>
+            <p className="text-sm text-foreground/75">{t("vehicleRegTypeChosenNote")}</p>
           )}
           {fieldErrorFor("vehicleType") && (
             <p id="of-vehicleType-error" className="text-sm font-medium text-danger">
@@ -370,14 +405,42 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </p>
           )}
         </div>
-        <div className="flex flex-col border-t border-border pt-4">{customer.map(renderField)}</div>
+        <div className="flex flex-col border-t border-border pt-4">{customer.map((f) => renderField(f))}</div>
+        {/* The bookable capacity is shown to customers too, but EDITED next to the licensed capacity. */}
+        <p className="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-background px-3 py-2.5 text-sm text-foreground/80" data-bookable-echo="">
+          <span>{td(regFieldLabelKey(CAPACITY_SHOWN_TO_CUSTOMERS))}</span>
+          <span className="font-semibold text-foreground">{bookableValue || "—"}</span>
+          <span className="basis-full text-foreground/70">{t("vehicleCardBookableEditedBelow")}</span>
+        </p>
       </section>
 
-      {/* PRIVATE REGISTRATION DETAILS — collapsed by default, never dropped, summary always visible. */}
+      {/* CARD 3 — capacity and operation: three distinct numbers, explained in one line each. */}
+      <section className={JOURNEY_CARD} aria-labelledby="of-capacity-title">
+        <div className="mb-4 flex flex-col gap-1.5">
+          <h2 id="of-capacity-title" className={JOURNEY_CARD_TITLE}>
+            {t("vehicleCardCapacityTitle")}
+          </h2>
+          <p className="text-sm text-foreground/75">{t("vehicleCardCapacityHint")}</p>
+        </div>
+        <div className="flex flex-col">
+          {capacityFields.filter((f) => isCardFieldShown(f, values[f.key])).map((f) => renderField(f, f.key === CAPACITY_SHOWN_TO_CUSTOMERS ? "SHOWN" : "NOT_SHOWN"))}
+        </div>
+        {vehicleType === "FOUR_BY_FOUR" && (
+          <label className="mt-2 flex items-start gap-3 rounded-2xl border border-border p-4 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+            <input type="checkbox" checked={claimedFourByFour} onChange={(e) => setClaimedFourByFour(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
+            <span className="flex flex-col">
+              <span className="text-base text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
+              <span className="text-sm text-foreground/75">{t("vehicleClaimedFourByFourHint")}</span>
+            </span>
+          </label>
+        )}
+      </section>
+
+      {/* CARD 4 — PRIVATE REGISTRATION DETAILS — collapsed by default, never dropped, summary always visible. */}
       <section className={JOURNEY_CARD} aria-labelledby="of-private-title">
         <div ref={privateRef} className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="of-private-title" className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <h2 id="of-private-title" className={`flex items-center gap-2 ${JOURNEY_CARD_TITLE}`}>
               <Lock size={18} strokeWidth={1.75} aria-hidden className="text-foreground/60" />
               {t("vehicleRegGroupPrivate")}
             </h2>
@@ -385,7 +448,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
               {pendingPrivate > 0 ? td("vehicleRegPrivatePending", { count: pendingPrivate }) : t("vehicleRegPrivateComplete")}
             </span>
           </div>
-          <p className="text-sm text-foreground/70">{t("vehicleRegGroupPrivateHint")}</p>
+          <p className="text-sm text-foreground/80">{t("vehicleCardPrivateNote")}</p>
           <button type="button" onClick={() => setPrivateOpen((o) => !o)} aria-expanded={privateOpen} aria-controls="of-private-section" className={`${JOURNEY_SMALL} self-start`}>
             {privateOpen ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
             {privateOpen ? t("vehicleRegPrivateToggleHide") : t("vehicleRegPrivateToggleShow")}
@@ -394,54 +457,85 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         {/* Collapsed = display:none via the class (a utility `flex` would override the `hidden`
             attribute); the fields stay MOUNTED so nothing is dropped and errors can target them. */}
         <div id="of-private-section" hidden={!privateOpen} className={privateOpen ? "mt-4 flex flex-col border-t border-border pt-4" : "hidden"}>
-          {privateFields.map(renderField)}
+          {privateFields.map((f) => renderField(f))}
         </div>
       </section>
 
-      {/* OPTIONAL DESCRIPTION + 4x4 declaration */}
-      <section className={JOURNEY_CARD}>
-        <div className="flex flex-col gap-4">
-          {vehicleType === "FOUR_BY_FOUR" && (
-            <label className="flex items-start gap-3">
-              <input type="checkbox" checked={claimedFourByFour} onChange={(e) => setClaimedFourByFour(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
-              <span className="flex flex-col">
-                <span className="text-base text-foreground">{t("vehicleClaimedFourByFourLabel")}</span>
-                <span className="text-sm text-foreground/70">{t("vehicleClaimedFourByFourHint")}</span>
-              </span>
-            </label>
-          )}
-          <div className="flex flex-col gap-2">
-            <label htmlFor="of-publicDescription" className="form-label">
-              {t("vehiclePublicDescriptionLabel")}
-            </label>
-            <textarea
-              id="of-publicDescription"
-              rows={3}
-              maxLength={500}
-              value={publicDescription}
-              onChange={(e) => setPublicDescription(e.target.value)}
-              disabled={pending}
-              aria-describedby={fieldErrorFor("publicDescription") ? "of-publicDescription-error" : undefined}
-              className={`${INPUT_CLASS} py-2`}
-            />
-            {fieldErrorFor("publicDescription") && (
-              <p id="of-publicDescription-error" className="text-sm font-medium text-danger">
-                {t("vehicleRegFieldError")}
-              </p>
+      {/* CARD 5 — OPTIONAL DESCRIPTION — compact; customers see it once the vehicle is approved. */}
+      <section className={`${JOURNEY_CARD} flex flex-col gap-2`}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <label htmlFor="of-publicDescription" className={JOURNEY_LABEL}>
+            {t("vehicleCardDescriptionTitle")}
+          </label>
+          <span className={JOURNEY_CHIP_SUGGESTION}>{t("vehicleCardShownToCustomers")}</span>
+        </div>
+        <textarea
+          id="of-publicDescription"
+          rows={2}
+          maxLength={500}
+          value={publicDescription}
+          onChange={(e) => setPublicDescription(e.target.value)}
+          disabled={pending}
+          placeholder={t("vehicleCardDescriptionPlaceholder")}
+          aria-describedby={fieldErrorFor("publicDescription") ? "of-publicDescription-error" : undefined}
+          className={`${INPUT_CLASS} py-2.5 placeholder:text-foreground/50`}
+        />
+        {fieldErrorFor("publicDescription") && (
+          <p id="of-publicDescription-error" className="text-sm font-medium text-danger">
+            {t("vehicleRegFieldError")}
+          </p>
+        )}
+      </section>
+
+      {/* CARD 6 — FINAL REVIEW: what is done, what is missing, what still needs a look — then the declaration. */}
+      <section className={`${JOURNEY_CARD} flex flex-col gap-4`} aria-labelledby="of-final-title">
+        <h2 id="of-final-title" className={JOURNEY_CARD_TITLE}>
+          {t("vehicleCardFinalTitle")}
+        </h2>
+        <div className="flex flex-col gap-3" data-readiness="">
+          <p className="flex items-center gap-2 text-base font-medium text-foreground">
+            {allComplete ? (
+              <CheckCircle2 size={20} strokeWidth={1.9} aria-hidden className="shrink-0 text-secondary-700" />
+            ) : (
+              <AlertTriangle size={20} strokeWidth={1.9} aria-hidden className="shrink-0 text-warning" />
             )}
-          </div>
+            <span>{allComplete ? t("vehicleCardReadyAll") : invalidValues ? t("vehicleCardReadyInvalid") : td("vehicleCardReadyCompleted", { done: readiness.completed, total: readiness.total })}</span>
+          </p>
+          {readiness.missing.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-warning/40 bg-warning/10 p-3">
+              <p className="text-sm font-semibold text-foreground">{t("vehicleCardReadyMissing")}</p>
+              <ul className="flex flex-wrap gap-2">
+                {readiness.missing.map((item) => (
+                  <li key={item}>
+                    <button type="button" onClick={() => goTo(item)} className={JOURNEY_SMALL}>
+                      {missingLabel(item)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {invalidItems.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-danger/30 bg-danger/5 p-3" data-invalid-items="">
+              <p className="text-sm font-semibold text-foreground">{t("vehicleCardReadyFix")}</p>
+              <ul className="flex flex-wrap gap-2">
+                {invalidItems.map((item) => (
+                  <li key={item}>
+                    <button type="button" onClick={() => goTo(item)} className={JOURNEY_SMALL}>
+                      {missingLabel(item)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {readiness.needsReview.length > 0 && <p className="text-sm text-foreground/80">{td("vehicleCardReadyReview", { count: readiness.needsReview.length })}</p>}
         </div>
-      </section>
-
-      {/* The declaration (and why "Create" may still be disabled) sit in normal flow right above the
-          actions: always reachable, read before acting — the sticky bar itself stays compact. */}
-      <div className="flex flex-col gap-2">
-        <label className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-base text-foreground has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
-          <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
+        <label className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4 text-base text-foreground has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+          <input id="of-declaration" type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} disabled={pending} className="mt-0.5 size-6 shrink-0 accent-primary" />
           <span>{t("vehicleOnboardDeclaration")}</span>
         </label>
-        {!canSubmit && !pending && <p className="text-sm text-foreground/70">{t("vehicleRegSubmitBlockedHint")}</p>}
-      </div>
+      </section>
 
       <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-3xl sm:border sm:bg-card sm:p-4">
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">

@@ -6,6 +6,7 @@ import { formatIsoDateForDisplay } from "@/lib/vehicles/registration-review/date
 import {
   canApplySuggestion,
   describesDocument,
+  isFlaggedForReview,
   statusLabelKey,
   suggestionText,
   type ReviewFieldStateInput,
@@ -44,7 +45,7 @@ export function FieldStatusAndSuggestion({ field: f, label, status, value, pendi
   const t = useTranslations("provider");
   const td = t as unknown as Td;
   const onDocument = describesDocument(status);
-  const flagged = f.needsReview && (status === "SOURCE" || status === "SUGGESTED" || status === "NOT_ENTERED");
+  const flagged = isFlaggedForReview(f, status);
   const suggestion = suggestionText(f);
   const offerApply = canApplySuggestion(f, value) && suggestion !== null;
   // the button disappears once the field is filled — hand focus to that field so keyboard / screen-reader

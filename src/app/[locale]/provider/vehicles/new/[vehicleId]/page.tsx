@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import type { Locale } from "@/i18n/locales";
 import { getRegistrationReview, type RegistrationReviewPageView } from "@/lib/vehicles/registration-review/get-registration-review";
+import { CONFIRMATION_FIELDS, type ConfirmationFieldKey } from "@/lib/vehicles/registration-review/field-model";
 import { resolveVehicleCreateAccess } from "@/lib/vehicles/onboarding/vehicle-create-access";
 import { vehicleTypeOptions } from "@/lib/vehicles/vehicle-type-options";
 import { isAssetDocumentErrorCode, getAssetDocumentErrorTranslationKey } from "@/lib/vehicles/documents/asset-document-errors";
@@ -20,7 +21,7 @@ import { OcrConsentStep } from "./_components/ocr-consent-step";
 import { RegistrationRecoveryBanner } from "./_components/registration-recovery-banner";
 import { VehicleJourneySteps, type JourneyProgress } from "@/components/provider/vehicle-journey/journey-steps";
 import { JourneyStatusProvider } from "@/components/provider/vehicle-journey/journey-status";
-import { JOURNEY_CARD, JOURNEY_PAGE } from "@/components/provider/vehicle-journey/journey-ui";
+import { JOURNEY_CARD, JOURNEY_PAGE, JOURNEY_TITLE } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Phase 3C — Vehicle Creation from Registration, Slice 3B. Wizard step 2: review the extracted (or
 // manually-entered) registration details and explicitly confirm to finish the vehicle.
@@ -99,7 +100,7 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
     <>
       {backLink}
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold text-primary">{title}</h1>
+        <h1 className={JOURNEY_TITLE}>{title}</h1>
         {subtitle && <p className="text-sm text-foreground/70">{subtitle}</p>}
       </div>
       <VehicleJourneySteps progress={progress} />
@@ -163,6 +164,12 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
   // OFFERS the suggestion — the provider chooses the type explicitly.
   const suggestedVehicleType = review.vehicleTypeSuggestion;
 
+  // Card 1's summary: how many fields the reading found, and how many of those need a look.
+  // (only fields a document can carry count — bookable capacity is always the provider's own entry)
+  const readableFields = review.fields.filter((f) => CONFIRMATION_FIELDS[f.key as ConfirmationFieldKey].extractionKey !== null);
+  const foundCount = readableFields.filter((f) => f.extractedValue !== null).length;
+  const reviewCount = review.fields.filter((f) => f.needsReview && f.extractedValue !== null).length;
+
   // What the header may say about step 2 on the review page: completed ONLY after a real reading;
   // a failed reading is an error (never a check mark); a declined / not-analysed document was not read.
   const readingOutcome: "succeeded" | "failed" | "skipped" = !isManual ? "succeeded" : reviewState.extraction === "FAILED" ? "failed" : "skipped";
@@ -210,7 +217,19 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
             {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
           </Badge>
         </div>
-        <p className="text-sm text-foreground/70">{setSummary}</p>
+        <p className="text-sm text-foreground/75">{setSummary}</p>
+        {/* What the reading found — one short line, never the privacy notice again. */}
+        {!isManual && (
+          <p className="text-sm text-foreground/80" data-reading-summary="">
+            {td("vehicleCardDocFound", { found: foundCount, total: readableFields.length })}
+            {reviewCount > 0 && (
+              <>
+                {" · "}
+                <span className="font-semibold text-foreground">{td("vehicleCardDocReview", { count: reviewCount })}</span>
+              </>
+            )}
+          </p>
+        )}
         <ul className="flex flex-wrap gap-3">
           {review.pages.map((page) => {
             const viewHref = viewHrefFor(page);

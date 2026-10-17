@@ -12,7 +12,7 @@ import { isOnboardingRequestErrorCode, getOnboardingRequestErrorTranslationKey }
 import { isRegistrationOcrOperational } from "@/lib/vehicles/registration-extraction/ocr/get-registration-document-reader";
 import { RegistrationUploadForm } from "./_components/registration-upload-form";
 import { VehicleJourneySteps } from "@/components/provider/vehicle-journey/journey-steps";
-import { JOURNEY_PAGE } from "@/components/provider/vehicle-journey/journey-ui";
+import { JOURNEY_PAGE, JOURNEY_TITLE } from "@/components/provider/vehicle-journey/journey-ui";
 
 // Add Vehicle — DOCUMENT-FIRST for every provider who may register a vehicle (Phase 3C Slice 3B).
 //
@@ -62,7 +62,7 @@ export default async function NewVehiclePage({ searchParams }: Props) {
       </Link>
 
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold text-primary">{t("addVehicleButton")}</h1>
+        <h1 className={JOURNEY_TITLE}>{t("addVehicleButton")}</h1>
         <p className="text-sm text-foreground/70">{t("vehicleOnboardUploadSubtitle")}</p>
       </div>
 

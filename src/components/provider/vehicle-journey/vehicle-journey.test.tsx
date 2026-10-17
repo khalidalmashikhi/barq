@@ -195,7 +195,7 @@ describe("1. the shared four-step journey header", () => {
 describe("2–3. upload screen", () => {
   it("the title is 'إضافة مركبة' and the zone says 'رفع ملكية المركبة' + 'PDF أو صورة واضحة للوجه الأمامي والخلفي'", () => {
     expect(messages.ar!.addVehicleButton).toBe("إضافة مركبة");
-    expect(UPLOAD_PAGE).toMatch(/<h1 className="text-2xl font-semibold text-primary">\{t\("addVehicleButton"\)\}<\/h1>/);
+    expect(UPLOAD_PAGE).toMatch(/<h1 className=\{JOURNEY_TITLE\}>\{t\("addVehicleButton"\)\}<\/h1>/);
     expect(messages.ar!.vehicleJourneyUploadTitle).toBe("رفع ملكية المركبة");
     expect(messages.ar!.vehicleJourneyUploadHint).toBe("PDF أو صورة واضحة للوجه الأمامي والخلفي");
     expect(messages.ar!.vehicleJourneyFileRequirements).toBe("متطلبات الملف");
@@ -328,7 +328,7 @@ describe("6–8. review screen", () => {
     expect(messages.ar!.vehicleRegGroupPrivate).toBe("تفاصيل الملكية الخاصة");
     expect(REVIEW).toMatch(/const \[privateOpen, setPrivateOpen\] = useState\(false\);/);
     expect(REVIEW).toMatch(/aria-expanded=\{privateOpen\} aria-controls="of-private-section"/);
-    expect(REVIEW).toMatch(/<div id="of-private-section" hidden=\{!privateOpen\}[^>]*>\s*\{privateFields\.map\(renderField\)\}/);
+    expect(REVIEW).toMatch(/<div id="of-private-section" hidden=\{!privateOpen\}[^>]*>\s*\{privateFields\.map\(\(f\) => renderField\(f\)\)\}/);
     expect(REVIEW).toMatch(/\{f\.sensitive && !isRevealed \? \(/);
     expect(REVIEW).toMatch(/\{maskSensitiveValue\(values\[f\.key\] \?\? ""\) \|\| "—"\}/);
     expect(REVIEW).toMatch(/const \[revealed, setRevealed\] = useState<Record<string, boolean>>\(\{\}\);/);
@@ -353,8 +353,10 @@ describe("9. action bars", () => {
       expect(src).toMatch(/import \{ StickyActionBar \} from "@\/components\/provider\/registration-review\/sticky-action-bar";/);
       expect(src).toMatch(/<StickyActionBar className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
     }
-    // the journey column leaves room under the last card for the bar
-    expect(UI).toMatch(/export const JOURNEY_PAGE = "[^"]*pb-40/);
+    // the bar is IN the flow at the end: no large bottom padding leaves an empty band under the actions
+    expect(UI).toMatch(/export const JOURNEY_PAGE = "[^"]* pb-8 /);
+    expect(UI).not.toMatch(/JOURNEY_PAGE = "[^"]*pb-(2[0-9]|3[0-9]|4[0-9])\b/);
+    expect(REVIEW).toMatch(/return \(\s*<div className="flex flex-col gap-5">/);
   });
 });
 
@@ -399,7 +401,11 @@ describe("12–15. colour, direction, motion, announcements", () => {
     expect(ASSIST).toMatch(/rounded-xl border border-warning\/40 bg-warning\/10 p-3/);
     expect(ASSIST).not.toMatch(/(bg|border|text)-accent/);
     expect(UPLOAD).toMatch(/<div className="h-full rounded-full bg-secondary transition-\[width\]"/);
-    for (const src of [UI, STEPS, PANEL, UPLOAD, CONSENT, PROGRESS, REVIEW]) expect(src).not.toMatch(/bg-warning\/(?!15)|text-warning\b/);
+    for (const src of [UI, STEPS, PANEL, UPLOAD, CONSENT, PROGRESS]) expect(src).not.toMatch(/bg-warning\/(?!15)|text-warning\b/);
+    // the review's only amber PANEL is the final card's "still missing" list (items needing attention)
+    expect((REVIEW.match(/bg-warning\/10/g) ?? []).length).toBe(1);
+    expect(REVIEW).toMatch(/\{readiness\.missing\.length > 0 && \(\s*<div className="flex flex-col gap-2 rounded-2xl border border-warning\/40 bg-warning\/10 p-3">/);
+    expect((REVIEW.match(/text-warning\b/g) ?? []).length).toBe(1); // the warning mark of an incomplete review
     // the private chip is amber only while something is genuinely missing
     expect(REVIEW).toMatch(/className=\{pendingPrivate > 0 \? JOURNEY_CHIP_REVIEW : JOURNEY_CHIP_SUGGESTION\}/);
   });

@@ -116,6 +116,13 @@ export function statusLabelKey(status: ReviewFieldStatus, source: ReviewFieldSta
   }
 }
 
+/** "Check this": a flagged field (read without certainty, conflicting or required-but-missing) the
+ *  provider has not yet made their own — still the document's value, a suggestion, or blank. ONE
+ *  rule for the field row's chip and the review's readiness summary. */
+export function isFlaggedForReview(f: { needsReview: boolean }, status: ReviewFieldStatus): boolean {
+  return f.needsReview && (status === "SOURCE" || status === "SUGGESTED" || status === "NOT_ENTERED");
+}
+
 /** True when the status describes the DOCUMENT's value (confidence / derived chips apply). */
 export function describesDocument(status: ReviewFieldStatus): boolean {
   return status === "SOURCE" || status === "SUGGESTED" || status === "APPLIED";
