@@ -1,6 +1,6 @@
 {
   "homeCardTitle": "Naplánujte si cestu",
-  "homeCardBody": "Vyberte oblast a počet dní — navrhneme denní plán ze služeb dostupných na BARQ.",
+  "homeCardBody": "Vyberte oblast a počet dní — navrhneme denní plán ze služeb nabízených na BARQ a tam, kde žádné nejsou, obecné tipy.",
   "homeCardCta": "Začít plánovat",
   "pageTitle": "Naplánujte si cestu",
   "pageSubtitle": "Navržený plán, který můžete upravit — nic se nerezervuje, dokud to sami nepotvrdíte.",
@@ -46,7 +46,7 @@
   "needAccessibility": "Bezbariérovost",
   "needFamily": "Vhodné pro rodiny",
   "generating": "Připravujeme plán…",
-  "generatingHint": "Vybíráme ze služeb skutečně dostupných na BARQ v oblasti.",
+  "generatingHint": "Používáme jen služby nabízené na BARQ v oblasti; dostupnost se potvrzuje při rezervaci.",
   "errorRetryable": "Plán teď nelze vytvořit. Zkuste to znovu.",
   "errorRateLimited": "Příliš mnoho požadavků. Chvíli počkejte a zkuste to znovu.",
   "errorInvalid": "Zkontrolujte volby a zkuste to znovu.",

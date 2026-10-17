@@ -1,6 +1,6 @@
 {
   "homeCardTitle": "Plane deine Reise",
-  "homeCardBody": "Region und Anzahl der Tage wählen — wir schlagen einen Tagesplan aus auf BARQ verfügbaren Angeboten vor.",
+  "homeCardBody": "Region und Anzahl der Tage wählen — wir schlagen einen Tagesplan mit auf BARQ angebotenen Leistungen vor, sonst allgemeine Ideen.",
   "homeCardCta": "Planung starten",
   "pageTitle": "Plane deine Reise",
   "pageSubtitle": "Ein Vorschlag, den du anpassen kannst — gebucht wird erst, wenn du selbst bestätigst.",
@@ -46,7 +46,7 @@
   "needAccessibility": "Barrierefreiheit",
   "needFamily": "Familienfreundlich",
   "generating": "Dein Plan wird erstellt…",
-  "generatingHint": "Wir wählen aus Angeboten, die in der Region auf BARQ tatsächlich verfügbar sind.",
+  "generatingHint": "Wir nutzen nur in der Region auf BARQ angebotene Leistungen; die Verfügbarkeit wird bei der Buchung bestätigt.",
   "errorRetryable": "Der Plan konnte gerade nicht erstellt werden. Bitte erneut versuchen.",
   "errorRateLimited": "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten und erneut versuchen.",
   "errorInvalid": "Bitte Auswahl prüfen und erneut versuchen.",

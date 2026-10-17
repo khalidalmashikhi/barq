@@ -1,6 +1,6 @@
 {
   "homeCardTitle": "Pianifica il tuo viaggio",
-  "homeCardBody": "Scegli la regione e il numero di giorni: ti proponiamo un piano giornaliero con servizi disponibili su BARQ.",
+  "homeCardBody": "Scegli la regione e il numero di giorni: ti proponiamo un piano giornaliero con servizi offerti su BARQ e, dove mancano, idee generali.",
   "homeCardCta": "Inizia a pianificare",
   "pageTitle": "Pianifica il tuo viaggio",
   "pageSubtitle": "Un piano suggerito e modificabile: nulla viene prenotato finché non confermi tu.",
@@ -46,7 +46,7 @@
   "needAccessibility": "Accessibilità",
   "needFamily": "Adatto alle famiglie",
   "generating": "Preparazione del piano…",
-  "generatingHint": "Scegliamo tra i servizi realmente disponibili su BARQ nella regione.",
+  "generatingHint": "Usiamo solo servizi offerti su BARQ nella regione; la disponibilità si conferma alla prenotazione.",
   "errorRetryable": "Impossibile creare il piano ora. Riprova.",
   "errorRateLimited": "Troppe richieste in poco tempo. Attendi un momento e riprova.",
   "errorInvalid": "Controlla le scelte e riprova.",

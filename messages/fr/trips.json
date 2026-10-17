@@ -1,6 +1,6 @@
 {
   "homeCardTitle": "Planifiez votre voyage",
-  "homeCardBody": "Choisissez une région et un nombre de jours — nous proposons un plan jour par jour avec des services disponibles sur BARQ.",
+  "homeCardBody": "Choisissez une région et un nombre de jours — nous proposons un plan jour par jour avec des services proposés sur BARQ, et des idées générales s’il n’y en a pas.",
   "homeCardCta": "Commencer",
   "pageTitle": "Planifiez votre voyage",
   "pageSubtitle": "Un plan suggéré et modifiable — rien n'est réservé tant que vous ne confirmez pas vous-même.",
@@ -46,7 +46,7 @@
   "needAccessibility": "Accessibilité",
   "needFamily": "Adapté aux familles",
   "generating": "Préparation de votre plan…",
-  "generatingHint": "Nous choisissons parmi les services réellement disponibles sur BARQ dans la région.",
+  "generatingHint": "Nous utilisons uniquement les services proposés sur BARQ dans la région ; la disponibilité est confirmée à la réservation.",
   "errorRetryable": "Impossible de créer le plan pour le moment. Réessayez.",
   "errorRateLimited": "Trop de demandes en peu de temps. Patientez un instant puis réessayez.",
   "errorInvalid": "Vérifiez vos choix et réessayez.",

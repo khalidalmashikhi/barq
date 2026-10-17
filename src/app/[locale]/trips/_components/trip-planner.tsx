@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { CalendarDays, Check, Minus, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { CalendarDays, Check, Map as MapIcon, Minus, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/i18n/format-money";
 import { describeDuration } from "@/lib/services/duration";
@@ -324,7 +324,7 @@ export function TripPlanner({ regions }: { regions: Region[] }) {
         )}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button type="button" onClick={() => generate()} className={`${PRIMARY} sm:min-w-56`}>
-            <Sparkles size={18} aria-hidden /> {t("createPlan")}
+            <MapIcon size={18} aria-hidden /> {t("createPlan")}
           </button>
           {phase === "days" && (
             <button type="button" onClick={() => setPhase("prefs")} className={SECONDARY}>
@@ -344,7 +344,7 @@ export function TripPlanner({ regions }: { regions: Region[] }) {
     return (
       <section className={`${CARD} flex flex-col items-center gap-3 py-10 text-center`} role="status" aria-live="polite" data-trip-generating="">
         <span aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-secondary/10 text-secondary-700">
-          <Sparkles size={26} className="motion-safe:animate-pulse" />
+          <MapIcon size={26} className="motion-safe:animate-pulse" />
         </span>
         <p className="text-lg font-semibold text-foreground">{t("generating")}</p>
         <p className="text-sm text-foreground/75">{t("generatingHint")}</p>

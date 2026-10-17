@@ -35,6 +35,26 @@ describe("trip planner copy", () => {
     expect(messages.ar!.planDisclaimer).toMatch(/ليست حجزًا/);
   });
 
+  it("the deterministic planner never presents itself as AI, personalised by a model, or guaranteed", () => {
+    const acronyms = /\b(AI|KI|IA|SI)\b|ИИ/; // case-SENSITIVE: Italian "ai bambini", Czech "si" are not AI
+    const words = /artificial|künstlich|intelligen|sztuczn|umělá|искусствен|ذكاء|اصطناع|personali[sz]|persönlich|personnalis|personalizz|spersonaliz|персонализ|مخصص|guarant|garant|gwarant|zaruč|гарант|مضمون|نضمن/i;
+    for (const l of LOCALES)
+      for (const [k, v] of Object.entries(messages[l]!)) {
+        expect(v, `${l}.${k}`).not.toMatch(acronyms);
+        expect(v, `${l}.${k}`).not.toMatch(words);
+      }
+    const ui = ["src/app/[locale]/trips/_components/trip-planner.tsx", "src/components/home/plan-trip-card.tsx"].map((f) => readFileSync(path.join(process.cwd(), f), "utf8")).join("\n");
+    expect(ui).not.toMatch(/\b(Sparkles?|Wand2?|WandSparkles|Bot|BrainCircuit|Brain)\b/); // no AI iconography
+    expect(ui.match(/t\("travelTimeUnavailable"\)/g)).toHaveLength(1); // said ONCE per plan, never on every card
+  });
+
+  it("descriptive copy never overclaims availability — only the per-item badge says 'available to book'", () => {
+    expect(messages.en!.homeCardBody).not.toMatch(/available/i);
+    expect(messages.en!.generatingHint).not.toMatch(/actually available/i);
+    expect(messages.ar!.homeCardBody).not.toMatch(/متاح/);
+    expect(messages.ar!.generatingHint).not.toMatch(/متاحة فعلًا/);
+  });
+
   it("general suggestions name no place, price or time (no invented facts)", () => {
     for (const l of LOCALES) for (const k of TRIP_SUGGESTION_KEYS) expect(messages[l]![k], `${l}.${k}`).not.toMatch(/\d|OMR|ر\.ع|Muttrah|Nizwa|Sur|Salalah|مطرح|نزوى|صلالة/);
   });

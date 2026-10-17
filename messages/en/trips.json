@@ -1,6 +1,6 @@
 {
   "homeCardTitle": "Plan your trip",
-  "homeCardBody": "Pick a region and the number of days — we suggest a day-by-day plan built from services available on BARQ.",
+  "homeCardBody": "Pick a region and the number of days — we suggest a day-by-day plan using services listed on BARQ, with general ideas where there are none.",
   "homeCardCta": "Start planning",
   "pageTitle": "Plan your trip",
   "pageSubtitle": "A suggested plan you can edit — nothing is booked until you confirm it yourself.",
@@ -46,7 +46,7 @@
   "needAccessibility": "Accessibility",
   "needFamily": "Family-friendly",
   "generating": "Preparing your plan…",
-  "generatingHint": "We pick from services actually available on BARQ in the region.",
+  "generatingHint": "We use only services listed on BARQ in the region; availability is confirmed when you book.",
   "errorRetryable": "We couldn't create the plan right now. Please try again.",
   "errorRateLimited": "Too many requests in a short time. Please wait a moment and try again.",
   "errorInvalid": "Please check your choices and try again.",
