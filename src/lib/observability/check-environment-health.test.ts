@@ -37,6 +37,8 @@ describe("checkEnvironmentHealth", () => {
     vi.stubEnv("TWILIO_ACCOUNT_SID", "AC123");
     vi.stubEnv("TWILIO_AUTH_TOKEN", "token123");
     vi.stubEnv("TWILIO_FROM_NUMBER", "+14155238886");
+    // explicitly missing — never rely on the ambient environment (CI sets NEXT_PUBLIC_APP_URL)
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
 
     expect(checkEnvironmentHealth()).toBe("incomplete");
   });
