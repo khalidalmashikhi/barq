@@ -69,7 +69,8 @@ export function decide(command) {
     // ── secrets and environment values ────────────────────────────────────────────────────────
     if ((/^(?:printenv|env|export -p|declare -x|compgen -v)(?:\s|$)/.test(s) || /^set$/.test(s)) && !/^env \w+=\S* \S/.test(s)) return block("Printing environment variables is prohibited.");
     if (/(?:^|\s)(?:cat|type|less|more|head|tail|bat|nl|od|xxd|strings|grep|rg|findstr|sed|awk|Get-Content|gc|code)\b[^|]*(?:^|[\s/\\"'])\.env(?!\.example)(?:\.[\w.-]+)?(?:["'\s]|$)/.test(s)) return block("Reading .env files is prohibited (use `node -e` checks that print only SET / EMPTY, never values).");
-    if (/\b(?:echo|printf|Write-Output|Write-Host)\b[^|]*\$(?:\{)?(?:env:)?\w*/.test(s) && SECRET_NAME.test(s)) return block("Printing a secret-bearing variable is prohibited.");
+    // only when the EXPANDED VARIABLE is secret-bearing (`echo "secret-scan exit=$?"` is fine)
+    if (/\b(?:echo|printf|Write-Output|Write-Host)\b/.test(s) && [...s.matchAll(/\$\{?(?:env:)?([A-Za-z_]\w*)/g)].some((m) => SECRET_NAME.test(m[1]))) return block("Printing a secret-bearing variable is prohibited.");
     if (/^gh (?:secret|auth token|auth refresh|variable set)\b/.test(s)) return block("GitHub secrets / tokens are owner-only.");
     if (/Get-ChildItem\s+env:|\[Environment\]::GetEnvironmentVariables/i.test(s)) return block("Printing environment variables is prohibited.");
 

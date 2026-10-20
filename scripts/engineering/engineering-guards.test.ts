@@ -61,6 +61,8 @@ describe("guard hook — always blocked", () => {
     ["cat .env", /\.env files/],
     ["grep DATABASE .env.local", /\.env files/],
     ['echo "$DATABASE_URL"', /secret-bearing/],
+    ["echo ${BETTER_AUTH_SECRET}", /secret-bearing/],
+    ["Write-Output $env:ANTHROPIC_API_KEY", /secret-bearing/],
     ["gh secret set ANTHROPIC_API_KEY", /owner-only/],
     ["gh auth token", /owner-only/],
     ["rm -rf /", /Recursive deletion/],
@@ -101,6 +103,8 @@ describe("guard hook — routine work is not blocked", () => {
     "grep -n KEY .env.example",
     "set -e",
     'echo "exit:$?"',
+    'echo "  secret-scan exit=${PIPESTATUS[0]}"', // the word "secret" is not a secret-bearing variable
+    'echo "token count: $COUNT"',
     "env NODE_ENV=production npx tsx scripts/validate-env.ts",
   ])("%s", (cmd) => {
     expect(decide(cmd).action, cmd).toBe("pass");
