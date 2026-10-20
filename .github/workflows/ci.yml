@@ -100,6 +100,9 @@ jobs:
       # schema.prisma, not a live database); no step here executes a
       # real database query or a real Better Auth request.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+      # schema.prisma's datasource also declares directUrl = env("DIRECT_URL"); `prisma validate`
+      # resolves it, so it needs the same local placeholder (never contacted).
+      DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci"
       BETTER_AUTH_SECRET: "ci-placeholder-secret"
       BETTER_AUTH_URL: "http://localhost:3000"
       NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
