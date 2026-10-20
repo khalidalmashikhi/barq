@@ -19,6 +19,8 @@ BARQ (Arabic: **برق** — never "بارق") is a multi-language tourism marke
 
 ## Start here for any task
 
+Delivery path (branch → PR → CI → staging → QA → owner-approved production, and rollback): `docs/project-memory/24-RELEASE-AND-ROLLBACK-RUNBOOK.md` — binding for every agent; production is never deployed without the owner's explicit approval in the same task.
+
 Read `docs/project-memory/01-CURRENT-STATE.md` first — it is the as-built inventory of what's real, what's schema-only-with-no-implementation, and what's entirely absent. Do not assume a capability exists because it's named in `docs/project-memory/03-PRODUCT-REQUIREMENTS.md` — that file describes the target, not the current state. For entity-level detail, see `docs/project-memory/15-DATA-DICTIONARY.md`; for the specific, ID'd business rules governing a capability (with an honest enforcement status — verified in code vs. target), see `docs/project-memory/16-BUSINESS-RULES.md`; for the dated decision history behind any of this, see `docs/project-memory/17-CHANGELOG-DECISIONS.md`. For the target Bounded Contexts, see `docs/project-memory/18-DOMAIN-MODEL.md`; for domain events, `docs/project-memory/19-EVENT-CATALOG.md`; for who may do what, `docs/project-memory/20-PERMISSION-MATRIX.md`; for a per-engine spec, `docs/project-memory/21-ENGINE-SPECIFICATIONS.md`; for non-functional requirements, `docs/project-memory/22-NON-FUNCTIONAL-REQUIREMENTS.md`.
 
 ## The long-range direction (not yet built — see 01-CURRENT-STATE.md for what's real today)

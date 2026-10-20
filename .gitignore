@@ -47,7 +47,13 @@ next-env.d.ts
 # Vercel
 .vercel
 
-.claude/
+# Claude Code: personal / machine-local files stay ignored (settings.local.json, launch.json,
+# worktrees). The SHARED engineering configuration is committed: permissions + hooks
+# (settings.json), the hook scripts and the reusable BARQ skills.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
 
 # Load-test session pool (docs/11-release/LOAD_TEST_PLAN.md) — live
 # staging session cookies, never committed.

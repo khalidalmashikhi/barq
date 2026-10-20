@@ -7,6 +7,18 @@ name: CI
 # into the pipeline) — this workflow implements those requirements,
 # it does not invent new ones.
 #
+# 2026-10-20 (engineering-workflow hardening): the workflow previously
+# ran only for `main`, while all work lands on `staging` — so it had
+# never run (0 workflow runs). It now runs for PRs into and pushes to
+# `staging` and `main`; adds a fast `guards` job (diff whitespace,
+# prohibited scope, migration-file integrity, translation parity),
+# `prisma validate`, focused tests for the PR's changed paths, and a
+# client-bundle scan after the build; and runs on Node 24 (the Vercel
+# projects' runtime). Secret scanning lives in secret-scan.yml so a
+# superseded run can never cancel an in-flight scan. CI never deploys:
+# Vercel's Git integration deploys `staging` to barq-staging; production
+# is owner-approved only (docs/project-memory/24-RELEASE-AND-ROLLBACK-RUNBOOK.md).
+#
 # No Playwright/e2e step: docs/02-domain-architecture/TECH_STACK.md §17
 # approves Playwright, but no playwright.config or spec files exist yet
 # in this repository (verified) — running `npm run test:e2e` here would
@@ -16,20 +28,71 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # superseded PR runs are cancelled; pushes to staging/main always finish
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality:
-    name: Typecheck, Lint, Unit Tests, Build
+  guards:
+    name: Guards (whitespace, scope, migrations, translations)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history for range checks)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve comparison base
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "ref=origin/$PR_BASE" >> "$GITHUB_OUTPUT"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "ref=$BEFORE" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=origin/staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: git diff --check
+        run: git diff --check "${{ steps.base.outputs.ref }}...HEAD"
+
+      - name: Prohibited-scope check
+        run: node scripts/engineering/scope-check.mjs --base "${{ steps.base.outputs.ref }}"
+
+      - name: Migration-file integrity
+        run: node scripts/engineering/check-migrations.mjs --base "${{ steps.base.outputs.ref }}"
+
+      - name: Translation parity
+        run: node scripts/engineering/translation-parity.mjs
+
+  quality:
+    name: Typecheck, Lint, Prisma, Tests, Build, Bundle scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       # Placeholder values, not real credentials — this job only
       # needs to satisfy scripts/validate-env.ts's shape checks and
-      # let `prisma generate` run (which reads schema.prisma, not a
-      # live database); no step here executes a real database query
-      # or a real Better Auth request.
+      # let `prisma generate` / `prisma validate` run (which read
+      # schema.prisma, not a live database); no step here executes a
+      # real database query or a real Better Auth request.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
       BETTER_AUTH_SECRET: "ci-placeholder-secret"
       BETTER_AUTH_URL: "http://localhost:3000"
@@ -38,11 +101,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -86,11 +151,21 @@ jobs:
           TWILIO_FROM_NUMBER: "+10000000000"
           CRON_SECRET: "ci-placeholder-cron-secret"
 
+      - name: Prisma validate
+        run: npx prisma validate
+
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
+      - name: Focused tests (paths changed by this PR)
+        if: github.event_name == 'pull_request'
+        run: npx vitest run --changed "origin/${{ github.base_ref }}" --passWithNoTests
+
+      - name: Unit tests (full suite)
         run: npm run test
 
       - name: Build
         run: npm run build
+
+      - name: Client-bundle scan (no secrets / server code in .next/static)
+        run: node scripts/engineering/bundle-scan.mjs
