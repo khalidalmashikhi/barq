@@ -12,7 +12,7 @@ The single operational procedure for getting a change from request to staging, a
 | Vercel `barq-staging` | production branch **`staging`**; build `npm run vercel-build` = `validate-env && prisma migrate deploy && next build`; alias **barq-staging.vercel.app** |
 | Vercel `barq` (production) | production branch **`main`** (Git auto-deploy ON); build is the default `npm run build` — **does NOT run `prisma migrate deploy`**; alias `barq-barq4.vercel.app`; last production deployment (`ad4aa84`, ~80 days old) is in **ERROR** — production serves nothing today |
 | Preview builds | every push also creates a `barq` **Preview** build that fails `validate-env` (preview env lacks `NEXT_PUBLIC_APP_URL`, `OTP_PROVIDER=console`) — **cosmetic**; judge staging only by `barq-staging` |
-| CI | `.github/workflows/ci.yml` + `secret-scan.yml` (PRs into / pushes to `staging` and `main`); CI **never deploys** |
+| CI | `.github/workflows/ci.yml` + `secret-scan.yml` (PRs into / pushes to `staging` and `main`; actions pinned to commit SHAs); the build runs against a **disposable** `postgres:16` service migrated from zero inside the runner (never a real database); CI **never deploys**. Check names: `Guards (whitespace, scope, migrations, translations)`, `Typecheck, Lint, Prisma, Tests, Build, Bundle scan`, `Scan added commits for credentials` |
 | GitHub security | secret scanning + push protection ON; Dependabot security updates OFF |
 | Migrations | 66 in `prisma/migrations`; applied to staging **only** by the `barq-staging` build |
 
@@ -81,7 +81,7 @@ Within the same day, a dated entry in `docs/project-memory/17-CHANGELOG-DECISION
 
 ## 8. Owner actions this runbook depends on (not done by any agent)
 
-1. **Protect `main`**: require a pull request, ≥1 approving review (owner), required checks `Guards`, `Quality`, `Secret scan`; no force pushes; no deletions; include administrators if desired. This is what makes "production only through the protected path" true.
+1. **Protect `main`**: require a pull request, ≥1 approving review (owner), required status checks `Guards (whitespace, scope, migrations, translations)`, `Typecheck, Lint, Prisma, Tests, Build, Bundle scan`, `Scan added commits for credentials`; no force pushes; no deletions; include administrators if desired. This is what makes "production only through the protected path" true.
 2. **Protect `staging`**: require pull requests (allow the owner to bypass for an approved direct rollout if wanted), required checks as above, no force pushes / deletions.
 3. **Vercel `barq` (production)**: decide the migration path (§5.2) and, optionally, disable automatic production deploys from `main` (Settings → Git → "Ignored Build Step" or per-branch deployment control) so a production deploy needs a deliberate promote.
 4. **Vercel MCP** (optional, read-only inspection from Claude): `claude mcp add --transport http vercel https://mcp.vercel.com`, then `/mcp` to authenticate via OAuth. No token is stored in the repository.
