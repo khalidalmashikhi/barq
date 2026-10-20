@@ -244,7 +244,18 @@ describe("GitHub Actions security contract (every workflow file)", () => {
     const t = text(f).replace(/^\s*#.*$/gm, "");
     expect(t).not.toMatch(/pull_request_target/);
     expect(t).not.toMatch(/dangerously-skip-permissions/);
-    expect(runBlocks(text(f)).join("\n")).not.toMatch(/vercel\s+(?:deploy|--prod|promote|alias|env)|prisma\s+(?:migrate\s+(?:deploy|dev|reset)|db\s+push)|gh\s+(?:secret|variable)/);
+    const run = runBlocks(text(f)).join("\n");
+    expect(run).not.toMatch(/vercel\s+(?:deploy|--prod|promote|alias|env)|prisma\s+(?:migrate\s+(?:dev|reset)|db\s+push)|gh\s+(?:secret|variable)/);
+    if (f !== "ci.yml") expect(run).not.toMatch(/prisma\s+migrate\s+deploy/);
+  });
+
+  it("ci.yml migrates ONLY its own disposable, digest-pinned Postgres service — never a real database", () => {
+    const t = text("ci.yml");
+    expect(runBlocks(t).filter((l) => /prisma\s+migrate\s+deploy/.test(l))).toHaveLength(1);
+    expect(t).toMatch(/services:\n\s+postgres:\n\s+image: postgres:16@sha256:[0-9a-f]{64}/);
+    const urls = [...t.matchAll(/^\s*(DATABASE_URL|DIRECT_URL):\s*"([^"]+)"/gm)];
+    expect(urls.length).toBeGreaterThanOrEqual(2);
+    for (const [, name, url] of urls) expect(url, name).toBe("postgresql://ci:ci@localhost:5432/ci");
   });
 
   it.each(files)("%s: no ${{ }} expression is interpolated into a shell script (values go through env:)", (f) => {

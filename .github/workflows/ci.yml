@@ -93,6 +93,25 @@ jobs:
     name: Typecheck, Lint, Prisma, Tests, Build, Bundle scan
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # A DISPOSABLE PostgreSQL that exists only inside this job's runner (owner decision 2026-10-20):
+    # `next build` pre-renders /sitemap.xml, which reads the database. The 66 migrations are applied
+    # to this empty container from zero right before the build — never to staging or production
+    # (no shared database credential exists in GitHub). DB-proof tests stay opt-in
+    # (REGISTRATION_DBPROOF=1 etc.), so the suite behaves exactly as without a database.
+    services:
+      postgres:
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d # official image, pinned by digest
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       # Placeholder values, not real credentials — this job only
       # needs to satisfy scripts/validate-env.ts's shape checks and
@@ -174,6 +193,9 @@ jobs:
 
       - name: Unit tests (full suite)
         run: npm run test
+
+      - name: Apply migrations to the disposable CI database (from zero; never staging / production)
+        run: npx prisma migrate deploy
 
       - name: Build
         run: npm run build
