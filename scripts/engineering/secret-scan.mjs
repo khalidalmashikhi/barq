@@ -107,7 +107,13 @@ export function scan(args) {
   const range = typeof args.range === "string" ? args.range : typeof args.base === "string" ? `${args.base}..HEAD` : null;
   if (!range) throw new Error("specify --staged, --range A..B or --base REF");
   const shas = git(["rev-list", "--reverse", "--no-merges", range]).split("\n").filter(Boolean);
+  // a PR / push always adds at least one commit — zero means a wrong base, never "clean"
+  if (args["require-commits"] && shas.length === 0) failures.push(`no commits found in ${range} — wrong base ref; refusing to report a clean scan`);
   for (const sha of shas) scanPatch(sha.slice(0, 7), git(["show", "--unified=0", "--no-color", "--no-renames", "--format=", sha]), failures, seen);
+  // plus the NET diff of the whole range: catches content introduced by a merge commit (whose own
+  // patch the per-commit pass above skips)
+  const [from, to] = range.includes("...") ? range.split("...") : range.split("..");
+  scanPatch("range", git(["diff", "--unified=0", "--no-color", "--no-renames", `${from}...${to || "HEAD"}`]), failures, seen);
   return { label: range, failures, commits: shas.length };
 }
 

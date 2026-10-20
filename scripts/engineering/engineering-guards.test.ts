@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 // @ts-expect-error — plain .mjs guard modules (no type declarations by design: zero-dependency Node)
@@ -214,6 +214,67 @@ describe("post-deploy verification parsing", () => {
   });
 });
 
+describe("GitHub Actions security contract (every workflow file)", () => {
+  const dir = path.resolve(".github/workflows");
+  const files = readdirSync(dir).filter((f) => /\.ya?ml$/.test(f));
+  const text = (f: string) => readFileSync(path.join(dir, f), "utf8");
+  /** Lines of every `run:` block (inline or `|` / `>` block scalars), by indentation. */
+  const runBlocks = (src: string) => {
+    const lines = src.split("\n");
+    const out: string[] = [];
+    lines.forEach((l, i) => {
+      const m = l.match(/^(\s*)(?:- )?run:\s*(.*)$/);
+      if (!m) return;
+      if (m[2] && !/^[|>][-+]?$/.test(m[2])) return void out.push(m[2]);
+      const indent = m[1]!.length;
+      for (let j = i + 1; j < lines.length && (lines[j]!.trim() === "" || lines[j]!.search(/\S/) > indent); j++) out.push(lines[j]!);
+    });
+    return out;
+  };
+
+  it("there are workflows to check", () => expect(files.sort()).toEqual(["ci.yml", "claude.yml", "secret-scan.yml"]));
+
+  it.each(files)("%s: every action is pinned to a full commit SHA (tags are mutable)", (f) => {
+    const uses = text(f).split("\n").filter((l) => /^\s*(?:- )?uses:/.test(l));
+    expect(uses.length).toBeGreaterThan(0);
+    for (const u of uses) expect(u, u.trim()).toMatch(/uses: [\w.-]+\/[\w.-]+@[0-9a-f]{40} # v\d/);
+  });
+
+  it.each(files)("%s: no pull_request_target, no skip-permissions, no deploy / migrate / env-write commands", (f) => {
+    const t = text(f).replace(/^\s*#.*$/gm, "");
+    expect(t).not.toMatch(/pull_request_target/);
+    expect(t).not.toMatch(/dangerously-skip-permissions/);
+    expect(runBlocks(text(f)).join("\n")).not.toMatch(/vercel\s+(?:deploy|--prod|promote|alias|env)|prisma\s+(?:migrate\s+(?:deploy|dev|reset)|db\s+push)|gh\s+(?:secret|variable)/);
+  });
+
+  it.each(files)("%s: no ${{ }} expression is interpolated into a shell script (values go through env:)", (f) => {
+    expect(runBlocks(text(f)).filter((l) => l.includes("${{"))).toEqual([]);
+  });
+
+  it.each(files)("%s: default token permissions are read-only at the top level", (f) => {
+    expect(text(f)).toMatch(/^permissions:\n {2}contents: read\n/m);
+  });
+
+  it("the only secret referenced anywhere is the (absent) Claude key, and only in claude.yml", () => {
+    for (const f of files) {
+      const refs = [...text(f).matchAll(/secrets\.(\w+)/g)].map((m) => m[1]);
+      expect(refs, f).toEqual(f === "claude.yml" ? ["ANTHROPIC_API_KEY"] : []);
+    }
+  });
+
+  it("claude.yml cannot run by accident: owner variable + this repository + owner / member / collaborator", () => {
+    const t = text("claude.yml");
+    expect(t).toMatch(/github\.repository == 'khalidalmashikhi\/barq' &&/);
+    expect(t).toMatch(/vars\.CLAUDE_GITHUB_ENABLED == 'true' &&/);
+    expect(t.match(/author_association\)/g)).toHaveLength(3);
+    expect(t).not.toMatch(/workflow_dispatch|schedule:|push:/);
+  });
+
+  it("the PR secret scan refuses an empty commit range (no false green)", () => {
+    expect(text("secret-scan.yml")).toMatch(/--base "origin\/\$PR_BASE" --require-commits/);
+  });
+});
+
 describe("secret scan over a fixture repository — every commit is scanned on its own", () => {
   let repo: string;
   const g = (...a: string[]) => execFileSync("git", a, { cwd: repo, encoding: "utf8" });
@@ -240,5 +301,26 @@ describe("secret scan over a fixture repository — every commit is scanned on i
     expect(r.stdout).not.toContain(fake.anthropic.slice(8));
     const clean = spawnSync(process.execPath, [script, "--range", "HEAD~1..HEAD"], { cwd: repo, encoding: "utf8" });
     expect(clean.status).toBe(0);
+  });
+
+  it("no false green: an empty PR range fails with --require-commits; a secret introduced only by a MERGE commit is caught", () => {
+    const script = path.resolve("scripts/engineering/secret-scan.mjs");
+    const empty = spawnSync(process.execPath, [script, "--range", "HEAD..HEAD", "--require-commits"], { cwd: repo, encoding: "utf8" });
+    expect(empty.status).toBe(1);
+    expect(empty.stdout).toMatch(/no commits found/);
+    // side branch + a merge whose resolution adds the key (the merge's own patch is skipped per-commit)
+    const base = g("rev-parse", "HEAD").trim();
+    g("switch", "-qc", "side");
+    writeFileSync(path.join(repo, "b.ts"), "export const b = 1;\n");
+    g("add", ".");
+    g("commit", "-qm", "side change");
+    g("switch", "-q", "-");
+    g("merge", "-q", "--no-ff", "--no-commit", "side");
+    writeFileSync(path.join(repo, "c.ts"), `export const k = "${fake.anthropic}";\n`);
+    g("add", ".");
+    g("commit", "-qm", "merge side");
+    const merged = spawnSync(process.execPath, [script, "--range", `${base}..HEAD`], { cwd: repo, encoding: "utf8" });
+    expect(merged.status).toBe(1);
+    expect(merged.stdout).toMatch(/range: c\.ts:1 — anthropic-key/);
   });
 });

@@ -47,12 +47,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout (full history for range checks)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
 
@@ -72,13 +72,19 @@ jobs:
           fi
 
       - name: git diff --check
-        run: git diff --check "${{ steps.base.outputs.ref }}...HEAD"
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+        run: git diff --check "$BASE...HEAD"
 
       - name: Prohibited-scope check
-        run: node scripts/engineering/scope-check.mjs --base "${{ steps.base.outputs.ref }}"
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+        run: node scripts/engineering/scope-check.mjs --base "$BASE"
 
       - name: Migration-file integrity
-        run: node scripts/engineering/check-migrations.mjs --base "${{ steps.base.outputs.ref }}"
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+        run: node scripts/engineering/check-migrations.mjs --base "$BASE"
 
       - name: Translation parity
         run: node scripts/engineering/translation-parity.mjs
@@ -100,12 +106,12 @@ jobs:
       NEXT_PUBLIC_APP_URL: "http://localhost:3000"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -159,7 +165,9 @@ jobs:
 
       - name: Focused tests (paths changed by this PR)
         if: github.event_name == 'pull_request'
-        run: npx vitest run --changed "origin/${{ github.base_ref }}" --passWithNoTests
+        env:
+          PR_BASE: ${{ github.base_ref }}
+        run: npx vitest run --changed "origin/$PR_BASE" --passWithNoTests
 
       - name: Unit tests (full suite)
         run: npm run test
