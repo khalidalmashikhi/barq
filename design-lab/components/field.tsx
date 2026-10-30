@@ -50,7 +50,7 @@ export function Field({ label, hint, error, review, valueDir = "auto", required,
       />
       {helper && (
         <p id={helpId} className={clsx("flex items-start gap-1.5 text-[0.9375rem] leading-[1.5]", error ? "text-[#B91C1C]" : review ? "text-[#7A4A00]" : "text-foreground/70")}>
-          {error ? <XCircle size={16} aria-hidden className="mt-0.5 shrink-0" /> : review ? <AlertTriangle size={16} aria-hidden className="mt-0.5 shrink-0" /> : null}
+          {error ? <XCircle aria-hidden className="ds-icon-sm mt-0.5 shrink-0" /> : review ? <AlertTriangle aria-hidden className="ds-icon-sm mt-0.5 shrink-0" /> : null}
           <span>{helper}</span>
         </p>
       )}

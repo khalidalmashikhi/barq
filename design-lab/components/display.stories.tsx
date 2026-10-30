@@ -84,23 +84,23 @@ export const AccordionStory: Story = {
     return (
       <Canvas>
         <Specimen label="closed">
-          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck size={20} aria-hidden />}>
+          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck className="ds-icon" aria-hidden />}>
             <p>{t("vehicleRegConsentDetailsExternal")}</p>
           </Accordion>
         </Specimen>
         <Specimen label="hover · focus · pressed">
-          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck size={20} aria-hidden />} forceState="hover">
+          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck className="ds-icon" aria-hidden />} forceState="hover">
             <p>{t("vehicleRegConsentDetailsExternal")}</p>
           </Accordion>
-          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck size={20} aria-hidden />} forceState="focus">
+          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck className="ds-icon" aria-hidden />} forceState="focus">
             <p>{t("vehicleRegConsentDetailsExternal")}</p>
           </Accordion>
-          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck size={20} aria-hidden />} forceState="pressed">
+          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck className="ds-icon" aria-hidden />} forceState="pressed">
             <p>{t("vehicleRegConsentDetailsExternal")}</p>
           </Accordion>
         </Specimen>
         <Specimen label="open">
-          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck size={20} aria-hidden />} defaultOpen>
+          <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck className="ds-icon" aria-hidden />} defaultOpen>
             <p>{t("vehicleRegConsentDetailsExternal")}</p>
             <p>{t("vehicleRegConsentLimits")}</p>
             <p>{t("vehicleRegConsentLegalNote")}</p>
@@ -176,7 +176,7 @@ export const SensitiveDataRowStory: Story = {
     const c = useLabCopy();
     return (
       <Canvas>
-        <SectionCard title={c.privateSection} icon={<Lock size={20} aria-hidden />} badge={<StatusBadge tone="review">{c.toReview(1)}</StatusBadge>}>
+        <SectionCard title={c.privateSection} icon={<Lock className="ds-icon" aria-hidden />} badge={<StatusBadge tone="review">{c.toReview(1)}</StatusBadge>}>
           <p className="-mt-2 text-[1rem] leading-[1.65] text-foreground/70">{c.privateNote}</p>
           <RowList>
             <SensitiveDataRow label={c.fieldPlate} maskedValue={SYNTHETIC.plateMasked} value={SYNTHETIC.plate} showLabel={c.show} hideLabel={c.hide} state="review" source={c.fromDocument} actionLabel={c.confirm} />

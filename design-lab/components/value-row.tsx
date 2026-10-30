@@ -62,9 +62,10 @@ export function SensitiveDataRow({ label, maskedValue, value, showLabel, hideLab
       state={state}
       source={source}
       action={
-        <span className="flex items-center gap-1">
+        // wraps: at large text "Show" and the row action may not fit side by side
+        <span className="flex min-w-0 flex-wrap items-center gap-1">
           <button type="button" aria-pressed={shown} onClick={() => setShown((s) => !s)} className={ACTION}>
-            {shown ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+            {shown ? <EyeOff className="ds-icon-sm" aria-hidden /> : <Eye className="ds-icon-sm" aria-hidden />}
             {shown ? hideLabel : showLabel}
           </button>
           {actionLabel && (

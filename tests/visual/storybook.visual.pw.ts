@@ -14,7 +14,7 @@ import AxeBuilder from "@axe-core/playwright";
 // evidence (annotations), not failures — the proposals must pass.
 
 type Entry = { id: string; title: string; name: string; type: string; tags?: string[] };
-const index = JSON.parse(readFileSync("storybook-static/index.json", "utf8")) as { entries: Record<string, Entry> };
+const index = JSON.parse(readFileSync(`${process.env.SB_DIR ?? "storybook-static"}/index.json`, "utf8")) as { entries: Record<string, Entry> };
 const stories = Object.values(index.entries).filter((e) => e.type === "story");
 
 const isPrototype = (e: Entry) => e.tags?.includes("prototype") ?? false;

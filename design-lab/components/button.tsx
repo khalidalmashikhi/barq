@@ -58,7 +58,9 @@ export function Button({ variant = "primary", size = "md", loading = false, load
         <span>{loading && loadingLabel ? loadingLabel : children}</span>
       </button>
       {showReason && (
-        <span id={reasonId} className="text-center text-[0.9375rem] leading-[1.5] text-foreground/70">
+        // `ds-bar-reason`: inside a sticky bar in large-text mode A this stays announced but is shown in
+        // the page's action area instead (design-lab/lab.css).
+        <span id={reasonId} className="ds-bar-reason text-center text-[0.9375rem] leading-[1.5] text-foreground/70">
           {disabledReason}
         </span>
       )}

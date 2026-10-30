@@ -18,7 +18,7 @@ export function Notice({ tone = "info", title, children, action, className }: { 
   const { box, Icon } = STYLE[tone];
   return (
     <div role={tone === "danger" ? "alert" : "status"} className={clsx("flex items-start gap-2.5 rounded-2xl px-4 py-3 text-[1rem] leading-[1.6]", box, className)}>
-      <Icon size={18} strokeWidth={2} aria-hidden className="mt-[0.2em] shrink-0" />
+      <Icon strokeWidth={2} aria-hidden className="ds-icon-sm mt-[0.2em] shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {title && <p className="font-semibold">{title}</p>}
         <div>{children}</div>

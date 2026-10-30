@@ -33,7 +33,7 @@ export function StepProgress({ label, steps, summary, statusText }: Props) {
         ))}
       </div>
       <p aria-hidden className="flex items-center gap-1.5 text-[0.9375rem] leading-[1.5] text-foreground/70">
-        {current.status === "error" && <AlertTriangle size={15} className="shrink-0 text-[#7A4A00]" />}
+        {current.status === "error" && <AlertTriangle className="ds-icon-sm shrink-0 text-[#7A4A00]" />}
         <span>
           {summary(currentIndex + 1, steps.length, "")}
           <b className="font-semibold text-foreground">{current.name}</b>

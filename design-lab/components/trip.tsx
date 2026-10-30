@@ -23,7 +23,7 @@ export function TripDayTimeline({ title, regenerateLabel, onRegenerate, footer, 
           {title}
         </h2>
         <button type="button" onClick={onRegenerate} aria-label={regenerateLabel} title={regenerateLabel} className={`flex size-11 items-center justify-center rounded-xl text-primary hover:bg-[#EEF4F8] ${FOCUS_RING}`}>
-          <RefreshCw size={20} aria-hidden />
+          <RefreshCw className="ds-icon" aria-hidden />
         </button>
       </div>
       <ol className="flex flex-col divide-y divide-foreground/10">{children}</ol>

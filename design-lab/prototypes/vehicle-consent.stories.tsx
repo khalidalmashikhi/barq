@@ -8,7 +8,7 @@ import { ConfirmCheck } from "../components/confirm-check";
 import { Notice } from "../components/notice";
 import { StateView } from "../components/state-view";
 import { StepProgress } from "../components/step-progress";
-import { StickyActionBar } from "../components/sticky-action-bar";
+import { StickyActionBar, type BarMode } from "../components/sticky-action-bar";
 import { useLabCopy } from "../copy";
 import { FOCUS_RING, TEXT } from "../tokens";
 import { TaskShell } from "./shell";
@@ -41,7 +41,7 @@ function Progress({ failed = false }: { failed?: boolean }) {
   );
 }
 
-function ConsentPrototype({ state }: { state: ConsentState }) {
+function ConsentPrototype({ state, barMode = "A" }: { state: ConsentState; barMode?: BarMode }) {
   const t = useTranslations("provider");
   const c = useLabCopy();
   const [authorized, setAuthorized] = useState(state !== "choose");
@@ -62,7 +62,7 @@ function ConsentPrototype({ state }: { state: ConsentState }) {
         <Progress />
         <section className="flex flex-col gap-3 rounded-[1.25rem] border border-foreground/10 bg-card p-5">
           <p className={TEXT.support}>{t("vehicleRegConsentDeclinedNotice")}</p>
-          <Button variant="secondary" fullWidth icon={<ScanLine size={18} aria-hidden />}>
+          <Button variant="secondary" fullWidth icon={<ScanLine className="ds-icon-sm" aria-hidden />}>
             {t("vehicleRegConsentChangeMind")}
           </Button>
         </section>
@@ -72,21 +72,38 @@ function ConsentPrototype({ state }: { state: ConsentState }) {
 
   const bar = (
     <StickyActionBar
+      mode={barMode}
       primary={
-        <Button fullWidth disabled={!authorized} disabledReason={t("vehicleJourneyConsentNeedsAuthorization")} icon={<ScanLine size={20} aria-hidden />}>
+        <Button fullWidth disabled={!authorized} disabledReason={t("vehicleJourneyConsentNeedsAuthorization")} icon={<ScanLine className="ds-icon" aria-hidden />}>
           {state === "error" ? c.retry : c.consentRead}
         </Button>
       }
       secondary={
-        <Button variant="tertiary" icon={<PencilLine size={18} aria-hidden />}>
+        <Button variant="tertiary" icon={<PencilLine className="ds-icon-sm" aria-hidden />}>
           {t("vehicleRegConsentManualButton")}
         </Button>
       }
     />
   );
 
+  // Large text, mode A: the page's action area holds the disabled reason (visible copy; the bar's copy
+  // stays announced through aria-describedby) and the secondary action.
+  const inlineActions =
+    barMode === "A" ? (
+      <>
+        {!authorized && (
+          <p aria-hidden className={TEXT.support}>
+            {t("vehicleJourneyConsentNeedsAuthorization")}
+          </p>
+        )}
+        <Button variant="secondary" fullWidth icon={<PencilLine className="ds-icon-sm" aria-hidden />}>
+          {t("vehicleRegConsentManualButton")}
+        </Button>
+      </>
+    ) : undefined;
+
   return (
-    <TaskShell title={c.taskAddVehicle} backLabel={c.back} bar={bar} aside={<div className="rounded-[1.25rem] border border-foreground/10 bg-card p-4">{bar}</div>}>
+    <TaskShell title={c.taskAddVehicle} backLabel={c.back} bar={bar} inlineActions={inlineActions} aside={<div className="rounded-[1.25rem] border border-foreground/10 bg-card p-4">{bar}</div>}>
       <Progress failed={state === "error"} />
       {state === "error" && <Notice tone="danger">{c.consentErrorBody}</Notice>}
       <section aria-labelledby="consent-title" className="flex flex-col gap-4 rounded-[1.25rem] border border-foreground/10 bg-card p-5">
@@ -94,7 +111,7 @@ function ConsentPrototype({ state }: { state: ConsentState }) {
           {c.consentTitle}
         </h1>
         <p className={TEXT.body}>{t("vehicleRegConsentDisclosure")}</p>
-        <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck size={20} aria-hidden />} defaultOpen={detailsOpen} className="-mx-5 px-4">
+        <Accordion summary={t("vehicleRegConsentDetailsToggle")} icon={<ShieldCheck className="ds-icon" aria-hidden />} defaultOpen={detailsOpen} className="-mx-5 px-4">
           <p>{t("vehicleRegConsentDetailsExternal")}</p>
           <p>{t("vehicleRegConsentLimits")}</p>
           <p>{t("vehicleRegConsentLegalNote")}</p>
@@ -115,7 +132,7 @@ const meta = {
   component: ConsentPrototype,
   tags: ["prototype", "text-scale"],
   args: { state: "choose" },
-  argTypes: { state: { control: "inline-radio", options: ["choose", "confirmed", "reading", "error", "declined"] } },
+  argTypes: { state: { control: "inline-radio", options: ["choose", "confirmed", "reading", "error", "declined"] }, barMode: { control: "inline-radio", options: ["A", "B"] } },
 } satisfies Meta<typeof ConsentPrototype>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -125,3 +142,7 @@ export const ConfirmedDetailsOpen: Story = { name: "Confirmed · details open", 
 export const Reading: Story = { name: "Loading · reading", args: { state: "reading" } };
 export const ReadingFailed: Story = { name: "Error · reading failed", args: { state: "error" } };
 export const Declined: Story = { name: "Declined (compact)", args: { state: "declined" } };
+
+// Large-text bar options, compared at 200 % (owner correction 2026-10-26). A is the chosen default.
+export const LargeTextOptionA: Story = { name: "Large text 200 % · option A (primary sticky)", args: { state: "choose", barMode: "A" }, globals: { textScale: "200" } };
+export const LargeTextOptionB: Story = { name: "Large text 200 % · option B (no sticky bar)", args: { state: "choose", barMode: "B" }, globals: { textScale: "200" } };

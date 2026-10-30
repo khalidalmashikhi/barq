@@ -7,7 +7,7 @@ import { RowList, SectionCard } from "../components/section-card";
 import { Skeleton, StateView } from "../components/state-view";
 import { StatusBadge } from "../components/status-badge";
 import { StepProgress } from "../components/step-progress";
-import { StickyActionBar } from "../components/sticky-action-bar";
+import { StickyActionBar, type BarMode } from "../components/sticky-action-bar";
 import { SensitiveDataRow, ValueRow } from "../components/value-row";
 import { SYNTHETIC, useLabCopy } from "../copy";
 import { TEXT } from "../tokens";
@@ -39,7 +39,7 @@ function Progress() {
   );
 }
 
-function ReviewPrototype({ state }: { state: ReviewState }) {
+function ReviewPrototype({ state, barMode = "A" }: { state: ReviewState; barMode?: BarMode }) {
   const c = useLabCopy();
   const ready = state === "ready" || state === "saving" || state === "saveError";
   const left = ready ? 0 : 3;
@@ -75,12 +75,28 @@ function ReviewPrototype({ state }: { state: ReviewState }) {
   }
 
   const primary = (
-    <Button fullWidth disabled={!ready} loading={state === "saving"} loadingLabel={c.creating}>
+    <Button fullWidth disabled={!ready} disabledReason={c.remaining(left)} loading={state === "saving"} loadingLabel={c.creating}>
       {c.create}
     </Button>
   );
   const statusLine = ready ? c.allReady : c.remaining(left);
-  const bar = <StickyActionBar status={state === "saving" ? undefined : statusLine} primary={primary} secondary={<Button variant="tertiary">{c.saveLater}</Button>} />;
+  // While disabled the reason sits under the button (aria-describedby); when ready the bar says so.
+  const bar = <StickyActionBar mode={barMode} status={ready && state !== "saving" ? statusLine : undefined} primary={primary} secondary={<Button variant="tertiary">{c.saveLater}</Button>} />;
+  // Large text, mode A: status / reason (visible copy), save-for-later and cancel live in the page.
+  const inlineActions =
+    barMode === "A" ? (
+      <>
+        {state !== "saving" && (
+          <p aria-hidden={!ready || undefined} role={ready ? "status" : undefined} className="text-[1rem] leading-[1.65] text-foreground/70">
+            {statusLine}
+          </p>
+        )}
+        <Button variant="secondary" fullWidth>
+          {c.saveLater}
+        </Button>
+        <Button variant="tertiary">{c.cancel}</Button>
+      </>
+    ) : undefined;
   const aside = (
     <section className="flex flex-col gap-3 rounded-[1.25rem] border border-foreground/10 bg-card p-5">
       <Notice tone={ready ? "success" : "warning"}>{statusLine}</Notice>
@@ -92,7 +108,7 @@ function ReviewPrototype({ state }: { state: ReviewState }) {
   );
 
   return (
-    <TaskShell title={c.taskAddVehicle} backLabel={c.back} bar={bar} aside={aside}>
+    <TaskShell title={c.taskAddVehicle} backLabel={c.back} bar={bar} aside={aside} inlineActions={inlineActions}>
       <Progress />
       <h1 className={`${TEXT.title} hidden lg:block`}>{c.reviewTitle}</h1>
       {state === "saveError" && <Notice tone="danger">{c.saveError}</Notice>}
@@ -106,7 +122,7 @@ function ReviewPrototype({ state }: { state: ReviewState }) {
           <ValueRow label={c.fieldColour} value={c.valueColour} actionLabel={c.edit} />
         </RowList>
       </SectionCard>
-      <SectionCard title={c.privateSection} icon={<Lock size={20} aria-hidden />} badge={ready ? <StatusBadge tone="ok">{c.ready}</StatusBadge> : <StatusBadge tone="review">{c.toReview(1)}</StatusBadge>}>
+      <SectionCard title={c.privateSection} icon={<Lock className="ds-icon" aria-hidden />} badge={ready ? <StatusBadge tone="ok">{c.ready}</StatusBadge> : <StatusBadge tone="review">{c.toReview(1)}</StatusBadge>}>
         <p className="-mt-2 text-[1rem] leading-[1.65] text-foreground/70">{c.privateNote}</p>
         <RowList>
           <SensitiveDataRow label={c.fieldPlate} maskedValue={SYNTHETIC.plateMasked} value={SYNTHETIC.plate} showLabel={c.show} hideLabel={c.hide} state={ready ? "default" : "review"} source={ready ? undefined : c.fromDocument} actionLabel={ready ? undefined : c.confirm} />
@@ -115,7 +131,7 @@ function ReviewPrototype({ state }: { state: ReviewState }) {
           <SensitiveDataRow label={c.fieldOwner} maskedValue={SYNTHETIC.ownerMasked} value={SYNTHETIC.owner} showLabel={c.show} hideLabel={c.hide} />
         </RowList>
       </SectionCard>
-      <SectionCard title={c.documentSection} icon={<FileText size={20} aria-hidden />} action={<Button size="sm" variant="tertiary">{c.view}</Button>}>
+      <SectionCard title={c.documentSection} icon={<FileText className="ds-icon" aria-hidden />} action={<Button size="sm" variant="tertiary">{c.view}</Button>}>
         <p dir="ltr" className="-mt-2 self-start text-[1rem] text-foreground/70">
           {SYNTHETIC.file}
         </p>
@@ -129,7 +145,7 @@ const meta = {
   component: ReviewPrototype,
   tags: ["prototype", "text-scale"],
   args: { state: "needsReview" },
-  argTypes: { state: { control: "inline-radio", options: ["needsReview", "ready", "saving", "saveError", "loading", "empty", "created"] } },
+  argTypes: { state: { control: "inline-radio", options: ["needsReview", "ready", "saving", "saveError", "loading", "empty", "created"] }, barMode: { control: "inline-radio", options: ["A", "B"] } },
 } satisfies Meta<typeof ReviewPrototype>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -141,3 +157,7 @@ export const SaveError: Story = { name: "Error · save failed", args: { state: "
 export const Loading: Story = { name: "Loading · suggestions", args: { state: "loading" } };
 export const Empty: Story = { name: "Empty · nothing read", args: { state: "empty" } };
 export const Created: Story = { name: "Success · created", args: { state: "created" } };
+
+// Large-text bar options, compared at 200 % (owner correction 2026-10-26). A is the chosen default.
+export const LargeTextOptionA: Story = { name: "Large text 200 % · option A (primary sticky)", args: { state: "needsReview", barMode: "A" }, globals: { textScale: "200" } };
+export const LargeTextOptionB: Story = { name: "Large text 200 % · option B (no sticky bar)", args: { state: "needsReview", barMode: "B" }, globals: { textScale: "200" } };

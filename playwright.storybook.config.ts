@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/** The built Storybook to test (default: this checkout's build). Set SB_DIR to measure another build. */
+const SB_DIR = process.env.SB_DIR ?? "storybook-static";
+
 // Design-lab visual regression + accessibility over the BUILT Storybook (`npm run build-storybook`).
 // Served by scripts/engineering/serve-static.mjs on 127.0.0.1 only; baselines and results stay local
 // (tests/visual/__screenshots__ and tests/visual/results are git-ignored — never committed).
@@ -18,7 +21,7 @@ export default defineConfig({
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide" } },
   use: { baseURL: "http://127.0.0.1:6007", trace: "off", screenshot: "off", video: "off" },
   webServer: {
-    command: "node scripts/engineering/serve-static.mjs storybook-static 6007",
+    command: `node scripts/engineering/serve-static.mjs "${SB_DIR}" 6007`,
     url: "http://127.0.0.1:6007/index.json",
     reuseExistingServer: false,
     timeout: 30_000,

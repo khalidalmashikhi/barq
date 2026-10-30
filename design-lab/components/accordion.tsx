@@ -20,7 +20,7 @@ export function Accordion({ summary, icon, defaultOpen, children, forceState, cl
       >
         {icon && <span className="shrink-0 text-foreground/70">{icon}</span>}
         <span className="min-w-0 flex-1">{summary}</span>
-        <ChevronDown size={20} aria-hidden className="shrink-0 transition-transform group-open:rotate-180" />
+        <ChevronDown aria-hidden className="ds-icon shrink-0 transition-transform group-open:rotate-180" />
       </summary>
       <div className="flex flex-col gap-2.5 px-1 pb-4 text-[1rem] leading-[1.7] text-foreground/70">{children}</div>
     </details>

@@ -72,6 +72,9 @@ const COPY = {
     showGeneral: "عرض الاقتراحات العامة",
     region: "مسقط",
     synthetic: "بيانات اصطناعية",
+    more: "المزيد",
+    cancel: "إلغاء",
+    allDestinations: "كل الأقسام",
   },
   en: {
     taskAddVehicle: "Add a vehicle",
@@ -137,6 +140,9 @@ const COPY = {
     showGeneral: "Show general suggestions",
     region: "Muscat",
     synthetic: "Synthetic data",
+    more: "More",
+    cancel: "Cancel",
+    allDestinations: "All sections",
   },
 } as const;
 

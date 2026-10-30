@@ -18,7 +18,7 @@ export const Default: Story = {
     const c = useLabCopy();
     return (
       <Canvas>
-        <Button fullWidth icon={<ScanLine size={20} aria-hidden />}>
+        <Button fullWidth icon={<ScanLine className="ds-icon" aria-hidden />}>
           {c.consentRead}
         </Button>
       </Canvas>
@@ -40,7 +40,7 @@ export const Variants: Story = {
           </Button>
         </Specimen>
         <Specimen label="tertiary">
-          <Button variant="tertiary" icon={<PencilLine size={18} aria-hidden />}>
+          <Button variant="tertiary" icon={<PencilLine className="ds-icon-sm" aria-hidden />}>
             {c.startManual}
           </Button>
         </Specimen>

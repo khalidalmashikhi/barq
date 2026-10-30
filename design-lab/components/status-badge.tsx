@@ -18,7 +18,7 @@ export function StatusBadge({ tone, children, className }: { tone: Tone; childre
   const Icon = ICON[tone];
   return (
     <span className={clsx("inline-flex max-w-full items-start gap-1.5 rounded-full px-3 py-1 text-[0.9375rem] font-semibold leading-[1.45]", TONE[tone].badge, className)}>
-      <Icon size={15} strokeWidth={2.25} aria-hidden className="mt-[0.2em] shrink-0" />
+      <Icon strokeWidth={2.25} aria-hidden className="ds-icon-sm mt-[0.2em] shrink-0" />
       <span>{children}</span>
     </span>
   );

@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { Decorator, Preview } from "@storybook/nextjs-vite";
 import { plexArabic, plexLatin } from "../src/app/fonts";
 import "../src/app/globals.css";
+import "../design-lab/lab.css";
 
 // Real BARQ messages (the same files the app loads, merged by namespace as src/i18n/request.ts does).
 const files = import.meta.glob<{ default: Record<string, unknown> }>("../messages/{ar,en}/*.json", { eager: true });

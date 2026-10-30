@@ -21,7 +21,7 @@ export function StateView({ kind, title, body, action, secondaryAction }: { kind
       aria-busy={kind === "loading" || undefined}
       className="flex flex-col items-center gap-3 rounded-[1.25rem] border border-foreground/10 bg-card px-5 py-7 text-center"
     >
-      <Icon size={44} strokeWidth={1.6} aria-hidden className={clsx(ICON_COLOR[kind], kind === "loading" && "motion-safe:animate-pulse")} />
+      <Icon strokeWidth={1.6} aria-hidden className={clsx("ds-icon-xl", ICON_COLOR[kind], kind === "loading" && "motion-safe:animate-pulse")} />
       <p className={TEXT.heading}>{title}</p>
       {body && <p className={TEXT.support}>{body}</p>}
       {kind === "loading" && (
