@@ -6,7 +6,9 @@
    LAYOUT changes instead:
      • sticky action bar (option A): only the primary action stays sticky; the status line,
        the disabled reason (visually) and the secondary actions move into the page content;
-     • bottom navigation: Home + current tab + "More" (all destinations, full labels);
+     • bottom navigation: Home + current tab + "More" (a bottom sheet: all destinations, full labels);
+     • the header scrolls with the page (owner correction 2026-10-31: persistent chrome ≤ 25 % of the
+       screen) and the screen title takes its own full-width line, wrapping naturally;
      • icons scale with the text (em) between a minimum and a maximum. */
 
 .ds-shell {
@@ -38,6 +40,12 @@ html {
   flex: none;
 }
 
+/* Bottom sheet: never more than 70 % of the screen (dvh follows the on-screen keyboard; vh fallback). */
+.ds-sheet {
+  max-height: 70vh;
+  max-height: 70dvh;
+}
+
 /* Elements that exist only in one mode. */
 .ds-only-large {
   display: none !important;
@@ -49,6 +57,20 @@ html {
   }
   .ds-hide-large {
     display: none !important;
+  }
+
+  /* The header is part of the content: only the primary-action bar (or the bottom nav) stays put. */
+  [data-ds-sticky-header] {
+    position: static;
+  }
+  /* Title on its own line under back / language — full width, natural wrapping, same size. */
+  [data-ds-screen-title] {
+    order: 3;
+    flex-basis: 100%;
+    padding-bottom: 0.625rem;
+  }
+  [data-ds-screen-title][data-inset] {
+    padding-inline: 0.5rem;
   }
 
   /* Option A — the bar keeps the primary action only; its disabled reason stays in the accessibility

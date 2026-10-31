@@ -1,24 +1,32 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Bell, Compass, Home, Menu, UserRound, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Bell, Compass, Home, Menu, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { clsx } from "@/components/ui/clsx";
+import { BottomSheet } from "../components/bottom-sheet";
 import { useLabCopy } from "../copy";
 import { FOCUS_RING } from "../tokens";
 
 // Prototype shells (Storybook only). Both are `ds-shell` containers: below 22rem of width (a phone at
 // 150 % text or more) the large-text layout of design-lab/lab.css applies.
+// PERSISTENT CHROME (owner correction 2026-10-31): at most 25 % of a 375 × 812 / 430 × 932 screen,
+// measured while scrolling, with the iPhone home-indicator inset.
 //   TaskShell   — task screens (vehicle journey): back + task title + language; NO bottom nav and no
-//                 footer; the sticky action bar is the only bottom element. Large text (bar mode A): the
-//                 page gets an action area (`inlineActions`) before the bar, holding the status line and
-//                 the secondary actions, so the sticky bar keeps the primary action only. From 1024 px
-//                 the actions move into a side panel (`aside`).
+//                 footer. On phones the header scrolls with the page at EVERY text size, so the sticky
+//                 action bar is the only persistent element (sticky header + review bar measured 32 % at
+//                 100 %); from 1024 px the header is sticky again. Large text (bar mode A): the page gets
+//                 an action area (`inlineActions`) before the bar, holding the status line and the
+//                 secondary actions, so the sticky bar keeps the primary action only. From 1024 px the
+//                 actions move into a side panel (`aside`).
 //   BrowseShell — browse screens (trip plan): title + language; 5-tab bottom nav on phones. Large text:
-//                 Home + the current tab + "More", which lists every destination with its full label.
+//                 the header scrolls with the page, and the nav shows Home + the current tab + "More",
+//                 a bottom sheet listing every destination with its full label.
+// Large text: the screen title takes its own full-width line and wraps naturally (never truncated,
+// never shrunk).
 
 function LanguageLink() {
   const other = useLocale() === "en" ? "العربية" : "English";
   return (
-    <a href="#language" className={`inline-flex min-h-11 items-center rounded-xl px-3 text-[1rem] font-medium text-foreground/70 hover:bg-[#EEF4F8] ${FOCUS_RING}`}>
+    <a href="#language" className={`ms-auto inline-flex min-h-11 items-center rounded-xl px-3 text-[1rem] font-medium text-foreground/70 hover:bg-[#EEF4F8] ${FOCUS_RING}`}>
       {other}
     </a>
   );
@@ -27,7 +35,9 @@ function LanguageLink() {
 /**
  * WCAG 2.4.11 (focus not obscured): a control that receives keyboard focus is scrolled clear of the
  * sticky header, the sticky bar / bottom nav and the home-indicator inset. Browsers do not reliably
- * apply scroll-padding when focus moves, so the shell corrects it one frame after `focusin`.
+ * apply scroll-padding when focus moves, so the shell corrects it one frame after `focusin` — and again
+ * when the viewport shrinks (an on-screen keyboard opening). Focus inside the bottom sheet is left to
+ * the sheet (it scrolls internally).
  */
 function useKeepFocusVisible() {
   useEffect(() => {
@@ -35,9 +45,8 @@ function useKeepFocusVisible() {
     const probe = document.createElement("div");
     probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;padding-bottom:max(env(safe-area-inset-bottom),var(--ds-test-safe-bottom,0px))";
     document.body.appendChild(probe);
-    const onFocus = (event: FocusEvent) => {
-      const el = event.target;
-      if (!(el instanceof HTMLElement)) return;
+    const keep = (el: Element | null) => {
+      if (!(el instanceof HTMLElement) || el === document.body || el.closest("[data-ds-sheet]")) return;
       requestAnimationFrame(() => {
         const sticky = [...document.querySelectorAll<HTMLElement>("[data-ds-sticky-header], [data-ds-sticky-bar], [data-ds-sticky-nav]")].filter((s) => s.getClientRects().length > 0 && getComputedStyle(s).position === "sticky" && !s.contains(el));
         const top = Math.max(0, ...sticky.filter((s) => s.hasAttribute("data-ds-sticky-header")).map((s) => s.getBoundingClientRect().bottom));
@@ -48,25 +57,32 @@ function useKeepFocusVisible() {
         else if (r.top < top) window.scrollBy(0, r.top - top - 8);
       });
     };
+    const onFocus = (event: FocusEvent) => keep(event.target as Element | null);
+    const onResize = () => keep(document.activeElement);
     document.addEventListener("focusin", onFocus);
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
     return () => {
       document.removeEventListener("focusin", onFocus);
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
       probe.remove();
     };
   }, []);
 }
 
-/** Publishes the sticky header's height (--ds-header-h) for scroll-padding. */
+/** Publishes the header's height (--ds-header-h) for scroll-padding — 0 while it scrolls with the page. */
 function useStickyHeaderHeight() {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const root = document.documentElement;
-    const write = () => root.style.setProperty("--ds-header-h", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    const write = () => root.style.setProperty("--ds-header-h", getComputedStyle(el).position === "sticky" ? `${Math.ceil(el.getBoundingClientRect().height)}px` : "0px");
     write();
     const observer = new ResizeObserver(write);
     observer.observe(el);
+    observer.observe(root);
     return () => {
       observer.disconnect();
       root.style.removeProperty("--ds-header-h");
@@ -82,11 +98,13 @@ export function TaskShell({ title, backLabel, children, bar, aside, inlineAction
   useKeepFocusVisible();
   return (
     <div className="ds-shell flex min-h-screen flex-col bg-background">
-      <header ref={header} data-ds-sticky-header="" className="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-foreground/10 bg-background/95 px-2 backdrop-blur lg:px-8">
+      <header ref={header} data-ds-sticky-header="" className="z-20 flex min-h-14 flex-wrap items-center gap-x-2 border-b border-foreground/10 bg-background/95 px-2 backdrop-blur lg:sticky lg:top-0 lg:px-8">
         <a href="#back" aria-label={backLabel} className={`flex size-11 items-center justify-center rounded-xl text-primary hover:bg-[#EEF4F8] ${FOCUS_RING}`}>
           <Back className="ds-icon" aria-hidden />
         </a>
-        <span className="min-w-0 flex-1 text-[1.0625rem] font-semibold">{title}</span>
+        <span data-ds-screen-title="" data-inset="" className="min-w-0 flex-1 text-[1.0625rem] font-semibold">
+          {title}
+        </span>
         <LanguageLink />
       </header>
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col lg:flex-row lg:items-start lg:gap-6 lg:px-8 lg:py-8">
@@ -110,8 +128,9 @@ export function BrowseShell({ title, children }: { title: ReactNode; children: R
   const header = useStickyHeaderHeight();
   useKeepFocusVisible();
   const nav = useRef<HTMLElement>(null);
+  const moreButton = useRef<HTMLButtonElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  const sheetId = useId();
+  const sheetTitleId = useId();
   const tabs = [
     { key: "home", icon: Home, label: t("nav.home") },
     { key: "explore", icon: Compass, label: t("nav.explore"), active: true },
@@ -150,44 +169,51 @@ export function BrowseShell({ title, children }: { title: ReactNode; children: R
 
   return (
     <div className="ds-shell flex min-h-screen flex-col bg-background">
-      <header ref={header} data-ds-sticky-header="" className="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-foreground/10 bg-background/95 px-4 backdrop-blur lg:px-8">
-        <span className="min-w-0 flex-1 text-[1.0625rem] font-semibold">{title}</span>
+      <header ref={header} data-ds-sticky-header="" className="sticky top-0 z-20 flex min-h-14 flex-wrap items-center gap-x-2 border-b border-foreground/10 bg-background/95 px-4 backdrop-blur lg:px-8">
+        <span data-ds-screen-title="" className="min-w-0 flex-1 text-[1.0625rem] font-semibold">
+          {title}
+        </span>
         <LanguageLink />
       </header>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-6 pt-5 lg:pt-8">{children}</main>
       <nav ref={nav} data-ds-sticky-nav="" aria-label={t("nav.marketplaceNavLabel")} className="sticky bottom-0 z-20 flex flex-col border-t border-foreground/10 bg-background/95 pb-[max(env(safe-area-inset-bottom),var(--ds-test-safe-bottom,0px))] backdrop-blur lg:hidden">
-        {moreOpen && (
-          <ul id={sheetId} data-ds-nav-sheet="" aria-label={c.allDestinations} className="ds-only-large flex-col border-b border-foreground/10 px-2 py-2">
-            {tabs.map((x) => (
-              <li key={x.key}>
-                <a href={`#${x.key}`} aria-current={x.active ? "page" : undefined} className={clsx("flex min-h-12 items-center gap-3 rounded-xl px-3 text-[1rem]", x.active ? "font-bold text-primary" : "font-medium", FOCUS_RING)}>
-                  <x.icon className="ds-icon" aria-hidden />
-                  <span>{x.label}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
         {/* Regular text: five tabs. */}
         <div className="ds-hide-large flex">{tabs.map(tab)}</div>
         {/* Large text: Home + current + More (every destination stays reachable, labels in full). */}
         <div className="ds-only-large">
           {compact.map(tab)}
           <button
+            ref={moreButton}
             type="button"
             data-ds-nav-more=""
+            aria-haspopup="dialog"
             aria-expanded={moreOpen}
-            aria-controls={sheetId}
-            onClick={() => setMoreOpen((o) => !o)}
+            onClick={() => setMoreOpen(true)}
             className={clsx("flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 text-center text-[0.8125rem] font-medium leading-[1.45] text-foreground/70", FOCUS_RING)}
           >
-            <span className="flex w-full max-w-[3.5rem] items-center justify-center rounded-full py-1">{moreOpen ? <X className="ds-icon" aria-hidden /> : <Menu className="ds-icon" aria-hidden />}</span>
+            <span className="flex w-full max-w-[3.5rem] items-center justify-center rounded-full py-1">
+              <Menu className="ds-icon" aria-hidden />
+            </span>
             <span data-ds-nav-label="" className="block max-w-full">
               {c.more}
             </span>
           </button>
         </div>
       </nav>
+      <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)} title={<span id={sheetTitleId}>{c.allDestinations}</span>} closeLabel={c.close} returnFocusRef={moreButton}>
+        <ul data-ds-nav-sheet="" aria-labelledby={sheetTitleId} className="flex flex-col">
+          {tabs.map((x) => (
+            <li key={x.key}>
+              <a href={`#${x.key}`} aria-current={x.active ? "page" : undefined} onClick={() => setMoreOpen(false)} className={clsx("flex min-h-12 items-center gap-3 rounded-xl px-3 py-1.5 text-[1rem] leading-[1.5]", x.active ? "font-bold text-primary" : "font-medium", FOCUS_RING)}>
+                <x.icon className="ds-icon" aria-hidden />
+                <span data-ds-sheet-label="" className="min-w-0">
+                  {x.label}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </BottomSheet>
     </div>
   );
 }

@@ -12,9 +12,27 @@ import { test, expect, type Page } from "@playwright/test";
 //      bar's own controls end above that inset (emulated: --ds-test-safe-bottom = 34 px);
 //   6. bottom-nav labels are never clipped or truncated (≤ 2 lines), and every destination stays
 //      reachable (directly or through "More").
+// Owner correction 2026-10-31:
+//   7. PERSISTENT CHROME — what actually stays on screen while the page scrolls (elements whose
+//      viewport position does not move between scroll positions), home-indicator inset included — is
+//      at most 25 % of the screen; a header that scrolls away is not counted;
+//   8. no clipped text anywhere (overflow hidden / ellipsis / line clamp hiding content), and the screen
+//      title is never truncated or shrunk;
+//   9. the "More" bottom sheet (large text): ≤ 70 % of the screen, full labels, internal scrolling,
+//      focus trapped and never hidden, opened / closed by touch (button, backdrop, close, destination)
+//      and keyboard (Enter, Escape, close button), focus back on "More", nothing left covering the page;
+//  10. on-screen keyboard: the viewport is shrunk in Chromium (an emulation, NOT a substitute for a real
+//      iPhone, where the layout viewport does not shrink the same way) — the focused control stays
+//      visible above the sticky bar / nav and nothing overflows.
 // Metrics are attached to each test (annotation "layout") so before / after can be compared.
 
 const SAFE_BOTTOM = 34;
+/** Emulated on-screen keyboard height (iPhone keyboard + suggestion bar, rounded up). */
+const KEYBOARD = 336;
+const PHONES = [
+  { w: 375, h: 812 },
+  { w: 430, h: 932 },
+];
 
 const SCREENS: { id: string; state: "default" | "error" | "disabled" | "empty" }[] = [
   { id: "prototypes-1-vehicle-reading-consent--confirmed-details-open", state: "default" },
@@ -50,7 +68,84 @@ type Metrics = {
   primaryAtTop: boolean | null;
   scrollToPrimary: number | null;
   contentRatio: number;
+  /** share of the screen covered by elements that stay put while the page scrolls */
+  persistentChrome: number;
+  clippedText: string[];
+  /** screen title: clipped / truncated, and its font size vs the type scale (px) */
+  title: { clipped: boolean; fontPx: number; expectedPx: number } | null;
 };
+
+/**
+ * 7 · Persistent chrome: scrolls the page to several positions; an element counts when it is sticky /
+ * fixed, on screen, AND keeps its viewport position between two scroll positions (it is stuck). The
+ * covered height is the union of those elements' vertical extents (no double counting); worst case.
+ */
+async function persistentChrome(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const vh = innerHeight;
+    const max = document.documentElement.scrollHeight - vh;
+    const pinned = [...document.querySelectorAll<HTMLElement>("body *")].filter((el) => ["sticky", "fixed"].includes(getComputedStyle(el).position));
+    const covered = (rects: DOMRect[]) => {
+      const iv = rects.filter((r) => r.height > 0 && r.width > 0 && r.bottom > 0 && r.top < vh).map((r) => [Math.max(0, r.top), Math.min(vh, r.bottom)] as const).sort((a, b) => a[0] - b[0]);
+      let total = 0;
+      let end = -Infinity;
+      for (const [s, e] of iv) {
+        if (e <= end) continue;
+        total += e - Math.max(s, end);
+        end = e;
+      }
+      return total / vh;
+    };
+    let worst = 0;
+    if (max < 8) {
+      // nothing scrolls: every pinned element on screen counts
+      worst = covered(pinned.map((el) => el.getBoundingClientRect()));
+    } else {
+      const stops = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max * f));
+      for (let i = 1; i < stops.length; i++) {
+        window.scrollTo(0, stops[i - 1]!);
+        await frame();
+        const before = pinned.map((el) => el.getBoundingClientRect().top);
+        window.scrollTo(0, stops[i]!);
+        await frame();
+        const stuck = pinned.map((el) => el.getBoundingClientRect()).filter((r, k) => Math.abs(r.top - before[k]!) < 1);
+        worst = Math.max(worst, covered(stuck));
+      }
+    }
+    window.scrollTo(0, 0);
+    await frame();
+    return Math.round(worst * 1000) / 1000;
+  });
+}
+
+/** 8 · Text hidden by its box: overflow hidden / clip, an ellipsis or a line clamp (visually-hidden helpers excluded). */
+async function clippedText(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>("body *")]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width <= 1 || r.height <= 1 || !(el.textContent ?? "").trim()) return false;
+        const cs = getComputedStyle(el);
+        const clipX = ["hidden", "clip"].includes(cs.overflowX) || cs.textOverflow === "ellipsis";
+        const clipY = ["hidden", "clip"].includes(cs.overflowY) || (cs.getPropertyValue("-webkit-line-clamp") || "none") !== "none";
+        return (clipX && el.scrollWidth > el.clientWidth + 1) || (clipY && el.scrollHeight > el.clientHeight + 1);
+      })
+      .map((el) => `${el.tagName.toLowerCase()}:${(el.textContent ?? "").trim().slice(0, 28)}`),
+  );
+}
+
+async function titleCheck(page: Page): Promise<Metrics["title"]> {
+  return page.evaluate(() => {
+    const t = document.querySelector<HTMLElement>("[data-ds-screen-title]");
+    if (!t) return null;
+    const cs = getComputedStyle(t);
+    const clipped = t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1 || cs.textOverflow === "ellipsis" || cs.whiteSpace === "nowrap";
+    // the type scale's 1.0625rem at the root size actually in effect (a story may pin its own text size)
+    const root = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    return { clipped, fontPx: parseFloat(cs.fontSize), expectedPx: Math.round(1.0625 * root * 100) / 100 };
+  });
+}
 
 async function open(page: Page, id: string, locale: string, scale: string) {
   await page.goto(`/iframe.html?id=${id}&viewMode=story&globals=locale:${locale};textScale:${scale}`);
@@ -162,6 +257,9 @@ async function measure(page: Page): Promise<Metrics> {
       primaryAtTop,
       scrollToPrimary,
       contentRatio,
+      persistentChrome: 0,
+      clippedText: [],
+      title: null,
     };
   }, SAFE_BOTTOM);
 }
@@ -193,34 +291,45 @@ async function focusTraversal(page: Page): Promise<string[]> {
   return [...new Set(hidden)];
 }
 
-/** "More" navigation (large text): every destination must be listed with its full label. */
+/** "More" navigation (large text): every destination must be listed with its full label; closed again with Escape. */
 async function moreMenu(page: Page): Promise<{ present: boolean; destinations: number; clipped: string[] }> {
   const more = page.locator("[data-ds-nav-more]");
   if ((await more.count()) === 0 || !(await more.first().isVisible())) return { present: false, destinations: 0, clipped: [] };
   await more.first().click();
-  return page.evaluate(() => {
+  const found = await page.evaluate(() => {
     const sheet = document.querySelector<HTMLElement>("[data-ds-nav-sheet]");
     if (!sheet) return { present: true, destinations: 0, clipped: ["(sheet missing)"] };
     const links = [...sheet.querySelectorAll<HTMLElement>("a[href]")];
     const clipped = links.filter((l) => l.scrollWidth > l.clientWidth + 1).map((l) => (l.textContent ?? "").trim());
     return { present: true, destinations: links.length, clipped };
   });
+  await page.keyboard.press("Escape");
+  return found;
 }
 
 for (const s of SCREENS) {
   for (const locale of ["ar", "en"] as const) {
-    for (const vp of [{ w: 375, h: 812 }, { w: 430, h: 932 }]) {
+    for (const vp of PHONES) {
       for (const scale of ["100", "150", "200"]) {
         test(`layout · ${s.id} · ${s.state} · ${locale} ${vp.w} @${scale}%`, async ({ page }, info) => {
           test.skip(info.project.name !== "chromium", "chromium project only");
           await page.setViewportSize({ width: vp.w, height: vp.h });
           await open(page, s.id, locale, scale);
           const m = await measure(page);
+          m.persistentChrome = await persistentChrome(page);
+          m.clippedText = await clippedText(page);
+          m.title = await titleCheck(page);
           m.focusHidden = await focusTraversal(page);
           const more = m.navDestinations !== null ? await moreMenu(page) : null;
           info.annotations.push({ type: "layout", description: JSON.stringify({ id: s.id, state: s.state, locale, vp: vp.w, scale, ...m, more }) });
 
           expect(m.overflowX, "horizontal overflow (px)").toBeLessThanOrEqual(1);
+          expect(m.persistentChrome, "persistent chrome while scrolling / screen height").toBeLessThanOrEqual(0.25);
+          expect(m.clippedText, "clipped text").toEqual([]);
+          if (m.title) {
+            expect(m.title.clipped, "screen title clipped / truncated").toBe(false);
+            expect(Math.abs(m.title.fontPx - m.title.expectedPx), "screen title font size (never shrunk)").toBeLessThanOrEqual(0.5);
+          }
           if (m.barRatio !== null && m.barSticky) expect(m.barRatio, "sticky bar height / screen height").toBeLessThanOrEqual(0.3);
           expect(m.hiddenControls, "controls that cannot be scrolled clear of the sticky bar / nav").toEqual([]);
           expect(m.focusHidden, "focused controls hidden behind a sticky bar / nav").toEqual([]);
@@ -238,3 +347,221 @@ for (const s of SCREENS) {
     }
   }
 }
+
+// ── 9 · "More" bottom sheet (exists in large text only: 150 / 200 %) ───────────────────────────────
+const TRIP = "prototypes-3-trip-plan--mixed";
+
+type SheetState = { open: boolean; ratio: number; heightPx: number; labels: string[]; clipped: string[]; activeInside: boolean; activeIsMore: boolean; layerLeft: boolean; bodyOverflow: string; closeVisible: boolean };
+
+async function sheetState(page: Page): Promise<SheetState> {
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  return page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>("[data-ds-sheet]");
+    const active = document.activeElement as HTMLElement | null;
+    const base = { activeIsMore: !!active?.hasAttribute("data-ds-nav-more"), layerLeft: !!document.querySelector("[data-ds-sheet-layer]"), bodyOverflow: document.body.style.overflow };
+    if (!sheet) return { ...base, open: false, ratio: 0, heightPx: 0, labels: [], clipped: [], activeInside: false, closeVisible: false };
+    const r = sheet.getBoundingClientRect();
+    const texts = [...sheet.querySelectorAll<HTMLElement>("h2, [data-ds-sheet-label], [data-ds-sheet-close]")];
+    const clipped = texts.filter((t) => t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1).map((t) => (t.textContent ?? "").trim());
+    const close = sheet.querySelector<HTMLElement>("[data-ds-sheet-close]");
+    return {
+      ...base,
+      open: true,
+      ratio: Math.round((r.height / innerHeight) * 1000) / 1000,
+      heightPx: Math.round(r.height),
+      labels: [...sheet.querySelectorAll("[data-ds-sheet-label]")].map((l) => (l.textContent ?? "").trim()),
+      clipped,
+      activeInside: !!active && sheet.contains(active),
+      closeVisible: !!close && close.getBoundingClientRect().height > 0 && (close.textContent ?? "").trim().length > 0,
+    };
+  });
+}
+
+/** The focused element is inside the sheet and fully visible in it (above the home-indicator inset). */
+async function focusInSheet(page: Page): Promise<{ inside: boolean; visible: boolean; name: string }> {
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  return page.evaluate((safe) => {
+    const sheet = document.querySelector<HTMLElement>("[data-ds-sheet]");
+    const el = document.activeElement as HTMLElement | null;
+    const name = el ? `${el.tagName.toLowerCase()}:${(el.textContent ?? "").trim().slice(0, 28)}` : "(none)";
+    if (!sheet || !el || !sheet.contains(el)) return { inside: false, visible: false, name };
+    const r = el.getBoundingClientRect();
+    const body = sheet.querySelector<HTMLElement>("[data-ds-sheet-body]")!;
+    const box = body.contains(el) ? body.getBoundingClientRect() : sheet.getBoundingClientRect();
+    const bottom = Math.min(box.bottom, innerHeight - safe);
+    return { inside: true, visible: r.top >= box.top - 0.5 && r.bottom <= bottom + 0.5, name };
+  }, SAFE_BOTTOM);
+}
+
+/** Nothing covers the element: the topmost element at its centre is the element itself (or inside it). */
+async function uncovered(page: Page, selector: string): Promise<boolean> {
+  return page.evaluate((selector) => {
+    const el = document.querySelector<HTMLElement>(selector);
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !!hit && el.contains(hit);
+  }, selector);
+}
+
+function expectClosed(s: SheetState) {
+  expect(s.open, "sheet closed").toBe(false);
+  expect(s.layerLeft, "no layer left covering the page").toBe(false);
+  expect(s.activeIsMore, "focus back on More").toBe(true);
+  expect(s.bodyOverflow, "page scroll unlocked").toBe("");
+}
+
+function expectOpenSheet(s: SheetState, vh: number) {
+  expect(s.open, "sheet open").toBe(true);
+  expect(s.heightPx, "sheet height ≤ 70 % of the screen (px)").toBeLessThanOrEqual(Math.ceil(vh * 0.7) + 0.5);
+  expect(s.labels.length, "destinations in the sheet").toBe(5);
+  expect(s.labels.every((l) => l.length > 0), "full destination labels").toBe(true);
+  expect(s.clipped, "clipped sheet text").toEqual([]);
+  expect(s.closeVisible, "visible close button").toBe(true);
+  expect(s.bodyOverflow, "page scroll locked while open").toBe("hidden");
+}
+
+test.describe("9 · More bottom sheet — keyboard", () => {
+  for (const locale of ["ar", "en"] as const) {
+    for (const vp of PHONES) {
+      for (const scale of ["150", "200"]) {
+        test(`sheet · keyboard · ${locale} ${vp.w} @${scale}%`, async ({ page }, info) => {
+          test.skip(info.project.name !== "chromium", "chromium project only");
+          await page.setViewportSize({ width: vp.w, height: vp.h });
+          await open(page, TRIP, locale, scale);
+          const more = page.locator("[data-ds-nav-more]");
+          await expect(more).toBeVisible();
+          await more.focus();
+          await page.keyboard.press("Enter");
+          let s = await sheetState(page);
+          info.annotations.push({ type: "sheet", description: JSON.stringify({ locale, vp: vp.w, scale, ratio: s.ratio, heightPx: s.heightPx }) });
+          expectOpenSheet(s, vp.h);
+          expect(s.activeInside, "focus moved into the sheet").toBe(true);
+
+          // focus trap, both directions; each focused control fully visible inside the sheet
+          const escaped: string[] = [];
+          const hidden: string[] = [];
+          for (const key of [...Array<string>(9).fill("Tab"), ...Array<string>(9).fill("Shift+Tab")]) {
+            await page.keyboard.press(key);
+            const f = await focusInSheet(page);
+            if (!f.inside) escaped.push(`${key} → ${f.name}`);
+            else if (!f.visible) hidden.push(f.name);
+          }
+          expect(escaped, "focus left the sheet").toEqual([]);
+          expect(hidden, "focused controls hidden inside the sheet").toEqual([]);
+
+          await page.keyboard.press("Escape");
+          expectClosed(await sheetState(page));
+
+          // Space opens; focus starts on the close button; Enter on it closes
+          await page.keyboard.press("Space");
+          s = await sheetState(page);
+          expect(s.open, "sheet open (Space)").toBe(true);
+          await expect(page.locator("[data-ds-sheet-close]")).toBeFocused();
+          await page.keyboard.press("Enter");
+          expectClosed(await sheetState(page));
+          expect(await uncovered(page, "[data-ds-nav-more]"), "More not covered after closing").toBe(true);
+        });
+      }
+    }
+  }
+});
+
+test.describe("9 · More bottom sheet — touch", () => {
+  test.use({ hasTouch: true });
+  for (const locale of ["ar", "en"] as const) {
+    for (const vp of PHONES) {
+      for (const scale of ["150", "200"]) {
+        test(`sheet · touch · ${locale} ${vp.w} @${scale}%`, async ({ page }, info) => {
+          test.skip(info.project.name !== "chromium", "chromium project only");
+          await page.setViewportSize({ width: vp.w, height: vp.h });
+          await open(page, TRIP, locale, scale);
+          const more = page.locator("[data-ds-nav-more]");
+
+          // tap More → tap the dimmed backdrop above the sheet
+          await more.tap();
+          expectOpenSheet(await sheetState(page), vp.h);
+          const top = (await page.locator("[data-ds-sheet]").boundingBox())!.y;
+          expect(top, "backdrop visible above the sheet").toBeGreaterThan(40);
+          await page.touchscreen.tap(vp.w / 2, Math.round(top / 2));
+          expectClosed(await sheetState(page));
+
+          // tap More → tap the close button
+          await more.tap();
+          await page.locator("[data-ds-sheet-close]").tap();
+          expectClosed(await sheetState(page));
+
+          // tap More → tap a destination
+          await more.tap();
+          await page.locator("[data-ds-nav-sheet] a[href]").last().tap();
+          expectClosed(await sheetState(page));
+
+          expect(await uncovered(page, "[data-ds-nav-more]"), "More not covered after closing").toBe(true);
+          const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          expect(overflowX, "horizontal overflow (px)").toBeLessThanOrEqual(1);
+        });
+      }
+    }
+  }
+});
+
+// ── 10 · On-screen keyboard: viewport shrink (Chromium emulation — NOT a substitute for a real iPhone) ──
+const KEYBOARD_SCREENS = ["prototypes-1-vehicle-reading-consent--choose", "prototypes-2-vehicle-review--needs-review", "prototypes-2-vehicle-review--ready", TRIP];
+
+test.describe("10 · on-screen keyboard (viewport shrink, Chromium emulation)", () => {
+  for (const id of KEYBOARD_SCREENS) {
+    for (const locale of ["ar", "en"] as const) {
+      for (const vp of PHONES) {
+        for (const scale of ["100", "150", "200"]) {
+          test(`keyboard · ${id} · ${locale} ${vp.w} @${scale}%`, async ({ page }, info) => {
+            test.skip(info.project.name !== "chromium", "chromium project only");
+            await page.setViewportSize({ width: vp.w, height: vp.h });
+            await open(page, id, locale, scale);
+            // worst case: the first content control, scrolled so it sits just above the bar / nav — the
+            // position a shrinking viewport buries first — then focused without scrolling
+            const picked = await page.evaluate(async () => {
+              const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+              const root = document.querySelector("#storybook-root")!;
+              const main = root.querySelector("main")!;
+              const el = [...main.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input, select, textarea, summary")].find((x) => x.getBoundingClientRect().height > 0);
+              if (!el) return null;
+              const bottoms = [...root.querySelectorAll<HTMLElement>("*")].filter((x) => getComputedStyle(x).position === "sticky" && getComputedStyle(x).bottom === "0px" && x.getClientRects().length > 0);
+              const limit = Math.min(innerHeight, ...bottoms.map((b) => b.getBoundingClientRect().top));
+              window.scrollBy(0, el.getBoundingClientRect().bottom - (limit - 4));
+              await frame();
+              el.setAttribute("data-kb-target", "");
+              el.focus({ preventScroll: true });
+              await frame();
+              return `${el.tagName.toLowerCase()}:${(el.textContent ?? "").trim().slice(0, 28)}`;
+            });
+            expect(picked, "a focusable content control").not.toBeNull();
+
+            // keyboard opens: the viewport shrinks and the home-indicator inset is under the keyboard
+            await page.evaluate(() => document.documentElement.style.setProperty("--ds-test-safe-bottom", "0px"));
+            await page.setViewportSize({ width: vp.w, height: vp.h - KEYBOARD });
+            await page.waitForTimeout(150);
+            await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+            const r = await page.evaluate(() => {
+              const el = document.querySelector<HTMLElement>("[data-kb-target]")!;
+              const root = document.querySelector("#storybook-root")!;
+              const sticky = [...root.querySelectorAll<HTMLElement>("*")].filter((x) => getComputedStyle(x).position === "sticky" && x.getClientRects().length > 0 && !x.contains(el));
+              const top = Math.max(0, ...sticky.filter((s) => getComputedStyle(s).top === "0px").map((s) => s.getBoundingClientRect().bottom));
+              const bottom = Math.min(innerHeight, ...sticky.filter((s) => getComputedStyle(s).bottom === "0px").map((s) => s.getBoundingClientRect().top));
+              const b = el.getBoundingClientRect();
+              return {
+                focused: document.activeElement === el,
+                visible: b.top >= top - 0.5 && b.bottom <= bottom + 0.5,
+                overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              };
+            });
+            const chrome = await persistentChrome(page);
+            info.annotations.push({ type: "keyboard", description: JSON.stringify({ id, locale, vp: vp.w, scale, height: vp.h - KEYBOARD, picked, ...r, chrome }) });
+            expect(r.focused, "focus kept").toBe(true);
+            expect(r.visible, `focused control (${picked}) visible above the bar / nav with the keyboard open`).toBe(true);
+            expect(r.overflowX, "horizontal overflow (px)").toBeLessThanOrEqual(1);
+          });
+        }
+      }
+    }
+  }
+});

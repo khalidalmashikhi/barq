@@ -9,7 +9,8 @@ import AxeBuilder from "@axe-core/playwright";
 //   3. 150 % and 200 % text: critical prototype screens + text-heavy components;
 //   4. real :hover / :focus-visible / :active on the interactive component stories (disabled / error
 //      are their own stories);
-//   5. the three main prototype screens on an emulated phone (mobile-chromium project, @mobile).
+//   5. the three main prototype screens on an emulated phone (mobile-chromium project, @mobile);
+//   6. the large-text "More" bottom sheet, open (AR + EN @ 375, 200 %): screenshot + axe on the sheet.
 // "Current app (before)" stories are the UNCHANGED app components: their axe findings are recorded as
 // evidence (annotations), not failures — the proposals must pass.
 
@@ -60,12 +61,14 @@ async function shots(page: Page, entry: Entry, name: string) {
   if (isPrototype(entry)) await expect(page).toHaveScreenshot(`${name}--first-screen.png`);
 }
 
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
 async function axe(page: Page, entry: Entry) {
   // Sticky bars are made static during the scan: otherwise axe's target-size rule reports whichever
   // control happens to sit under the sticky bar at the current scroll position (the user can scroll it
   // clear). Controls inside the bars are still scanned.
   const unstick = await page.addStyleTag({ path: "tests/visual/full-page.css" });
-  const result = await new AxeBuilder({ page }).include("#storybook-root").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+  const result = await new AxeBuilder({ page }).include("#storybook-root").withTags(AXE_TAGS).analyze();
   await unstick.evaluate((el) => (el as Element).remove());
   const found = result.violations.map((v) => `${v.id} (${v.impact}) ×${v.nodes.length}: ${v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ")}`);
   test.info().annotations.push({ type: "axe", description: `${entry.id}: ${found.length ? found.join(" ; ") : "0 violations"}` });
@@ -144,6 +147,23 @@ test.describe("5 · main prototypes on an emulated phone", () => {
       await noHorizontalOverflow(page);
       await axe(page, entry);
       await shots(page, entry, `${id}--ar-phone`);
+    });
+  }
+});
+
+test.describe("6 · More bottom sheet open (200 %, AR + EN @ 375)", () => {
+  const id = "prototypes-3-trip-plan--mixed";
+  for (const locale of ["ar", "en"] as const) {
+    test(`${id} More sheet [${locale} 200%]`, async ({ page }) => {
+      await open(page, id, locale, "200");
+      await page.locator("[data-ds-nav-more]").click();
+      await expect(page.locator("[data-ds-sheet]")).toBeVisible();
+      // the sheet lives in a portal on <body>, outside #storybook-root
+      const result = await new AxeBuilder({ page }).include("[data-ds-sheet-layer]").withTags(AXE_TAGS).analyze();
+      const found = result.violations.map((v) => `${v.id} (${v.impact}) ×${v.nodes.length}: ${v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ")}`);
+      test.info().annotations.push({ type: "axe", description: `${id} More sheet [${locale}]: ${found.length ? found.join(" ; ") : "0 violations"}` });
+      expect(found, "axe violations").toEqual([]);
+      await expect(page).toHaveScreenshot(`${id}--${locale}-375-text200--more-sheet.png`);
     });
   }
 });

@@ -75,6 +75,7 @@ const COPY = {
     more: "المزيد",
     cancel: "إلغاء",
     allDestinations: "كل الأقسام",
+    close: "إغلاق",
   },
   en: {
     taskAddVehicle: "Add a vehicle",
@@ -143,6 +144,7 @@ const COPY = {
     more: "More",
     cancel: "Cancel",
     allDestinations: "All sections",
+    close: "Close",
   },
 } as const;
 

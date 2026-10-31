@@ -46,7 +46,8 @@ export function StickyActionBar({ status, primary, secondary, mode = "A", classN
       data-ds-sticky-bar=""
       data-mode={mode}
       className={clsx(
-        "sticky bottom-0 z-10 flex flex-col gap-1.5 border-t border-foreground/10 bg-card/95 px-4 pt-3 backdrop-blur",
+        // compact spacing (2026-10-31): the consent bar with a two-line disabled reason stays ≤ 25 % at 375 × 812
+        "sticky bottom-0 z-10 flex flex-col gap-1 border-t border-foreground/10 bg-card/95 px-4 pt-2 backdrop-blur",
         "pb-[max(env(safe-area-inset-bottom),var(--ds-test-safe-bottom,0px),0.75rem)]",
         className,
       )}
