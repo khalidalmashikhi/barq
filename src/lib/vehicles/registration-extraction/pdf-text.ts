@@ -47,15 +47,30 @@ export type PdfPageProxyLike = { getTextContent: () => Promise<{ items: PdfTextI
 export type PdfDocProxyLike = { numPages: number; getPage: (n: number) => Promise<PdfPageProxyLike> };
 export type PdfLoadingTaskLike = { promise: Promise<PdfDocProxyLike>; destroy: () => Promise<void> | void };
 export type PdfTextDeps = {
+  // Awaited BEFORE the parse budget starts (optional; the default loads the cached engine).
+  loadEngine?: () => Promise<unknown>;
   getDocument: (data: Uint8Array, options?: Record<string, unknown>) => Promise<PdfLoadingTaskLike>;
 };
 
+// The engine (unpdf → pdf.js) is loaded ONCE per process and reused. Loading it is dependency
+// loading, not parsing: it happens before the parse timer starts, so a slow module load (a cold
+// start, a busy test runner) is never misreported as PARSER_TIMEOUT. A failed load is not cached,
+// so the next parse retries it.
+type PdfEngineLike = { getDocument: (source: Record<string, unknown>) => PdfLoadingTaskLike };
+let engine: Promise<PdfEngineLike> | null = null;
+function loadEngine(): Promise<PdfEngineLike> {
+  engine ??= import("unpdf")
+    .then(({ getResolvedPDFJS }) => getResolvedPDFJS() as unknown as Promise<PdfEngineLike>)
+    .catch((error: unknown) => {
+      engine = null;
+      throw error;
+    });
+  return engine;
+}
+
 const defaultDeps: PdfTextDeps = {
-  getDocument: async (data, options) => {
-    const { getResolvedPDFJS } = await import("unpdf");
-    const pdfjs = await getResolvedPDFJS();
-    return pdfjs.getDocument({ data, ...options }) as unknown as PdfLoadingTaskLike;
-  },
+  loadEngine,
+  getDocument: async (data, options) => (await loadEngine()).getDocument({ data, ...options }),
 };
 
 function mapException(error: unknown): RegistrationExtractionFailureCode {
@@ -109,8 +124,25 @@ export async function extractPdfText(
   if (detectDocumentSignature(head.slice(0, 16)) !== "pdf") return { ok: false, code: "INVALID_FILE_TYPE" };
   if (hasSuspiciousTrailer(head)) return { ok: false, code: "PDF_TRAILING_DATA" };
 
+  try {
+    await deps.loadEngine?.();
+  } catch {
+    return { ok: false, code: "EXTRACTION_FAILED" };
+  }
+
   // Shared state lets the timeout actually cancel the page loop AND destroy the loading task.
   const state: { cancelled: boolean; task: PdfLoadingTaskLike | null } = { cancelled: false, task: null };
+
+  const destroyTask = () => {
+    if (state.task) {
+      try {
+        const r = state.task.destroy();
+        if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    }
+  };
 
   const parse = async (): Promise<PdfTextResult> => {
     const task = await deps.getDocument(new Uint8Array(bytes), {
@@ -119,8 +151,15 @@ export async function extractPdfText(
       disableFontFace: true,
       verbosity: 0,
     });
+    // Observe the task's promise at once: if the timeout has already won, nothing else awaits it,
+    // and a late rejection must not become an unhandled rejection (awaiting it below still sees it).
+    task.promise.catch(() => {});
     state.task = task;
-    if (state.cancelled) return { ok: false, code: "PARSER_TIMEOUT" };
+    if (state.cancelled) {
+      // The task appeared after the timeout, which found nothing to destroy: destroy it here.
+      destroyTask();
+      return { ok: false, code: "PARSER_TIMEOUT" };
+    }
     const pdf = await task.promise;
     if (state.cancelled) return { ok: false, code: "PARSER_TIMEOUT" };
     if (pdf.numPages > maxPages) return { ok: false, code: "PDF_PAGE_LIMIT" };
@@ -159,16 +198,6 @@ export async function extractPdfText(
   };
 
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const destroyTask = () => {
-    if (state.task) {
-      try {
-        const r = state.task.destroy();
-        if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => {});
-      } catch {
-        /* ignore */
-      }
-    }
-  };
   const timeout = new Promise<PdfTextResult>((resolve) => {
     timer = setTimeout(() => {
       state.cancelled = true;
