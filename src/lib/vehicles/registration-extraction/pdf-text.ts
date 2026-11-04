@@ -133,14 +133,18 @@ export async function extractPdfText(
   // Shared state lets the timeout actually cancel the page loop AND destroy the loading task.
   const state: { cancelled: boolean; task: PdfLoadingTaskLike | null } = { cancelled: false, task: null };
 
+  // Idempotent: the task is taken (cleared) BEFORE destroy() is called, so each task is destroyed
+  // exactly once. While no task exists yet nothing is marked, so a task that arrives after the
+  // timeout is still destroyed when it appears.
   const destroyTask = () => {
-    if (state.task) {
-      try {
-        const r = state.task.destroy();
-        if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => {});
-      } catch {
-        /* ignore */
-      }
+    const task = state.task;
+    if (!task) return;
+    state.task = null;
+    try {
+      const r = task.destroy();
+      if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => {});
+    } catch {
+      /* ignore */
     }
   };
 

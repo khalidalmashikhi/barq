@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // Lifecycle of the PDF engine around the parse budget (fictional data, no real PDF engine):
 // - loading the engine module is dependency loading, not parsing: it must not count against the
 //   parse timeout, and it is loaded once and reused;
-// - a loading task that appears or settles AFTER the timeout is still destroyed, and its late
+// - every loading task is destroyed exactly once, including one that appears or settles AFTER the
+//   timeout, and its late
 //   rejection is consumed (never an unhandled rejection).
 
 vi.mock("server-only", () => ({}));
@@ -82,7 +83,7 @@ describe("extractPdfText — engine loading is outside the parse budget", () => 
     settle.resolve(DOC);
     await pending;
     expect(settled).toMatchObject({ ok: true, pageCount: 1 });
-    expect(task.destroy).toHaveBeenCalled();
+    expect(task.destroy).toHaveBeenCalledTimes(1);
   });
 
   it("the engine is loaded once and reused across parses", async () => {
@@ -101,7 +102,7 @@ describe("extractPdfText — engine loading is outside the parse budget", () => 
     expect((await extractPdfText(PDF_HEADER())).ok).toBe(true);
     expect(engine.getResolvedPDFJS).toHaveBeenCalledTimes(1);
     expect(tasks).toHaveLength(2);
-    for (const t of tasks) expect(t.task.destroy).toHaveBeenCalled();
+    for (const t of tasks) expect(t.task.destroy).toHaveBeenCalledTimes(1);
   });
 
   it("an engine that fails to load → EXTRACTION_FAILED (never a throw), and the next parse retries the load", async () => {
@@ -120,7 +121,7 @@ describe("extractPdfText — engine loading is outside the parse budget", () => 
 });
 
 describe("extractPdfText — a loading task that outlives the timeout", () => {
-  it("a task created AFTER the timeout that later resolves is destroyed", async () => {
+  it("a task created AFTER the timeout that later resolves is destroyed exactly once", async () => {
     const { extractPdfText } = shared;
     const created = deferred<Awaited<ReturnType<Deps["getDocument"]>>>();
     const deps: Deps = { getDocument: () => created.promise };
@@ -131,11 +132,11 @@ describe("extractPdfText — a loading task that outlives the timeout", () => {
     created.resolve(task);
     settle.resolve(DOC);
     await flush();
-    expect(task.destroy).toHaveBeenCalled();
+    expect(task.destroy).toHaveBeenCalledTimes(1);
     expect(unhandled).toEqual([]);
   });
 
-  it("a task created AFTER the timeout that later rejects is destroyed and its rejection is consumed", async () => {
+  it("a task created AFTER the timeout that later rejects is destroyed exactly once and its rejection is consumed", async () => {
     const { extractPdfText } = shared;
     const created = deferred<Awaited<ReturnType<Deps["getDocument"]>>>();
     const deps: Deps = { getDocument: () => created.promise };
@@ -146,7 +147,7 @@ describe("extractPdfText — a loading task that outlives the timeout", () => {
     created.resolve(task);
     settle.reject(Object.assign(new Error("No password given"), { name: "PasswordException" }));
     await flush();
-    expect(task.destroy).toHaveBeenCalled();
+    expect(task.destroy).toHaveBeenCalledTimes(1);
     expect(unhandled).toEqual([]);
   });
 
@@ -162,7 +163,7 @@ describe("extractPdfText — a loading task that outlives the timeout", () => {
     expect(unhandled).toEqual([]);
   });
 
-  it("a task created BEFORE the timeout whose promise rejects after it is destroyed and consumed", async () => {
+  it("a task created BEFORE the timeout whose promise rejects after it is destroyed exactly once and consumed", async () => {
     const { extractPdfText } = shared;
     const { task, settle } = rawTask();
     const deps: Deps = { getDocument: async () => task };
@@ -172,26 +173,28 @@ describe("extractPdfText — a loading task that outlives the timeout", () => {
 
     settle.reject(new Error("Loading aborted"));
     await flush();
+    expect(task.destroy).toHaveBeenCalledTimes(1);
     expect(unhandled).toEqual([]);
   });
 });
 
-describe("extractPdfText — every created task is destroyed", () => {
+describe("extractPdfText — every created task is destroyed exactly once", () => {
   const cases: Array<[string, (s: ReturnType<typeof rawTask>["settle"]) => void, Record<string, number>, string]> = [
     ["success", (s) => s.resolve(DOC), {}, "ok"],
     ["page limit", (s) => s.resolve({ ...DOC, numPages: 20 }), { maxPages: 8 }, "PDF_PAGE_LIMIT"],
     ["text limit", (s) => s.resolve(DOC), { maxCharsTotal: 3 }, "TEXT_LIMIT_EXCEEDED"],
     ["encrypted", (s) => s.reject(Object.assign(new Error("pw"), { name: "PasswordException" })), {}, "PDF_ENCRYPTED"],
     ["malformed", (s) => s.reject(Object.assign(new Error("x"), { name: "InvalidPDFException" })), {}, "PDF_MALFORMED"],
+    ["page read failure", (s) => s.resolve({ ...DOC, getPage: async () => { throw new Error("page"); } }), {}, "EXTRACTION_FAILED"],
   ];
-  it.each(cases)("%s → the task is destroyed", async (_name, settleWith, options, expected) => {
+  it.each(cases)("%s → the task is destroyed exactly once", async (_name, settleWith, options, expected) => {
     const { extractPdfText } = shared;
     const { task, settle } = rawTask();
     settleWith(settle);
     const res = await extractPdfText(PDF_HEADER(), options, { getDocument: async () => task });
     expect(res.ok ? "ok" : res.code).toBe(expected);
-    expect(task.destroy).toHaveBeenCalled();
     await flush();
+    expect(task.destroy).toHaveBeenCalledTimes(1);
     expect(unhandled).toEqual([]);
   });
 });
