@@ -1,0 +1,97 @@
+/* BARQ design lab — large-text layout rules (owner correction 2026-10-26). Storybook only.
+
+   LARGE-TEXT MODE is a container query on the screen shell measured in rem: the shell is "narrow"
+   when it is under 22rem wide, i.e. a phone at 150 % text or more (375 px at 150 % = 15.6rem;
+   at 100 % = 23.4rem; 430 px at 100 % = 26.9rem). Text is never shrunk to make things fit — the
+   LAYOUT changes instead:
+     • sticky action bar (option A): only the primary action stays sticky; the status line,
+       the disabled reason (visually) and the secondary actions move into the page content;
+     • bottom navigation: Home + current tab + "More" (a bottom sheet: all destinations, full labels);
+     • the header scrolls with the page (owner correction 2026-10-31: persistent chrome ≤ 25 % of the
+       screen) and the screen title takes its own full-width line, wrapping naturally;
+     • icons scale with the text (em) between a minimum and a maximum. */
+
+.ds-shell {
+  container-type: inline-size;
+  container-name: ds-shell;
+}
+
+/* Focus / anchor scrolling keeps targets clear of the sticky header and the sticky bar / nav
+   (heights published by the components as CSS variables). */
+html {
+  scroll-padding-top: calc(var(--ds-header-h, 0px) + 8px);
+  scroll-padding-bottom: calc(var(--ds-bottom-h, 0px) + 8px);
+}
+
+/* Icons: grow with the surrounding text, bounded. */
+.ds-icon-sm {
+  width: clamp(1rem, 1.05em, 2rem);
+  height: clamp(1rem, 1.05em, 2rem);
+  flex: none;
+}
+.ds-icon {
+  width: clamp(1.125rem, 1.25em, 2.25rem);
+  height: clamp(1.125rem, 1.25em, 2.25rem);
+  flex: none;
+}
+.ds-icon-xl {
+  width: clamp(2.5rem, 2.5em, 4.5rem);
+  height: clamp(2.5rem, 2.5em, 4.5rem);
+  flex: none;
+}
+
+/* Bottom sheet: never more than 70 % of the screen (dvh follows the on-screen keyboard; vh fallback). */
+.ds-sheet {
+  max-height: 70vh;
+  max-height: 70dvh;
+}
+
+/* Elements that exist only in one mode. */
+.ds-only-large {
+  display: none !important;
+}
+
+@container ds-shell (max-width: 22rem) {
+  .ds-only-large {
+    display: flex !important;
+  }
+  .ds-hide-large {
+    display: none !important;
+  }
+
+  /* The header is part of the content: only the primary-action bar (or the bottom nav) stays put. */
+  [data-ds-sticky-header] {
+    position: static;
+  }
+  /* Title on its own line under back / language — full width, natural wrapping, same size. */
+  [data-ds-screen-title] {
+    order: 3;
+    flex-basis: 100%;
+    padding-bottom: 0.625rem;
+  }
+  [data-ds-screen-title][data-inset] {
+    padding-inline: 0.5rem;
+  }
+
+  /* Option A — the bar keeps the primary action only; its disabled reason stays in the accessibility
+     tree (aria-describedby) but is shown visually in the page's action area instead. */
+  [data-ds-sticky-bar][data-mode="A"] {
+    padding-top: 0.5rem;
+  }
+  [data-ds-sticky-bar][data-mode="A"] .ds-bar-reason {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Option B — no sticky bar at all: every action sits at the end of the page content. */
+  [data-ds-sticky-bar][data-mode="B"] {
+    position: static;
+  }
+}

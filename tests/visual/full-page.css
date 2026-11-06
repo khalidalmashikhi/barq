@@ -1,0 +1,5 @@
+/* Full-page screenshots only: sticky bars are captured in their document position (at the end of the
+   page) instead of floating mid-image at the viewport edge. The "first screen" shots keep them sticky. */
+.sticky {
+  position: static !important;
+}

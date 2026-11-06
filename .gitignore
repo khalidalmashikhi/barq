@@ -63,3 +63,10 @@ scripts/load-test/.session-pool.json
 # Only the .temp cache is ignored; supabase/config.toml stays trackable so we
 # can legitimately version Supabase config/migrations later.
 supabase/.temp/
+
+# Storybook design lab — build output and visual-regression baselines / results stay LOCAL (never committed;
+# scope-check forbids images outside public/).
+storybook-static/
+tests/visual/__screenshots__/
+tests/visual/results/
+*storybook.log
