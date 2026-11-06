@@ -236,7 +236,7 @@ describe("2–3. upload screen", () => {
 });
 
 describe("4–5. consent and reading", () => {
-  it("4. title, three trust points and the two choices use the approved wording (AR + EN)", () => {
+  it("4. title and the two choices use the approved wording (AR + EN); the three trust-point keys stay unchanged but the consent step no longer renders them", () => {
     expect(messages.ar!.vehicleRegConsentTitle).toBe("قراءة بيانات المركبة");
     expect(messages.ar!.vehicleJourneyTrust1).toBe("البيانات تظهر لك للمراجعة");
     expect(messages.ar!.vehicleJourneyTrust2).toBe("لا يتم إنشاء المركبة تلقائيًا");
@@ -245,7 +245,9 @@ describe("4–5. consent and reading", () => {
     expect(messages.ar!.vehicleRegConsentManualButton).toBe("إدخال البيانات يدويًا");
     expect(messages.en!.vehicleRegConsentReadButton).toBe("Read vehicle details");
     expect(messages.en!.vehicleRegConsentManualButton).toBe("Enter details manually");
-    expect(CONSENT).toMatch(/const TRUST_KEYS = \["vehicleJourneyTrust1", "vehicleJourneyTrust2", "vehicleJourneyTrust3"\] as const;/);
+    // 2026-11-07 (consent UI slice, owner decision D1): the three bullets repeated the disclosure, the
+    // privacy details and the manual choice, so the step no longer renders them. Their keys stay.
+    expect(CONSENT).not.toMatch(/TRUST_KEYS|vehicleJourneyTrust/);
   });
 
   it("4. one strong primary (read) and a quieter manual choice; the authorization box starts UNTICKED and gates only 'read'", () => {

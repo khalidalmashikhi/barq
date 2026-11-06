@@ -289,6 +289,47 @@ describe("the full disclosure — the Privacy Policy's automatic-reading section
   });
 });
 
+describe("2026-11-07 consent UI slice — presentation and accessibility only (Design Lab follow-up)", () => {
+  // Strips `//` lines and JSX `{/* … */}` comments, so prose cannot satisfy or break a class check.
+  const markup = stripComments(CODE).replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+  const summaryClass = CODE.match(/<summary className="([^"]*)"/)?.[1] ?? "";
+  const attestationLabel = CODE.match(/<label className="([^"]*)">\s*<input type="checkbox" checked=\{ownerAuthorized\}/)?.[1] ?? "";
+
+  it("D1: the three repeated trust bullets are no longer rendered (their message keys stay untouched)", () => {
+    expect(CODE).not.toMatch(/TRUST_KEYS|vehicleJourneyTrust/);
+    for (const l of LOCALES) for (const k of ["vehicleJourneyTrust1", "vehicleJourneyTrust2", "vehicleJourneyTrust3"]) expect(messages[l]![k]?.trim().length ?? 0, `${l}.${k}`).toBeGreaterThan(0);
+  });
+
+  it("the privacy-details summary is a 52 px target with an explicit keyboard focus ring", () => {
+    expect(summaryClass).toMatch(/(^| )min-h-\[3\.25rem\]( |$)/);
+    expect(summaryClass).toMatch(/(^| )focus-visible:outline-none( |$)/);
+    expect(summaryClass).toMatch(/(^| )focus-visible:ring-2( |$)/);
+    expect(summaryClass).not.toMatch(/(^| )min-h-12( |$)/);
+  });
+
+  it("the whole attestation row shows a focus ring while the checkbox is keyboard-focused; the checkbox itself is unchanged", () => {
+    expect(attestationLabel).toMatch(/has-\[:focus-visible\]:ring-2/);
+    expect(attestationLabel).toMatch(/has-\[:focus-visible\]:ring-primary\/40/);
+    expect(CODE).toMatch(/<input type="checkbox" checked=\{ownerAuthorized\} onChange=\{\(e\) => setOwnerAuthorized\(e\.target\.checked\)\} disabled=\{pending \|\| busy !== null\} className="mt-0\.5 size-6 shrink-0 accent-primary" \/>/);
+  });
+
+  it("icons scale with the text (bounded em sizes), never fixed pixel sizes", () => {
+    const icons = markup.match(/<(ScanLine|PencilLine|ShieldCheck|ChevronDown)\b[^>]*\/>/g) ?? [];
+    expect(icons.length).toBeGreaterThanOrEqual(5);
+    for (const icon of icons) {
+      expect(icon, icon).not.toMatch(/\bsize=\{/);
+      expect(icon, icon).toMatch(/className=\{?[`"]?[^>]*(CONSENT_ICON|CONSENT_ICON_SM)/);
+    }
+    expect(CODE).toMatch(/export const CONSENT_ICON = "size-\[clamp\(1\.125rem,1\.25em,2\.25rem\)\] shrink-0";/);
+    expect(CODE).toMatch(/export const CONSENT_ICON_SM = "size-\[clamp\(1rem,1\.05em,2rem\)\] shrink-0";/);
+  });
+
+  it("D2: no sticky or fixed element — the actions stay in the flow, so nothing persistent can cover the notice or a focused control", () => {
+    expect(markup).not.toMatch(/\b(sticky|fixed)\b/);
+    expect(CODE).not.toMatch(/StickyActionBar|data-provider-action-bar|design-lab/);
+  });
+});
+
 describe("2026-10-16 correction — bounded desktop actions, honest header on failure", () => {
   it("8. from 640 px the two actions form ONE centred row with bounded widths: primary 280–320 px, manual 224–280 px; the hint takes its own line", () => {
     expect(CODE).toMatch(/export const CONSENT_PRIMARY_WIDTH = "w-full sm:w-auto sm:min-w-\[17\.5rem\] sm:max-w-80";/); // 280 / 320 px

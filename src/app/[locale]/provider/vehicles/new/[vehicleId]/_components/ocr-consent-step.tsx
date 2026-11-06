@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { ScanLine, PencilLine, ShieldCheck, ChevronDown, CheckCircle2 } from "lucide-react";
+import { ScanLine, PencilLine, ShieldCheck, ChevronDown } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { registrationReviewMessageKey, type RegistrationReviewCode } from "@/lib/vehicles/registration-review/registration-review-result";
 import { grantOcrConsentAction, grantOcrConsentForCompletionAction, declineOcrConsentAction } from "../consent-actions";
@@ -69,8 +69,19 @@ type Props = {
 
 // What is being read, shown in the reading state (the same set summaries as the page).
 const SET_SUMMARY_KEY = { PDF: "vehicleOnboardSetSummaryPdf", IMAGE: "vehicleOnboardSetSummaryImage", IMAGES: "vehicleOnboardSetSummaryImages" } as const;
-/** Three short reassurances shown above the choice. */
-const TRUST_KEYS = ["vehicleJourneyTrust1", "vehicleJourneyTrust2", "vehicleJourneyTrust3"] as const;
+
+// 2026-11-07 (consent UI slice, from the approved Design Lab proposal) — presentation only:
+//   • the three "trust" bullets are no longer rendered: they repeated the disclosure sentence, the
+//     privacy details and the manual choice (their message keys are kept unchanged);
+//   • icons follow the provider's text size (bounded em sizes) instead of fixed pixels;
+//   • the privacy-details summary is a 52 px target with an explicit focus ring, and the whole
+//     attestation row shows the focus ring while its checkbox has keyboard focus;
+//   • the actions stay IN the flow — no sticky or fixed element on this screen, so the two choices
+//     keep their order and prominence and nothing persistent can cover the notice or a focused control.
+// Icon beside a 17 px line: about 20 px at the default text size, larger with larger text, bounded.
+export const CONSENT_ICON = "size-[clamp(1.125rem,1.25em,2.25rem)] shrink-0";
+// Smaller icon (secondary actions, the details summary): about 18 px at the default text size, bounded.
+export const CONSENT_ICON_SM = "size-[clamp(1rem,1.05em,2rem)] shrink-0";
 
 /** Action widths: full width on phones; bounded on wider screens so the pair never stretches across the card. */
 export const CONSENT_PRIMARY_WIDTH = "w-full sm:w-auto sm:min-w-[17.5rem] sm:max-w-80";
@@ -163,7 +174,7 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
       <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-base text-foreground/80">{t("vehicleRegConsentDeclinedNotice")}</p>
         <button type="button" onClick={() => setExpanded(true)} className={JOURNEY_SECONDARY}>
-          <ScanLine size={18} strokeWidth={1.75} aria-hidden />
+          <ScanLine strokeWidth={1.75} aria-hidden className={CONSENT_ICON_SM} />
           {t("vehicleRegConsentChangeMind")}
         </button>
       </div>
@@ -190,25 +201,15 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
 
           {mode === "stale" && <Alert variant="warning">{t("vehicleRegConsentStaleNotice")}</Alert>}
 
-          {/* Three short reassurances — what this step does NOT do. */}
-          <ul className="flex flex-col gap-2.5 rounded-2xl bg-secondary/5 p-4">
-            {TRUST_KEYS.map((key) => (
-              <li key={key} className="flex items-start gap-2.5 text-sm text-foreground">
-                <CheckCircle2 size={18} strokeWidth={1.9} aria-hidden className="mt-0.5 shrink-0 text-secondary-700" />
-                <span>{t(key)}</span>
-              </li>
-            ))}
-          </ul>
-
           {/* Layered privacy information — short and neutral; the full disclosure is the linked policy section. */}
           <div className="flex flex-col gap-1">
             <details className="group rounded-2xl border border-border" open={mode === "stale"}>
-              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-2">
-                  <ShieldCheck size={18} strokeWidth={1.75} aria-hidden className="text-foreground/60" />
+              <summary className="flex min-h-[3.25rem] cursor-pointer list-none items-center justify-between gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&::-webkit-details-marker]:hidden">
+                <span className="flex min-w-0 items-center gap-2">
+                  <ShieldCheck strokeWidth={1.75} aria-hidden className={`${CONSENT_ICON_SM} text-foreground/60`} />
                   {t("vehicleRegConsentDetailsToggle")}
                 </span>
-                <ChevronDown size={18} strokeWidth={1.75} aria-hidden className="shrink-0 transition-transform group-open:rotate-180" />
+                <ChevronDown strokeWidth={1.75} aria-hidden className={`${CONSENT_ICON_SM} transition-transform group-open:rotate-180`} />
               </summary>
               <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-foreground/80">
                 <p>{t("vehicleRegConsentDetailsExternal")}</p>
@@ -221,7 +222,7 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
             </Link>
           </div>
 
-          <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-base text-foreground has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+          <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-base text-foreground has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/40">
             <input type="checkbox" checked={ownerAuthorized} onChange={(e) => setOwnerAuthorized(e.target.checked)} disabled={pending || busy !== null} className="mt-0.5 size-6 shrink-0 accent-primary" />
             <span>{t("vehicleRegConsentOwnerLabel")}</span>
           </label>
@@ -232,7 +233,7 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
               widths — primary 280–320 px, manual 224–280 px — and the hint on its own line below. */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
             <button type="button" onClick={() => run("read")} disabled={readDisabled} aria-disabled={readDisabled} aria-describedby={!ownerAuthorized ? "consent-needs-authorization" : undefined} className={`${JOURNEY_PRIMARY} ${CONSENT_PRIMARY_WIDTH}`}>
-              <ScanLine size={20} strokeWidth={1.75} aria-hidden />
+              <ScanLine strokeWidth={1.75} aria-hidden className={CONSENT_ICON} />
               {t("vehicleRegConsentReadButton")}
             </button>
             {!ownerAuthorized && (
@@ -241,7 +242,7 @@ export function OcrConsentStep({ vehicleId, mode, setKind, intent = "read", onDe
               </p>
             )}
             <button type="button" onClick={() => run("manual")} disabled={pending || busy !== null} className={`${JOURNEY_TERTIARY} ${CONSENT_SECONDARY_WIDTH}`}>
-              <PencilLine size={18} strokeWidth={1.75} aria-hidden />
+              <PencilLine strokeWidth={1.75} aria-hidden className={CONSENT_ICON_SM} />
               {busy === "manual" ? t("vehicleRegConsentPending") : t("vehicleRegConsentManualButton")}
             </button>
           </div>
