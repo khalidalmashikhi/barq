@@ -755,6 +755,71 @@ A focused audit-and-correction pass before any staging rollout. No rebuild; a se
 5. Monitor the two accepted dev-only advisories and remove the exception when Storybook supports patched dependency ranges.
 6. The `barq` production project still fails `validate-env` for `NEXT_PUBLIC_APP_URL` and `OTP_PROVIDER` (post-merge `barq` deployment `pZczqyX5Ei1Pfx4ecaCSQf6GhJqm` failed at `validate-env`, before `prisma migrate deploy` and `next build`). This is a separate owner-only production configuration issue, unchanged and not caused by PR #15.
 
+### 2026-11-07 — Vehicle registration consent accessibility rollout to staging (PR #17, merge 2479a55)
+**Owner decision:** implement only the revised presentation and accessibility slice for the consent screen.
+- Remove the three repeated trust bullets from the rendered step, keeping their translation keys.
+- Add no sticky action bar.
+- Do not adopt the Design Lab navigation shell or its "More" sheet.
+
+The merge went to staging only, as a normal merge commit pinned to the PR head; this documentation was recorded afterwards on a separate branch.
+
+**Change:**
+- PR #17 head: `488cc989d44bddaea8c3f9cf34e28b5e711723d4`.
+- Normal merge: `2479a555ba997ac7ccba4eb54629233e88d81c38`, with parents `c7a5a4752d2675025d8b66bd7657a2f3c91b40fe` and `488cc989d44bddaea8c3f9cf34e28b5e711723d4`.
+- 3 files, +67 / −23:
+  - `src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/ocr-consent-step.tsx`
+  - `src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/ocr-consent-step.test.ts`
+  - `src/components/provider/vehicle-journey/vehicle-journey.test.tsx`
+- The three repeated trust bullets are no longer rendered on the consent step; their translation keys remain in all 8 locales.
+- The privacy-details summary now has an explicit `focus-visible` ring and a 52 px minimum target (previously 48 px).
+- The owner/authorized attestation row shows a focus ring when its checkbox has keyboard focus. The checkbox itself is unchanged.
+- The icons are sized relative to the text with bounded limits (`CONSENT_ICON`, `CONSENT_ICON_SM`) instead of fixed pixel sizes, so they scale with enlarged text.
+- No message, API, action, schema, migration, package, auth, storage, OCR-engine, extraction-policy, Storybook or Design Lab change.
+- Nothing from `design-lab/` is imported.
+
+**Protected invariants:**
+- `consent-notice-invariance.test.ts` was not modified and passed.
+- The disclosure text in all eight locales is byte-for-byte unchanged.
+- Unchanged consent behaviour:
+  - the consent version and the checkbox's initial (unticked) state;
+  - the grant and decline semantics;
+  - the read button's disabled logic and the synchronous in-flight guard;
+  - the stale-details behaviour (`open={mode === "stale"}`);
+  - navigation and the server actions.
+
+**Verification before merge:**
+- Focused tests: 162/162.
+- Full Vitest: 6,831 passed, 0 failed, 111 skipped.
+- Typecheck and ESLint passed.
+- Build passed against a fresh, migrated, disposable database.
+- Bundle scan passed across 277 files.
+- Scope, secret, migration, translation and diff checks passed.
+- Chromium scratchpad harness, outside the repository, with synthetic data: 108 cases each for before and after. It covered Arabic and English; three viewports (375×812, 430×932, 1440×900); text at 100 %, 150 % and 200 %; and six states.
+  - It found zero overflow, clipping, focus, heading-order, sticky/fixed or axe violations.
+  - The main action icon measured about 20 px at normal text size and 43 px only at 200 % text, where it scales with the enlarged label, without crowding or clipping.
+  - Before the change, that icon was squeezed to 11 px at 200 % text.
+
+**PR checks:**
+- CI run 42320881337 succeeded (Guards; Typecheck, Lint, Prisma, Tests, Build, Bundle scan).
+- Secret scan run 42320881279 succeeded.
+- The `Vercel – barq-staging` preview succeeded.
+- `Vercel – barq` was skipped successfully by the Ignored Build Step, under the owner-configured "Only build production" rule.
+
+**Rollout:** `verify-deploy.mjs --project barq-staging --expect 2479a55…` passed.
+- Deployment `dpl_GgcGuay1wvJekTE7QCWNwrSt8e6r`: status Ready, built from branch `staging` at `2479a55`, so the deployed SHA matches the merge.
+- `/api/health`, `/ar` and `/en` returned 200; health `status`, `database` and `environment` were ok.
+- 66 migrations were found, none pending; no migration was introduced.
+
+**Post-merge checks:**
+- CI run 42322077511 succeeded.
+- Secret scan run 42322077528 succeeded.
+- `Vercel – barq-staging` succeeded.
+- `Vercel – barq` (`GgakV3iaaUS6Yx1UxbwETGsBnp7U`) skipped the staging merge successfully ("Canceled by Ignored Build Step"), which confirms the production-only build rule works.
+
+**Unchanged:** `main` remains at `ad4aa84`. Production was not deployed or changed, and no Vercel or Supabase setting changed during this rollout.
+
+**Open verification:** no real iPhone/WebKit test has been performed. Still pending: Dynamic Type, VoiceOver reading order, standalone safe areas and the iOS keyboard. Any future test must use synthetic registration data only.
+
 ## Not yet dated / pending formal decision
 
 - **Dynamic Category Management, Dynamic Forms, Dynamic Pricing, Dynamic Commission Engine, AI-assisted translation workflow**: all stated as target direction (see `03-PRODUCT-REQUIREMENTS.md`, individual entity pages in `15-DATA-DICTIONARY.md`), but no implementation decision (schema design, engine architecture) has been made yet for any of them — that happens per-engine, in each engine's own separately-approved implementation phase. This timeline will gain a new entry, with a real date, when each is actually decided — not before.
