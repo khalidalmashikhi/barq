@@ -820,6 +820,117 @@ The merge went to staging only, as a normal merge commit pinned to the PR head; 
 
 **Open verification:** no real iPhone/WebKit test has been performed. Still pending: Dynamic Type, VoiceOver reading order, standalone safe areas and the iOS keyboard. Any future test must use synthetic registration data only.
 
+### 2026-11-12 — Critical dependency security upgrade: rollout to staging (PR #19, merge 2cdfeeb)
+**Why:** the production-readiness audit of 2026-11-12 listed two launch blockers in locked production dependencies. The public `barq-staging` deployment ran the same affected versions.
+- **B1:** `next@15.5.20` had critical unauthenticated remote-code-execution advisories, including in the Image Optimization API. AVIF output is enabled in `next.config.ts`.
+- **B2:** `better-auth@1.6.23` had a critical advisory allowing sign-in as another user.
+
+**Owner decision:** fix only these two blockers, upgrading to the smallest patched stable versions within the current majors. No feature, UI, schema or policy change. Staging only.
+
+**Change:**
+- PR #19 head: `bb79f3843d034943fceb62d30226ed65fb057b18`.
+- Normal merge: `2cdfeeb74fbf264106e17a56afe5cccbedeb2f5b`, with parents `2aa8766059d91d7ef337c46143daf32d8044fea3` and `bb79f3843d034943fceb62d30226ed65fb057b18`. The merge tree equals the PR head tree.
+- 2 files, +145 / −906: `package.json` and `package-lock.json`.
+- `next` 15.5.20 → **15.5.28** (`^15.0.0` → exact). This is the smallest version that fixes all three critical Next.js advisories; the SVG one affects `<=15.5.27`.
+- `better-auth` 1.6.23 → **1.7.7** (`^1.1.0` → exact). This is the first patched release.
+- `eslint-config-next` (dev) 15.5.20 → **15.5.28**, kept aligned with `next`.
+- The remaining lockfile changes are transitive dependencies of these three packages.
+- `next@15.5.28` accepts `sharp ^0.35.5`, so the nested vulnerable `sharp@0.34.5` copy under `next` was removed and deduplicated to the root `sharp@0.35.5`.
+- No dependency `dev`/`optional`/`peer` flag changed.
+- No `overrides`, `resolutions`, audit suppression or major upgrade.
+- No application code, Prisma schema, migration, auth policy, OTP behaviour, role, permission, session, UI, message, Design Lab, Storybook content, `next.config.ts`, Vercel, Supabase or environment-variable change.
+
+**Advisories removed:**
+- **Critical:**
+  - next: GHSA-2464-fhr4-w9xw (RCE, Image Optimization with SVG), GHSA-2xp9-vwfh-vxw4 (RCE, Image Optimization with AVIF), GHSA-p293-qw3h-jr36 / CVE-2026-75604 (RCE on Windows-hosted servers).
+  - better-auth: GHSA-965c-763c-88jm / CVE-2026-114607 (OAuth state used as a magic link to sign in as another user).
+- **High:**
+  - next: GHSA-m99w-x7hq-7vfj, GHSA-p3m5-59mp-jv5r, GHSA-89xv-2m56-2m9x, GHSA-p9j2-gv94-2wf4.
+  - better-auth: GHSA-r4xp-prcw-77qf, GHSA-q84f-53jg-9ppm.
+  - sharp, from the removed nested copy: GHSA-f88m-g3jw-g9cj, GHSA-rgj7-g3m4-5g8c, GHSA-wq5f-xc86-pv6w.
+- **Moderate/low:** seven Next.js advisories and GHSA-44jh-23m7-hpcf (Better Auth adapters).
+- The GitHub Advisory Database listed no advisory affecting `next@15.5.28` or `better-auth@1.7.7`.
+
+**Audit comparison** (`npm audit`, keyed by advisory and package):
+- Production (`--omit=dev`): critical 4 → 2, high 6 → 5, moderate 3 → 4, low 2 → 0 (total 15 → 11).
+- Full: critical 4 → 2, high 9 → 8, moderate 15 → 16, low 2 → 0 (total 30 → 26).
+- 23 advisory/package pairs were removed and none were added.
+- **This is not a vulnerability-free state.** Every remaining advisory existed before, at the same version and path:
+  - `vitest` / `tinypool` (critical) and `vite` / `esbuild` / `@vitest/mocker`. These are test tooling that `npm audit --omit=dev` counts as production only because `better-auth` declares `vitest` as an optional peer. They are `devOptional` in the lockfile and are not loaded by the application at runtime. Fixing them needs Vitest 5 (major).
+  - `postcss@8.4.31`, bundled by `next`. `npm audit` still lists `next` through it, with no advisory against `next` itself. The fix needs Next 16 (major).
+  - Top-level `zod@3.25.76` (the fix needs zod 4, major).
+  - `nanoid@3.3.15` (via Next's PostCSS) and `source-map-js`.
+  - Dev-only: `js-yaml`, `brace-expansion`, `browserslist`, `glob`, `minimatch`, `postcss-selector-parser`, `baseline-browser-mapping`.
+
+**Dependency resolution (recorded for transparency):**
+- An explicit `npm install` of any `better-auth` 1.7.x failed with `ERESOLVE`, under both npm 10.9.7 and npm 11.
+- The cause was an optional-peer chain: `better-auth` → optional `@tanstack/react-start` (or `@sveltejs/kit` in later 1.7.x) → optional `vite >= 8`. The repository uses `vite` 5 for Storybook and Vitest, and none of those optional packages is installed.
+- `npm install --legacy-peer-deps` was used **once** to place the upgrade. A plain `npm install` (npm 11, the tool that produced the previous lockfile) was then run, which restored the normal peer metadata.
+- A second plain `npm install` reported "up to date" and left the lockfile byte-for-byte unchanged.
+- `npm ci` reproduced the same lockfile byte-for-byte.
+- No `.npmrc` was added and no persistent `legacy-peer-deps` setting exists.
+- Compared with the previous lockfile, the only differences are the upgrade itself (28 version changes, the removed nested `sharp`, one added nested `@better-auth/utils`) and zero flag changes.
+- `npm ls` shows one copy each of `next@15.5.28`, `better-auth@1.7.7` and `sharp@0.35.5`. It also reports two invalid optional peers, unchanged from before: `zod` for `better-call`, and `@swc/helpers` for `next-intl`'s `@swc/core`.
+
+**Compatibility:**
+- The Better Auth 1.7.0 release notes were reviewed. The 1.7.0–1.7.2 `Account.issuer` requirement was reverted before 1.7.7: the 1.7.7 schema has no `issuer` column. The user, session, account and verification tables, and the `phoneNumber` / `emailOTP` plugin fields, are unchanged. **No schema change or migration was needed.**
+- The `better-auth` import subpaths used by the application still exist in 1.7.7.
+- **Real-library runtime smoke**, run locally against a disposable Postgres 16 (UTF-8) container with console OTP providers and synthetic identities; OTP codes were never printed. It produced **identical results on the old versions (15.5.20 / 1.6.23) and the new ones (15.5.28 / 1.7.7)**, 14/14 checks:
+  - the anonymous session is null;
+  - phone OTP send → 200; wrong code → 400 `INVALID_OTP`; correct code → 200 with a session cookie;
+  - session read, sign-out, and the session is cleared;
+  - email OTP send → 200; email OTP sign-in → 200 with a session;
+  - sign-out from an untrusted `Origin` → 403.
+  - The same database effects were observed on both versions.
+
+**Local verification** (sequential, on exactly the committed patch; commit `bb79f38` was proven byte-identical to the tested diff):
+- `git diff --check`, `check-migrations` (no new migration), scope check (only `deploy-config`, 2 files), secret scan and translation parity (14 namespaces × 8 locales) passed.
+- Root typecheck and Storybook typecheck passed.
+- ESLint: no lintable file changed. A full `src/` run reported 0 errors and 5 pre-existing `@typescript-eslint` warnings in untouched files.
+- Focused tests:
+  - Better Auth / session / OTP / linking: 34 files, 407 passed.
+  - Next config / headers / image / i18n: 11 files, 114 passed (one opt-in DB-proof file skipped as before).
+  - Provider / admin / staff / API v1 authorization: 130 files, 915 passed.
+  - Registration and recovery: 11 files, 129 passed.
+- Storybook build passed.
+- Storybook visual / layout / axe: baselines were generated locally from an old-version Storybook build, then the new build was compared against them. **390 passed, 0 failed, 3 skipped.**
+- Full Vitest, run on its own: 663 files passed, 8 skipped; 6,831 tests passed, 0 failed, 111 skipped. This is the same total as before the upgrade.
+- Disposable Postgres 16 (UTF-8): `prisma migrate deploy` applied 66/66 from zero and reported the schema up to date. `npm run build` passed. The bundle scan passed across 277 client files.
+
+**PR checks on `bb79f38`:**
+- CI run 43284836695 succeeded (Guards; Typecheck, Lint, Prisma, Tests, Build, Bundle scan).
+- Secret scan runs 43284836573 and 43283874749 succeeded.
+- `Vercel – barq-staging` succeeded.
+- `Vercel – barq` (`CVYpnBnAzd6fpMw7gB9oMiPK3YSy`) was skipped by the Ignored Build Step.
+
+**Rollout:** `verify-deploy.mjs --project barq-staging --expect 2cdfeeb…` passed.
+- Deployment `dpl_CjgebFZ9FCXS1TKxfvdD1x8CLZn4`: status Ready, built from branch `staging` at `2cdfeeb`, so the deployed SHA matches the merge.
+- `/api/health`, `/ar` and `/en` returned 200. Health `status`, `database` and `environment` were ok (`otpProvider` twilio and `paymentProvider` NONE, both unchanged).
+- 66 migrations were found, none pending; no migration was introduced.
+
+**Post-merge checks:**
+- CI run 43292247162 succeeded (both jobs).
+- Secret scan run 43292247357 succeeded.
+- `Vercel – barq-staging` succeeded.
+- `Vercel – barq` (`C5KbEdHGjuUVvDrJsSEstcuE1MUD`) skipped the staging merge ("Canceled by Ignored Build Step").
+
+**Unchanged:**
+- `main` remains at `ad4aa84`.
+- Production was not deployed or changed. Its only production deployment (`dpl_EQdJHmChQdtaNeDGit4CUfC3eYYN`, 2026-07-29) is still in **Error**, and production serves nothing.
+- No Vercel, Supabase, GitHub or environment-variable setting was changed.
+- The branch `fix/critical-security-dependencies` was kept.
+
+**Still open: production readiness remains NO-GO.** This rollout closes blockers B1 and B2 only. These remain open:
+- the production database identity and its backup / point-in-time restore point;
+- the migration plan, given that the `barq` build runs `vercel-build` and therefore `prisma migrate deploy`;
+- Supabase Data API exposure and role privileges, with migration 67 still unpushed;
+- the canonical production domain and production environment variables;
+- confirmation that the private document bucket is private;
+- final legal texts and a personal-data retention / deletion path;
+- a second admin or OWNER account, and admin MFA;
+- monitoring;
+- a production rollback path.
+
 ## Not yet dated / pending formal decision
 
 - **Dynamic Category Management, Dynamic Forms, Dynamic Pricing, Dynamic Commission Engine, AI-assisted translation workflow**: all stated as target direction (see `03-PRODUCT-REQUIREMENTS.md`, individual entity pages in `15-DATA-DICTIONARY.md`), but no implementation decision (schema design, engine architecture) has been made yet for any of them — that happens per-engine, in each engine's own separately-approved implementation phase. This timeline will gain a new entry, with a real date, when each is actually decided — not before.
