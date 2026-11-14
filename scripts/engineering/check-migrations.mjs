@@ -9,7 +9,9 @@
 //     forward with a new migration);
 //   - a migration folder is not `<14-digit timestamp>_<snake_name>` with exactly `migration.sql`;
 //   - a new migration sorts BEFORE an existing one (it would apply out of order on a fresh DB);
-//   - `migration_lock.toml`'s provider changes.
+//   - `migration_lock.toml`'s provider changes;
+//   - ANY migration creates a function / procedure in `public` without, later in the same file,
+//     REVOKE EXECUTE (or ALL) ... FROM PUBLIC, anon, authenticated.
 // WARNS (review required, not a failure) when a NEW migration contains a statement that a code
 // rollback cannot undo: DROP, column type change, RENAME, DELETE / UPDATE / TRUNCATE (data rewrite).
 // It never connects to a database and never runs a migration.
@@ -30,6 +32,79 @@ const DESTRUCTIVE = [
 export function destructiveStatements(sql) {
   const body = sql.replace(/--.*$/gm, "");
   return DESTRUCTIVE.filter((d) => d.re.test(body)).map((d) => d.id);
+}
+
+// ── routines in `public` must be closed in the SAME migration ──────────────────────────────────
+// PostgreSQL grants EXECUTE to PUBLIC on every new function / procedure (a global built-in default
+// that a per-schema rule cannot revoke — migration 67 deliberately leaves it alone). So any
+// migration that creates a routine in `public` must also, AFTER the CREATE, revoke EXECUTE (or ALL)
+// from PUBLIC, anon and authenticated — on that routine or on ALL FUNCTIONS / PROCEDURES / ROUTINES
+// IN SCHEMA public. Limitation: routines created through dynamic SQL inside a DO block are not seen.
+const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
+const QNAME = String.raw`${IDENT}(?:\s*\.\s*${IDENT})?`;
+const REQUIRED_GRANTEES = ["PUBLIC", "anon", "authenticated"];
+
+function normIdent(raw) {
+  const t = raw.trim();
+  return t.startsWith('"') ? t.slice(1, -1).replace(/""/g, '"') : t.toLowerCase();
+}
+function splitQName(raw) {
+  const parts = raw.match(new RegExp(IDENT, "g")).map(normIdent);
+  return parts.length === 2 ? { schema: parts[0], name: parts[1] } : { schema: "public", name: parts[0] }; // unqualified → search_path default
+}
+function normGrantee(raw) {
+  const t = raw.trim();
+  if (/^public$/i.test(t)) return "PUBLIC";
+  return normIdent(t);
+}
+function sqlStatements(sql) {
+  const code = sql
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\n]*/g, " ")
+    .replace(/\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$/g, " ''body'' "); // dollar-quoted bodies are opaque
+  return code.split(";").map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+/** Routines created in `public` without a later REVOKE EXECUTE from PUBLIC, anon, authenticated. */
+export function unsafePublicRoutines(sql) {
+  const created = []; // { key, name, index }
+  const revoked = []; // { keys: Set | "ALL", grantees: Set, index }
+  sqlStatements(sql).forEach((st, index) => {
+    const c = st.match(new RegExp(String.raw`^CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(${QNAME})`, "i"));
+    if (c) {
+      const { schema, name } = splitQName(c[1]);
+      if (schema === "public") created.push({ key: name, name, index });
+      return;
+    }
+    const r = st.match(/^REVOKE\s+(?!GRANT\s+OPTION\s+FOR\b)(.+?)\s+ON\s+(.+?)\s+FROM\s+(.+?)(?:\s+(?:CASCADE|RESTRICT|GRANTED\s+BY\s+\S+))?$/i);
+    if (!r) return;
+    const privileges = r[1].split(",").map((p) => p.trim().toUpperCase());
+    if (!privileges.some((p) => p === "EXECUTE" || p === "ALL" || p === "ALL PRIVILEGES")) return;
+    const target = r[2];
+    const grantees = new Set(r[3].split(",").map(normGrantee));
+    const all = target.match(/^ALL\s+(?:FUNCTIONS|PROCEDURES|ROUTINES)\s+IN\s+SCHEMA\s+(.+)$/i);
+    if (all) {
+      const schemas = all[1].split(",").map(normIdent);
+      if (schemas.includes("public")) revoked.push({ keys: "ALL", grantees, index });
+      return;
+    }
+    const one = target.match(/^(?:FUNCTION|PROCEDURE|ROUTINE)\s+(.+)$/i);
+    if (!one) return;
+    const keys = new Set();
+    for (const m of one[1].replace(/\([^)]*\)/g, "").split(",")) {
+      const { schema, name } = splitQName(m.trim());
+      if (schema === "public") keys.add(name);
+    }
+    revoked.push({ keys, grantees, index });
+  });
+  const problems = [];
+  for (const c of created) {
+    const covered = new Set();
+    for (const r of revoked) if (r.index > c.index && (r.keys === "ALL" || r.keys.has(c.key))) for (const g of r.grantees) covered.add(g);
+    const missing = REQUIRED_GRANTEES.filter((g) => !covered.has(g));
+    if (missing.length) problems.push(`${c.name}: no later REVOKE EXECUTE ... FROM ${missing.join(", ")}`);
+  }
+  return problems;
 }
 
 export function checkLayout(root = ".") {
@@ -89,6 +164,12 @@ if (isMain(import.meta.url)) {
     for (const f of result.added) {
       const kinds = destructiveStatements(readFileSync(path.join(DIR, f, "migration.sql"), "utf8"));
       if (kinds.length) result.warnings.push(`${DIR}/${f} — contains ${kinds.join(", ")}: NOT reversible by a code rollback; needs an explicit migration-safety review + backup point before deploy`);
+    }
+    // every migration (existing and new): routines in `public` must be closed in the same file
+    for (const n of layout.names) {
+      const file = path.join(DIR, n, "migration.sql");
+      if (!existsSync(file)) continue;
+      for (const p of unsafePublicRoutines(readFileSync(file, "utf8"))) result.failures.push(`${DIR}/${n} — routine in public stays executable: ${p}`);
     }
     console.log(`check-migrations vs ${base}: ${layout.names.length} migration folder(s), ${result.added.length} new`);
     process.exit(report("check-migrations", [...layout.failures, ...result.failures], result.warnings));
