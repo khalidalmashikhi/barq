@@ -188,6 +188,32 @@ describe("migration rule — a routine created in public must be closed in the s
     expect(unsafePublicRoutines("CREATE FUNCTION public.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nREVOKE SELECT ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon, authenticated;")).toHaveLength(1);
   });
 
+  it("REGRESSION (routine kind): ALL FUNCTIONS covers only functions, ALL PROCEDURES only procedures, ALL ROUTINES both", () => {
+    const FN = "CREATE FUNCTION public.f() RETURNS int LANGUAGE sql AS 'SELECT 1';";
+    const PR = "CREATE PROCEDURE public.p() LANGUAGE sql AS 'SELECT 1';";
+    const revokeAll = (kind: string) => `REVOKE EXECUTE ON ALL ${kind} IN SCHEMA public FROM PUBLIC, anon, authenticated;`;
+    // wrong direction: PostgreSQL's ALL PROCEDURES never touches a function, ALL FUNCTIONS never a procedure
+    expect(unsafePublicRoutines(`${FN}\n${revokeAll("PROCEDURES")}`)).toEqual(["f: no later REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated"]);
+    expect(unsafePublicRoutines(`${PR}\n${revokeAll("FUNCTIONS")}`)).toEqual(["p: no later REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated"]);
+    // matching kind closes the routine
+    expect(unsafePublicRoutines(`${FN}\n${revokeAll("FUNCTIONS")}`)).toEqual([]);
+    expect(unsafePublicRoutines(`${PR}\n${revokeAll("PROCEDURES")}`)).toEqual([]);
+    // ALL ROUTINES covers both kinds in one statement
+    expect(unsafePublicRoutines(`${FN}\n${PR}\n${revokeAll("ROUTINES")}`)).toEqual([]);
+    // a mixed migration closed only for one kind leaves exactly the other open
+    expect(unsafePublicRoutines(`${FN}\n${PR}\n${revokeAll("FUNCTIONS")}`)).toEqual(["p: no later REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated"]);
+    expect(unsafePublicRoutines(`${FN}\n${PR}\n${revokeAll("PROCEDURES")}`)).toEqual(["f: no later REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated"]);
+    // single-routine targets follow the same rule: ON FUNCTION never closes a procedure (and vice versa), ON ROUTINE closes both
+    expect(unsafePublicRoutines(`${PR}\nREVOKE EXECUTE ON FUNCTION public.p() FROM PUBLIC, anon, authenticated;`)).toHaveLength(1);
+    expect(unsafePublicRoutines(`${FN}\nREVOKE EXECUTE ON PROCEDURE public.f() FROM PUBLIC, anon, authenticated;`)).toHaveLength(1);
+    expect(unsafePublicRoutines(`${PR}\nREVOKE EXECUTE ON PROCEDURE public.p() FROM PUBLIC, anon, authenticated;`)).toEqual([]);
+    expect(unsafePublicRoutines(`${FN}\n${PR}\nREVOKE EXECUTE ON ROUTINE public.f(), public.p() FROM PUBLIC, anon, authenticated;`)).toEqual([]);
+    // order still matters for every kind: a revoke BEFORE the create closes nothing
+    expect(unsafePublicRoutines(`${revokeAll("ROUTINES")}\n${FN}\n${PR}`)).toHaveLength(2);
+    expect(unsafePublicRoutines(`${revokeAll("FUNCTIONS")}\n${FN}`)).toHaveLength(1);
+    expect(unsafePublicRoutines(`${revokeAll("PROCEDURES")}\n${PR}`)).toHaveLength(1);
+  });
+
   it("robust to case, whitespace, CREATE OR REPLACE, quoting and unqualified names (search_path = public)", () => {
     expect(unsafePublicRoutines("create   or\n  replace\tFUNCTION  PUBLIC . F ()  returns int language sql as 'select 1';")).toHaveLength(1);
     expect(unsafePublicRoutines('CREATE OR REPLACE FUNCTION "public"."f"() RETURNS int LANGUAGE sql AS $ SELECT 1 $;\nrevoke   execute on function F() from public ,ANON, Authenticated;')).toEqual([]);

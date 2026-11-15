@@ -39,7 +39,9 @@ export function destructiveStatements(sql) {
 // that a per-schema rule cannot revoke — migration 67 deliberately leaves it alone). So any
 // migration that creates a routine in `public` must also, AFTER the CREATE, revoke EXECUTE (or ALL)
 // from PUBLIC, anon and authenticated — on that routine or on ALL FUNCTIONS / PROCEDURES / ROUTINES
-// IN SCHEMA public. Limitation: routines created through dynamic SQL inside a DO block are not seen.
+// IN SCHEMA public. The routine KIND must match, as in PostgreSQL: FUNCTION / ALL FUNCTIONS covers
+// functions only, PROCEDURE / ALL PROCEDURES procedures only, ROUTINE / ALL ROUTINES both.
+// Limitation: routines created through dynamic SQL inside a DO block are not seen.
 const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
 const QNAME = String.raw`${IDENT}(?:\s*\.\s*${IDENT})?`;
 const REQUIRED_GRANTEES = ["PUBLIC", "anon", "authenticated"];
@@ -64,16 +66,21 @@ function sqlStatements(sql) {
     .replace(/\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$/g, " ''body'' "); // dollar-quoted bodies are opaque
   return code.split(";").map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
 }
+/** Routine kinds a REVOKE target word covers (FUNCTION[S] → functions, PROCEDURE[S] → procedures, ROUTINE[S] → both). */
+function coveredKinds(word) {
+  const w = word.toUpperCase().replace(/S$/, "");
+  return new Set(w === "ROUTINE" ? ["FUNCTION", "PROCEDURE"] : [w]);
+}
 
 /** Routines created in `public` without a later REVOKE EXECUTE from PUBLIC, anon, authenticated. */
 export function unsafePublicRoutines(sql) {
-  const created = []; // { key, name, index }
-  const revoked = []; // { keys: Set | "ALL", grantees: Set, index }
+  const created = []; // { key, name, kind: "FUNCTION" | "PROCEDURE", index }
+  const revoked = []; // { keys: Set | "ALL", kinds: Set<"FUNCTION" | "PROCEDURE">, grantees: Set, index }
   sqlStatements(sql).forEach((st, index) => {
-    const c = st.match(new RegExp(String.raw`^CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(${QNAME})`, "i"));
+    const c = st.match(new RegExp(String.raw`^CREATE\s+(?:OR\s+REPLACE\s+)?(FUNCTION|PROCEDURE)\s+(${QNAME})`, "i"));
     if (c) {
-      const { schema, name } = splitQName(c[1]);
-      if (schema === "public") created.push({ key: name, name, index });
+      const { schema, name } = splitQName(c[2]);
+      if (schema === "public") created.push({ key: name, name, kind: c[1].toUpperCase(), index });
       return;
     }
     const r = st.match(/^REVOKE\s+(?!GRANT\s+OPTION\s+FOR\b)(.+?)\s+ON\s+(.+?)\s+FROM\s+(.+?)(?:\s+(?:CASCADE|RESTRICT|GRANTED\s+BY\s+\S+))?$/i);
@@ -82,25 +89,26 @@ export function unsafePublicRoutines(sql) {
     if (!privileges.some((p) => p === "EXECUTE" || p === "ALL" || p === "ALL PRIVILEGES")) return;
     const target = r[2];
     const grantees = new Set(r[3].split(",").map(normGrantee));
-    const all = target.match(/^ALL\s+(?:FUNCTIONS|PROCEDURES|ROUTINES)\s+IN\s+SCHEMA\s+(.+)$/i);
+    const all = target.match(/^ALL\s+(FUNCTIONS|PROCEDURES|ROUTINES)\s+IN\s+SCHEMA\s+(.+)$/i);
     if (all) {
-      const schemas = all[1].split(",").map(normIdent);
-      if (schemas.includes("public")) revoked.push({ keys: "ALL", grantees, index });
+      const schemas = all[2].split(",").map(normIdent);
+      if (schemas.includes("public")) revoked.push({ keys: "ALL", kinds: coveredKinds(all[1]), grantees, index });
       return;
     }
-    const one = target.match(/^(?:FUNCTION|PROCEDURE|ROUTINE)\s+(.+)$/i);
+    const one = target.match(/^(FUNCTION|PROCEDURE|ROUTINE)\s+(.+)$/i);
     if (!one) return;
     const keys = new Set();
-    for (const m of one[1].replace(/\([^)]*\)/g, "").split(",")) {
+    for (const m of one[2].replace(/\([^)]*\)/g, "").split(",")) {
       const { schema, name } = splitQName(m.trim());
       if (schema === "public") keys.add(name);
     }
-    revoked.push({ keys, grantees, index });
+    revoked.push({ keys, kinds: coveredKinds(one[1]), grantees, index });
   });
   const problems = [];
   for (const c of created) {
     const covered = new Set();
-    for (const r of revoked) if (r.index > c.index && (r.keys === "ALL" || r.keys.has(c.key))) for (const g of r.grantees) covered.add(g);
+    for (const r of revoked)
+      if (r.index > c.index && r.kinds.has(c.kind) && (r.keys === "ALL" || r.keys.has(c.key))) for (const g of r.grantees) covered.add(g);
     const missing = REQUIRED_GRANTEES.filter((g) => !covered.has(g));
     if (missing.length) problems.push(`${c.name}: no later REVOKE EXECUTE ... FROM ${missing.join(", ")}`);
   }
