@@ -13,7 +13,7 @@
     "dev": "next dev",
     "prebuild": "npm run validate-env",
     "build": "next build",
-    "vercel-build": "npm run validate-env && prisma migrate deploy && next build",
+    "vercel-build": "npm run validate-env && node scripts/vercel-migrate.mjs && next build",
     "start": "next start",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
