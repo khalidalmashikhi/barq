@@ -931,6 +931,105 @@ The merge went to staging only, as a normal merge commit pinned to the PR head; 
 - monitoring;
 - a production rollback path.
 
+### 2026-11-17 — Supabase Data API privilege closure (PR #21, merge `35ca09c`) and Preview migration isolation (PR #22, merge `8e9ee1a`): rollout to staging
+**Why:** the production-readiness audit of 2026-11-12 left Supabase Data API exposure and role privileges open, with migration 67 still unpushed. On staging, the Data API roles `anon` and `authenticated` could reach all 70 public tables and both sequences. Rolling out that fix exposed a second, operational defect in the deployment pipeline (see the incident below), which PR #22 closes. The two PRs are recorded together as one security-and-deployment-control rollout.
+
+**Owner approvals:** each step was approved separately: pushing migration 67 as PR #21, fixing the routine-kind review finding, merging PR #21 pinned to `1da61fa`, preparing the PR #22 fix locally (red-first), pushing it, and merging PR #22 pinned to `ac3d873`. Both merges are normal merge commits into `staging` only. No `main` / production change.
+
+**PR #21 — Data API privilege closure:**
+- PR head: `1da61faa97bf95e8b7d15bd7df2381bff1c917b4` (commits `1569359` + `1da61fa`).
+- Normal merge: `35ca09cdb26e62d8022872395823d3a8ef6741b4`, with parents `2e44c6985883217e90d5f5349e6250c0a12cff64` and `1da61faa97bf95e8b7d15bd7df2381bff1c917b4`.
+- 5 files, +475 / −2:
+  - the migration;
+  - `scripts/engineering/check-migrations.mjs` and `engineering-guards.test.ts`;
+  - `scripts/engineering/supabase-roles-sim.sql`;
+  - the opt-in database proof `src/lib/security/data-api-roles.dbproof.test.ts`.
+- Migration 67, `20261021120000_revoke_data_api_role_privileges`, changes **privileges only**. There is no schema or application-data change.
+- After it, `anon` and `authenticated` have:
+  - access to 0 of the 70 public tables;
+  - access to neither of the 2 sequences;
+  - no CREATE on `public`.
+- `service_role` is unchanged (70/70 tables).
+- The migration is idempotent: a re-run leaves object ACLs, default ACLs and data identical.
+- **Known limit:** the migrating role cannot change the default privileges owned by `supabase_admin`. The migration logs this as a NOTICE ("insufficient privilege"), and those defaults stay open for objects that `supabase_admin` might create in `public` later. All current application tables and sequences are owned by the migrating role and are covered. **This is not a vulnerability-free database state.**
+- **Routine guard (Vercel Agent review finding, fixed red-first in `1da61fa`):** `check-migrations.mjs` now distinguishes routine kinds correctly:
+  - FUNCTION / ALL FUNCTIONS covers functions only;
+  - PROCEDURE / ALL PROCEDURES covers procedures only;
+  - ROUTINE / ALL ROUTINES covers both.
+- Verification on the final head `1da61fa`:
+  - guard tests 105/105;
+  - full Vitest 6,837 passed, 0 failed, 119 skipped.
+- **Rollout:** `verify-deploy.mjs --project barq-staging --expect 35ca09c…` passed.
+  - Deployment `dpl_Aa8vioZkq2SBy2qcTkGop1kRPr2K`: status Ready, built from branch `staging` at `35ca09c`, so the deployed SHA matches the merge.
+  - `/api/health`, `/ar` and `/en` returned 200. Health `status`, `database` and `environment` were ok.
+  - 67 migrations were found, none pending. Migration 67 had already been applied by the Preview incident below, so the merge build applied nothing.
+- **Post-merge checks:** CI run 43951067924 and Secret scan run 43951068000 succeeded.
+
+**Incident discovered during PR #21 (deployment-control defect, not intended behaviour):**
+- **2026-11-14 00:18:14 UTC:** opening PR #21 at its first head `1569359` triggered `barq-staging` **Preview** deployment `dpl_HivKn574U6tuYF2FHEuA5ki9pLMv`.
+- That build's `vercel-build` (`validate-env && prisma migrate deploy && next build`) ran `prisma migrate deploy` against the **shared staging database**.
+- It applied migration 67, **before PR #21 was reviewed or merged**:
+  - started 2026-11-14 00:18:27 UTC;
+  - finished 00:18:28 UTC;
+  - `_prisma_migrations` shows 1 step and no rollback.
+- No agent ran the migration manually; only that Preview build applied it. The application stayed healthy.
+- **The defect:** Vercel Preview builds of `barq-staging` inherited the staging database configuration and ran migrations before merge. This contradicted the documented rule that staging migrates only through the merged `barq-staging` build.
+- The incident was recorded in the PR #21 description and a PR comment at the time.
+
+**PR #22 — Preview migration isolation:**
+- PR head: `ac3d87398bbde37fee010b6487b052421fd5434f`.
+- Normal merge: `8e9ee1ad8d33061b587806500aed76c268e0d1bb`, with parents `35ca09cdb26e62d8022872395823d3a8ef6741b4` and `ac3d87398bbde37fee010b6487b052421fd5434f`. The merge tree equals the PR head tree.
+- 3 files, +129 / −5:
+  - the `vercel-build` line in `package.json`;
+  - the new `scripts/vercel-migrate.mjs`;
+  - `scripts/vercel-build.test.ts`.
+- `vercel-build` is now `npm run validate-env && node scripts/vercel-migrate.mjs && next build`:
+  - Preview builds still run environment validation and `next build`.
+  - When `VERCEL_ENV=preview` (exact), `prisma migrate deploy` is skipped with an explicit log line (`vercel-migrate: SKIPPED \`prisma migrate deploy\` …`).
+  - When `VERCEL_ENV=production`, migrations still run before `next build`; a failed migration still fails the build.
+  - Unset and other values keep the previous fail-safe behaviour (migrate).
+- No migration, schema, application code, `package-lock.json` or CI workflow change.
+- No Vercel setting, Ignored Build Step, deployment target, Supabase setting or environment variable was changed.
+- **Local verification:**
+  - focused behaviour tests (`vercel-build.test.ts`): 5 red against an always-migrate stub, then 8/8;
+  - focused scripts tests 149/149;
+  - full Vitest 6,843 passed, 0 failed, 119 skipped;
+  - typecheck, ESLint, `prisma validate`, diff / scope / secret / migration / translation checks and the bundle scan passed.
+- **Disposable PostgreSQL 16 proofs**, using full `npm run vercel-build`:
+  - production mode applied 67/67 migrations to an empty database, then built;
+  - preview mode, with the database at 66 and migration 67 pending, logged the skip and built. The database stayed at 66, with migration 67 still pending.
+- **Preview proof:** deployment `dpl_B3tRKSr1GKW47vftsXc8mEpAXywc` logged the skip, never invoked Prisma and completed successfully.
+- The staging `_prisma_migrations` fingerprint (names, timestamps, rollbacks, checksums) remained `46809d9a126fd0411f9f3121dca77881`, 67/67.
+- **Rollout:** `verify-deploy.mjs --project barq-staging --expect 8e9ee1a…` passed.
+  - Deployment `dpl_2xhmbbwFRiss3m6gyZGqS8FjGxBz`: status Ready, built from branch `staging` at `8e9ee1a`, so the deployed SHA matches the merge.
+  - Its log shows: `Environment variables validated.`; then `vercel-migrate: running \`prisma migrate deploy\` (VERCEL_ENV=production).`; then 67 migrations found and `No pending migrations to apply.`; and the build completed. There is no skip line.
+  - `/api/health`, `/ar` and `/en` returned 200. Health `status`, `database` and `environment` were ok (`otpProvider` twilio and `paymentProvider` NONE, both unchanged).
+  - The staging migration fingerprint was unchanged after the merge: no timestamp, checksum, rollback or count change.
+- **Post-merge checks:**
+  - CI run 43964427824 succeeded.
+  - Secret scan run 43964427944 succeeded.
+  - `Vercel – barq` was "Canceled by Ignored Build Step".
+
+**Current state:**
+- Preview builds no longer migrate shared staging.
+- Staging's production-target builds still run migrations.
+- **Accepted trade-off:** a Preview whose code requires a not-yet-applied migration may fail or be incomplete until that migration is merged and applied by the `staging` build.
+
+**Unchanged:**
+- `main` and Production remained at `ad4aa84`. Production was not deployed or changed, and the `barq` project still has no successful Production deployment.
+- The `barq-production` Supabase project remained empty (0 tables). No migration has been applied to it.
+- No Vercel or Supabase setting or variable was changed, and no bucket was created.
+- The branches `fix/revoke-data-api-role-privileges` and `fix/skip-preview-migrations` were kept.
+
+**Still open: production readiness remains NO-GO.**
+- Apply the 67 migrations to `barq-production` through the separately approved protected process.
+- Create the public `media` bucket and the private `provider-documents` bucket.
+- Upgrade from Free and confirm backups before real customer data.
+- The production domain and production environment variables.
+- Final legal texts and a personal-data deletion path.
+- A second admin account and admin MFA.
+- Monitoring and a production rollback path.
+
 ## Not yet dated / pending formal decision
 
 - **Dynamic Category Management, Dynamic Forms, Dynamic Pricing, Dynamic Commission Engine, AI-assisted translation workflow**: all stated as target direction (see `03-PRODUCT-REQUIREMENTS.md`, individual entity pages in `15-DATA-DICTIONARY.md`), but no implementation decision (schema design, engine architecture) has been made yet for any of them — that happens per-engine, in each engine's own separately-approved implementation phase. This timeline will gain a new entry, with a real date, when each is actually decided — not before.
