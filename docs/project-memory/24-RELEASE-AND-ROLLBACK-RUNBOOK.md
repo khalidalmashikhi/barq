@@ -2,19 +2,20 @@
 
 The single operational procedure for getting a change from request to staging, and — only with the owner's explicit approval — to production, and for undoing it. Written 2026-10-20 from the **verified** setup (inventory below), not from the older generic runbook. Where they disagree, this file describes reality; `docs/07-infrastructure/PRODUCTION_RUNBOOK.md` remains the ADR-gated reference for host-agnostic production steps.
 
-## 0. The real setup (verified 2026-10-20)
+## 0. The real setup (verified 2026-10-20; build path corrected 2026-11-22)
 
 | Thing | Fact |
 |---|---|
 | Repository | `khalidalmashikhi/barq` — **public**, default branch `staging` |
 | Branch roles | `feat/*`, `fix/*`, `docs/*`, `chore/*` → work branches · `staging` → integration + staging deploy · `main` → production deploy |
 | Branch protection | **none yet** on `staging` or `main` (owner action §8) |
-| Vercel `barq-staging` | production branch **`staging`**; build `npm run vercel-build` = `validate-env && prisma migrate deploy && next build`; alias **barq-staging.vercel.app** |
-| Vercel `barq` (production) | production branch **`main`** (Git auto-deploy ON); build is the default `npm run build` — **does NOT run `prisma migrate deploy`**; alias `barq-barq4.vercel.app`; last production deployment (`ad4aa84`, ~80 days old) is in **ERROR** — production serves nothing today |
-| Preview builds | every push also creates a `barq` **Preview** build that fails `validate-env` (preview env lacks `NEXT_PUBLIC_APP_URL`, `OTP_PROVIDER=console`) — **cosmetic**; judge staging only by `barq-staging` |
+| Build script (both projects) | `vercel-build` = `npm run validate-env && node scripts/vercel-migrate.mjs && next build`. `scripts/vercel-migrate.mjs` **skips** `prisma migrate deploy` only when `VERCEL_ENV=preview`; every **production-target** build runs `prisma migrate deploy` before `next build` |
+| Vercel `barq-staging` | production branch **`staging`**; Build Command set explicitly to `npm run vercel-build`; builds as Vercel target **`production`** against the **staging** database; alias **barq-staging.vercel.app**. Vercel's "production" target here is **staging**, not the live `barq` Production environment |
+| Vercel `barq` (live production) | production branch **`main`** (Git auto-deploy ON); **default** Build Command, which runs the `vercel-build` script when it exists (2026-11-06 build log: `Running "npm run vercel-build"`) — so a production-target `barq` build from `main` **runs `prisma migrate deploy`** against whatever database `barq`'s Production variables name (§5.2); alias `barq-barq4.vercel.app`; as of 2026-10-20 the last production deployment (`ad4aa84`) was in **ERROR** and production served nothing |
+| Preview builds | `VERCEL_ENV=preview` builds of either project validate the environment and run `next build` but **never migrate** (since `8e9ee1a`, PR #22). Before that fix a `barq-staging` Preview build applied a PR's migration to the shared staging database before merge (2026-11-14, migration 67). `barq` Preview builds fail `validate-env` (preview env lacks `NEXT_PUBLIC_APP_URL`, `OTP_PROVIDER=console`) — **cosmetic**; judge staging only by `barq-staging` |
 | CI | `.github/workflows/ci.yml` + `secret-scan.yml` (PRs into / pushes to `staging` and `main`; actions pinned to commit SHAs); the build runs against a **disposable** `postgres:16` service migrated from zero inside the runner (never a real database); CI **never deploys**. Check names: `Guards (whitespace, scope, migrations, translations)`, `Typecheck, Lint, Prisma, Tests, Build, Bundle scan`, `Scan added commits for credentials` |
 | GitHub security | secret scanning + push protection ON; Dependabot security updates OFF |
-| Migrations | 66 in `prisma/migrations`; applied to staging **only** by the `barq-staging` build |
+| Migrations | 67 in `prisma/migrations` (at `ad7ba6b`); applied to staging **only** by production-target `barq-staging` builds. The live production database has **none** applied yet (§5.2) |
 
 ## 1. Feature branch
 
@@ -58,7 +59,11 @@ Arabic RTL first at 375×812, then 430×932, English LTR, desktop 1440; signed o
 Production is never reached "because code reached staging". It requires, in the same task, the owner's written authorization naming the candidate SHA.
 
 1. `/barq-production-readiness <sha>` → GO verdict, open gates closed (privacy / legal, payment NO-GO, pilot limits).
-2. **Migrations for production**: the `barq` project's build does not migrate. Before the first real production deploy the owner either sets its Build Command to `npm run vercel-build` (migrations in the build, as staging) or runs `prisma migrate deploy` against production as an explicit, approved, backed-up step. Take a database backup / point-in-time marker first.
+2. **Migrations for production**: the `barq` build **does** migrate. Its default Build Command runs `vercel-build`, and `vercel-migrate.mjs` runs `prisma migrate deploy` on every build except `VERCEL_ENV=preview`. So any production-target `barq` build from `main` applies every pending migration to the database named by `barq`'s Production variables, before `next build`, with no separate approval step. (`barq-staging` also builds as target `production`, but against the staging database. That is staging, not live `barq` Production.) Before the first real production deploy:
+   - **First migration as its own step.** Apply it as an explicit, owner-approved step from a pinned, reviewed SHA, independent of any Vercel deployment. Rehearse it first on a disposable local database. A migration-safety review applies to anything non-additive.
+   - **Backup before real data.** A backup or restore point that has been tested must exist before any migration that touches real data. An empty database's recorded pre-state is evidence of emptiness, not a backup or a recovery path. The Supabase Free plan has no backups.
+   - **Merge freeze on `main`.** Merge nothing to `main` until `barq`'s Production database variables and its migration path are confirmed by the owner. A merge triggers a migrating build.
+   - **Wrong database is an incident.** A migration applied to any unintended database is an incident (§7). Do not assume it was a no-op, and do not attempt a cleanup.
 3. Merge `staging` → `main` through a PR (protected branch, green CI, owner review). Vercel's Git integration deploys `main` to `barq`.
 4. Verify: `verify-deploy.mjs --project barq --expect <sha>`, health, production smoke, monitoring.
 5. Record the release (deployment id, SHA, migrations, health) in `17-CHANGELOG-DECISIONS.md`.
