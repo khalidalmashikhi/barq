@@ -92,4 +92,4 @@ Within the same day, a dated entry in `docs/project-memory/17-CHANGELOG-DECISION
 4. **Vercel MCP** (optional, read-only inspection from Claude): `claude mcp add --transport http vercel https://mcp.vercel.com`, then `/mcp` to authenticate via OAuth. No token is stored in the repository.
 5. **Claude GitHub integration** (optional): install the Claude GitHub App, add the `ANTHROPIC_API_KEY` Actions secret, set the repository variable `CLAUDE_GITHUB_ENABLED=true` — `.github/workflows/claude.yml` stays inert until then.
 6. **Dependabot security updates**: enable (Settings → Code security).
-7. **Preview environment** (optional): give the Vercel Preview environment `NEXT_PUBLIC_APP_URL` and a non-console `OTP_PROVIDER` so preview builds stop failing (never weaken `validate-env`).
+7. **Preview environment** (optional): the Vercel Preview environment's `NEXT_PUBLIC_APP_URL` and `OTP_PROVIDER` matter only to a Preview build that actually runs, which checks them in `validate-env` (never weaken `validate-env`); a build canceled by the Ignored Build Step never reaches validation, and a Preview build that runs skips migrations regardless of these values (§0).
