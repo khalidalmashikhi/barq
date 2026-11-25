@@ -56,7 +56,13 @@ describe("review form — sources and 'check this'", () => {
     expect(row).toContain("td(confidenceKey)");
     expect(row).toContain('t("vehicleOnboardNeedsReviewBadge")');
     expect(row).toContain('t("vehicleRegHeuristicBadge")');
-    expect(FORM).toContain("<FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />");
+    expect(FORM).toContain("<FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} compact />");
+    // 2026-11-25 compact layout: the SAME status / confidence / chips, moved inside the suggestion box
+    // with "Use suggestion" right beside the value — nothing dropped, nothing auto-applied
+    const compact = ASSIST.slice(ASSIST.indexOf("if (compact && offerApply)"), ASSIST.indexOf("\n  return (", ASSIST.indexOf("if (compact && offerApply)")));
+    for (const piece of ["td(statusLabelKey(status, f.source))", "td(confidenceKey)", 't("vehicleOnboardNeedsReviewBadge")', 't("vehicleRegHeuristicBadge")', 't("vehicleRegCompletedBadge")', "onClick={apply}", 'td("vehicleRegUseSuggestionAria", { field: label, value: suggestion! })']) expect(compact, piece).toContain(piece);
+    expect(compact).toMatch(/<bdi className="[^"]*">\{suggestion\}<\/bdi>\s*<button type="button" onClick=\{apply\}/); // value, then the button beside it
+    expect(ASSIST).toMatch(/compact = false \}/); // the vehicle-detail form keeps the default layout
     // The document value stays visible once the field holds something else (typed or saved), or was cleared without a one-tap action.
     expect(ASSIST).toMatch(/const showComparison = f\.extractedValue !== null && suggestion !== null && value !== suggestion && \(changed \|\| \(status === "SUGGESTED" && !canApplySuggestion\(f, value\)\)\);/);
   });
@@ -173,8 +179,8 @@ describe("review form — dates (6)", () => {
 });
 
 describe("review form — phone layout (7, 19, 20)", () => {
-  it("groups the screen into cards in the required order: shown to customers → capacity & operation → private (collapsible) → description → final review + declaration → actions", () => {
-    const order = ['t("vehicleCardCustomerTitle")', 'id="of-vehicleType"', "customer.map((f) => renderField(f))", 't("vehicleCardCapacityTitle")', 't("vehicleRegGroupPrivate")', "privateFields.map((f) => renderField(f))", 'id="of-publicDescription"', 't("vehicleCardFinalTitle")', 't("vehicleOnboardDeclaration")', "onClick={finalize}"];
+  it("groups the screen in the required order: summary → document (children) → vehicle details → capacity & operation → private (collapsible) → description → final review + declaration → actions", () => {
+    const order = ['data-review-summary=""', "{children}", 't("vehicleCardVehicleTitle")', 'id="of-vehicleType"', "customer.map((f) => renderField(f))", 't("vehicleCardCapacityTitle")', 't("vehicleRegGroupPrivate")', "privateFields.map((f) => renderField(f))", 'id="of-publicDescription"', 't("vehicleCardFinalTitle")', 't("vehicleOnboardDeclaration")', "onClick={finalize}"];
     const idx = order.map((s) => FORM.indexOf(s));
     for (let i = 1; i < idx.length; i++) expect(idx[i], order[i]).toBeGreaterThan(idx[i - 1]!);
   });
@@ -201,12 +207,48 @@ describe("review form — phone layout (7, 19, 20)", () => {
     expect(FORM).not.toMatch(/setValues\(\(\) => \(\{\}\)\)|setValues\(\{\}\)/);
   });
 
-  it("the actions stay above the phone browser's toolbar (sticky, safe-area aware); spacing is logical (RTL-safe)", () => {
-    // the shared StickyActionBar (sticky against the VIEWPORT; the page-scoped layout contract and
-    // scroll-owner proof live in sticky-action-bar.test.ts)
-    expect(FORM).toMatch(/<StickyActionBar className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
-    expect(FORM).not.toMatch(/className="[^"]*\bsticky bottom-0/);
+  it("the actions sit in the page flow after the declaration (never pinned over a field), safe-area aware; spacing is logical (RTL-safe)", () => {
+    // 2026-11-25: no pinned bar — the in-flow contract is in sticky-action-bar.test.ts
+    expect(FORM).toMatch(/<div data-review-actions="" className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
+    expect(FORM).not.toMatch(/<StickyActionBar|className="[^"]*\bsticky bottom-0/);
     expect(FORM).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d/);
+  });
+});
+
+describe("review form — the summary of what is missing (2026-11-25 step-3 clarity pass)", () => {
+  const summary = FORM.slice(FORM.indexOf('data-review-summary=""'), FORM.indexOf("{children}"));
+
+  it("comes first, and counts the required items left from the SAME readiness + shared validator as the final card — Create stays canSubmit only", () => {
+    expect(FORM.indexOf('data-review-summary=""')).toBeLessThan(FORM.indexOf("{children}"));
+    expect(summary).toMatch(/allComplete \? t\("vehicleCardReadyAll"\) : invalidValues \? t\("vehicleCardReadyInvalid"\) : td\("vehicleReviewSummaryRemaining", \{ count: readiness\.missing\.length \}\)/);
+    expect(FORM).toMatch(/const readiness = reviewReadiness\(\{ fields, values, statusOf: \(f\) => fieldState\.status\(f\), vehicleType, declaration \}\);/);
+    expect(FORM.slice(FORM.indexOf("const canSubmit"), FORM.indexOf("const canSubmit") + 120)).not.toMatch(/readiness|reviewItems|summary/);
+  });
+
+  it("keeps 'required to create' apart from 'suggestions to review' (which never block), with no item listed twice", () => {
+    expect(summary).toMatch(/t\("vehicleReviewSummaryRequiredTitle"\)[\s\S]*readiness\.missing\.map\(summaryLink\)[\s\S]*invalidItems\.map\(summaryLink\)/);
+    expect(summary).toMatch(/t\("vehicleReviewSummaryReviewTitle"\)[\s\S]*reviewItems\.map\(summaryLink\)/);
+    expect(FORM).toMatch(/const reviewItems = readiness\.needsReview\.filter\(\(k\) => !readiness\.missing\.includes\(k\) && !invalidItems\.includes\(k\)\);/);
+  });
+
+  it("each item is a real link to its field, handled in place (no URL change, no server call): it opens the private card when needed and FOCUSES the field — or a masked field's Show button", () => {
+    const link = FORM.slice(FORM.indexOf("const summaryLink"), FORM.indexOf("const missingLabel"));
+    expect(link).toMatch(/<a\s+href=\{`#\$\{/);
+    expect(link).toMatch(/e\.preventDefault\(\);\s*goTo\(item\);/);
+    expect(link).not.toMatch(/Action\(|fetch\(|router\.|location\./);
+    const goTo = FORM.slice(FORM.indexOf("const goTo"), FORM.indexOf("const reviewItems"));
+    expect(goTo).toMatch(/document\.getElementById\(id\) \?\? document\.getElementById\(`\$\{id\}-reveal`\)/);
+    expect(goTo).toMatch(/el\?\.focus\(\{ preventScroll: true \}\)/);
+    expect(FORM).toMatch(/<button id=\{`of-\$\{f\.key\}-reveal`\} type="button" onClick=\{\(\) => setRevealed\(\(r\) => \(\{ \.\.\.r, \[f\.key\]: true \}\)\)\}/);
+  });
+});
+
+describe("review form — the document card is passed in by the page", () => {
+  it("page.tsx renders the document card and reading panels as the form's children (after the summary); nothing else about them changes", () => {
+    const PAGE = strip("src/app/[locale]/provider/vehicles/new/[vehicleId]/page.tsx");
+    const inside = PAGE.slice(PAGE.indexOf("tabBinding={review.tabBinding}"), PAGE.indexOf("</OnboardingReviewForm>"));
+    expect(inside.length).toBeGreaterThan(0);
+    for (const piece of ['aria-label={t("vehicleRegDocumentLabel")}', "{readingFailed && (", "<RegistrationRecoveryBanner"]) expect(inside, piece).toContain(piece);
   });
 });
 

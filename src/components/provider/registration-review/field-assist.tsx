@@ -41,7 +41,14 @@ const APPLY = "inline-flex min-h-11 max-w-full items-center rounded-xl border bo
 
 type Td = (key: string, values?: Record<string, string | number>) => string;
 
-export function FieldStatusAndSuggestion({ field: f, label, status, value, pending, onApply, inputId }: { field: AssistField; label: string; status: ReviewFieldStatus; value: string | undefined; pending: boolean; onApply: () => void; inputId: string }) {
+/**
+ * `compact` (onboarding review only, 2026-11-25): the SAME status, confidence, chips and apply action,
+ * condensed — while a make / model suggestion can be applied, the status line moves INSIDE the
+ * suggestion box and the "Use suggestion" button sits right next to the suggested value, so one
+ * bordered block replaces a status line + chips + a separate box. Nothing about what is shown as a
+ * suggestion, flagged for review or applied changes; the vehicle-detail form keeps the default layout.
+ */
+export function FieldStatusAndSuggestion({ field: f, label, status, value, pending, onApply, inputId, compact = false }: { field: AssistField; label: string; status: ReviewFieldStatus; value: string | undefined; pending: boolean; onApply: () => void; inputId: string; compact?: boolean }) {
   const t = useTranslations("provider");
   const td = t as unknown as Td;
   const onDocument = describesDocument(status);
@@ -55,6 +62,27 @@ export function FieldStatusAndSuggestion({ field: f, label, status, value, pendi
     requestAnimationFrame(() => document.getElementById(inputId)?.focus());
   };
   const confidenceKey = f.confidence ? `vehicleRegConfidence${f.confidence.charAt(0)}${f.confidence.slice(1).toLowerCase()}` : null;
+  if (compact && offerApply) {
+    return (
+      <div className="flex flex-col gap-2 rounded-xl border border-secondary/30 bg-secondary/5 px-3 py-2.5" data-suggestion-compact="">
+        {/* the status already says "document suggestion — review required": it heads the box, so the
+            value needs no second prefix and the button fits right beside it on a 375 px phone */}
+        <p className="flex flex-wrap items-center gap-1.5 text-sm text-foreground/70">
+          <span data-field-status={status}>{td(statusLabelKey(status, f.source))}</span>
+          {onDocument && confidenceKey && f.extractedValue !== null && <span aria-label={td(confidenceKey)}>· {td(confidenceKey)}</span>}
+          {flagged && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleOnboardNeedsReviewBadge")}</span>}
+          {f.heuristic && onDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegHeuristicBadge")}</span>}
+          {f.completedAutomatically && onDocument && <span className={`${CHIP} bg-warning/15 text-foreground`}>{t("vehicleRegCompletedBadge")}</span>}
+        </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <bdi className="min-w-0 text-base font-semibold text-foreground [overflow-wrap:anywhere]">{suggestion}</bdi>
+          <button type="button" onClick={apply} disabled={pending} aria-label={td("vehicleRegUseSuggestionAria", { field: label, value: suggestion! })} className={APPLY}>
+            <span className="truncate">{td("vehicleRegUseSuggestion", { value: suggestion! })}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <>
       <p className="flex flex-wrap items-center gap-1.5 text-sm text-foreground/70">

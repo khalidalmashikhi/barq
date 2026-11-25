@@ -30,6 +30,21 @@ const config: StorybookConfig = {
       postcss: { plugins: [tailwindcss(labTailwind), autoprefixer()] },
     };
     viteConfig.server = { ...viteConfig.server, host: "127.0.0.1" };
+    // The REAL onboarding review form (design-lab/current/onboarding-review.stories.tsx) imports its
+    // "use server" actions; in the lab that one import resolves to a local, server-free stand-in.
+    viteConfig.plugins = [
+      ...(viteConfig.plugins ?? []),
+      {
+        name: "barq-lab-onboarding-actions",
+        enforce: "pre",
+        resolveId(source: string, importer: string | undefined) {
+          if (source === "../onboarding-actions" && importer?.replace(/\\/g, "/").endsWith("/vehicles/new/[vehicleId]/_components/onboarding-review-form.tsx")) {
+            return path.join(root, "design-lab/mocks/onboarding-actions.ts");
+          }
+          return null;
+        },
+      },
+    ];
     return viteConfig;
   },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Eye, EyeOff, ChevronDown, ChevronUp, Lock, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -14,9 +14,8 @@ import { clearOnboardingRequestKey, safeSessionStorage } from "@/lib/vehicles/on
 import { useReviewFieldState } from "@/components/provider/registration-review/use-review-field-state";
 import { FieldStatusAndSuggestion, FieldConflictAndComparison } from "@/components/provider/registration-review/field-assist";
 import { useUnsavedLanguageGuard, UnsavedLanguageDialog } from "@/components/provider/registration-review/unsaved-language-guard";
-import { StickyActionBar } from "@/components/provider/registration-review/sticky-action-bar";
 import type { ReviewTabBinding } from "@/lib/vehicles/registration-review/review-field-state";
-import { JOURNEY_CARD, JOURNEY_CARD_TITLE, JOURNEY_CHIP_NEUTRAL, JOURNEY_CHIP_REVIEW, JOURNEY_CHIP_SUGGESTION, JOURNEY_INPUT, JOURNEY_LABEL, JOURNEY_PANEL, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_SMALL, JOURNEY_TERTIARY } from "@/components/provider/vehicle-journey/journey-ui";
+import { JOURNEY_CARD, JOURNEY_CARD_TITLE, JOURNEY_CHIP_NEUTRAL, JOURNEY_CHIP_REVIEW, JOURNEY_CHIP_SUGGESTION, JOURNEY_INPUT, JOURNEY_LABEL, JOURNEY_PANEL, JOURNEY_PRIMARY, JOURNEY_SECONDARY, JOURNEY_SMALL } from "@/components/provider/vehicle-journey/journey-ui";
 import { CAPACITY_CARD_KEYS, CAPACITY_SHOWN_TO_CUSTOMERS, CUSTOMER_CARD_KEYS, PRIVATE_CARD_KEYS, isCardFieldShown, reviewReadiness } from "@/components/provider/vehicle-journey/review-cards";
 import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingAction } from "../onboarding-actions";
 
@@ -24,12 +23,15 @@ import { finalizeVehicleAction, saveOnboardingDraftAction, cancelOnboardingActio
 // client island, re-cut for a 375–430 px phone (Oman field-mapping & mobile review correction,
 // 2026-10-09):
 //
-//   1. (previews are above, on the page)  2. one short automatic-reading notice
-//   3. CUSTOMER-VISIBLE details — vehicle type (explicit choice; a suggestion is only offered),
-//      make, model, model year, colour, bookable passengers
+//   0. SUMMARY (2026-11-25 step-3 clarity pass) — "N required items left", each a jump link that
+//      focuses its field; required-to-create kept apart from suggestions to review (never blocking)
+//   1. the page's document card (passed in as children)  2. one short automatic-reading notice
+//   3. VEHICLE DETAILS — vehicle type (explicit choice; a suggestion is only offered), make, model,
+//      model year, colour (customers see them once BARQ approves the vehicle)
+//   3b. CAPACITY & OPERATION — licensed vs bookable defined once, side by side; each edited only here
 //   4. PRIVATE registration details — collapsible, with a visible summary of the required private
 //      fields still missing; a validation error opens it and scrolls to the field
-//   5. optional description   6. declaration + actions (sticky above the phone toolbar)
+//   5. optional description   6. declaration + actions (in the page flow, never pinned over fields)
 //
 // DIRECT document values PREFILL the inputs but are never silently accepted: every field carries
 // ONE compact metadata row (a truthful status · confidence · "check" — review-field-state.ts; a
@@ -86,26 +88,42 @@ type Props = {
    *  remembered in the tab are restored only for the same provider, reading and form — never after a
    *  re-read or a replaced document. Not a value, never shown. */
   tabBinding?: ReviewTabBinding | null;
+  /** The page's document card (and its reading-failure / recovery panels), rendered right AFTER the
+   *  summary of what is still missing, so that summary is the first thing on the phone screen. */
+  children?: ReactNode;
 };
 
 // scroll-mb keeps a focused control clear of the mobile browser toolbar / on-screen keyboard.
 const INPUT_CLASS = JOURNEY_INPUT;
 
-// Plain-language hints for the fields that are easiest to confuse.
+// Plain-language hints for the fields that are easiest to confuse. The licensed vs bookable capacity
+// difference is explained ONCE at the top of the capacity card (CAPACITY_DEFINITIONS), not per field.
 const FIELD_HINT_KEY: Partial<Record<ConfirmationFieldKey, string>> = {
   model: "vehicleRegModelHint",
   modelYear: "vehicleRegModelYearHint",
-  licensedPassengerCapacity: "vehicleOnboardLicensedHint",
   registeredSeats: "vehicleOnboardRegisteredSeatsHint",
-  bookablePassengerCapacity: "vehicleOnboardBookableHint",
 };
+
+/** The two passenger numbers people confuse, defined side by side at the top of the capacity card. */
+const CAPACITY_DEFINITIONS: readonly { key: ConfirmationFieldKey; hintKey: string; shown: boolean }[] = [
+  { key: "licensedPassengerCapacity", hintKey: "vehicleOnboardLicensedHint", shown: false },
+  { key: "bookablePassengerCapacity", hintKey: "vehicleOnboardBookableHint", shown: true },
+];
+
+/** Cancel: present and reachable, but visibly the least important action (a quiet text button). */
+const CANCEL_LINK =
+  "inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+
+/** A jump link of the summary: looks and reads as a link, keeps a 44 px target. */
+const SUMMARY_LINK =
+  "inline-flex min-h-11 items-center rounded text-base font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
 /** The fields of one card, in the card's own order. */
 function fieldsInCard(fields: FieldView[], keys: readonly string[]): FieldView[] {
   return fields.filter((f) => keys.includes(f.key)).sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
 }
 
-export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant, tabBinding = null }: Props) {
+export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, suggestedVehicleType, documentDescription, noticeKey, noticeVariant, tabBinding = null, children }: Props) {
   const t = useTranslations("provider");
   const td = t as unknown as (key: string, values?: Record<string, string | number>) => string; // dynamic field-label/confidence/result keys (parity-guaranteed)
   const router = useRouter();
@@ -258,7 +276,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             <p className="min-h-11 py-2.5 text-base text-foreground" dir="ltr">
               {maskSensitiveValue(values[f.key] ?? "") || "—"}
             </p>
-            <button type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: true }))} className="inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <button id={`of-${f.key}-reveal`} type="button" onClick={() => setRevealed((r) => ({ ...r, [f.key]: true }))} className="inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
               <Eye size={16} aria-hidden /> {t("vehicleRegRevealButton")}
             </button>
           </div>
@@ -284,10 +302,13 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             )}
           </div>
         )}
-        {/* ONE compact metadata row + the one-tap make/model suggestion (shared with the detail form). */}
-        <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} />
-        {hintKey && <p className="text-sm text-foreground/70">{td(hintKey)}</p>}
-        {isDate && <p className="text-sm text-foreground/70">{t("vehicleRegDateFormatHint")}</p>}
+        {/* ONE compact block: the status row (or the suggestion box with the status inside it and
+            "Use suggestion" beside the value — shared with the detail form) + this field's hints. */}
+        <div className="flex flex-col gap-1">
+          <FieldStatusAndSuggestion field={f} label={label} status={status} value={values[f.key]} pending={pending} onApply={() => applyFieldSuggestion(f)} inputId={`of-${f.key}`} compact />
+          {hintKey && <p className="text-sm text-foreground/70">{td(hintKey)}</p>}
+          {isDate && <p className="text-sm text-foreground/70">{t("vehicleRegDateFormatHint")}</p>}
+        </div>
         {/* Conflict choices + the document value for comparison (shared with the detail form). */}
         <FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />
         {err && (
@@ -303,7 +324,6 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
 
   // The final card's summary (review-cards.ts) — informative; "Create" stays governed by canSubmit.
   const readiness = reviewReadiness({ fields, values, statusOf: (f) => fieldState.status(f), vehicleType, declaration });
-  const bookableValue = (values[CAPACITY_SHOWN_TO_CUSTOMERS] ?? "").trim();
   // Nothing missing yet the shared validator still refuses (an impossible date, bookable above
   // licensed…): never claim "complete" — say values need correcting. Create follows canSubmit only.
   const allComplete = readiness.missing.length === 0 && localCheck.ok;
@@ -313,34 +333,89 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
   const invalidItems: ConfirmationFieldKey[] = localCheck.ok
     ? []
     : [...new Set(localCheck.errors.filter((e) => e.code !== "REQUIRED" && e.field !== "declaration").map((e) => (e.field === "capacity" ? CAPACITY_SHOWN_TO_CUSTOMERS : e.field)))].filter((k): k is ConfirmationFieldKey => fields.some((f) => f.key === k));
-  /** Take the provider to a missing item (opens the private card when the item lives there). */
+  /** Take the provider to a missing item (opens the private card when the item lives there). A masked
+   *  sensitive field has no input until revealed — its "Show" button takes the focus instead. */
   const goTo = (item: (typeof readiness.missing)[number] | ConfirmationFieldKey) => {
     const id = item === "vehicleType" ? "of-vehicleType" : item === "declaration" ? "of-declaration" : `of-${item}`;
     if (privateFields.some((f) => f.key === item)) setPrivateOpen(true);
     window.setTimeout(() => {
-      const el = document.getElementById(id);
+      const el = document.getElementById(id) ?? document.getElementById(`${id}-reveal`);
       el?.scrollIntoView({ block: "center", behavior: "smooth" });
       el?.focus({ preventScroll: true });
     }, 0);
   };
+  /** Fields still flagged "check this" that are NOT already listed as required-missing or invalid. */
+  const reviewItems = readiness.needsReview.filter((k) => !readiness.missing.includes(k) && !invalidItems.includes(k));
+  /** One jump link of the summary (a real link to the field, handled in place: no URL change). */
+  const summaryLink = (item: (typeof readiness.missing)[number] | ConfirmationFieldKey) => (
+    <li key={item}>
+      <a
+        href={`#${item === "vehicleType" ? "of-vehicleType" : item === "declaration" ? "of-declaration" : `of-${item}`}`}
+        onClick={(e) => {
+          e.preventDefault();
+          goTo(item);
+        }}
+        data-summary-link=""
+        data-target={item}
+        className={SUMMARY_LINK}
+      >
+        {missingLabel(item)}
+      </a>
+    </li>
+  );
   const missingLabel = (item: (typeof readiness.missing)[number] | ConfirmationFieldKey) =>
     item === "vehicleType" ? t("vehicleTypeLabel") : item === "declaration" ? t("vehicleCardDeclarationItem") : td(regFieldLabelKey(item));
 
   return (
     <div className="flex flex-col gap-5">
+      {/* SUMMARY — first on the phone screen: how many required items are left, each a link to its
+          field; "required to create" kept apart from "suggestions to review" (which never block).
+          Computed from the same readiness + shared validator as the final card; Create stays canSubmit. */}
+      <section className={`${JOURNEY_CARD} flex flex-col gap-3`} aria-labelledby="of-summary-title" data-review-summary="">
+        <h2 id="of-summary-title" className="flex items-start gap-2 text-lg font-semibold text-foreground">
+          {allComplete ? (
+            <CheckCircle2 size={22} strokeWidth={1.9} aria-hidden className="mt-0.5 shrink-0 text-secondary-700" />
+          ) : (
+            <AlertTriangle size={22} strokeWidth={1.9} aria-hidden className="mt-0.5 shrink-0 text-warning" />
+          )}
+          <span>{allComplete ? t("vehicleCardReadyAll") : invalidValues ? t("vehicleCardReadyInvalid") : td("vehicleReviewSummaryRemaining", { count: readiness.missing.length })}</span>
+        </h2>
+        {!allComplete && <p className="text-sm text-foreground/75">{t("vehicleReviewSummaryCreateHint")}</p>}
+        {(readiness.missing.length > 0 || invalidItems.length > 0) && (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-foreground">{t("vehicleReviewSummaryRequiredTitle")}</p>
+            {readiness.missing.length > 0 && <ul className="flex flex-wrap gap-x-4">{readiness.missing.map(summaryLink)}</ul>}
+            {invalidItems.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-4" data-summary-invalid="">
+                <span className="text-sm text-danger">{t("vehicleCardReadyFix")}:</span>
+                <ul className="flex flex-wrap gap-x-4">{invalidItems.map(summaryLink)}</ul>
+              </div>
+            )}
+          </div>
+        )}
+        {reviewItems.length > 0 && (
+          <div className={`flex flex-col gap-1 ${readiness.missing.length > 0 || invalidItems.length > 0 ? "border-t border-border pt-3" : ""}`}>
+            <p className="text-sm font-semibold text-foreground">{t("vehicleReviewSummaryReviewTitle")}</p>
+            {/* Shared guidance ONCE, not under every field. */}
+            {anyNeedsReview && <p className="text-sm text-foreground/75">{t("vehicleOnboardNeedsReviewHint")}</p>}
+            <ul className="flex flex-wrap gap-x-4">{reviewItems.map(summaryLink)}</ul>
+          </div>
+        )}
+      </section>
+
+      {children}
+
       {noticeKey && <Alert variant={noticeVariant}>{td(noticeKey)}</Alert>}
       {errorCode && <Alert variant="danger">{td(onboardingMessageKey(errorCode))}</Alert>}
       {fieldErrors.some((e) => e.field === "capacity") && <Alert variant="danger">{t("vehicleRegCapacityError")}</Alert>}
 
-      {/* CARD 2 — what customers will see (once BARQ approves the vehicle). */}
+      {/* CARD 2 — the vehicle's details (customers see them once BARQ approves the vehicle). */}
       <section className={JOURNEY_CARD} aria-labelledby="of-customer-title">
         <div className="mb-4 flex flex-col gap-1.5">
           <h2 id="of-customer-title" className={JOURNEY_CARD_TITLE}>
-            {t("vehicleCardCustomerTitle")}
+            {t("vehicleCardVehicleTitle")}
           </h2>
           <p className="text-sm text-foreground/75">{t("vehicleCardCustomerHint")}</p>
-          {/* Shared guidance ONCE, not under every field. */}
-          {anyNeedsReview && <p className="text-sm text-foreground/75">{t("vehicleOnboardNeedsReviewHint")}</p>}
         </div>
 
         {documentDescription && (
@@ -382,7 +457,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             <>
               {suggestedOption && (
                 // A body-style SUGGESTION from the document — offered, never applied by itself.
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/30 bg-secondary/5 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-secondary/30 bg-secondary/5 px-3 py-2">
                   <p className="flex items-center gap-1.5 text-sm text-secondary-700">
                     <Sparkles size={16} strokeWidth={1.75} aria-hidden />
                     <span>
@@ -406,21 +481,26 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           )}
         </div>
         <div className="flex flex-col border-t border-border pt-4">{customer.map((f) => renderField(f))}</div>
-        {/* The bookable capacity is shown to customers too, but EDITED next to the licensed capacity. */}
-        <p className="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-background px-3 py-2.5 text-sm text-foreground/80" data-bookable-echo="">
-          <span>{td(regFieldLabelKey(CAPACITY_SHOWN_TO_CUSTOMERS))}</span>
-          <span className="font-semibold text-foreground">{bookableValue || "—"}</span>
-          <span className="basis-full text-foreground/70">{t("vehicleCardBookableEditedBelow")}</span>
-        </p>
       </section>
 
-      {/* CARD 3 — capacity and operation: three distinct numbers, explained in one line each. */}
+      {/* CARD 3 — capacity and operation: the ONLY place each capacity is edited. The licensed vs
+          bookable difference is defined once, side by side, above the inputs. */}
       <section className={JOURNEY_CARD} aria-labelledby="of-capacity-title">
-        <div className="mb-4 flex flex-col gap-1.5">
+        <div className="mb-4 flex flex-col gap-3">
           <h2 id="of-capacity-title" className={JOURNEY_CARD_TITLE}>
             {t("vehicleCardCapacityTitle")}
           </h2>
-          <p className="text-sm text-foreground/75">{t("vehicleCardCapacityHint")}</p>
+          <dl className={`${JOURNEY_PANEL} flex flex-col gap-3`} data-capacity-definitions="">
+            {CAPACITY_DEFINITIONS.map((d) => (
+              <div key={d.key} className="flex flex-col gap-0.5">
+                <dt className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                  {td(regFieldLabelKey(d.key))}
+                  <span className={d.shown ? JOURNEY_CHIP_SUGGESTION : JOURNEY_CHIP_NEUTRAL}>{d.shown ? t("vehicleCardShownToCustomers") : t("vehicleCardNotShownToCustomers")}</span>
+                </dt>
+                <dd className="text-sm text-foreground/75">{td(d.hintKey)}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
         <div className="flex flex-col">
           {capacityFields.filter((f) => isCardFieldShown(f, values[f.key])).map((f) => renderField(f, f.key === CAPACITY_SHOWN_TO_CUSTOMERS ? "SHOWN" : "NOT_SHOWN"))}
@@ -493,7 +573,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
           {t("vehicleCardFinalTitle")}
         </h2>
         <div className="flex flex-col gap-3" data-readiness="">
-          <p className="flex items-center gap-2 text-base font-medium text-foreground">
+          <p id="of-readiness-status" className="flex items-center gap-2 text-base font-medium text-foreground">
             {allComplete ? (
               <CheckCircle2 size={20} strokeWidth={1.9} aria-hidden className="shrink-0 text-secondary-700" />
             ) : (
@@ -537,16 +617,20 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
         </label>
       </section>
 
-      <StickyActionBar className="-mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:rounded-3xl sm:border sm:bg-card sm:p-4">
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          <button type="button" onClick={finalize} disabled={!canSubmit} className={`${JOURNEY_PRIMARY} col-span-2 sm:min-w-56`}>
+      {/* ACTIONS — in the page flow on every viewport (2026-11-25): a bar pinned to the phone's bottom
+          covered ~130 px of a 812 px screen while scrolling, more with the keyboard open. One primary
+          action (Create), a quiet secondary (Save progress) and a low-emphasis Cancel. Create's
+          disabled reason is the final card's readiness line just above (aria-describedby). */}
+      <div data-review-actions="" className="flex flex-col gap-3 border-t border-border pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-4 sm:rounded-3xl sm:border sm:bg-card sm:p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <button type="button" onClick={finalize} disabled={!canSubmit} aria-describedby={canSubmit ? undefined : "of-readiness-status"} className={`${JOURNEY_PRIMARY} w-full sm:w-auto sm:min-w-56`}>
             {pending ? t("vehicleOnboardCreating") : t("vehicleOnboardCreateButton")}
           </button>
-          <button type="button" onClick={() => saveDraft()} disabled={pending} className={JOURNEY_SECONDARY}>
+          <button type="button" onClick={() => saveDraft()} disabled={pending} className={`${JOURNEY_SECONDARY} w-full sm:w-auto`}>
             {pending ? t("vehicleRegSaving") : t("vehicleOnboardSaveProgressButton")}
           </button>
           {confirmingCancel ? null : (
-            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className={JOURNEY_TERTIARY}>
+            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={pending} className={`${CANCEL_LINK} self-center sm:ms-auto`}>
               {t("vehicleOnboardCancelButton")}
             </button>
           )}
@@ -564,7 +648,7 @@ export function OnboardingReviewForm({ vehicleId, fields, vehicleTypeOptions, su
             </div>
           </div>
         )}
-      </StickyActionBar>
+      </div>
 
       <UnsavedLanguageDialog open={languageGuard.target !== null} pending={pending} onStay={languageGuard.stay} onSaveAndSwitch={() => saveDraft(languageGuard.continueToTarget)} />
     </div>
