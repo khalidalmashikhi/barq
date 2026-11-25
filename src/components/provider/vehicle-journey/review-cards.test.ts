@@ -74,9 +74,13 @@ describe("cards contain only fields of their classification", () => {
     const privateCard = FORM.slice(FORM.indexOf('aria-labelledby="of-private-title"'), FORM.indexOf('id="of-publicDescription"'));
     expect(privateCard).toContain("privateFields.map((f) => renderField(f))");
     expect(privateCard).not.toMatch(/customer\.map|capacityFields/);
-    // the customer card only ECHOES the bookable value (edited in the capacity card) — never a second input
-    expect(customerCard).toMatch(/data-bookable-echo=""/);
-    expect(customerCard).not.toMatch(/<input|renderField\(f, /);
+    // 2026-11-25: each editable field lives in ONE place — the bookable capacity is no longer echoed in
+    // the vehicle-details card; it is edited (and defined against the licensed one) in the capacity card
+    expect(customerCard).not.toMatch(/data-bookable-echo|CAPACITY_SHOWN_TO_CUSTOMERS|bookablePassengerCapacity|<input|renderField\(f, /);
+    expect(FORM).not.toMatch(/data-bookable-echo|vehicleCardBookableEditedBelow/);
+    expect(capacityCard).toMatch(/<dl className=\{`\$\{JOURNEY_PANEL\} flex flex-col gap-3`\} data-capacity-definitions="">/);
+    expect(FORM).toMatch(/\{ key: "licensedPassengerCapacity", hintKey: "vehicleOnboardLicensedHint", shown: false \}/);
+    expect(FORM).toMatch(/\{ key: "bookablePassengerCapacity", hintKey: "vehicleOnboardBookableHint", shown: true \}/);
   });
 });
 
@@ -91,7 +95,7 @@ describe("sensitive values, provenance and actions are unchanged", () => {
 
   it("every field keeps its honest provenance line (shared status row) — the cards add no status logic", () => {
     expect(FORM).toMatch(/const status = fieldState\.status\(f\);/);
-    expect(FORM).toMatch(/<FieldStatusAndSuggestion field=\{f\} label=\{label\} status=\{status\} value=\{values\[f\.key\]\} pending=\{pending\} onApply=\{\(\) => applyFieldSuggestion\(f\)\} inputId=\{`of-\$\{f\.key\}`\} \/>/);
+    expect(FORM).toMatch(/<FieldStatusAndSuggestion field=\{f\} label=\{label\} status=\{status\} value=\{values\[f\.key\]\} pending=\{pending\} onApply=\{\(\) => applyFieldSuggestion\(f\)\} inputId=\{`of-\$\{f\.key\}`\} compact \/>/);
   });
 
   it("Create stays governed ONLY by the real validator; save / create / cancel are the same single calls", () => {
@@ -190,8 +194,11 @@ describe("typography hierarchy (scoped to the journey) and wording", () => {
   });
 
   it("Arabic and English card copy is exactly as approved", () => {
-    expect(messages.ar!.vehicleCardCustomerTitle).toBe("المعلومات التي ستظهر للعميل");
-    expect(messages.en!.vehicleCardCustomerTitle).toBe("Information shown to customers");
+    expect(messages.ar!.vehicleCardVehicleTitle).toBe("بيانات المركبة");
+    expect(messages.en!.vehicleCardVehicleTitle).toBe("Vehicle details");
+    expect(messages.ar!.vehicleReviewSummaryRequiredTitle).toBe("مطلوب لإكمال الإنشاء");
+    expect(messages.ar!.vehicleReviewSummaryReviewTitle).toBe("اقتراحات تحتاج مراجعتك (لا تمنع الإنشاء)");
+    for (const l of LOCALES) for (const gone of ["vehicleCardCustomerTitle", "vehicleCardBookableEditedBelow", "vehicleCardCapacityHint"]) expect(messages[l]![gone], `${l}.${gone}`).toBeUndefined();
     expect(messages.ar!.vehicleCardPrivateNote).toBe("هذه البيانات خاصة بك وبإدارة برق ولا تظهر للعملاء.");
     expect(messages.en!.vehicleCardPrivateNote).toBe("These details are private to you and BARQ administration and are never shown to customers.");
   });
@@ -199,7 +206,8 @@ describe("typography hierarchy (scoped to the journey) and wording", () => {
   it.each(LOCALES)("%s has every card key, with the placeholders intact", (l) => {
     const m = messages[l]!;
     for (const k of Object.keys(messages.en!).filter((x) => x.startsWith("vehicleCard"))) expect(m[k]?.trim().length ?? 0, `${l}.${k}`).toBeGreaterThan(0);
-    for (const [k, ph] of [["vehicleCardReadyCompleted", ["{done}", "{total}"]], ["vehicleCardReadyReview", ["{count}"]], ["vehicleCardDocFound", ["{found}", "{total}"]], ["vehicleCardDocReview", ["{count}"]]] as const) for (const p of ph) expect(m[k], `${l}.${k}`).toContain(p);
-    expect(m.vehicleCardCustomerTitle).not.toContain("بارق");
+    for (const [k, ph] of [["vehicleCardReadyCompleted", ["{done}", "{total}"]], ["vehicleCardReadyReview", ["{count}"]], ["vehicleCardDocFound", ["{found}", "{total}"]], ["vehicleCardDocReview", ["{count}"]], ["vehicleReviewSummaryRemaining", ["{count}"]]] as const) for (const p of ph) expect(m[k], `${l}.${k}`).toContain(p);
+    for (const k of ["vehicleReviewSummaryCreateHint", "vehicleReviewSummaryRequiredTitle", "vehicleReviewSummaryReviewTitle"]) expect(m[k]?.trim().length ?? 0, `${l}.${k}`).toBeGreaterThan(0);
+    expect(m.vehicleCardVehicleTitle).not.toContain("بارق");
   });
 });

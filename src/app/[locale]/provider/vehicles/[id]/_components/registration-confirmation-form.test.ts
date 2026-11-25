@@ -24,7 +24,8 @@ describe("ONE shared field-state contract for both forms", () => {
   it("the detail form and the onboarding review use the SAME hook and the SAME field helpers — no second copy of the rules", () => {
     for (const src of [FORM, ONBOARDING]) {
       expect(src).toMatch(/useReviewFieldState\(\{ vehicleId, fields, binding: tabBinding, flow: "(DETAIL|ONBOARDING)"/);
-      expect(src).toMatch(/<FieldStatusAndSuggestion field=\{f\} label=\{label\} status=\{status\} value=\{values\[f\.key\]\} pending=\{pending\} onApply=\{\(\) => applyFieldSuggestion\(f\)\} inputId=\{`(rf|of)-\$\{f\.key\}`\} \/>/);
+      // the onboarding review passes `compact` (layout only — same status, chips and apply action)
+      expect(src).toMatch(/<FieldStatusAndSuggestion field=\{f\} label=\{label\} status=\{status\} value=\{values\[f\.key\]\} pending=\{pending\} onApply=\{\(\) => applyFieldSuggestion\(f\)\} inputId=\{`(rf|of)-\$\{f\.key\}`\}( compact)? \/>/);
       expect(src).toContain("<FieldConflictAndComparison field={f} status={status} value={values[f.key]} revealed={isRevealed} pending={pending} onChoose={(v) => typeInto(f.key, v)} />");
       expect(src).toMatch(/const status = fieldState\.status\(f\);/);
       // neither form keeps its own copy of the starting-value / status / storage rules any more

@@ -18,11 +18,13 @@ const DIALOG = code("src/components/ui/dialog.tsx");
 const BAR = code("src/components/provider/registration-review/sticky-action-bar.tsx");
 const CSS = read("src/app/globals.css");
 const SERVICE_VIEW = code("src/components/services/service-detail-view.tsx");
+// The forms that render the shared sticky bar. The onboarding review (wizard step 3) moved its actions
+// into the page flow on 2026-11-25 — see "the onboarding review's actions are in the page flow" below.
 const FORMS = {
-  onboarding: code("src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/onboarding-review-form.tsx"),
   detail: code("src/app/[locale]/provider/vehicles/[id]/_components/registration-confirmation-form.tsx"),
   upload: code("src/app/[locale]/provider/vehicles/new/_components/registration-upload-form.tsx"),
 };
+const ONBOARDING = code("src/app/[locale]/provider/vehicles/new/[vehicleId]/_components/onboarding-review-form.tsx");
 /** The scoped rule block (selector → declarations). */
 const rule = (selector: string) => {
   const i = CSS.indexOf(selector);
@@ -85,7 +87,7 @@ describe("6/7/13. safe area, terminal space, focus above the bar", () => {
   });
 
   it("the forms still bring the first invalid private field into view (block: center) — the scroll owner is the document they scroll", () => {
-    for (const src of [FORMS.onboarding, FORMS.detail]) expect(src).toMatch(/scrollIntoView\(\{ block: "center", behavior: "smooth" \}\)/);
+    for (const src of [ONBOARDING, FORMS.detail]) expect(src).toMatch(/scrollIntoView\(\{ block: "center", behavior: "smooth" \}\)/);
   });
 });
 
@@ -111,5 +113,17 @@ describe("14. no horizontal overflow at 375px", () => {
     expect(r).toMatch(/overflow-x: clip;/);
     expect(r).toMatch(/min-width: 0;/);
     for (const src of Object.values(FORMS)) expect(src).toMatch(/<StickyActionBar className="-mx-4 [^"]*px-4 /);
+  });
+});
+
+describe("the onboarding review's actions are in the page flow (2026-11-25 step-3 clarity pass)", () => {
+  // Measured at 375 x 812 (synthetic Storybook story, design-lab/current/onboarding-review.stories.tsx):
+  // the pinned bar covered ~129 px of the screen while scrolling the form, more with the keyboard open.
+  it("renders no sticky / fixed bar and no StickyActionBar — the actions sit after the declaration, in normal flow", () => {
+    expect(ONBOARDING).not.toMatch(/<StickyActionBar|data-provider-action-bar/);
+    expect(ONBOARDING).not.toMatch(/className="[^"]*\bsticky\b|\bfixed\b/);
+    expect(ONBOARDING).toMatch(/<div data-review-actions="" className="flex flex-col gap-3 [^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
+    // the actions come after the declaration (the last thing the provider ticks)
+    expect(ONBOARDING.indexOf("data-review-actions")).toBeGreaterThan(ONBOARDING.indexOf('id="of-declaration"'));
   });
 });

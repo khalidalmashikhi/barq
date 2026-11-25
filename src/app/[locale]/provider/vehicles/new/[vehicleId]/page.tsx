@@ -204,89 +204,8 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
       {/* A repeated/replayed upload request was answered with this existing setup (idempotency). */}
       {resumed === "1" && <Alert variant="info">{t("vehicleOnboardResumedNotice")}</Alert>}
 
-      {/* Compact document summary: every stored side, in order, through the SAME owner-checked,
-          short-lived signed view route (never a public URL, never the storage key). */}
-      <section aria-label={t("vehicleRegDocumentLabel")} className={`${JOURNEY_CARD} flex flex-col gap-3`}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <FileText size={20} strokeWidth={1.75} aria-hidden className="text-secondary-700" />
-            {t("vehicleRegDocumentLabel")}
-          </p>
-          <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "warning" : "default"}>
-            <span className="sr-only">{t("vehicleRegExtractionStatusLabel")}: </span>
-            {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
-          </Badge>
-        </div>
-        <p className="text-sm text-foreground/75">{setSummary}</p>
-        {/* What the reading found — one short line, never the privacy notice again. */}
-        {!isManual && (
-          <p className="text-sm text-foreground/80" data-reading-summary="">
-            {td("vehicleCardDocFound", { found: foundCount, total: readableFields.length })}
-            {reviewCount > 0 && (
-              <>
-                {" · "}
-                <span className="font-semibold text-foreground">{td("vehicleCardDocReview", { count: reviewCount })}</span>
-              </>
-            )}
-          </p>
-        )}
-        <ul className="flex flex-wrap gap-3">
-          {review.pages.map((page) => {
-            const viewHref = viewHrefFor(page);
-            const isImage = page.mimeType.startsWith("image/");
-            return (
-              <li key={page.documentId} className="flex min-w-0 flex-1 basis-36 flex-col gap-1.5 rounded-2xl border border-border bg-background p-2">
-                {isImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- a private, signed, short-lived document view; it must not go through the public image optimizer
-                  <img src={viewHref} alt={t(PREVIEW_ALT_KEY[page.role])} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-24 w-full rounded-xl bg-card object-cover" />
-                ) : (
-                  <p className="flex min-h-24 items-center justify-center gap-2 rounded-xl bg-card px-2 py-3 text-center text-sm text-foreground/80">
-                    <FileText size={20} strokeWidth={1.6} aria-hidden className="shrink-0 text-secondary-700" />
-                    <span className="min-w-0 [overflow-wrap:anywhere]">
-                      {page.filename && <bdi>{page.filename}</bdi>}
-                      {page.filename && " · "}
-                      {td("vehicleOnboardFileSizeMb", { size: megabytes(page.sizeBytes) })}
-                    </span>
-                  </p>
-                )}
-                <div className="flex flex-wrap items-center justify-between gap-x-2 px-1">
-                  <span className="text-sm font-medium text-foreground/80">{setKind === "PDF" ? t("vehicleRegPagePdf") : t(PAGE_LABEL_KEY[page.role])}</span>
-                  <a href={viewHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-                    {t("vehicleDocViewButton")}
-                  </a>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        {/* Re-run the automatic read (owner-scoped, idempotent) when it is offered and not covered by the failure panel. */}
-        {reviewState.canAnalyze && !readingFailed && <AnalyzeRegistrationButton vehicleId={vehicleId} retry={false} />}
-      </section>
-
-      {readingFailed && (
-        // Concise failure: what happened, retry (when allowed) and the manual path right below.
-        <section role="status" className={`${JOURNEY_CARD} flex flex-col gap-3 border-warning/40`}>
-          <p className="flex items-start gap-2 text-base font-semibold text-foreground">
-            <AlertTriangle size={20} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-warning" />
-            <span>{td(reviewState.failureLabelKey ?? "vehicleOnboardManualNotice")}</span>
-          </p>
-          <AnalyzeRegistrationButton vehicleId={vehicleId} retry />
-          <p className="text-sm text-foreground/70">{t("vehicleJourneyReadingFailedManual")}</p>
-        </section>
-      )}
-
-      {declined && <OcrConsentStep vehicleId={vehicleId} mode="declined" inferenceGeo={consent!.inferenceGeo} setKind={setKind} />}
-      {/* Recovery of a stale or incomplete reading — state derived on the server (never on the client). */}
-      <RegistrationRecoveryBanner
-        vehicleId={vehicleId}
-        state={review.recovery.state}
-        completionAvailable={review.recovery.completionAvailable}
-        completionInProgress={review.recovery.completionInProgress}
-        completionApplied={review.recovery.completionApplied}
-        completionFailed={review.recovery.completionFailed}
-        consentState={review.ocrConsent?.state ?? null}
-        inferenceGeo={review.ocrConsent?.inferenceGeo ?? "us"}
-      />
+      {/* The form opens with its summary of what is still missing; the document card and the reading
+          panels below are its children, rendered right after that summary (2026-11-25). */}
       <OnboardingReviewForm
         vehicleId={vehicleId}
         fields={review.fields as FieldView[]}
@@ -296,7 +215,91 @@ export default async function OnboardingReviewPage({ params, searchParams }: Pro
         noticeKey={noticeKey}
         noticeVariant={isManual && reviewState.failureLabelKey ? "warning" : "info"}
         tabBinding={review.tabBinding}
-      />
+      >
+        {/* Compact document summary: every stored side, in order, through the SAME owner-checked,
+            short-lived signed view route (never a public URL, never the storage key). */}
+        <section aria-label={t("vehicleRegDocumentLabel")} className={`${JOURNEY_CARD} flex flex-col gap-3`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <FileText size={20} strokeWidth={1.75} aria-hidden className="text-secondary-700" />
+              {t("vehicleRegDocumentLabel")}
+            </p>
+            <Badge variant={reviewState.extraction === "EXTRACTED" ? "success" : reviewState.extraction === "FAILED" ? "warning" : "default"}>
+              <span className="sr-only">{t("vehicleRegExtractionStatusLabel")}: </span>
+              {td(EXTRACTION_STATE_LABEL[reviewState.extraction])}
+            </Badge>
+          </div>
+          <p className="text-sm text-foreground/75">{setSummary}</p>
+          {/* What the reading found — one short line, never the privacy notice again. */}
+          {!isManual && (
+            <p className="text-sm text-foreground/80" data-reading-summary="">
+              {td("vehicleCardDocFound", { found: foundCount, total: readableFields.length })}
+              {reviewCount > 0 && (
+                <>
+                  {" · "}
+                  <span className="font-semibold text-foreground">{td("vehicleCardDocReview", { count: reviewCount })}</span>
+                </>
+              )}
+            </p>
+          )}
+          <ul className="flex flex-wrap gap-3">
+            {review.pages.map((page) => {
+              const viewHref = viewHrefFor(page);
+              const isImage = page.mimeType.startsWith("image/");
+              return (
+                <li key={page.documentId} className="flex min-w-0 flex-1 basis-36 flex-col gap-1.5 rounded-2xl border border-border bg-background p-2">
+                  {isImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- a private, signed, short-lived document view; it must not go through the public image optimizer
+                    <img src={viewHref} alt={t(PREVIEW_ALT_KEY[page.role])} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-24 w-full rounded-xl bg-card object-cover" />
+                  ) : (
+                    <p className="flex min-h-24 items-center justify-center gap-2 rounded-xl bg-card px-2 py-3 text-center text-sm text-foreground/80">
+                      <FileText size={20} strokeWidth={1.6} aria-hidden className="shrink-0 text-secondary-700" />
+                      <span className="min-w-0 [overflow-wrap:anywhere]">
+                        {page.filename && <bdi>{page.filename}</bdi>}
+                        {page.filename && " · "}
+                        {td("vehicleOnboardFileSizeMb", { size: megabytes(page.sizeBytes) })}
+                      </span>
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 px-1">
+                    <span className="text-sm font-medium text-foreground/80">{setKind === "PDF" ? t("vehicleRegPagePdf") : t(PAGE_LABEL_KEY[page.role])}</span>
+                    <a href={viewHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                      {t("vehicleDocViewButton")}
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {/* Re-run the automatic read (owner-scoped, idempotent) when it is offered and not covered by the failure panel. */}
+          {reviewState.canAnalyze && !readingFailed && <AnalyzeRegistrationButton vehicleId={vehicleId} retry={false} />}
+        </section>
+
+        {readingFailed && (
+          // Concise failure: what happened, retry (when allowed) and the manual path right below.
+          <section role="status" className={`${JOURNEY_CARD} flex flex-col gap-3 border-warning/40`}>
+            <p className="flex items-start gap-2 text-base font-semibold text-foreground">
+              <AlertTriangle size={20} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-warning" />
+              <span>{td(reviewState.failureLabelKey ?? "vehicleOnboardManualNotice")}</span>
+            </p>
+            <AnalyzeRegistrationButton vehicleId={vehicleId} retry />
+            <p className="text-sm text-foreground/70">{t("vehicleJourneyReadingFailedManual")}</p>
+          </section>
+        )}
+
+        {declined && <OcrConsentStep vehicleId={vehicleId} mode="declined" inferenceGeo={consent!.inferenceGeo} setKind={setKind} />}
+        {/* Recovery of a stale or incomplete reading — state derived on the server (never on the client). */}
+        <RegistrationRecoveryBanner
+          vehicleId={vehicleId}
+          state={review.recovery.state}
+          completionAvailable={review.recovery.completionAvailable}
+          completionInProgress={review.recovery.completionInProgress}
+          completionApplied={review.recovery.completionApplied}
+          completionFailed={review.recovery.completionFailed}
+          consentState={review.ocrConsent?.state ?? null}
+          inferenceGeo={review.ocrConsent?.inferenceGeo ?? "us"}
+        />
+      </OnboardingReviewForm>
     </div>
   );
 }

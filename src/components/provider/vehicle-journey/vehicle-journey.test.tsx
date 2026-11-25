@@ -338,23 +338,25 @@ describe("6–8. review screen", () => {
 });
 
 describe("9. action bars", () => {
-  it("review: Create (primary, full row) → Save progress (secondary) → Cancel (tertiary), all ≥ 48 px, sticky as before", () => {
-    const bar = REVIEW.slice(REVIEW.indexOf("<StickyActionBar"), REVIEW.indexOf("</StickyActionBar>"));
-    expect(bar).toMatch(/<button type="button" onClick=\{finalize\} disabled=\{!canSubmit\} className=\{`\$\{JOURNEY_PRIMARY\} col-span-2 sm:min-w-56`\}>/);
+  it("review: Create (primary, full width on phones) → Save progress (secondary) → Cancel (quiet text button), ≥ 44–48 px; Create says why it is off", () => {
+    // 2026-11-25: the review's actions are in the page flow (no pinned bar) — see sticky-action-bar.test.ts
+    const bar = REVIEW.slice(REVIEW.indexOf("<div data-review-actions"), REVIEW.indexOf("<UnsavedLanguageDialog"));
+    expect(bar).toMatch(/<button type="button" onClick=\{finalize\} disabled=\{!canSubmit\} aria-describedby=\{canSubmit \? undefined : "of-readiness-status"\} className=\{`\$\{JOURNEY_PRIMARY\} w-full sm:w-auto sm:min-w-56`\}>/);
+    expect(REVIEW).toMatch(/<p id="of-readiness-status" /); // the final card's readiness line is Create's disabled reason
     expect(bar.indexOf("finalize")).toBeLessThan(bar.indexOf("saveDraft()"));
     expect(bar.indexOf("saveDraft()")).toBeLessThan(bar.indexOf("setConfirmingCancel(true)"));
-    expect(bar).toMatch(/onClick=\{\(\) => saveDraft\(\)\} disabled=\{pending\} className=\{JOURNEY_SECONDARY\}/);
-    expect(bar).toMatch(/onClick=\{\(\) => setConfirmingCancel\(true\)\} disabled=\{pending\} className=\{JOURNEY_TERTIARY\}/);
+    expect(bar).toMatch(/onClick=\{\(\) => saveDraft\(\)\} disabled=\{pending\} className=\{`\$\{JOURNEY_SECONDARY\} w-full sm:w-auto`\}/);
+    expect(bar).toMatch(/onClick=\{\(\) => setConfirmingCancel\(true\)\} disabled=\{pending\} className=\{`\$\{CANCEL_LINK\} self-center sm:ms-auto`\}/);
+    expect(REVIEW).toMatch(/const CANCEL_LINK =\s*"inline-flex min-h-11 /);
     expect(messages.ar!.vehicleOnboardCreateButton).toBe("إنشاء المركبة");
     expect(messages.ar!.vehicleOnboardSaveProgressButton).toBe("حفظ التقدّم");
     expect(messages.ar!.vehicleCancelLabel).toBe("إلغاء");
   });
 
-  it("both bars stay the shared StickyActionBar (the page-scoped sticky fix) and respect the safe area", () => {
-    for (const src of [UPLOAD, REVIEW]) {
-      expect(src).toMatch(/import \{ StickyActionBar \} from "@\/components\/provider\/registration-review\/sticky-action-bar";/);
-      expect(src).toMatch(/<StickyActionBar className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
-    }
+  it("the upload bar stays the shared StickyActionBar; the review's in-flow actions keep the safe area", () => {
+    expect(UPLOAD).toMatch(/import \{ StickyActionBar \} from "@\/components\/provider\/registration-review\/sticky-action-bar";/);
+    expect(UPLOAD).toMatch(/<StickyActionBar className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
+    expect(REVIEW).toMatch(/<div data-review-actions="" className="[^"]*pb-\[max\(env\(safe-area-inset-bottom\),0\.75rem\)\]/);
     // the bar is IN the flow at the end: no large bottom padding leaves an empty band under the actions
     expect(UI).toMatch(/export const JOURNEY_PAGE = "[^"]* pb-8 /);
     expect(UI).not.toMatch(/JOURNEY_PAGE = "[^"]*pb-(2[0-9]|3[0-9]|4[0-9])\b/);
@@ -407,7 +409,9 @@ describe("12–15. colour, direction, motion, announcements", () => {
     // the review's only amber PANEL is the final card's "still missing" list (items needing attention)
     expect((REVIEW.match(/bg-warning\/10/g) ?? []).length).toBe(1);
     expect(REVIEW).toMatch(/\{readiness\.missing\.length > 0 && \(\s*<div className="flex flex-col gap-2 rounded-2xl border border-warning\/40 bg-warning\/10 p-3">/);
-    expect((REVIEW.match(/text-warning\b/g) ?? []).length).toBe(1); // the warning mark of an incomplete review
+    // the warning mark of an incomplete review: the top summary's heading and the final card's line
+    expect((REVIEW.match(/text-warning\b/g) ?? []).length).toBe(2);
+    expect(REVIEW.slice(REVIEW.indexOf('id="of-summary-title"'), REVIEW.indexOf("</h2>", REVIEW.indexOf('id="of-summary-title"')))).toMatch(/text-warning\b/);
     // the private chip is amber only while something is genuinely missing
     expect(REVIEW).toMatch(/className=\{pendingPrivate > 0 \? JOURNEY_CHIP_REVIEW : JOURNEY_CHIP_SUGGESTION\}/);
   });
